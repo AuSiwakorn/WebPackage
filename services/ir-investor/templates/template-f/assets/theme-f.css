@@ -197,3 +197,9 @@
 
 /* ===== Policy box ===== */
 .policy{ border-left-color:var(--accent); background:#FBF8F0; }
+
+/* ---- Tabs (folder style) — Template F ---- */
+.tab-btn{ background:#E6DFF4; border-color:#D6CCEA; color:var(--ink-2); }
+.tab-btn:hover{ background:#EEE9F8; }
+.tab-btn.on{ background:#fff; border-bottom-color:#fff; color:var(--ci); font-family:var(--font-head); }
+.tabs-body{ border-color:#D6CCEA; }
