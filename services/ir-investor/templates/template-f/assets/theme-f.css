@@ -1,0 +1,199 @@
+/* =====================================================================
+   AOINVESTOR IR — TEMPLATE F "Premium Finance"
+   โทนม่วงอินดิโกเข้ม + ทอง — เหมาะสำหรับบริษัทการเงิน โฮลดิ้ง ประกัน
+   ฟอนต์หัวข้อ Noto Serif Thai · มุมโค้งปานกลาง 6 / 10 px
+   ===================================================================== */
+:root{
+  /* --- สี CI --- */
+  --ci:#3B1190;           /* Deep violet */
+  --ci-700:#270B68;       /* Darker violet */
+  --ci-400:#6633CC;       /* Medium violet */
+  --ci-50:#F3EEFF;        /* Pale lavender tint */
+  --accent:#C9A44A;       /* Warm gold */
+  --accent-ink:#180E00;   /* Very dark on gold */
+  --on-ci-muted:#C5B0F0;  /* Muted text on violet bg */
+  --link:#5522BB;         /* Violet link */
+
+  /* --- Neutral --- */
+  --ink:#17122A;          /* Near-black with violet tint */
+  --ink-2:#3D3660;
+  --ink-3:#6B638C;
+  --line:#DDD8EE;
+  --line-2:#EEEBf8;
+  --bg:#fff;
+  --bg-soft:#F8F6FF;
+
+  /* --- Shape --- */
+  --radius:6px;
+  --radius-lg:10px;
+  --radius-btn:6px;
+  --shadow:0 1px 3px rgba(30,10,80,.06),0 6px 20px rgba(30,10,80,.07);
+  --card-shadow:var(--shadow);
+
+  /* --- Font: Serif heading, sans body --- */
+  --font-body:"IBM Plex Sans Thai",system-ui,sans-serif;
+  --font-head:"Noto Serif Thai",Georgia,serif;
+  --head-weight:600;
+
+  /* --- Hero: violet gradient + subtle dot pattern --- */
+  --hero-bg:
+    radial-gradient(900px 500px at 80% -10%, rgba(102,51,204,.35), transparent 55%),
+    linear-gradient(135deg, #1A0840 0%, var(--ci-700) 45%, #3B1190 100%);
+  --hero-ink:#fff;
+  --hero-muted:var(--on-ci-muted);
+  --hero-pattern:1;
+
+  /* --- Chart colors --- */
+  --chart:var(--ci);
+  --chart-2:var(--accent);
+  --chart-3:var(--ci-400);
+  --chart-4:#D8D2EE;
+}
+
+/* ===== Pagebar: violet-tinted strip ===== */
+.pagebar{
+  --pb-bg:#F8F6FF;
+  --pb-ink:var(--ink);
+  --pb-muted:var(--ink-3);
+}
+
+/* ===== Hero: Serif headline + accent gold rule ===== */
+.hero .eyebrow{
+  color:var(--accent);
+  letter-spacing:.14em;
+  font-size:.8rem;
+  font-weight:500;
+  font-family:var(--font-body);
+}
+.hero h1{
+  font-size:clamp(1.8rem,3.2vw,2.8rem);
+  font-family:var(--font-head);
+  font-weight:700;
+  letter-spacing:-.01em;
+}
+.hero .lead{ color:var(--on-ci-muted); max-width:520px; }
+
+/* Stock card: elegant with gold border-top highlight */
+.hero .stock-card{
+  --sc-bg:#1A0840;
+  --sc-ink:#F3EEFF;
+  --sc-muted:#A898D4;
+  --sc-line:rgba(255,255,255,.12);
+  --sc-border:rgba(201,164,74,.55);
+  box-shadow:0 24px 56px rgba(0,0,0,.40), inset 0 1px 0 rgba(201,164,74,.40);
+}
+.hero .stock-card .price .chg{ color:#7EE8B8; }
+.hero .spark stop{ stop-color:var(--accent); }
+.hero .spark path[stroke]{ stroke:var(--accent); }
+.hero .stock-card .asof a{ color:var(--accent); }
+
+/* ===== IR nav: solid deep violet ===== */
+.ir-nav{ background:var(--ci-700); }
+.ir-nav a{ font-weight:500; letter-spacing:.01em; }
+.ir-nav a.on{ color:var(--accent); box-shadow:inset 0 -2px 0 var(--accent); }
+.ir-nav a:hover{ color:var(--accent); }
+
+/* ===== Section headings: serif ===== */
+.sec-head h2,
+.block h2{
+  font-family:var(--font-head);
+  font-size:1.45rem;
+  font-weight:600;
+}
+.sec-head h2::after{
+  content:"";
+  display:block;
+  width:32px;
+  height:2px;
+  background:var(--accent);
+  margin-top:8px;
+  border-radius:1px;
+}
+
+/* ===== KPI: violet value, serif number ===== */
+.kpi strong{
+  color:var(--ci);
+  font-family:var(--font-head);
+  font-weight:700;
+}
+
+/* ===== Quick links: violet icon bg ===== */
+.quick .ic{
+  background:var(--ci-50);
+  color:var(--ci);
+  border-radius:var(--radius);
+}
+.quick .card:hover .ic{
+  background:var(--ci);
+  color:#fff;
+}
+
+/* ===== Document card ===== */
+.doc .cover{
+  background:linear-gradient(135deg,var(--ci-700),var(--ci));
+  border-radius:var(--radius) 0 0 var(--radius);
+}
+.doc .cover.alt{ background:linear-gradient(135deg,#4A1F00,#A07020); }
+.doc .cover.alt2{ background:linear-gradient(135deg,#0D3366,#1E5CB3); }
+
+/* ===== News tags ===== */
+.news-list .tag{
+  background:var(--ci-50);
+  color:var(--ci);
+  border-radius:3px;
+}
+
+/* ===== Calendar event type ===== */
+.cal .type{
+  background:#F0EBD0;
+  color:#6B5010;
+  border-radius:3px;
+}
+
+/* ===== Subscribe block: dark violet ===== */
+.subscribe,
+.side-sub{
+  background:var(--ci-700);
+  border:1px solid rgba(201,164,74,.30);
+  border-radius:var(--radius-lg);
+}
+.subscribe h3{ color:#fff; }
+.subscribe p{ color:var(--on-ci-muted); }
+.subscribe .btn,
+.side-sub button{
+  background:var(--accent);
+  color:var(--accent-ink);
+  border-radius:var(--radius-btn);
+}
+.subscribe input{
+  border-color:rgba(255,255,255,.20);
+  background:rgba(255,255,255,.08);
+  color:#fff;
+  border-radius:var(--radius-btn);
+}
+.subscribe input::placeholder{ color:rgba(255,255,255,.45); }
+
+/* ===== Customer logo mark: violet gradient ===== */
+.cust-logo .mark{
+  background:linear-gradient(135deg,var(--ci-700),var(--ci-400));
+}
+.cust-logo{ color:var(--ci); }
+
+/* ===== Footer: very dark violet ===== */
+.cust-footer{ background:#120840; }
+
+/* ===== Buttons on ci bg: gold ===== */
+.btn-ci{ background:var(--accent); color:var(--accent-ink); }
+.btn-ci:hover{ background:#D4B560; }
+.btn-ghost{ border-color:rgba(201,164,74,.50); color:#fff; }
+.btn-ghost:hover{ background:rgba(201,164,74,.12); }
+
+/* ===== Subnav active: gold accent ===== */
+.subnav li a.on{
+  border-left-color:var(--accent);
+  background:var(--ci-50);
+  color:var(--ci);
+}
+
+/* ===== Policy box ===== */
+.policy{ border-left-color:var(--accent); background:#FBF8F0; }
