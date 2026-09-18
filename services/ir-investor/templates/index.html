@@ -61,9 +61,26 @@
   .brand .logo{font-size:1.4rem}
   .brand-by{padding-left:14px;border-left:1px solid var(--line);font-size:.72rem;line-height:1.35;color:var(--ink-3);letter-spacing:.04em;white-space:nowrap}
   .brand-by strong{display:block;color:var(--navy-900);font-weight:600;letter-spacing:.08em}
-  .crumb{display:flex;align-items:center;gap:8px;font-size:.88rem;color:var(--ink-3)}
-  .crumb a{color:var(--ink-2)}
-  .crumb .ico{width:14px;height:14px}
+  @media (max-width:1320px){.brand-by{display:none}}
+  .main-nav{display:flex;align-items:center;gap:4px}
+  .main-nav a{padding:8px 12px;border-radius:8px;color:var(--ink-2);font-size:.93rem;font-weight:500;text-decoration:none;white-space:nowrap}
+  .main-nav a:hover,.main-nav a.active{color:var(--navy-900);background:var(--bg-soft)}
+  .main-nav .nav-home{display:inline-flex;align-items:center;gap:6px}
+  .header-cta{display:flex;align-items:center;gap:10px}
+  .header-cta .btn{padding:10px 20px;font-size:.9rem}
+  .nav-toggle{display:none;width:44px;height:44px;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--navy-900);cursor:pointer;align-items:center;justify-content:center}
+  .nav-toggle .ico{width:22px;height:22px}
+  @media (max-width:1180px){
+    .nav-toggle{display:inline-flex}
+    .main-nav{
+      position:absolute;top:var(--header-h);left:0;right:0;flex-direction:column;align-items:stretch;gap:0;
+      background:#fff;border-bottom:1px solid var(--line);padding:8px 20px 16px;display:none;box-shadow:0 12px 24px rgba(10,27,61,.08)
+    }
+    .main-nav.open{display:flex}
+    .main-nav a{padding:12px 8px;font-size:.98rem;border-radius:0;border-bottom:1px solid var(--line-2)}
+    .brand-by{display:none}
+    .header-cta .btn{display:none}
+  }
 
   /* hero */
   .hero{background:radial-gradient(800px 420px at 85% 0%,rgba(31,86,195,.32),transparent 60%),linear-gradient(165deg,var(--navy-975),var(--navy-950) 45%,var(--navy-900));color:#fff;padding:72px 0 64px;position:relative;overflow:hidden}
@@ -135,8 +152,7 @@
   }
   @media (max-width:760px){
     .container{padding:0 20px}
-    .brand-by,.crumb span.sep,.crumb .home{display:none}
-    .crumb span[aria-current]{white-space:nowrap}
+    .brand-by{display:none}
     .hero{padding:56px 0 48px}
     .cards{grid-template-columns:1fr;gap:22px}
     .gallery{padding:52px 0 32px}
@@ -155,6 +171,7 @@
   <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></symbol>
   <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol>
   <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
 </defs></svg>
 
 <header class="site-header">
@@ -163,11 +180,21 @@
       <span class="logo"><span class="logo-ao">AO</span><span class="logo-inv">INVESTOR</span></span>
       <span class="brand-by">IR Website Service<strong>BY AOSOFT</strong></span>
     </a>
-    <nav class="crumb" aria-label="breadcrumb">
-      <a class="home" href="https://www.aosoft.co.th">หน้าแรก</a><span class="sep"><svg class="ico"><use href="#i-chevron"/></svg></span>
-      <a href="../">AOINVESTOR</a><svg class="ico"><use href="#i-chevron"/></svg>
-      <span aria-current="page">IR Template</span>
+    <nav class="main-nav" id="main-nav" aria-label="เมนูหลัก">
+      <a href="https://www.aosoft.co.th" class="nav-home">หน้าแรก</a>
+      <a href="../#features">ข้อมูลที่ได้รับ</a>
+      <a href="./" class="active" aria-current="page">IR Template</a>
+      <a href="../#pricing">แพ็กเกจ</a>
+      <a href="../#compare">เปรียบเทียบ</a>
+      <a href="../#ma">บริการ MA</a>
+      <a href="../#faq">คำถามที่พบบ่อย</a>
     </nav>
+    <div class="header-cta">
+      <a class="btn btn-primary" href="../#contact">ขอใบเสนอราคา</a>
+      <button class="nav-toggle" type="button" aria-controls="main-nav" aria-expanded="false" aria-label="เปิดเมนู">
+        <svg class="ico"><use href="#i-menu"/></svg>
+      </button>
+    </div>
   </div>
 </header>
 
@@ -356,6 +383,20 @@
     <div>© <span id="yr">2026</span> AOSOFT CO., LTD. · <a href="https://www.aosoft.co.th" target="_blank" rel="noopener">www.aosoft.co.th</a> · <a href="../">กลับหน้า AOINVESTOR</a></div>
   </div>
 </footer>
-<script>document.getElementById('yr').textContent=new Date().getFullYear();</script>
+<script>
+  document.getElementById('yr').textContent=new Date().getFullYear();
+  // mobile nav
+  const toggle = document.querySelector('.nav-toggle');
+  const nav = document.getElementById('main-nav');
+  if (toggle && nav) {
+    toggle.addEventListener('click', () => {
+      const open = nav.classList.toggle('open');
+      toggle.setAttribute('aria-expanded', String(open));
+    });
+    nav.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
+      nav.classList.remove('open'); toggle.setAttribute('aria-expanded', 'false');
+    }));
+  }
+</script>
 </body>
 </html>
