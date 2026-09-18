@@ -329,18 +329,18 @@ table.t{width:100%;border-collapse:collapse;font-size:.9rem}
 .subnav{display:flex;overflow-x:auto;padding:4px}.subnav li a{white-space:nowrap;border-left:0;border-bottom:3px solid transparent}.subnav li a.on{border-bottom-color:var(--ci)}
 }
 
-/* ---- Tabs (band style: nav on a full-width band, content is the section itself) ---- */
-.tabs-section{padding:0 0 56px;background:#fff}
-.tabs-band{background:var(--tabs-band,var(--ci-700));padding-top:20px}
-.tabs-nav{display:flex;align-items:flex-end;gap:4px;overflow-x:auto;scrollbar-width:none}
+/* ---- Tabs (soft style: nav on white, active tab flows into the tinted section below) ---- */
+.tabs-section{padding:0 0 56px;margin-top:-32px;background:var(--tabs-bg,var(--ci-50))}
+.tabs-head{background:#fff}
+.tabs-nav{display:flex;align-items:flex-end;gap:6px;overflow-x:auto;scrollbar-width:none}
 .tabs-nav::-webkit-scrollbar{display:none}
-.tab-btn{flex:none;display:inline-flex;align-items:center;gap:8px;padding:12px 22px;border:0;border-radius:var(--radius) var(--radius) 0 0;background:rgba(255,255,255,.10);color:rgba(255,255,255,.80);cursor:pointer;font:inherit;font-size:.9rem;font-weight:500;white-space:nowrap;transition:background .15s,color .15s}
-.tab-btn:hover{background:rgba(255,255,255,.18);color:#fff}
-.tab-btn.on{background:#fff;color:var(--ci);font-weight:600}
+.tab-btn{flex:none;display:inline-flex;align-items:center;gap:8px;padding:12px 22px;border:1px solid var(--line);border-bottom:0;border-radius:var(--radius) var(--radius) 0 0;background:#fff;color:var(--ink-2);cursor:pointer;font:inherit;font-size:.9rem;font-weight:500;white-space:nowrap;transition:background .15s,color .15s}
+.tab-btn:hover{background:var(--bg-soft);color:var(--ink)}
+.tab-btn.on{background:var(--tabs-bg,var(--ci-50));color:var(--ci);font-weight:600}
 .tab-btn .badge{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--accent);color:var(--accent-ink);font-size:.72rem;font-weight:700;line-height:1}
-.tabs-body{padding-top:36px}
+.tabs-body{padding-top:44px}
 .tab-panel{display:none}
 .tab-panel.active{display:block}
 .tab-two{display:grid;grid-template-columns:1fr 1fr;gap:20px}
 @media(max-width:900px){.tab-two{grid-template-columns:1fr}}
-@media(max-width:600px){.tabs-section{padding-bottom:40px}.tabs-body{padding-top:24px}.tab-btn{padding:10px 14px;font-size:.85rem}}
+@media(max-width:600px){.tabs-section{padding-bottom:40px;margin-top:-20px}.tabs-body{padding-top:28px}.tab-btn{padding:10px 14px;font-size:.85rem}}
