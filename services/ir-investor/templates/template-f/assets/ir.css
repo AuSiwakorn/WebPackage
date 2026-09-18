@@ -377,3 +377,8 @@ table.t{width:100%;border-collapse:collapse;font-size:.9rem}
 .legend span{flex:1;color:var(--ink-2)}
 .legend b{font-weight:600;color:var(--ink)}
 @media(max-width:600px){.holders{grid-template-columns:1fr;justify-items:center}.legend{width:100%}}
+
+/* ===== Demo corner ribbon ===== */
+.demo-ribbon{position:fixed;top:0;right:0;width:190px;height:190px;overflow:hidden;z-index:120;pointer-events:none}
+.demo-ribbon span{position:absolute;top:46px;right:-58px;width:270px;transform:rotate(45deg);background:var(--ci);color:#fff;text-align:center;font-size:.84rem;font-weight:600;letter-spacing:.04em;line-height:1.25;padding:8px 0;box-shadow:0 4px 12px rgba(0,0,0,.25)}
+.demo-ribbon small{display:block;font-size:.62rem;font-weight:500;opacity:.85;letter-spacing:.12em}

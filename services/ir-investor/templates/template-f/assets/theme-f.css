@@ -206,3 +206,8 @@
 
 /* ---- Data-viz palette — Template F (validated: CVD-safe, >=3:1 on #fff and ci-50) ---- */
 :root{ --dv-1:#5A2BC9; --dv-2:#A07D22; --dv-3:#1E8FA8; --dv-4:#8E6CDC; }
+
+/* ---- Top utility bar — black, so it doesn't blend with the violet IR nav ---- */
+.cust-top{ background:#111; color:rgba(255,255,255,.72); }
+.cust-top a{ color:#fff; }
+.cust-top a:hover{ color:var(--accent); text-decoration:none; }
