@@ -203,3 +203,6 @@
 .tab-btn{ border-color:#D6CCEA; }
 .tab-btn.on{ font-family:var(--font-head); }
 .tab-btn .badge{ background:var(--accent); color:var(--accent-ink); }
+
+/* ---- Data-viz palette — Template F (validated: CVD-safe, >=3:1 on #fff and ci-50) ---- */
+:root{ --dv-1:#5A2BC9; --dv-2:#A07D22; --dv-3:#1E8FA8; --dv-4:#8E6CDC; }
