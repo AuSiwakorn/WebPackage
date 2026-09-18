@@ -97,93 +97,101 @@
   </div>
 </section>
 
-<!-- [5][6] NEWS + CALENDAR -->
-<section class="section section--soft" id="news">
-  <div class="container two">
-    <div>
-      <div class="sec-head"><div><h2>ข่าวแจ้งตลาดหลักทรัพย์</h2></div><a class="more" href="#">ดูทั้งหมด <i class="fa-solid fa-arrow-right"></i></a></div>
-      <ul class="news-list card">
-        <li><div class="date"><b>14</b><span>ส.ค. 69</span></div><div><span class="tag">งบการเงิน</span><h3>งบการเงินไตรมาส 2/2569 (สอบทานแล้ว) และ MD&amp;A กลุ่มบริษัท ไทย แคปปิตอล โฮลดิ้ง</h3></div><i class="fa-solid fa-file-pdf dl"></i></li>
-        <li><div class="date"><b>10</b><span>ส.ค. 69</span></div><div><span class="tag">มติคณะกรรมการ</span><h3>แจ้งมติที่ประชุมคณะกรรมการ เรื่องการจ่ายเงินปันผลระหว่างกาล 0.40 บาท/หุ้น</h3></div><i class="fa-solid fa-file-pdf dl"></i></li>
-        <li><div class="date"><b>15</b><span>ก.ค. 69</span></div><div><span class="tag">ข่าวแจ้ง</span><h3>แจ้งการซื้อกิจการบริษัทประกันวินาศภัย ไทยซีเคียว จำกัด (มหาชน) ร้อยละ 51</h3></div><i class="fa-solid fa-file-pdf dl"></i></li>
-        <li><div class="date"><b>15</b><span>พ.ค. 69</span></div><div><span class="tag">งบการเงิน</span><h3>งบการเงินไตรมาส 1/2569 (สอบทานแล้ว) และคำอธิบายของฝ่ายจัดการ</h3></div><i class="fa-solid fa-file-pdf dl"></i></li>
-      </ul>
-    </div>
-    <div>
-      <div class="sec-head"><div><h2>ปฏิทินนักลงทุน</h2></div><a class="more" href="#">ดูทั้งหมด <i class="fa-solid fa-arrow-right"></i></a></div>
-      <ul class="cal card">
-        <li><div class="date"><b>10</b><span>ก.ย. 69</span></div><div><b>วันขึ้นเครื่องหมาย XD <span class="type">ปันผล</span></b><small>เงินปันผลระหว่างกาล 0.40 บาท/หุ้น · จ่าย 24 ก.ย. 2569</small></div></li>
-        <li><div class="date"><b>25</b><span>ก.ย. 69</span></div><div><b>Opportunity Day Q2/2569 <span class="type">กิจกรรม</span></b><small>14:00–15:30 น. · ถ่ายทอดสดผ่าน SET</small></div></li>
-        <li><div class="date"><b>03</b><span>พ.ย. 69</span></div><div><b>Silent Period <span class="type">แจ้งเตือน</span></b><small>ก่อนประกาศงบไตรมาส 3/2569</small></div></li>
-      </ul>
-    </div>
-  </div>
-</section>
-
-<!-- [7] DOCUMENTS -->
-<section class="section" id="documents">
+<!-- [5–9] TABS: ข่าว / ปฏิทิน / เอกสาร / เงินปันผล / หลักทรัพย์ -->
+<section class="section section--soft" id="ir-tabs">
   <div class="container">
-    <div class="sec-head"><div><h2>เอกสารเผยแพร่ล่าสุด</h2></div><a class="more" href="#">ดาวน์โหลดเอกสารทั้งหมด <i class="fa-solid fa-arrow-right"></i></a></div>
-    <div class="docs">
-      <article class="card doc"><div class="cover"><b>2568</b>56-1 One Report</div><div><small>รายงานประจำปี</small><h3>แบบ 56-1 One Report ประจำปี 2568</h3><p>PDF · 22.8 MB · เผยแพร่ 28 มี.ค. 2569</p><div class="acts"><a class="btn btn-outline btn-sm" href="#"><i class="fa-solid fa-book-open"></i> อ่านออนไลน์</a><a class="btn btn-outline btn-sm" href="#"><i class="fa-solid fa-download"></i> ดาวน์โหลด</a></div></div></article>
-      <article class="card doc"><div class="cover alt"><b>Q2/69</b>งบการเงิน</div><div><small>งบการเงิน + MD&amp;A</small><h3>งบการเงินไตรมาส 2/2569</h3><p>PDF ไทย/อังกฤษ · เผยแพร่ 14 ส.ค. 2569</p><div class="acts"><a class="btn btn-outline btn-sm" href="#"><i class="fa-solid fa-download"></i> งบการเงิน</a><a class="btn btn-outline btn-sm" href="#"><i class="fa-solid fa-download"></i> MD&amp;A</a></div></div></article>
-      <article class="card doc"><div class="cover alt2"><b>Q2/69</b>Opp Day</div><div><small>เอกสารนำเสนอ &amp; Webcast</small><h3>Opportunity Day ไตรมาส 2/2569</h3><p>PDF 8.4 MB · วิดีโอ 52 นาที</p><div class="acts"><a class="btn btn-outline btn-sm" href="#"><i class="fa-solid fa-download"></i> สไลด์</a><a class="btn btn-outline btn-sm" href="#"><i class="fa-solid fa-play"></i> ชมวิดีโอ</a></div></div></article>
+    <div class="tabs">
+      <nav class="tabs-nav" role="tablist" aria-label="ข้อมูลนักลงทุน">
+        <button class="tab-btn on" role="tab" data-tab="t-news" aria-selected="true"><i class="fa-solid fa-newspaper"></i> ข่าวแจ้งตลาดหลักทรัพย์</button>
+        <button class="tab-btn" role="tab" data-tab="t-cal" aria-selected="false"><i class="fa-regular fa-calendar-days"></i> ปฏิทินนักลงทุน</button>
+        <button class="tab-btn" role="tab" data-tab="t-docs" aria-selected="false"><i class="fa-solid fa-folder-open"></i> เอกสารเผยแพร่ล่าสุด</button>
+        <button class="tab-btn" role="tab" data-tab="t-div" aria-selected="false"><i class="fa-solid fa-coins"></i> ประวัติการจ่ายเงินปันผล</button>
+        <button class="tab-btn" role="tab" data-tab="t-sec" aria-selected="false"><i class="fa-solid fa-chart-pie"></i> ข้อมูลหลักทรัพย์</button>
+      </nav>
+      <div class="tabs-body">
+        <!-- Tab: ข่าวแจ้งตลาดหลักทรัพย์ -->
+        <div class="tab-panel active" id="t-news" role="tabpanel">
+          <div class="sec-head"><div><h2>ข่าวแจ้งตลาดหลักทรัพย์</h2></div><a class="more" href="#">ดูทั้งหมด <i class="fa-solid fa-arrow-right"></i></a></div>
+          <ul class="news-list card">
+            <li><div class="date"><b>14</b><span>ส.ค. 69</span></div><div><span class="tag">งบการเงิน</span><h3>งบการเงินไตรมาส 2/2569 (สอบทานแล้ว) และ MD&amp;A กลุ่มบริษัท ไทย แคปปิตอล โฮลดิ้ง</h3></div><i class="fa-solid fa-file-pdf dl"></i></li>
+            <li><div class="date"><b>10</b><span>ส.ค. 69</span></div><div><span class="tag">มติคณะกรรมการ</span><h3>แจ้งมติที่ประชุมคณะกรรมการ เรื่องการจ่ายเงินปันผลระหว่างกาล 0.40 บาท/หุ้น</h3></div><i class="fa-solid fa-file-pdf dl"></i></li>
+            <li><div class="date"><b>15</b><span>ก.ค. 69</span></div><div><span class="tag">ข่าวแจ้ง</span><h3>แจ้งการซื้อกิจการบริษัทประกันวินาศภัย ไทยซีเคียว จำกัด (มหาชน) ร้อยละ 51</h3></div><i class="fa-solid fa-file-pdf dl"></i></li>
+            <li><div class="date"><b>15</b><span>พ.ค. 69</span></div><div><span class="tag">งบการเงิน</span><h3>งบการเงินไตรมาส 1/2569 (สอบทานแล้ว) และคำอธิบายของฝ่ายจัดการ</h3></div><i class="fa-solid fa-file-pdf dl"></i></li>
+          </ul>
+        </div>
+        <!-- Tab: ปฏิทินนักลงทุน -->
+        <div class="tab-panel" id="t-cal" role="tabpanel">
+          <div class="sec-head"><div><h2>ปฏิทินนักลงทุน</h2></div><a class="more" href="#">ดูทั้งหมด <i class="fa-solid fa-arrow-right"></i></a></div>
+          <ul class="cal card">
+            <li><div class="date"><b>10</b><span>ก.ย. 69</span></div><div><b>วันขึ้นเครื่องหมาย XD <span class="type">ปันผล</span></b><small>เงินปันผลระหว่างกาล 0.40 บาท/หุ้น · จ่าย 24 ก.ย. 2569</small></div></li>
+            <li><div class="date"><b>25</b><span>ก.ย. 69</span></div><div><b>Opportunity Day Q2/2569 <span class="type">กิจกรรม</span></b><small>14:00–15:30 น. · ถ่ายทอดสดผ่าน SET</small></div></li>
+            <li><div class="date"><b>03</b><span>พ.ย. 69</span></div><div><b>Silent Period <span class="type">แจ้งเตือน</span></b><small>ก่อนประกาศงบไตรมาส 3/2569</small></div></li>
+          </ul>
+        </div>
+        <!-- Tab: เอกสารเผยแพร่ล่าสุด -->
+        <div class="tab-panel" id="t-docs" role="tabpanel">
+          <div class="sec-head"><div><h2>เอกสารเผยแพร่ล่าสุด</h2></div><a class="more" href="#">ดาวน์โหลดเอกสารทั้งหมด <i class="fa-solid fa-arrow-right"></i></a></div>
+          <div class="docs">
+            <article class="card doc"><div class="cover"><b>2568</b>56-1 One Report</div><div><small>รายงานประจำปี</small><h3>แบบ 56-1 One Report ประจำปี 2568</h3><p>PDF · 22.8 MB · เผยแพร่ 28 มี.ค. 2569</p><div class="acts"><a class="btn btn-outline btn-sm" href="#"><i class="fa-solid fa-book-open"></i> อ่านออนไลน์</a><a class="btn btn-outline btn-sm" href="#"><i class="fa-solid fa-download"></i> ดาวน์โหลด</a></div></div></article>
+            <article class="card doc"><div class="cover alt"><b>Q2/69</b>งบการเงิน</div><div><small>งบการเงิน + MD&amp;A</small><h3>งบการเงินไตรมาส 2/2569</h3><p>PDF ไทย/อังกฤษ · เผยแพร่ 14 ส.ค. 2569</p><div class="acts"><a class="btn btn-outline btn-sm" href="#"><i class="fa-solid fa-download"></i> งบการเงิน</a><a class="btn btn-outline btn-sm" href="#"><i class="fa-solid fa-download"></i> MD&amp;A</a></div></div></article>
+            <article class="card doc"><div class="cover alt2"><b>Q2/69</b>Opp Day</div><div><small>เอกสารนำเสนอ &amp; Webcast</small><h3>Opportunity Day ไตรมาส 2/2569</h3><p>PDF 8.4 MB · วิดีโอ 52 นาที</p><div class="acts"><a class="btn btn-outline btn-sm" href="#"><i class="fa-solid fa-download"></i> สไลด์</a><a class="btn btn-outline btn-sm" href="#"><i class="fa-solid fa-play"></i> ชมวิดีโอ</a></div></div></article>
+          </div>
+        </div>
+        <!-- Tab: ประวัติการจ่ายเงินปันผล + ผู้ถือหุ้น -->
+        <div class="tab-panel" id="t-div" role="tabpanel">
+          <div class="tab-two">
+            <div class="card">
+              <div class="card-h"><h3>ประวัติการจ่ายเงินปันผล</h3><a href="#">นโยบายและรายละเอียด</a></div>
+              <table class="t">
+                <thead><tr><th>งวดผลประกอบการ</th><th>วัน XD</th><th class="num">บาท/หุ้น</th></tr></thead>
+                <tbody>
+                  <tr><td>1H2569 (ระหว่างกาล)</td><td>10 ก.ย. 2569</td><td class="num">0.40</td></tr>
+                  <tr><td>ปี 2568 (งวดสุดท้าย)</td><td>12 มี.ค. 2569</td><td class="num">0.45</td></tr>
+                  <tr><td>1H2568 (ระหว่างกาล)</td><td>11 ก.ย. 2568</td><td class="num">0.35</td></tr>
+                  <tr><td>ปี 2567 (งวดสุดท้าย)</td><td>14 มี.ค. 2568</td><td class="num">0.38</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="card">
+              <div class="card-h"><h3>ผู้ถือหุ้นรายใหญ่ 5 อันดับ</h3><a href="#">โครงสร้างผู้ถือหุ้น</a></div>
+              <table class="t">
+                <tbody>
+                  <tr><td>1. ตระกูล ทุนสมบัติ</td><td class="num">28.40%</td></tr>
+                  <tr><td>2. กองทุนรวม ไทยแลนด์ ฟันด์</td><td class="num">9.80%</td></tr>
+                  <tr><td>3. บริษัท ไทยเอ็นวีดีอาร์ จำกัด</td><td class="num">7.25%</td></tr>
+                  <tr><td>4. กบข. (กองทุนบำเหน็จบำนาญข้าราชการ)</td><td class="num">5.60%</td></tr>
+                  <tr><td>5. สำนักงานประกันสังคม</td><td class="num">3.95%</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <!-- Tab: ข้อมูลหลักทรัพย์ -->
+        <div class="tab-panel" id="t-sec" role="tabpanel">
+          <div class="card" style="max-width:680px">
+            <div class="card-h"><h3>ข้อมูลหลักทรัพย์</h3><a href="#">รายละเอียด</a></div>
+            <ul class="kv">
+              <li><span>ชื่อย่อหลักทรัพย์</span><b>TCH</b></li>
+              <li><span>ตลาด</span><b>SET</b></li>
+              <li><span>กลุ่มอุตสาหกรรม / หมวดธุรกิจ</span><b>การเงิน / โฮลดิ้งและบริษัทจัดการ</b></li>
+              <li><span>ทุนจดทะเบียน</span><b>3,000,000,000 บาท</b></li>
+              <li><span>ทุนชำระแล้ว</span><b>3,000,000,000 บาท</b></li>
+              <li><span>จำนวนหุ้นที่ชำระแล้ว</span><b>3,000,000,000 หุ้น</b></li>
+              <li><span>ราคาพาร์</span><b>1.00 บาท</b></li>
+              <li><span>วันที่เริ่มซื้อขาย</span><b>22 ก.พ. 2545</b></li>
+              <li><span>รอบบัญชี</span><b>1 ม.ค. – 31 ธ.ค.</b></li>
+              <li><span>อันดับเครดิต (TRIS)</span><b>AA− (Stable)</b></li>
+            </ul>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
 
-<!-- [8][9] SHAREHOLDER + SECURITY INFO -->
-<section class="section section--soft" id="shareholder">
-  <div class="container two-eq">
-    <div class="card">
-      <div class="card-h"><h3>ประวัติการจ่ายเงินปันผล</h3><a href="#">นโยบายและรายละเอียด</a></div>
-      <table class="t">
-        <thead><tr><th>งวดผลประกอบการ</th><th>วัน XD</th><th class="num">บาท/หุ้น</th></tr></thead>
-        <tbody>
-          <tr><td>1H2569 (ระหว่างกาล)</td><td>10 ก.ย. 2569</td><td class="num">0.40</td></tr>
-          <tr><td>ปี 2568 (งวดสุดท้าย)</td><td>12 มี.ค. 2569</td><td class="num">0.45</td></tr>
-          <tr><td>1H2568 (ระหว่างกาล)</td><td>11 ก.ย. 2568</td><td class="num">0.35</td></tr>
-          <tr><td>ปี 2567 (งวดสุดท้าย)</td><td>14 มี.ค. 2568</td><td class="num">0.38</td></tr>
-        </tbody>
-      </table>
-      <div class="card-h" style="border-top:1px solid var(--line-2);border-bottom:0"><h3>ผู้ถือหุ้นรายใหญ่ 5 อันดับ</h3><a href="#">โครงสร้างผู้ถือหุ้น</a></div>
-      <table class="t">
-        <tbody>
-          <tr><td>1. ตระกูล ทุนสมบัติ</td><td class="num">28.40%</td></tr>
-          <tr><td>2. กองทุนรวม ไทยแลนด์ ฟันด์</td><td class="num">9.80%</td></tr>
-          <tr><td>3. บริษัท ไทยเอ็นวีดีอาร์ จำกัด</td><td class="num">7.25%</td></tr>
-          <tr><td>4. กบข. (กองทุนบำเหน็จบำนาญข้าราชการ)</td><td class="num">5.60%</td></tr>
-          <tr><td>5. สำนักงานประกันสังคม</td><td class="num">3.95%</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <div class="card">
-      <div class="card-h"><h3>ข้อมูลหลักทรัพย์</h3><a href="#">รายละเอียด</a></div>
-      <ul class="kv">
-        <li><span>ชื่อย่อหลักทรัพย์</span><b>TCH</b></li>
-        <li><span>ตลาด</span><b>SET</b></li>
-        <li><span>กลุ่มอุตสาหกรรม / หมวดธุรกิจ</span><b>การเงิน / โฮลดิ้งและบริษัทจัดการ</b></li>
-        <li><span>ทุนจดทะเบียน</span><b>3,000,000,000 บาท</b></li>
-        <li><span>ทุนชำระแล้ว</span><b>3,000,000,000 บาท</b></li>
-        <li><span>จำนวนหุ้นที่ชำระแล้ว</span><b>3,000,000,000 หุ้น</b></li>
-        <li><span>ราคาพาร์</span><b>1.00 บาท</b></li>
-        <li><span>วันที่เริ่มซื้อขาย</span><b>22 ก.พ. 2545</b></li>
-        <li><span>รอบบัญชี</span><b>1 ม.ค. – 31 ธ.ค.</b></li>
-        <li><span>อันดับเครดิต (TRIS)</span><b>AA− (Stable)</b></li>
-      </ul>
-    </div>
-  </div>
-</section>
-
-<!-- [10][11] SUBSCRIBE + CONTACT -->
+<!-- [11] CONTACT -->
 <section class="section" id="contact">
-  <div class="container sub-contact">
-    <div class="subscribe">
-      <h3><i class="fa-regular fa-envelope"></i> รับข่าวสารนักลงทุนทางอีเมล</h3>
-      <p>รับแจ้งเตือนข่าวแจ้ง ตลท. งบการเงิน และกิจกรรมนักลงทุนสัมพันธ์ทันทีที่เผยแพร่</p>
-      <form onsubmit="return false"><input type="email" placeholder="อีเมลของท่าน" aria-label="อีเมล"><button class="btn" type="submit">สมัครรับข่าว</button></form>
-      <label><input type="checkbox"> ข้าพเจ้ายินยอมให้บริษัทเก็บและใช้อีเมลเพื่อส่งข่าวสารนักลงทุนสัมพันธ์ ตาม <a href="#" style="color:var(--accent)">นโยบายความเป็นส่วนตัว</a></label>
-    </div>
+  <div class="container">
     <div class="card contact">
       <h3>ติดต่อนักลงทุนสัมพันธ์</h3>
       <div class="rows">
@@ -219,6 +227,21 @@
   var line=pts.map(function(p,i){return (i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)}).join(' ');
   document.getElementById('sparkL').setAttribute('d',line);
   document.getElementById('sparkA').setAttribute('d',line+' L'+w+' '+h+' L0 '+h+' Z');
+})();
+</script>
+<script>
+(function(){
+  document.querySelectorAll('.tabs').forEach(function(tabs){
+    tabs.querySelectorAll('.tab-btn').forEach(function(btn){
+      btn.addEventListener('click',function(){
+        var t=this.dataset.tab;
+        tabs.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('on');b.setAttribute('aria-selected','false');});
+        tabs.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active');});
+        this.classList.add('on');this.setAttribute('aria-selected','true');
+        var el=document.getElementById(t);if(el)el.classList.add('active');
+      });
+    });
+  });
 })();
 </script>
 </body>

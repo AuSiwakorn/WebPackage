@@ -328,3 +328,16 @@ table.t{width:100%;border-collapse:collapse;font-size:.9rem}
 .meet{grid-template-columns:1fr}.meet .acts{justify-content:flex-start}
 .subnav{display:flex;overflow-x:auto;padding:4px}.subnav li a{white-space:nowrap;border-left:0;border-bottom:3px solid transparent}.subnav li a.on{border-bottom-color:var(--ci)}
 }
+
+/* ---- Tabs (shared) ---- */
+.tabs-nav{display:flex;gap:0;overflow-x:auto;border-bottom:2px solid var(--line);margin-bottom:28px;scrollbar-width:none}
+.tabs-nav::-webkit-scrollbar{display:none}
+.tab-btn{flex:none;padding:12px 20px;border:0;border-bottom:2px solid transparent;margin-bottom:-2px;background:0;cursor:pointer;font:inherit;font-size:.88rem;color:var(--ink-3);white-space:nowrap;transition:color .18s,border-color .18s;display:flex;align-items:center;gap:6px}
+.tab-btn:hover{color:var(--ink)}
+.tab-btn.on{color:var(--ci);border-bottom-color:var(--ci);font-weight:600}
+.tab-btn i{opacity:.75}
+.tab-btn.on i{opacity:1}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+.tab-two{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:900px){.tab-two{grid-template-columns:1fr}}
