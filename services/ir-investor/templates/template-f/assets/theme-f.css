@@ -198,8 +198,7 @@
 /* ===== Policy box ===== */
 .policy{ border-left-color:var(--accent); background:#FBF8F0; }
 
-/* ---- Tabs (folder style) — Template F ---- */
-.tab-btn{ background:#E6DFF4; border-color:#D6CCEA; color:var(--ink-2); }
-.tab-btn:hover{ background:#EEE9F8; }
-.tab-btn.on{ background:#fff; border-bottom-color:#fff; color:var(--ci); font-family:var(--font-head); }
-.tabs-body{ border-color:#D6CCEA; }
+/* ---- Tabs band — Template F ---- */
+.tabs-band{ background:linear-gradient(90deg,#1A0840 0%,var(--ci-700) 60%,#3B1190 100%); }
+.tab-btn.on{ font-family:var(--font-head); }
+.tab-btn .badge{ background:var(--accent); color:var(--accent-ink); }
