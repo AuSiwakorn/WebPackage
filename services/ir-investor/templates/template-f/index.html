@@ -70,13 +70,14 @@
   </div>
 </section>
 
-<!-- [3] QUICK LINKS -->
+<!-- [3] TAB SELECTORS (card-style) -->
 <div class="container quick">
-  <div class="grid">
-    <a class="card" href="#documents"><span class="ic"><i class="fa-solid fa-book"></i></span><span><b>56-1 One Report</b><small>รายงานประจำปี 2568</small></span></a>
-    <a class="card" href="#financial"><span class="ic"><i class="fa-solid fa-chart-column"></i></span><span><b>งบการเงินล่าสุด</b><small>ไตรมาส 2/2569 + MD&amp;A</small></span></a>
-    <a class="card" href="#documents"><span class="ic"><i class="fa-solid fa-display"></i></span><span><b>เอกสารนำเสนอ</b><small>Opportunity Day Q2/2569</small></span></a>
-    <a class="card" href="#news"><span class="ic"><i class="fa-regular fa-calendar"></i></span><span><b>ปฏิทินนักลงทุน</b><small>กิจกรรมถัดไป 3 รายการ</small></span></a>
+  <div class="tab-cards">
+    <button class="tab-card on" data-tab="t-news"><span class="ic"><i class="fa-solid fa-newspaper"></i></span><span><b>ข่าวแจ้งตลาดหลักทรัพย์</b><small>ข่าว SET ล่าสุด 4 รายการ</small></span></button>
+    <button class="tab-card" data-tab="t-cal"><span class="ic"><i class="fa-regular fa-calendar-days"></i></span><span><b>ปฏิทินนักลงทุน</b><small>กิจกรรมถัดไป 3 รายการ</small></span></button>
+    <button class="tab-card" data-tab="t-docs"><span class="ic"><i class="fa-solid fa-folder-open"></i></span><span><b>เอกสารเผยแพร่ล่าสุด</b><small>รายงาน · งบการเงิน · สไลด์</small></span></button>
+    <button class="tab-card" data-tab="t-div"><span class="ic"><i class="fa-solid fa-coins"></i></span><span><b>ประวัติการจ่ายเงินปันผล</b><small>นโยบายและรายละเอียด</small></span></button>
+    <button class="tab-card" data-tab="t-sec"><span class="ic"><i class="fa-solid fa-chart-pie"></i></span><span><b>ข้อมูลหลักทรัพย์</b><small>TCH · SET · การเงิน</small></span></button>
   </div>
 </div>
 
@@ -101,13 +102,7 @@
 <section class="section section--soft" id="ir-tabs">
   <div class="container">
     <div class="tabs">
-      <nav class="tabs-nav" role="tablist" aria-label="ข้อมูลนักลงทุน">
-        <button class="tab-btn on" role="tab" data-tab="t-news" aria-selected="true"><i class="fa-solid fa-newspaper"></i> ข่าวแจ้งตลาดหลักทรัพย์</button>
-        <button class="tab-btn" role="tab" data-tab="t-cal" aria-selected="false"><i class="fa-regular fa-calendar-days"></i> ปฏิทินนักลงทุน</button>
-        <button class="tab-btn" role="tab" data-tab="t-docs" aria-selected="false"><i class="fa-solid fa-folder-open"></i> เอกสารเผยแพร่ล่าสุด</button>
-        <button class="tab-btn" role="tab" data-tab="t-div" aria-selected="false"><i class="fa-solid fa-coins"></i> ประวัติการจ่ายเงินปันผล</button>
-        <button class="tab-btn" role="tab" data-tab="t-sec" aria-selected="false"><i class="fa-solid fa-chart-pie"></i> ข้อมูลหลักทรัพย์</button>
-      </nav>
+
       <div class="tabs-body">
         <!-- Tab: ข่าวแจ้งตลาดหลักทรัพย์ -->
         <div class="tab-panel active" id="t-news" role="tabpanel">
@@ -231,16 +226,18 @@
 </script>
 <script>
 (function(){
-  document.querySelectorAll('.tabs').forEach(function(tabs){
-    tabs.querySelectorAll('.tab-btn').forEach(function(btn){
-      btn.addEventListener('click',function(){
-        var t=this.dataset.tab;
-        tabs.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('on');b.setAttribute('aria-selected','false');});
-        tabs.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active');});
-        this.classList.add('on');this.setAttribute('aria-selected','true');
-        var el=document.getElementById(t);if(el)el.classList.add('active');
-      });
-    });
+  function activateTab(t){
+    // Deactivate all card selectors
+    document.querySelectorAll('.tab-card').forEach(function(c){c.classList.remove('on');});
+    document.querySelectorAll('.tab-card[data-tab="'+t+'"]').forEach(function(c){c.classList.add('on');});
+    // Deactivate all panels
+    document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active');});
+    var el=document.getElementById(t);if(el)el.classList.add('active');
+    // Scroll to tabs section smoothly
+    var sec=document.getElementById('ir-tabs');if(sec)sec.scrollIntoView({behavior:'smooth',block:'start'});
+  }
+  document.querySelectorAll('.tab-card').forEach(function(btn){
+    btn.addEventListener('click',function(){activateTab(this.dataset.tab);});
   });
 })();
 </script>
