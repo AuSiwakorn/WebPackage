@@ -2068,3 +2068,44 @@ table.sr-only{display:block}
 .cover-warn{color:#9A6400}
 .cover-bad{color:var(--down)}
 @media (min-width:761px){.adm-stock td:first-child{min-width:230px}.adm-stock td,.adm-stock th{padding-left:10px;padding-right:10px}}
+@media (max-width:980px){
+  .mv-wrap:not(.has-pick){display:flex;flex-direction:column}
+  .mv-wrap:not(.has-pick) .mv-detail{display:block;order:-1}   /* ยังไม่เลือกสินค้า: เห็นเคลื่อนไหวล่าสุดก่อน แล้วค่อยรายการสินค้า */
+}
+.mv-head--feed{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+.mv-head--feed h2{margin:0}
+.mv-feed-p{color:var(--deep-900);text-decoration:none}
+.mv-feed-p:hover{color:var(--brand);text-decoration:underline}
+@media (max-width:760px){
+  .tbl-mv td[data-label="สินค้า"]{grid-column:1 / span 2;grid-row:4;padding-top:4px}
+  .tbl-mv td[data-label="สินค้า"] small{display:inline;margin-left:6px;color:var(--ink-3);font-size:.74rem}
+  .tbl-mv td[data-label="สาขา"]{grid-column:2;grid-row:4;justify-self:end}
+  .mv-head--feed > div:first-child{min-width:0}
+  .mv-detail{min-width:0}
+}
+@media (max-width:980px){.mv-wrap:not(.has-pick){min-width:0}.mv-wrap:not(.has-pick) > *{min-width:0;width:100%;box-sizing:border-box}}
+@media (min-width:761px){
+  .tbl-mv .doc,.tbl-mv .mv-when,.tbl-mv td[data-label="โดย"],.tbl-mv td[data-label="สาขา"]{white-space:nowrap}
+  .tbl-mv td[data-label="รายการ"]{white-space:nowrap}
+  .tbl-mv td[data-label="รายการ"] small{display:block;white-space:normal}
+  .tbl-mv td[data-label="สินค้า"]{min-width:180px}
+  .tbl-mv td[data-label="สินค้า"] small{display:block;color:var(--ink-3);font-size:.76rem}
+}
+@media (max-width:760px){
+  .tbl-mv td[data-label="สาขา"]{grid-column:1;grid-row:5;justify-self:start}
+}
+.mv-feed .mv-when .hist-br{margin-left:6px;font-size:.72rem;padding:1px 6px;min-width:0}
+@media (min-width:761px){.mv-feed .mv-by-col{display:none}.mv-feed td[data-label="รายการ"]{white-space:normal}.mv-feed td[data-label="รายการ"] .mv-by-in{display:block;color:var(--ink-3);font-size:.76rem;margin-top:3px}.mv-feed .mv-when{white-space:nowrap}}
+@media (max-width:760px){.mv-feed .mv-by-in{display:none}}
+@media (min-width:761px){.mv-feed th,.mv-feed td{padding-left:12px;padding-right:12px}.mv-feed td[data-label="สินค้า"]{min-width:140px}}
+
+/* ===== แอคคอร์เดียน (ตั้งค่าเลขที่บิล) ===== */
+.acc-item{margin-bottom:12px}
+.acc-item > summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.acc-item > summary::-webkit-details-marker{display:none}
+.acc-item:not([open]) > summary{border-bottom:0}
+.acc-item > summary:hover h2{color:var(--brand)}
+.acc-chev{width:18px;height:18px;flex:0 0 auto;color:var(--ink-3);transform:rotate(90deg);transition:transform .15s}
+.acc-item[open] .acc-chev{transform:rotate(-90deg)}
+.acc-right{display:inline-flex;align-items:center;gap:10px;flex:0 0 auto}
+.acc-item > summary .sub{display:block}

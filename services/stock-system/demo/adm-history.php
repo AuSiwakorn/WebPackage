@@ -4,7 +4,7 @@
    ----------------------------------------------------------
    หน้ารวม (GET):
      b    = ALL หรือรหัสสาขา (รวมสาขาที่ปิดใช้งาน)
-     mode = day | month · d = วันที่ (Y-m-d) · m = เดือน (Y-m)
+     mode = recent (30 วันล่าสุด — ค่าเริ่มต้น) | day | month | year · d = วันที่ · m = เดือน · y = ปี
      t    = ชนิดรายการ (คีย์ของ log_types) · sort = desc | asc · p = หน้า (ทีละ 100)
    รายละเอียดของสาขาหนึ่งในวันหนึ่ง: ?view=day&b=รหัสสาขา&d=ปปปปดดวว
      วันนี้    = ประวัติจริงของสาขา (ดูอย่างเดียว)
@@ -32,7 +32,7 @@ $today = strtotime(date('Y-m-d'));
 
 /* ---------- อ่านตัวกรอง ---------- */
 $fB    = (isset($_GET['b']) && is_string($_GET['b']) && isset($brAll[$_GET['b']])) ? $_GET['b'] : 'ALL';
-$fMode = (isset($_GET['mode']) && $_GET['mode'] === 'month') ? 'month' : 'day';
+$fMode = (isset($_GET['mode']) && in_array($_GET['mode'], array('day', 'month', 'year'), true)) ? $_GET['mode'] : 'recent';
 $fSort = (isset($_GET['sort']) && $_GET['sort'] === 'asc') ? 'asc' : 'desc';
 $fT    = isset($_GET['t']) && is_string($_GET['t']) ? $_GET['t'] : '';
 if ($fT !== '' && !array_key_exists($fT, log_types())) {
@@ -49,25 +49,23 @@ if (isset($_GET['m']) && is_string($_GET['m']) && preg_match('/^\d{4}-\d{2}$/', 
     $monTs = min($x, strtotime(date('Y-m-01')));
 }
 
-if ($fMode === 'day') {
-    $from = $dayTs;
-    $to   = $dayTs;
-} else {
-    $from = $monTs;
-    $to   = min(strtotime(date('Y-m-t', $monTs)), $today);
+$year = (int) date('Y', $dayTs);
+if (isset($_GET['y']) && is_string($_GET['y']) && preg_match('/^\d{4}$/', $_GET['y'])) {
+    $year = max(2026, min((int) date('Y'), (int) $_GET['y']));
 }
+list($from, $to, $rangeTxt) = adm_range($fMode, $dayTs, $monTs, $year);
 
 /** ลิงก์ของหน้านี้ โดยเปลี่ยนค่าบางตัว */
-$hq = function ($chg) use ($fB, $fMode, $fSort, $fT, $dayTs, $monTs) {
-    $q = array('b' => $fB, 'mode' => $fMode, 'd' => date('Y-m-d', $dayTs), 'm' => date('Y-m', $monTs),
+$hq = function ($chg) use ($fB, $fMode, $fSort, $fT, $dayTs, $monTs, $year) {
+    $q = array('b' => $fB, 'mode' => $fMode, 'd' => date('Y-m-d', $dayTs), 'm' => date('Y-m', $monTs), 'y' => $year,
                't' => $fT, 'sort' => $fSort);
     $q = array_merge($q, $chg);
-    if ($q['mode'] === 'day') {
-        unset($q['m']);
-    } else {
-        unset($q['d']);
+    foreach (array('day' => 'd', 'month' => 'm', 'year' => 'y') as $md => $k) {
+        if ($q['mode'] !== $md) {
+            unset($q[$k]);
+        }
     }
-    foreach (array('t' => '', 'sort' => 'desc', 'b' => 'ALL', 'p' => 1) as $k => $def) {
+    foreach (array('t' => '', 'sort' => 'desc', 'b' => 'ALL', 'mode' => 'recent', 'p' => 1) as $k => $def) {
         if (isset($q[$k]) && (string) $q[$k] === (string) $def) {
             unset($q[$k]);
         }
@@ -100,6 +98,19 @@ for ($d = $from; $d <= $to; $d = strtotime('+1 day', $d)) {
             continue;
         }
 
+        /* วันก่อน — เปิด / ปิดร้าน (ข้อมูลตัวอย่าง) */
+        foreach (past_store_events($c, $d) as $ev) {
+            $note = array();
+            foreach (array('บิล', 'เงินสด', 'โอน', 'นับได้') as $k) {      // สรุปสั้น ๆ — ตัวเต็มอยู่ในหน้ารายละเอียดของวัน
+                if (isset($ev['detail'][$k])) {
+                    $note[] = $k . ' ' . $ev['detail'][$k];
+                }
+            }
+            $rows[] = array('ts' => $ev['ts'], 'seq' => $seq++, 'date' => $ymd, 'time' => $ev['time'], 'branch' => $c,
+                            'type' => $ev['type'], 'title' => $ev['title'], 'amount' => $ev['amount'], 'kind' => 'money',
+                            'by' => $ev['by'], 'void' => false, 'note' => $ev['type'] === 'close' ? implode(' · ', $note) : '',
+                            'link' => $link);
+        }
         /* วันก่อน — บิลขาย */
         foreach (past_bills($c, $d) as $b) {
             $note = $b['vat'] ? 'บิล VAT' : 'ไม่ VAT';
@@ -184,7 +195,6 @@ $pages = max(1, (int) ceil($total / $per));
 $pg    = isset($_GET['p']) ? max(1, min($pages, (int) $_GET['p'])) : 1;
 $show  = array_slice($rows, ($pg - 1) * $per, $per);
 
-$rangeTxt = $fMode === 'day' ? thai_date_full($dayTs) : thai_month_full($monTs);
 
 $branch         = 'ALL';
 $NO_BRANCH_PICK = true;                  // มีตัวกรองสาขาของหน้านี้เองแล้ว
@@ -198,8 +208,9 @@ require dirname(__FILE__) . '/inc/header.php';
 <section class="card acct-filter hist-filter">
   <form method="get" action="adm-history.php" class="acct-row">
     <div class="segs">
-      <a class="seg<?= $fMode === 'day' ? ' on' : '' ?>" href="<?= e($hq(array('mode' => 'day'))) ?>">รายวัน</a>
-      <a class="seg<?= $fMode === 'month' ? ' on' : '' ?>" href="<?= e($hq(array('mode' => 'month', 'm' => date('Y-m', $dayTs)))) ?>">รายเดือน</a>
+      <?php foreach (array('recent' => '30 วัน', 'day' => 'รายวัน', 'month' => 'รายเดือน', 'year' => 'รายปี') as $md => $lb): ?>
+        <a class="seg<?= $fMode === $md ? ' on' : '' ?>" href="<?= e($hq(array('mode' => $md))) ?>"><?= e($lb) ?></a>
+      <?php endforeach; ?>
     </div>
     <input type="hidden" name="mode" value="<?= e($fMode) ?>">
 
@@ -212,7 +223,7 @@ require dirname(__FILE__) . '/inc/header.php';
         <a class="btn btn-ghost btn-sm" href="<?= e($hq(array('d' => date('Y-m-d', strtotime('+1 day', $dayTs))))) ?>" aria-label="วันถัดไป">›</a>
         <a class="btn btn-ghost btn-sm" href="<?= e($hq(array('d' => date('Y-m-d')))) ?>">วันนี้</a>
       <?php endif; ?>
-    <?php else: ?>
+    <?php elseif ($fMode === 'month'): ?>
       <a class="btn btn-ghost btn-sm" href="<?= e($hq(array('m' => date('Y-m', strtotime('-1 month', $monTs))))) ?>" aria-label="เดือนก่อนหน้า">‹</a>
       <label class="sr-only" for="hm">เดือน</label>
       <input class="input acct-date" type="month" id="hm" name="m" value="<?= e(date('Y-m', $monTs)) ?>"
@@ -221,6 +232,13 @@ require dirname(__FILE__) . '/inc/header.php';
         <a class="btn btn-ghost btn-sm" href="<?= e($hq(array('m' => date('Y-m', strtotime('+1 month', $monTs))))) ?>" aria-label="เดือนถัดไป">›</a>
         <a class="btn btn-ghost btn-sm" href="<?= e($hq(array('m' => date('Y-m')))) ?>">เดือนนี้</a>
       <?php endif; ?>
+    <?php elseif ($fMode === 'year'): ?>
+      <label class="sr-only" for="hy">ปี</label>
+      <select class="input acct-date" id="hy" name="y" onchange="this.form.submit()">
+        <?php for ($y = (int) date('Y'); $y >= 2026; $y--): ?>
+          <option value="<?= $y ?>" <?= $y === $year ? 'selected' : '' ?>>ปี <?= $y + 543 ?></option>
+        <?php endfor; ?>
+      </select>
     <?php endif; ?>
 
     <label class="sr-only" for="hb">สาขา</label>
@@ -257,7 +275,7 @@ require dirname(__FILE__) . '/inc/header.php';
     <div>
       <h2><?= $fB === 'ALL' ? 'ทุกสาขา' : e($brAll[$fB]['name']) ?> · <?= e($rangeTxt) ?></h2>
       <span class="sub">เรียงตามเวลา<?= $fSort === 'asc' ? 'จากเก่าไปใหม่' : 'จากใหม่ไปเก่า' ?>
-        · วันก่อนแสดงบิลขาย รับคืน และเอกสารคลัง ส่วนวันนี้แสดงครบทุกชนิด (เปิด/ปิดร้าน รับคืน ตั้งค่า ฯลฯ)</span>
+        · วันก่อนแสดงเปิด/ปิดร้าน บิลขาย รับคืน และเอกสารคลัง (ข้อมูลตัวอย่าง) · วันนี้แสดงครบทุกชนิดจากที่ทำจริงในเดโม</span>
     </div>
   </div>
 
@@ -282,7 +300,7 @@ require dirname(__FILE__) . '/inc/header.php';
       <table class="tbl hist-all">
         <thead>
           <tr>
-            <th><?= $fMode === 'month' ? 'วันที่ · เวลา' : 'เวลา' ?></th>
+            <th><?= $fMode !== 'day' ? 'วันที่ · เวลา' : 'เวลา' ?></th>
             <th>สาขา</th>
             <th>ชนิด</th>
             <th>รายการ</th>
@@ -294,7 +312,7 @@ require dirname(__FILE__) . '/inc/header.php';
         <tbody>
           <?php foreach ($show as $r): $m = log_type_of($r['type']); ?>
             <tr<?= $r['void'] ? ' class="is-void"' : '' ?>>
-              <td data-label="เวลา" class="num nowrap"><?php if ($fMode === 'month'): ?><?= e(thai_day_month(strtotime($r['date']))) ?> · <?php endif; ?><?= e($r['time']) ?></td>
+              <td data-label="เวลา" class="num nowrap"><?php if ($fMode !== 'day'): ?><?= e(thai_day_month(strtotime($r['date']))) ?> · <?php endif; ?><?= e($r['time']) ?></td>
               <td data-label="สาขา"><span class="hist-br"><?= e($brAll[$r['branch']]['short']) ?></span></td>
               <td data-label="ชนิด"><span class="badge b-<?= e($m['tone']) ?>"><?= e($m['label']) ?></span></td>
               <td data-label="รายการ">

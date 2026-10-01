@@ -406,5 +406,26 @@
   }
 })();
 </script>
+<script>
+/* แอคคอร์เดียน (.acc-item) — เปิดทีละอัน · ลิงก์ที่มี #id ของอันไหน ให้เปิดอันนั้นแล้วเลื่อนไปหา */
+(function () {
+  var items = document.querySelectorAll('details.acc-item');
+  if (!items.length) { return; }
+  function only(el) {
+    for (var j = 0; j < items.length; j++) {
+      if (items[j] !== el && items[j].open) { items[j].open = false; }
+    }
+  }
+  for (var i = 0; i < items.length; i++) {
+    items[i].addEventListener('toggle', function () { if (this.open) { only(this); } });
+  }
+  var h = location.hash ? document.getElementById(location.hash.slice(1)) : null;
+  if (h && h.classList.contains('acc-item')) {
+    h.open = true;
+    only(h);
+    h.scrollIntoView({ block: 'start' });
+  }
+})();
+</script>
 </body>
 </html>

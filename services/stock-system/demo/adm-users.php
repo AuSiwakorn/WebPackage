@@ -403,17 +403,26 @@ foreach ($staff as $k => $u) {
 }
 $order = array_keys(demo_branches());
 $order[] = '_off';
+/* แอคคอร์เดียน: เปิดกลุ่มแรกไว้ · กำลังแก้พนักงานคนไหน ให้เปิดกลุ่มของคนนั้น */
+$openG = $order[0];
+if ($picked !== null) {
+    $openG = user_active($picked) ? $picked['branch'] : '_off';
+}
 foreach ($order as $g):
     if ($g !== '_off' && !isset($groups[$g])) { $groups[$g] = array(); }
     if ($g === '_off' && empty($groups[$g])) { continue; }
     $list = $groups[$g]; ?>
-  <section class="card<?= $g === '_off' ? ' br-off' : '' ?>">
-    <div class="card-head">
-      <div><h2><?= $g === '_off' ? 'พักงาน / ลาออก' : e(branch_name($g)) ?></h2><span class="sub"><?= count($list) ?> คน</span></div>
-      <?php if ($g !== '_off'): ?>
-        <a class="btn btn-ghost btn-sm" href="adm-branches.php#b-<?= e($g) ?>"><svg class="ico"><use href="#i-settings"/></svg> จัดการสาขา</a>
-      <?php endif; ?>
-    </div>
+  <details class="card acc-item<?= $g === '_off' ? ' br-off' : '' ?>" id="g-<?= e($g) ?>"<?= $g === $openG ? ' open' : '' ?>>
+    <summary class="card-head">
+      <div><h2><?= $g === '_off' ? 'พักงาน / ลาออก' : e(branch_name($g)) ?></h2>
+        <span class="sub"><?= count($list) ?> คน<?php if ($list): $nm = array(); foreach ($list as $u) { $nm[] = $u['name']; } ?> · <?= e(implode(', ', $nm)) ?><?php endif; ?></span></div>
+      <span class="acc-right">
+        <?php if ($g !== '_off'): ?>
+          <a class="btn btn-ghost btn-sm" href="adm-branches.php#b-<?= e($g) ?>"><svg class="ico"><use href="#i-settings"/></svg> จัดการสาขา</a>
+        <?php endif; ?>
+        <svg class="ico acc-chev" aria-hidden="true"><use href="#i-arrow"/></svg>
+      </span>
+    </summary>
     <?php if (!$list): ?>
       <p class="empty">ยังไม่มีพนักงานในสาขานี้</p>
     <?php else: ?>
@@ -439,7 +448,7 @@ foreach ($order as $g):
         </table>
       </div>
     <?php endif; ?>
-  </section>
+  </details>
 <?php endforeach; ?>
 
 <?php require dirname(__FILE__) . '/inc/footer.php'; ?>

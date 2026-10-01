@@ -79,12 +79,7 @@ require dirname(__FILE__) . '/inc/header.php';
   <!-- ==================== ความเคลื่อนไหว ==================== -->
   <section class="card mv-detail">
     <?php if ($prod === null): ?>
-      <p class="empty mv-empty">
-        <svg class="ico"><use href="#i-activity"/></svg>
-        เลือกสินค้าทางซ้าย<br>
-        <small>จะเห็นทุกครั้งที่ยอดของสินค้านั้นขยับ — ขาย รับเข้า ตัดออก ตรวจนับ<br>
-               พร้อมยอดคงเหลือหลังแต่ละรายการ</small>
-      </p>
+      <?php $feedCodes = array($code); require dirname(__FILE__) . '/inc/movement-feed.php'; ?>
     <?php else: ?>
       <?php $s = $view['sum']; ?>
       <div class="mv-head">

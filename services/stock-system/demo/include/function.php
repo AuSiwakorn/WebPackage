@@ -3216,6 +3216,64 @@ function product_flow_stats($codes, $days = 30)
     return array('sold' => $sold, 'recv' => $recv);
 }
 
+/**
+ * เปิด / ปิดร้านของวันก่อน (ข้อมูลสมมติที่คงที่) — ให้ประวัติรวมของผู้ดูแลมีรายการเปิด / ปิดร้านของวันเก่า
+ * คนเปิด / ปิด = พนักงานที่ขายในสาขาวันนั้น · ยอดขายเงินสด / โอน มาจากบิลตัวอย่างของวันนั้น
+ * เงินนับได้ตอนปิดร้านบางวันขาด / เกินเล็กน้อย
+ * คืน array ของแถว (ts, time, type open|close, by, title, amount, detail) — วันอาทิตย์ร้านปิด = ว่าง
+ */
+function past_store_events($code, $ts)
+{
+    $day = date('Ymd', $ts);
+    if ($day >= date('Ymd') || (int) date('w', $ts) === 0) {
+        return array();
+    }
+    $bills = past_bills($code, $ts);
+    if (!$bills) {
+        return array();
+    }
+    $people = array();
+    $cash   = 0;
+    $xfer   = 0;
+    foreach ($bills as $b) {
+        $people[$b['by']] = true;
+        if (empty($b['void'])) {
+            if ($b['method'] === 'cash') {
+                $cash += $b['total'];
+            } else {
+                $xfer += $b['total'];
+            }
+        }
+    }
+    $people = array_keys($people);
+    $h      = abs(crc32($code . '|store|' . $day));
+    $float  = branch_default_float($code);
+    $opener = $people[$h % count($people)];
+    $closer = $people[($h >> 3) % count($people)];
+    $openM  = 8 * 60 + 30 + ($h >> 5) % 50;              // 08:30–09:19
+    $closeM = 19 * 60 + 30 + ($h >> 9) % 55;             // 19:30–20:24
+    $diff   = array(0, 0, 0, 0, 0, -20, -50, 20, -100, 10);
+    $diff   = $diff[($h >> 13) % count($diff)];
+    $expect = $float + $cash;
+    $counted = $expect + $diff;
+    $keep    = $float;
+    $base    = strtotime(date('Y-m-d', $ts));
+    $hm      = function ($m) { return sprintf('%02d:%02d', floor($m / 60), $m % 60); };
+
+    return array(
+        array('ts' => $base + $openM * 60, 'time' => $hm($openM), 'type' => 'open', 'by' => $opener,
+              'title' => 'เปิดร้าน · เงินทอนเริ่มวัน ' . money2($float) . ' บาท', 'amount' => $float,
+              'detail' => array('เงินทอนยกมา' => money2($float) . ' บาท', 'นับแล้ว' => 'ตรงกับที่ยกมา')),
+        array('ts' => $base + $closeM * 60, 'time' => $hm($closeM), 'type' => 'close', 'by' => $closer,
+              'title' => 'ปิดร้าน · ยอดขาย ' . money2($cash + $xfer) . ' บาท'
+                       . ($diff === 0 ? '' : ' · เงิน' . ($diff < 0 ? 'ขาด ' : 'เกิน ') . money2(abs($diff)) . ' บาท'),
+              'amount' => $cash + $xfer,
+              'detail' => array('บิล' => count($bills) . ' ใบ', 'เงินสด' => money2($cash) . ' บาท', 'โอน' => money2($xfer) . ' บาท',
+                                'ควรมีในลิ้นชัก' => money2($expect) . ' บาท', 'นับได้' => money2($counted) . ' บาท',
+                                'เก็บเป็นเงินทอนพรุ่งนี้' => money2($keep) . ' บาท', 'นำส่ง' => money2($counted - $keep) . ' บาท')),
+    );
+}
+
 /* ##########################################################
    หมวด: ตรวจนับ / ปรับยอด (แบบเบา)
    ########################################################## */
@@ -3806,7 +3864,7 @@ function move_branch_staff($code)
 {
     $out = array();
     foreach (demo_users_all() as $u) {
-        if ($u['branch'] === $code) {
+        if ($u['role'] === 'staff' && $u['branch'] === $code) {     // เฉพาะพนักงาน (ผู้ดูแล / บัญชีไม่ได้ทำงานหน้าร้าน)
             $out[] = $u['name'];
         }
     }
@@ -3962,6 +4020,30 @@ function move_qs($q, $cat, $sku, $period, $extra = array())
     if ($sku !== '')                            { $a[] = 'sku=' . rawurlencode($sku); }
     if ($period !== '' && $period !== '7')      { $a[] = 'p='   . rawurlencode($period); }
     return $a ? '?' . implode('&', $a) : '';
+}
+
+/**
+ * รายการเคลื่อนไหวล่าสุดของทุกสินค้า (ใช้ตอนยังไม่ได้เลือกสินค้า)
+ * $codes = สาขาที่ต้องการ · $period = today | 7 | 14 · คืนรายการใหม่สุดก่อน ไม่เกิน $limit แถว
+ * แต่ละแถวมี p (สินค้า) และ branch เพิ่มจาก move_rows()
+ */
+function movement_feed($codes, $period, $limit = 100)
+{
+    $out = array();
+    foreach (demo_products() as $p) {
+        foreach ($codes as $c) {
+            $v = move_view(move_rows($c, $p), $period, product_qty($p, $c));
+            foreach ($v['rows'] as $r) {
+                $r['p']      = $p;
+                $r['branch'] = $c;
+                $out[]       = $r;
+            }
+        }
+    }
+    usort($out, function ($a, $b) {
+        return $a['ts'] === $b['ts'] ? 0 : ($a['ts'] < $b['ts'] ? 1 : -1);
+    });
+    return array('rows' => array_slice($out, 0, $limit), 'total' => count($out));
 }
 
 /* ##########################################################

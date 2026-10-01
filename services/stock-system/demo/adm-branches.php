@@ -253,13 +253,17 @@ $v = function ($bc, $k, $def) use ($old) {
   </form>
 </details>
 
-<!-- ==================== รายชื่อสาขา ==================== -->
+<!-- ==================== รายชื่อสาขา (แอคคอร์เดียน) ==================== -->
+<?php
+/* เปิดสาขาแรกไว้ · ถ้าเพิ่งบันทึก / มีข้อผิดพลาดของสาขาไหน ให้เปิดสาขานั้นแทน */
+$openB = ($okB !== '' && isset($list[$okB])) ? $okB : (($errB !== '' && isset($list[$errB])) ? $errB : key($list));
+?>
 <?php foreach ($list as $bc => $b):
     $on     = !empty($b['active']);
     $staff  = branch_staff($bc);
     $reason = branch_data_reason($bc); ?>
-  <section class="card<?= $on ? '' : ' br-off' ?>" id="b-<?= e($bc) ?>">
-    <div class="card-head">
+  <details class="card acc-item<?= $on ? '' : ' br-off' ?>" id="b-<?= e($bc) ?>"<?= $bc === $openB ? ' open' : '' ?>>
+    <summary class="card-head">
       <div>
         <h2><?= e($b['name']) ?> <span class="bdg bdg-adj"><?= e($bc) ?></span>
           <?php if (!$on): ?><span class="bdg bdg-out">ปิดใช้งาน</span><?php endif; ?></h2>
@@ -267,8 +271,11 @@ $v = function ($bc, $k, $def) use ($old) {
           <?= $on ? (store_is_open($bc) ? 'ร้านเปิดอยู่' : (store_is_closed($bc) ? 'ปิดร้านแล้ววันนี้' : 'ยังไม่เปิดร้านวันนี้')) : 'ซ่อนจากการใช้งาน ประวัติยังอยู่ครบ' ?>
           · เลขที่บิล <?= e(acct_setting($bc, 'prefix_vat')) ?> / <?= e(acct_setting($bc, 'prefix_novat')) ?></span>
       </div>
-      <a class="btn btn-ghost btn-sm" href="adm-users.php"><svg class="ico"><use href="#i-users"/></svg> จัดการพนักงาน</a>
-    </div>
+      <span class="acc-right">
+        <a class="btn btn-ghost btn-sm" href="adm-users.php#g-<?= e($bc) ?>"><svg class="ico"><use href="#i-users"/></svg> จัดการพนักงาน</a>
+        <svg class="ico acc-chev" aria-hidden="true"><use href="#i-arrow"/></svg>
+      </span>
+    </summary>
 
     <?php if ($okB === $bc): ?>
       <div class="alert alert-ok adm-ok" role="status"><svg class="ico"><use href="#i-check"/></svg><span><?= e($okMsg[$okDo]) ?></span></div>
@@ -349,7 +356,7 @@ $v = function ($bc, $k, $def) use ($old) {
         <?php endif; ?>
       </form>
     </div>
-  </section>
+  </details>
 <?php endforeach; ?>
 
 <script>

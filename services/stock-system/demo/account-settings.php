@@ -6,6 +6,7 @@
    รูปแบบเลขที่ {รหัส}{ปี}-{เดือน}-{เลขรัน 4 หลัก} เช่น BP2026-01-0001 · เลขรันนับใหม่ทุกเดือน
    พร้อมเลขประจำตัวผู้เสียภาษี และเลขที่สาขา (00000 = สำนักงานใหญ่) ที่พิมพ์บนบิล VAT
    การแก้ทุกครั้งบันทึกลงประวัติของสาขานั้น
+   แสดงแบบแอคคอร์เดียน (เปิดทีละสาขา · สาขาแรกเปิดไว้)
 
    เดโม: เปลี่ยนรหัสแล้วเลขที่ของบิลเดิมที่เป็นข้อมูลสมมติจะเปลี่ยนตาม
    ระบบจริง: เลขที่ถูกเก็บตอนออกบิล เปลี่ยนรหัสมีผลกับบิลใบถัดไปเท่านั้น
@@ -85,17 +86,23 @@ require dirname(__FILE__) . '/inc/header.php';
   <div class="alert alert-error" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span><?= e($err) ?></span></div>
 <?php endif; ?>
 
+<?php
+/* แสดงแบบแอคคอร์เดียน — เปิดสาขาแรกไว้ · ถ้าเพิ่งบันทึก / บันทึกไม่ผ่าน ให้เปิดสาขานั้นแทน */
+$openB = $okB !== '' && isset($br[$okB]) ? $okB : ($old ? key($old) : key($br));
+?>
 <?php foreach ($br as $bc => $b):
     $v = isset($old[$bc]) ? $old[$bc] : array(
         'prefix_vat' => acct_setting($bc, 'prefix_vat'), 'prefix_novat' => acct_setting($bc, 'prefix_novat'),
         'tax_id' => acct_setting($bc, 'tax_id'), 'tax_branch' => acct_setting($bc, 'tax_branch')); ?>
-  <section class="card" id="b-<?= e($bc) ?>">
-    <div class="card-head">
+  <details class="card acc-item" id="b-<?= e($bc) ?>"<?= $bc === $openB ? ' open' : '' ?>>
+    <summary class="card-head">
       <div>
         <h2><?= e($b['name']) ?></h2>
-        <span class="sub">บิลใบถัดไป: VAT <b><?= e(bill_next_no_series($bc, true)) ?></b> · ไม่ VAT <b><?= e(bill_next_no_series($bc, false)) ?></b></span>
+        <span class="sub">VAT <b><?= e(acct_setting($bc, 'prefix_vat')) ?></b> · ไม่ VAT <b><?= e(acct_setting($bc, 'prefix_novat')) ?></b>
+          · บิลใบถัดไป <?= e(bill_next_no_series($bc, true)) ?> / <?= e(bill_next_no_series($bc, false)) ?></span>
       </div>
-    </div>
+      <svg class="ico acc-chev" aria-hidden="true"><use href="#i-arrow"/></svg>
+    </summary>
 
     <?php if ($okB === $bc): ?>
       <div class="alert alert-ok adm-ok" role="status"><svg class="ico"><use href="#i-check"/></svg><span>บันทึกแล้ว — ใช้กับบิลใบถัดไปทันที</span></div>
@@ -138,7 +145,7 @@ require dirname(__FILE__) . '/inc/header.php';
       </div>
       <button class="btn btn-primary" type="submit"><svg class="ico"><use href="#i-check"/></svg> บันทึก<?= e($b['name']) ?></button>
     </form>
-  </section>
+  </details>
 <?php endforeach; ?>
 
 <script>
