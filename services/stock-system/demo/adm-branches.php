@@ -18,11 +18,7 @@
 
 require_once dirname(__FILE__) . '/include/function.php';
 
-$user = require_login();
-if ($user['role'] !== 'admin') {
-    header('Location: ' . url('dashboard.php'));
-    exit;
-}
+$user = require_login();                 // หน้า adm- : เฉพาะผู้ดูแล (พนักงานถูกพากลับเอง)
 
 /* ค่าตั้งของสาขา — ชื่อ คำอธิบาย หน่วย */
 $fields = array(
@@ -97,7 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'เลขที่บิล'   => $bc . 'V… (VAT) · ' . $bc . '… (ไม่ VAT)',
                 'เพิ่มโดย'    => $user['name'] . ' (ผู้ดูแล)',
             ));
-            $go = 'branches.php?ok=' . rawurlencode($bc) . '&do=add#b-' . $bc;
+            $go = 'adm-branches.php?ok=' . rawurlencode($bc) . '&do=add#b-' . $bc;
         }
 
     } elseif (!isset($all[$bc])) {
@@ -129,7 +125,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $changes['แก้โดย'] = $user['name'] . ' (ผู้ดูแล)';
                 log_add($bc, 'setting', $user, 'แก้ข้อมูล' . $in['name'], $changes);
             }
-            $go = 'branches.php?ok=' . rawurlencode($bc) . '&do=save#b-' . $bc;
+            $go = 'adm-branches.php?ok=' . rawurlencode($bc) . '&do=save#b-' . $bc;
         }
 
     } elseif ($act === 'close') {
@@ -158,13 +154,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'ข้อมูลเดิม' => 'ประวัติ บิล และรายงานยังอยู่ครบ',
                 'ปิดโดย'  => $user['name'] . ' (ผู้ดูแล)',
             ));
-            $go = 'branches.php?ok=' . rawurlencode($bc) . '&do=close#b-' . $bc;
+            $go = 'adm-branches.php?ok=' . rawurlencode($bc) . '&do=close#b-' . $bc;
         }
 
     } elseif ($act === 'open') {
         $_SESSION['cfg']['branches'][$bc]['active'] = true;
         log_add($bc, 'setting', $user, 'เปิดใช้งาน' . $all[$bc]['name'] . 'อีกครั้ง', array('เปิดโดย' => $user['name'] . ' (ผู้ดูแล)'));
-        $go = 'branches.php?ok=' . rawurlencode($bc) . '&do=open#b-' . $bc;
+        $go = 'adm-branches.php?ok=' . rawurlencode($bc) . '&do=open#b-' . $bc;
 
     } elseif ($act === 'delete') {
         $errB = $bc;
@@ -182,7 +178,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 unset($_SESSION['admin_branch']);
             }
             $_SESSION['flash'] = 'ลบ' . $all[$bc]['name'] . ' (' . $bc . ') แล้ว';
-            $go = 'branches.php';
+            $go = 'adm-branches.php';
         }
     }
 
@@ -199,7 +195,7 @@ $nOn = count(demo_branches());
 $branch     = work_branch($user);
 $PAGE_TITLE = 'จัดการสาขา';
 $PAGE_SUB   = 'เปิดใช้งาน ' . $nOn . ' สาขา' . (count($list) > $nOn ? ' · ปิดใช้งาน ' . (count($list) - $nOn) . ' สาขา' : '');
-$NAV_ACTIVE = 'branches.php';
+$NAV_ACTIVE = 'adm-branches.php';
 $NO_BRANCH_PICK = true;
 require dirname(__FILE__) . '/inc/header.php';
 
@@ -221,7 +217,7 @@ $v = function ($bc, $k, $def) use ($old) {
   <?php if ($errB === 'new'): ?>
     <div class="alert alert-error adm-ok" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span><?= e($err) ?></span></div>
   <?php endif; ?>
-  <form class="adm-sec" method="post" action="branches.php">
+  <form class="adm-sec" method="post" action="adm-branches.php">
     <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
     <input type="hidden" name="act" value="add">
     <div class="adm-fields">
@@ -271,7 +267,7 @@ $v = function ($bc, $k, $def) use ($old) {
           <?= $on ? (store_is_open($bc) ? 'ร้านเปิดอยู่' : (store_is_closed($bc) ? 'ปิดร้านแล้ววันนี้' : 'ยังไม่เปิดร้านวันนี้')) : 'ซ่อนจากการใช้งาน ประวัติยังอยู่ครบ' ?>
           · เลขที่บิล <?= e(acct_setting($bc, 'prefix_vat')) ?> / <?= e(acct_setting($bc, 'prefix_novat')) ?></span>
       </div>
-      <a class="btn btn-ghost btn-sm" href="users.php"><svg class="ico"><use href="#i-users"/></svg> จัดการพนักงาน</a>
+      <a class="btn btn-ghost btn-sm" href="adm-users.php"><svg class="ico"><use href="#i-users"/></svg> จัดการพนักงาน</a>
     </div>
 
     <?php if ($okB === $bc): ?>
@@ -282,7 +278,7 @@ $v = function ($bc, $k, $def) use ($old) {
     <?php endif; ?>
 
     <?php if ($on): ?>
-    <form class="adm-sec" method="post" action="branches.php#b-<?= e($bc) ?>">
+    <form class="adm-sec" method="post" action="adm-branches.php#b-<?= e($bc) ?>">
       <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
       <input type="hidden" name="act" value="save">
       <input type="hidden" name="b" value="<?= e($bc) ?>">
@@ -317,7 +313,7 @@ $v = function ($bc, $k, $def) use ($old) {
     <!-- ปิด / เปิดใช้งาน · ลบ -->
     <div class="adm-row br-danger">
       <?php if ($on): ?>
-        <form class="adm-sec" method="post" action="branches.php#b-<?= e($bc) ?>">
+        <form class="adm-sec" method="post" action="adm-branches.php#b-<?= e($bc) ?>">
           <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
           <input type="hidden" name="act" value="close">
           <input type="hidden" name="b" value="<?= e($bc) ?>">
@@ -329,7 +325,7 @@ $v = function ($bc, $k, $def) use ($old) {
           </div>
         </form>
       <?php else: ?>
-        <form class="adm-sec" method="post" action="branches.php#b-<?= e($bc) ?>">
+        <form class="adm-sec" method="post" action="adm-branches.php#b-<?= e($bc) ?>">
           <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
           <input type="hidden" name="act" value="open">
           <input type="hidden" name="b" value="<?= e($bc) ?>">
@@ -339,7 +335,7 @@ $v = function ($bc, $k, $def) use ($old) {
         </form>
       <?php endif; ?>
 
-      <form class="adm-sec" method="post" action="branches.php#b-<?= e($bc) ?>">
+      <form class="adm-sec" method="post" action="adm-branches.php#b-<?= e($bc) ?>">
         <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
         <input type="hidden" name="act" value="delete">
         <input type="hidden" name="b" value="<?= e($bc) ?>">

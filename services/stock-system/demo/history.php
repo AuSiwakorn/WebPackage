@@ -2,22 +2,13 @@
 /* ==========================================================
    AOSTOCK DEMO — ประวัติการทำรายการ
    อ่านจาก $_SESSION['log'][ สาขา|วันที่ ] ทั้งหมด
-   ผู้ดูแล: เปิดมาเจอภาพรวมทุกสาขา (inc/history-all.php)
-            กด "ดู" ที่รายการ → ?view=branch&branch=XX ดู/แก้ของสาขาเดียวแบบเดิม
+   หน้าของพนักงาน — ผู้ดูแลใช้ adm-history.php (require_login พาไปเอง)
    ========================================================== */
 
 require_once dirname(__FILE__) . '/include/function.php';
 
-$user    = require_login();
-$isAdmin = ($user['role'] === 'admin');
-
-/* ผู้ดูแล: หน้าแรกเป็นประวัติรวมทุกสาขา */
-if ($isAdmin && $_SERVER['REQUEST_METHOD'] !== 'POST' && (!isset($_GET['view']) || $_GET['view'] !== 'branch')) {
-    require dirname(__FILE__) . '/inc/history-all.php';
-    exit;
-}
-
-$code = work_branch($user);          // ผู้ดูแลเลือกสาขาได้จากแถบบน
+$user = require_login();
+$code = work_branch($user);
 
 /* ยังไม่เปิดร้านก็เข้าหน้านี้ได้ — ดูอย่างเดียว ไม่ได้เปลี่ยนสต๊อกหรือเงินสด
    (หน้าที่ทำรายการ เช่น ขาย รับเข้า ตัดออก ยังต้องเปิดร้านก่อน) */
@@ -111,18 +102,9 @@ $branch     = $code;
 $PAGE_TITLE = 'ประวัติการทำรายการ';
 $PAGE_SUB   = branch_name($code) . ' · ' . thai_date_full($pastTs ? $pastTs : time()) . ($pastTs ? ' (ย้อนหลัง)' : '');
 $NAV_ACTIVE = 'history.php';
-if ($isAdmin) {
-    $PICK_HIDDEN = array('view' => 'branch');   // เปลี่ยนสาขาจากแถบบนแล้วยังอยู่หน้าสาขาเดียว
-}
 require dirname(__FILE__) . '/inc/header.php';
 ?>
 
-<?php if ($isAdmin): ?>
-  <p class="hist-back">
-    <a class="btn btn-ghost btn-sm" href="history.php?mode=day&amp;d=<?= e(date('Y-m-d', $pastTs ? $pastTs : time())) ?>">‹ กลับไปประวัติรวมทุกสาขา</a>
-    <span>กำลังดูเฉพาะ<?= e(branch_name($code)) ?> — แก้ / ยกเลิกเอกสารได้จากหน้านี้</span>
-  </p>
-<?php endif; ?>
 
 <?php if ($notOpened): ?>
   <div class="alert alert-info" role="status">
@@ -243,7 +225,7 @@ require dirname(__FILE__) . '/inc/header.php';
               </p>
             <?php endif; ?>
 
-            <?php if ($idoc !== null && empty($idoc['void']) && can_void_doc($user, $idoc) && !$isAdmin): ?>
+            <?php if ($idoc !== null && empty($idoc['void']) && can_void_doc($user, $idoc)): ?>
               <?php $dat = ' data-bill="' . e($idoc['no']) . '" data-qty="' . (int) $idoc['qty']
                          . '" data-items="' . (int) $idoc['items'] . '"'; ?>
               <div class="tl-act">

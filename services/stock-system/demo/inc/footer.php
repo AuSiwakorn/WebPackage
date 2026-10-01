@@ -3,7 +3,7 @@
   </div><!-- /.main -->
 </div><!-- /.app -->
 
-<?php if (in_array($NAV_ACTIVE, array('sale.php', 'history.php', 'receive.php', 'issue.php', 'stocktake.php'), true)): ?>
+<?php if (in_array($NAV_ACTIVE, array('sale.php', 'history.php', 'receive.php', 'issue.php', 'stocktake.php', 'adm-history.php'), true)): ?>
 <!-- ===== กล่องยืนยัน — ใช้ทั้งรับเงินและยกเลิกบิล ===== -->
 <div class="modal" id="confirm-modal" hidden>
   <div class="modal-back" data-close></div>

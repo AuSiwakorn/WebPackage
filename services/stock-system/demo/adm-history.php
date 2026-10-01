@@ -1,24 +1,31 @@
 <?php
 /* ==========================================================
-   AOSTOCK DEMO — ประวัติการทำรายการของทุกสาขา (เฉพาะผู้ดูแล)
+   AOSTOCK DEMO — [ผู้ดูแล] ประวัติการทำรายการ ทุกสาขา
    ----------------------------------------------------------
-   ส่วนหนึ่งของ history.php — เรียกเมื่อผู้ดูแลเปิดหน้าประวัติโดยไม่ได้เลือกดูสาขาเดียว
-   ตัวกรอง (GET):
+   หน้ารวม (GET):
      b    = ALL หรือรหัสสาขา (รวมสาขาที่ปิดใช้งาน)
-     mode = day | month
-     d    = วันที่ (Y-m-d) สำหรับรายวัน · m = เดือน (Y-m) สำหรับรายเดือน
-     t    = ชนิดรายการ (คีย์ของ log_types) · ว่าง = ทุกชนิด
-     sort = desc (ใหม่ → เก่า) | asc (เก่า → ใหม่)
-     p    = หน้า (ทีละ 100 รายการ)
+     mode = day | month · d = วันที่ (Y-m-d) · m = เดือน (Y-m)
+     t    = ชนิดรายการ (คีย์ของ log_types) · sort = desc | asc · p = หน้า (ทีละ 100)
+   รายละเอียดของสาขาหนึ่งในวันหนึ่ง: ?view=day&b=รหัสสาขา&d=ปปปปดดวว
+     วันนี้    = ประวัติจริงของสาขา (ดูอย่างเดียว)
+     วันก่อน  = เอกสารคลัง + บิลขาย · ผู้ดูแลยกเลิกเอกสารคลังย้อนหลังได้ (ต้องมีเหตุผล)
+              "แก้ไขใบ" ไม่มีให้ผู้ดูแล เพราะต้องทำใบใหม่ในหน้างานคลังของพนักงาน
 
    ที่มาของข้อมูลในเดโม
      วันนี้      ประวัติจริงใน session (log_today) — ครบทุกชนิด
-     วันก่อน    บิลขาย (past_bills) + เอกสารคลัง (past_docs) จากข้อมูลสมมติที่คงที่
-   ระบบจริง: SELECT จาก ao_stock_activity_log JOIN branch WHERE created_at BETWEEN … ORDER BY created_at
-   ตัวแปรจาก history.php: $user
+     วันก่อน    บิลขาย (past_bills) + ใบรับคืน (past_returns) + เอกสารคลัง (past_docs) จากข้อมูลสมมติที่คงที่
+   ระบบจริง: SELECT จาก ao_stock_log JOIN branch WHERE created_at BETWEEN … ORDER BY created_at
    ========================================================== */
 
-require_once dirname(__FILE__) . '/../include/function.php';
+require_once dirname(__FILE__) . '/include/function.php';
+
+$user = require_login();                 // หน้า adm- : เฉพาะผู้ดูแล (พนักงานถูกพากลับเอง)
+
+/* ==================== รายละเอียดสาขา / วัน ==================== */
+if (isset($_GET['view']) && $_GET['view'] === 'day') {
+    require dirname(__FILE__) . '/inc/adm-history-day.php';
+    exit;
+}
 
 $brAll = demo_branches_all();
 $today = strtotime(date('Y-m-d'));
@@ -65,14 +72,13 @@ $hq = function ($chg) use ($fB, $fMode, $fSort, $fT, $dayTs, $monTs) {
             unset($q[$k]);
         }
     }
-    return 'history.php?' . http_build_query($q);
+    return 'adm-history.php?' . http_build_query($q);
 };
 
 /* ---------- รวบรวมรายการ ---------- */
 $codes  = $fB === 'ALL' ? array_keys($brAll) : array($fB);
 $pastK  = array('RC' => 'receive', 'IS' => 'issue', 'AD' => 'adjust');
 $pastL  = past_types();
-$adminL = return_lookback_days();                 // ผู้ดูแลเปิดหน้าสาขาย้อนได้กี่วัน
 $rows   = array();
 $seq    = 0;
 
@@ -80,10 +86,7 @@ for ($d = $from; $d <= $to; $d = strtotime('+1 day', $d)) {
     $ymd = date('Ymd', $d);
     $age = (int) round(($today - $d) / 86400);
     foreach ($codes as $c) {
-        $open = !empty($brAll[$c]['active']);
-        $link = ($open && $age <= $adminL)
-              ? 'history.php?view=branch&branch=' . rawurlencode($c) . ($age > 0 ? '&d=' . $ymd : '')
-              : '';
+        $link = 'adm-history.php?view=day&b=' . rawurlencode($c) . '&d=' . $ymd;
 
         if ($age === 0) {
             /* วันนี้ — ประวัติจริงทุกชนิด */
@@ -117,7 +120,7 @@ for ($d = $from; $d <= $to; $d = strtotime('+1 day', $d)) {
                             'title' => 'รับคืน ' . $rt['no'] . ' · บิล ' . $rt['bill_no'],
                             'amount' => $rt['refund'], 'kind' => 'money', 'by' => $rt['by'], 'void' => false,
                             'note' => return_reason_label($rt['reason']) . ' · ' . ($rt['restock'] ? 'กลับเข้าสต๊อก' : 'ไม่เข้าสต๊อก'),
-                            'link' => 'return.php?no=' . rawurlencode($rt['no']) . '&b=' . rawurlencode($c));
+                            'link' => 'adm-return.php?no=' . rawurlencode($rt['no']) . '&b=' . rawurlencode($c));
         }
         /* วันก่อน — เอกสารคลัง */
         foreach (past_docs($c, $d) as $doc) {
@@ -187,13 +190,13 @@ $branch         = 'ALL';
 $NO_BRANCH_PICK = true;                  // มีตัวกรองสาขาของหน้านี้เองแล้ว
 $PAGE_TITLE     = 'ประวัติการทำรายการ';
 $PAGE_SUB       = 'ทุกสาขา · ' . $rangeTxt;
-$NAV_ACTIVE     = 'history.php';
-require dirname(__FILE__) . '/header.php';
+$NAV_ACTIVE     = 'adm-history.php';
+require dirname(__FILE__) . '/inc/header.php';
 ?>
 
 <!-- ==================== ตัวกรอง ==================== -->
 <section class="card acct-filter hist-filter">
-  <form method="get" action="history.php" class="acct-row">
+  <form method="get" action="adm-history.php" class="acct-row">
     <div class="segs">
       <a class="seg<?= $fMode === 'day' ? ' on' : '' ?>" href="<?= e($hq(array('mode' => 'day'))) ?>">รายวัน</a>
       <a class="seg<?= $fMode === 'month' ? ' on' : '' ?>" href="<?= e($hq(array('mode' => 'month', 'm' => date('Y-m', $dayTs)))) ?>">รายเดือน</a>
@@ -291,23 +294,23 @@ require dirname(__FILE__) . '/header.php';
         <tbody>
           <?php foreach ($show as $r): $m = log_type_of($r['type']); ?>
             <tr<?= $r['void'] ? ' class="is-void"' : '' ?>>
-              <td class="num nowrap"><?php if ($fMode === 'month'): ?><?= e(thai_day_month(strtotime($r['date']))) ?> · <?php endif; ?><?= e($r['time']) ?></td>
-              <td><span class="hist-br"><?= e($brAll[$r['branch']]['short']) ?></span></td>
-              <td><span class="badge b-<?= e($m['tone']) ?>"><?= e($m['label']) ?></span></td>
-              <td>
+              <td data-label="เวลา" class="num nowrap"><?php if ($fMode === 'month'): ?><?= e(thai_day_month(strtotime($r['date']))) ?> · <?php endif; ?><?= e($r['time']) ?></td>
+              <td data-label="สาขา"><span class="hist-br"><?= e($brAll[$r['branch']]['short']) ?></span></td>
+              <td data-label="ชนิด"><span class="badge b-<?= e($m['tone']) ?>"><?= e($m['label']) ?></span></td>
+              <td data-label="รายการ">
                 <b class="hist-t"><?= e($r['title']) ?></b>
                 <?php if ($r['void']): ?><small class="hist-n hist-void">ยกเลิกแล้ว</small><?php endif; ?>
                 <?php if ($r['note'] !== ''): ?><small class="hist-n"><?= e($r['note']) ?></small><?php endif; ?>
               </td>
-              <td class="nowrap"><?= e($r['by']) ?></td>
-              <td class="r num nowrap">
+              <td data-label="ผู้ทำ" class="nowrap"><?= e($r['by']) ?></td>
+              <td data-label="จำนวน" class="r num nowrap">
                 <?php if ($r['amount'] === null): ?>—
                 <?php elseif ($r['kind'] === 'qty'): ?><?= $r['amount'] > 0 ? '+' : ($r['amount'] < 0 ? '−' : '') ?><?= number_format(abs($r['amount'])) ?> ชิ้น
                 <?php else: ?><?= e(money2($r['amount'])) ?> ฿<?php endif; ?>
               </td>
-              <td class="r">
+              <td data-label="" class="r">
                 <?php if ($r['link'] !== ''): ?>
-                  <a class="btn btn-ghost btn-sm" href="<?= e($r['link']) ?>" title="เปิดประวัติของสาขานี้ในวันนั้น">ดู</a>
+                  <a class="btn btn-ghost btn-sm" href="<?= e($r['link']) ?>" title="เปิดรายการของสาขานี้ในวันนั้น">ดู</a>
                 <?php endif; ?>
               </td>
             </tr>
@@ -326,4 +329,4 @@ require dirname(__FILE__) . '/header.php';
   <?php endif; ?>
 </section>
 
-<?php require dirname(__FILE__) . '/footer.php'; ?>
+<?php require dirname(__FILE__) . '/inc/footer.php'; ?>

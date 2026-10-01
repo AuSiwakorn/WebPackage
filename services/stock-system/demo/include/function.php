@@ -31,11 +31,11 @@
    14. แก้ / ยกเลิกเอกสารย้อนหลัง (สิทธิ์เสริม backdate)
    15. ข้อมูลของฝ่ายบัญชี
    16. หน้าบิลขายและเงินเข้า (account.php)
-   17. หน้าจัดการสาขา (branches.php)
+   17. หน้าจัดการสาขา (adm-branches.php)
    18. หน้าประวัติการทำรายการ (history.php)
-   19. หน้าจัดการพนักงาน (users.php)
+   19. หน้าจัดการพนักงาน (adm-users.php)
    20. หน้าขายสินค้า (sale.php)
-   21. ภาพรวมของผู้ดูแล (inc/dash-admin.php)
+   21. ภาพรวมของผู้ดูแล (adm-dashboard.php)
 
    เขียนให้รองรับ PHP 5.4 ขึ้นไป
    ========================================================== */
@@ -63,9 +63,10 @@ function active_roles()
 function active_menus()
 {
     return array('dashboard.php', 'store.php', 'sale.php', 'products.php', 'receive.php', 'issue.php', 'stocktake.php', 'movements.php',
-                 'history.php', 'return.php', 'report-sales.php', 'users.php', 'branches.php',
+                 'history.php', 'return.php', 'report-sales.php',
                  'account.php', 'account-settings.php',
-                 'adm-issue.php');
+                 'adm-dashboard.php', 'adm-products.php', 'adm-receive.php', 'adm-issue.php', 'adm-return.php', 'adm-history.php',
+                 'adm-movements.php', 'adm-report.php', 'adm-users.php', 'adm-branches.php');
 }
 
 /** ส่วนประกอบที่ยังไม่ได้ใช้ เปิดทีหลังโดยเติมชื่อลงใน array นี้
@@ -92,7 +93,7 @@ function menu_enabled($file)
 }
 
 /* ---------- สาขา ----------
-   ผู้ดูแลเพิ่ม / แก้ไข / ปิดใช้งาน / ลบ ได้ที่หน้า "จัดการสาขา" (branches.php)
+   ผู้ดูแลเพิ่ม / แก้ไข / ปิดใช้งาน / ลบ ได้ที่หน้า "จัดการสาขา" (adm-branches.php)
    เดโมเก็บสิ่งที่แก้ไว้ใน $_SESSION['cfg']['branches'][ รหัส ] = array(
        'name', 'short', 'address', 'phone',   ข้อมูลที่แก้ / สาขาที่เพิ่มใหม่
        'active'  => false,                    ปิดใช้งาน (ประวัติยังอยู่ครบ)
@@ -275,8 +276,9 @@ function user_perms($user)
     if (isset($user['role']) && $user['role'] === 'admin') {
         /* ผู้ดูแลได้ทุกสิทธิ์ ยกเว้น
              sale     ขายสินค้า / เปิด–ปิดร้าน (หน้าที่ของพนักงานหน้าร้าน)
-             receive  นำเข้าสินค้า (หน้าที่ของพนักงานที่ได้รับมอบหมาย) */
-        return array_values(array_diff(array_keys(perm_list()), array('sale', 'receive')));
+             receive / issue / stocktake  งานคลัง (หน้าที่ของพนักงานที่ได้รับมอบหมาย)
+           ผู้ดูแลตรวจสอบงานพวกนี้จากหน้าชุด adm- แทน */
+        return array_values(array_diff(array_keys(perm_list()), array('sale', 'receive', 'issue', 'stocktake')));
     }
     if (isset($user['role']) && $user['role'] !== 'staff') {
         return array();
@@ -1451,13 +1453,33 @@ function require_login()
         header('Location: ' . url('login.php'));
         exit;
     }
+    /* แยกชุดหน้า: ผู้ดูแลใช้หน้า adm-* · พนักงานเข้าหน้า adm-* ไม่ได้ */
+    $isAdm = (strpos($page, 'adm-') === 0);
+    if ($isAdm && $u['role'] !== 'admin') {
+        header('Location: ' . url(home_page($u)));
+        exit;
+    }
+    if (!$isAdm && $u['role'] === 'admin' && !in_array($page, admin_shared_pages(), true)) {
+        $map = admin_page_map();
+        if (isset($map[$page]) && $map[$page] !== '') {
+            $to = $map[$page];
+            $qs = isset($_SERVER['QUERY_STRING']) ? $_SERVER['QUERY_STRING'] : '';
+            if ($qs !== '' && $_SERVER['REQUEST_METHOD'] === 'GET' && in_array($page, array('products.php', 'movements.php'), true)) {
+                $to .= '?' . $qs;                          // ส่งคำค้น / หมวดต่อไปด้วย
+            }
+        } else {
+            $_SESSION['flash'] = 'หน้านี้เป็นงานของพนักงานที่ได้รับมอบหมาย — ผู้ดูแลตรวจสอบได้จากเมนูของผู้ดูแล';
+            $to = home_page($u);
+        }
+        header('Location: ' . url($to));
+        exit;
+    }
     /* หน้าที่ต้องมีสิทธิ์เฉพาะ (ขาย / นำเข้า / เบิก / ตรวจนับ / ประวัติ / รับคืน) */
     $need = page_perm($page);
     if ($need !== '' && !can($u, $need)) {
         $pl = perm_list();
-        $_SESSION['flash'] = 'ไม่มีสิทธิ์เข้าหน้า “' . $pl[$need]['short'] . '”'
-                           . ($u['role'] === 'admin' ? ' — งานนี้เป็นหน้าที่ของพนักงานที่ได้รับมอบหมาย' : ' — ติดต่อผู้ดูแลเพื่อเปิดสิทธิ์');
-        header('Location: ' . url('dashboard.php'));
+        $_SESSION['flash'] = 'ไม่มีสิทธิ์เข้าหน้า “' . $pl[$need]['short'] . '” — ติดต่อผู้ดูแลเพื่อเปิดสิทธิ์';
+        header('Location: ' . url(home_page($u)));
         exit;
     }
     return $u;
@@ -1472,7 +1494,34 @@ function account_pages()
 /** หน้าแรกหลังเข้าระบบของแต่ละบทบาท */
 function home_page($user)
 {
-    return $user['role'] === 'account' ? 'account.php' : 'dashboard.php';
+    if ($user['role'] === 'account') {
+        return 'account.php';
+    }
+    return $user['role'] === 'admin' ? 'adm-dashboard.php' : 'dashboard.php';
+}
+
+/** หน้าของพนักงาน → หน้าชุด adm- ที่คู่กันของผู้ดูแล ('' = ผู้ดูแลไม่ใช้หน้านี้ กลับหน้าแรก) */
+function admin_page_map()
+{
+    return array(
+        'dashboard.php'    => 'adm-dashboard.php',
+        'products.php'     => 'adm-products.php',
+        'issue.php'        => 'adm-issue.php',
+        'receive.php'      => 'adm-receive.php',
+        'return.php'       => 'adm-return.php',
+        'history.php'      => 'adm-history.php',
+        'movements.php'    => 'adm-movements.php',
+        'report-sales.php' => 'adm-report.php',
+        'store.php'        => '',
+        'sale.php'         => '',
+        'stocktake.php'    => '',
+    );
+}
+
+/** หน้าที่ผู้ดูแลใช้ร่วมกับบทบาทอื่น (ไม่ต้องมีชุด adm-) */
+function admin_shared_pages()
+{
+    return array('account.php', 'account-settings.php', 'logout.php', 'login.php', 'index.php');
 }
 
 /* ##########################################################
@@ -3038,6 +3087,79 @@ function issue_rows_of_day($code, $ts)
     return $rows;
 }
 
+/** ใบรับเข้าของสาขาในวันหนึ่ง — วันนี้จาก session · วันก่อนเป็นข้อมูลสมมติ (past_docs ชนิด RC)
+    เติม date / value (มูลค่าทุนตามราคาปัจจุบัน) / void ให้ทุกใบ — ใช้กับหน้า adm-receive.php */
+function receive_docs_of_day($code, $ts)
+{
+    $day  = date('Ymd', $ts);
+    $docs = array();
+    if ($day === date('Ymd')) {
+        $docs = receives_today($code);
+    } elseif ($day < date('Ymd')) {
+        foreach (past_docs($code, $ts) as $d) {
+            if ($d['kind'] === 'RC') {
+                $docs[] = $d;
+            }
+        }
+    }
+    $out = array();
+    foreach ($docs as $d) {
+        $value = 0;
+        foreach ($d['lines'] as $i => $l) {
+            $p    = product_by_sku($l['sku']);
+            $cost = $p ? (float) $p['cost'] : 0;
+            $d['lines'][$i]['cost']  = $cost;
+            $d['lines'][$i]['value'] = $cost * (int) $l['qty'];
+            $d['lines'][$i]['cat']   = $p ? $p['cat'] : '';
+            $value += $cost * (int) $l['qty'];
+        }
+        $d['date']   = $day;
+        $d['branch'] = $code;
+        $d['value']  = $value;
+        $d['ts']     = strtotime(date('Y-m-d', $ts) . ' ' . $d['time']);
+        $d['void']   = !empty($d['void']);
+        foreach (array('ref', 'note', 'void_by', 'void_at', 'void_reason', 'void_mode') as $k) {
+            if (!isset($d[$k])) {
+                $d[$k] = '';
+            }
+        }
+        $out[] = $d;
+    }
+    return $out;
+}
+
+/** หาใบรับเข้าจากเลขที่ RC-ปปดดวว-NNNN (วันอยู่ในเลขที่) */
+function receive_doc_find($code, $no)
+{
+    if (!preg_match('/^RC-(\d{6})-\d{4}$/', $no, $m) || ($ts = strtotime('20' . $m[1])) === false) {
+        return null;
+    }
+    foreach (receive_docs_of_day($code, $ts) as $d) {
+        if ($d['no'] === $no) {
+            return $d;
+        }
+    }
+    return null;
+}
+
+/** ช่วงวันที่ของหน้าตรวจสอบฝั่งผู้ดูแล — คืน array(จาก, ถึง, ข้อความ)
+    $mode = recent (30 วันล่าสุด) | day | month | year */
+function adm_range($mode, $dayTs, $monTs, $year)
+{
+    $today = strtotime(date('Y-m-d'));
+    if ($mode === 'day') {
+        return array($dayTs, $dayTs, thai_date_full($dayTs));
+    }
+    if ($mode === 'month') {
+        return array($monTs, min(strtotime(date('Y-m-t', $monTs)), $today), thai_month_full($monTs));
+    }
+    if ($mode === 'year') {
+        return array(strtotime($year . '-01-01'), min(strtotime($year . '-12-31'), $today), 'ปี ' . ($year + 543));
+    }
+    $from = strtotime('-29 day', $today);
+    return array($from, $today, '30 วันล่าสุด (' . thai_day_month($from) . ' – ' . thai_day_month($today) . ')');
+}
+
 /* ##########################################################
    หมวด: ตรวจนับ / ปรับยอด (แบบเบา)
    ########################################################## */
@@ -3771,9 +3893,14 @@ function move_when($ts)
     return $wd[(int) date('w', $ts)] . ' ' . thai_day_month($ts) . ' ' . date('H:i', $ts);
 }
 
-function move_qs($q, $cat, $sku, $period)
+function move_qs($q, $cat, $sku, $period, $extra = array())
 {
     $a = array();
+    foreach ($extra as $k => $v) {                 // ค่าเพิ่มของหน้า เช่น b=สาขา (หน้าผู้ดูแล)
+        if ((string) $v !== '') {
+            $a[] = rawurlencode($k) . '=' . rawurlencode($v);
+        }
+    }
     if ($q !== '')                              { $a[] = 'q='   . rawurlencode($q); }
     if ($cat !== '')                            { $a[] = 'cat=' . rawurlencode($cat); }
     if ($sku !== '')                            { $a[] = 'sku=' . rawurlencode($sku); }
@@ -5032,7 +5159,7 @@ function acct_row_cmp($a, $b)
 }
 
 /* ##########################################################
-   หมวด: หน้าจัดการสาขา (branches.php)
+   หมวด: หน้าจัดการสาขา (adm-branches.php)
    ########################################################## */
 
 /** สาขานี้มีข้อมูลแล้วหรือยัง — คืนเหตุผล (ว่าง = ยังไม่มี ลบได้) */
@@ -5128,11 +5255,12 @@ function branch_list_cmp($a, $b)
    หมวด: หน้าประวัติการทำรายการ (history.php)
    ########################################################## */
 
-/** ลิงก์ของหน้านี้ — ผู้ดูแลต้องพก view=branch ไปด้วย ไม่งั้นจะเด้งกลับหน้ารวม */
+/** ลิงก์ของหน้าประวัติ — ใช้ร่วมกันระหว่าง history.php (พนักงาน) กับ adm-history.php (ผู้ดูแล)
+    หน้าไหนต้องการฐานลิงก์อื่น ให้ตั้ง $HIST_BASE ก่อนเรียก เช่น 'adm-history.php?view=day&b=RS' */
 function hist_url($q = '')
 {
-    global $isAdmin, $code;
-    $base = $isAdmin ? 'history.php?view=branch&branch=' . rawurlencode($code) : 'history.php';
+    global $HIST_BASE;
+    $base = !empty($HIST_BASE) ? $HIST_BASE : 'history.php';
     if ($q === '') {
         return $base;
     }
@@ -5140,7 +5268,7 @@ function hist_url($q = '')
 }
 
 /* ##########################################################
-   หมวด: หน้าจัดการพนักงาน (users.php)
+   หมวด: หน้าจัดการพนักงาน (adm-users.php)
    ########################################################## */
 
 /** พนักงานทั้งหมด (รวมที่พักงาน ไม่รวมผู้ดูแล / บัญชี) */
@@ -5330,7 +5458,7 @@ function sale_flash($err, $done, $voided, $oob)
 }
 
 /* ##########################################################
-   หมวด: ภาพรวมของผู้ดูแล (inc/dash-admin.php)
+   หมวด: ภาพรวมของผู้ดูแล (adm-dashboard.php)
    ########################################################## */
 
 /** เรียงรายการที่ต้องตรวจ ใหม่สุดขึ้นก่อน */

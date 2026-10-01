@@ -20,11 +20,7 @@
 
 require_once dirname(__FILE__) . '/include/function.php';
 
-$user = require_login();
-if ($user['role'] !== 'admin') {
-    header('Location: ' . url('dashboard.php'));
-    exit;
-}
+$user = require_login();                 // หน้า adm- : เฉพาะผู้ดูแล (พนักงานถูกพากลับเอง)
 
 $plist = perm_list();
 $err   = '';
@@ -87,7 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'สิทธิ์'    => perm_names($perms),
                 'เพิ่มโดย'  => $user['name'] . ' (ผู้ดูแล)',
             ));
-            $go = 'users.php?u=' . rawurlencode($uname) . '&ok=add';
+            $go = 'adm-users.php?u=' . rawurlencode($uname) . '&ok=add';
         }
 
     } elseif (!isset($all[$sel])) {
@@ -123,7 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $changes['แก้โดย'] = $user['name'] . ' (ผู้ดูแล)';
                     log_add($u['branch'], 'setting', $user, 'แก้ข้อมูลพนักงาน ' . $name, $changes);
                 }
-                $go = 'users.php?u=' . rawurlencode($sel) . '&ok=save';
+                $go = 'adm-users.php?u=' . rawurlencode($sel) . '&ok=save';
             }
 
         } elseif ($act === 'pin') {
@@ -137,7 +133,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 log_add($u['branch'], 'setting', $user, 'รีเซ็ต PIN ของ ' . $u['name'], array(
                     'แก้โดย' => $user['name'] . ' (ผู้ดูแล)', 'หมายเหตุ' => 'ไม่แสดงเลข PIN ในประวัติ',
                 ));
-                $go = 'users.php?u=' . rawurlencode($sel) . '&ok=pin';
+                $go = 'adm-users.php?u=' . rawurlencode($sel) . '&ok=pin';
             }
 
         } elseif ($act === 'move') {
@@ -158,7 +154,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 );
                 log_add($u['branch'], 'setting', $user, 'ย้าย ' . $u['name'] . ' ไป' . branch_name($to), $detail);
                 log_add($to, 'setting', $user, 'รับ ' . $u['name'] . ' ย้ายมาจาก' . branch_name($u['branch']), $detail);
-                $go = 'users.php?u=' . rawurlencode($sel) . '&ok=move';
+                $go = 'adm-users.php?u=' . rawurlencode($sel) . '&ok=move';
             }
 
         } elseif ($act === 'off' || $act === 'on') {
@@ -174,7 +170,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'เหตุผล' => $on ? '—' : ($why !== '' ? $why : 'ไม่ได้ระบุ'),
                     'แก้โดย' => $user['name'] . ' (ผู้ดูแล)',
                 ));
-                $go = 'users.php?u=' . rawurlencode($sel) . '&ok=' . $act;
+                $go = 'adm-users.php?u=' . rawurlencode($sel) . '&ok=' . $act;
             }
 
         } elseif ($act === 'delete') {
@@ -188,7 +184,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['cfg']['user'][$sel] = array('deleted' => true);
                 log_add($u['branch'], 'setting', $user, 'ลบพนักงาน ' . $u['name'], array('แก้โดย' => $user['name'] . ' (ผู้ดูแล)'));
                 $_SESSION['flash'] = 'ลบ ' . $u['name'] . ' แล้ว';
-                $go = 'users.php';
+                $go = 'adm-users.php';
             }
         }
     }
@@ -218,7 +214,7 @@ foreach ($staff as $s) {
 $branch     = work_branch($user);
 $PAGE_TITLE = 'จัดการพนักงาน';
 $PAGE_SUB   = 'ใช้งาน ' . $nActive . ' คน' . (count($staff) > $nActive ? ' · พักงาน ' . (count($staff) - $nActive) . ' คน' : '');
-$NAV_ACTIVE = 'users.php';
+$NAV_ACTIVE = 'adm-users.php';
 $NO_BRANCH_PICK = true;                   // หน้านี้แบ่งกลุ่มตามสาขาให้แล้ว
 require dirname(__FILE__) . '/inc/header.php';
 
@@ -239,7 +235,7 @@ require dirname(__FILE__) . '/inc/header.php';
   <?php if ($errAt === 'new'): ?>
     <div class="alert alert-error adm-ok" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span><?= e($err) ?></span></div>
   <?php endif; ?>
-  <form class="adm-sec" method="post" action="users.php">
+  <form class="adm-sec" method="post" action="adm-users.php">
     <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
     <input type="hidden" name="act" value="add">
     <div class="adm-fields">
@@ -296,7 +292,7 @@ require dirname(__FILE__) . '/inc/header.php';
             <?php if (!empty($picked['since'])): ?> · ประจำสาขานี้ตั้งแต่ <?= e(thai_date_full(strtotime($picked['since']))) ?><?php endif; ?></span>
         </div>
       </div>
-      <a class="btn btn-ghost btn-sm" href="users.php"><svg class="ico"><use href="#i-x"/></svg> ปิด</a>
+      <a class="btn btn-ghost btn-sm" href="adm-users.php"><svg class="ico"><use href="#i-x"/></svg> ปิด</a>
     </div>
     <?php if ($errAt === $sel && $err !== ''): ?>
       <div class="alert alert-error adm-ok" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span><?= e($err) ?></span></div>
@@ -304,7 +300,7 @@ require dirname(__FILE__) . '/inc/header.php';
 
     <?php if ($active): ?>
     <!-- ข้อมูล + สิทธิ์ -->
-    <form class="adm-sec" method="post" action="users.php?u=<?= e(rawurlencode($sel)) ?>">
+    <form class="adm-sec" method="post" action="adm-users.php?u=<?= e(rawurlencode($sel)) ?>">
       <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
       <input type="hidden" name="act" value="save">
       <input type="hidden" name="u" value="<?= e($sel) ?>">
@@ -323,7 +319,7 @@ require dirname(__FILE__) . '/inc/header.php';
     </form>
 
     <div class="adm-row">
-      <form class="adm-sec" method="post" action="users.php?u=<?= e(rawurlencode($sel)) ?>">
+      <form class="adm-sec" method="post" action="adm-users.php?u=<?= e(rawurlencode($sel)) ?>">
         <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
         <input type="hidden" name="act" value="pin">
         <input type="hidden" name="u" value="<?= e($sel) ?>">
@@ -335,7 +331,7 @@ require dirname(__FILE__) . '/inc/header.php';
           <button class="btn btn-ghost" type="submit">ตั้ง PIN ใหม่</button>
         </div>
       </form>
-      <form class="adm-sec" method="post" action="users.php?u=<?= e(rawurlencode($sel)) ?>">
+      <form class="adm-sec" method="post" action="adm-users.php?u=<?= e(rawurlencode($sel)) ?>">
         <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
         <input type="hidden" name="act" value="move">
         <input type="hidden" name="u" value="<?= e($sel) ?>">
@@ -364,7 +360,7 @@ require dirname(__FILE__) . '/inc/header.php';
 
     <!-- พักงาน / เปิดใช้งาน · ลบ -->
     <div class="adm-row br-danger">
-      <form class="adm-sec" method="post" action="users.php?u=<?= e(rawurlencode($sel)) ?>">
+      <form class="adm-sec" method="post" action="adm-users.php?u=<?= e(rawurlencode($sel)) ?>">
         <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
         <input type="hidden" name="act" value="<?= $active ? 'off' : 'on' ?>">
         <input type="hidden" name="u" value="<?= e($sel) ?>">
@@ -381,7 +377,7 @@ require dirname(__FILE__) . '/inc/header.php';
           <button class="btn btn-ghost" type="submit"><svg class="ico"><use href="#i-check"/></svg> เปิดใช้งาน</button>
         <?php endif; ?>
       </form>
-      <form class="adm-sec" method="post" action="users.php?u=<?= e(rawurlencode($sel)) ?>">
+      <form class="adm-sec" method="post" action="adm-users.php?u=<?= e(rawurlencode($sel)) ?>">
         <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
         <input type="hidden" name="act" value="delete">
         <input type="hidden" name="u" value="<?= e($sel) ?>">
@@ -415,7 +411,7 @@ foreach ($order as $g):
     <div class="card-head">
       <div><h2><?= $g === '_off' ? 'พักงาน / ลาออก' : e(branch_name($g)) ?></h2><span class="sub"><?= count($list) ?> คน</span></div>
       <?php if ($g !== '_off'): ?>
-        <a class="btn btn-ghost btn-sm" href="branches.php#b-<?= e($g) ?>"><svg class="ico"><use href="#i-settings"/></svg> จัดการสาขา</a>
+        <a class="btn btn-ghost btn-sm" href="adm-branches.php#b-<?= e($g) ?>"><svg class="ico"><use href="#i-settings"/></svg> จัดการสาขา</a>
       <?php endif; ?>
     </div>
     <?php if (!$list): ?>
@@ -436,7 +432,7 @@ foreach ($order as $g):
                     <?php if (!$n): ?><span class="adm-none">—</span><?php endif; ?>
                   </td>
                 <?php endforeach; ?>
-                <td class="r"><a class="btn btn-ghost btn-sm" href="users.php?u=<?= e(rawurlencode($k)) ?>">แก้ไข</a></td>
+                <td class="r"><a class="btn btn-ghost btn-sm" href="adm-users.php?u=<?= e(rawurlencode($k)) ?>">แก้ไข</a></td>
               </tr>
             <?php endforeach; ?>
           </tbody>

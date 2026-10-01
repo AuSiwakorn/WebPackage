@@ -7,7 +7,7 @@
 
    ตัวกรอง (GET)
      b     = ALL | รหัสสาขา (รวมสาขาที่ปิดใช้งาน)
-     mode  = day | month | year · d = Y-m-d · m = Y-m · y = Y
+     mode  = recent (30 วันล่าสุด — ค่าเริ่มต้น) | day | month | year · d = Y-m-d · m = Y-m · y = Y
      why   = เหตุผล (คีย์ของ issue_reasons)
      void  = 1 แสดงใบที่ยกเลิกแล้วด้วย (ค่าเริ่มต้นซ่อน)
      q     = ค้นชื่อสินค้า / SKU / เลขที่ใบ
@@ -34,7 +34,7 @@ $yearMin = 2026;                                   // ปีแรกที่�
 /* ---------- อ่านตัวกรอง ---------- */
 $g     = function ($k, $def = '') { return (isset($_GET[$k]) && is_string($_GET[$k])) ? trim($_GET[$k]) : $def; };
 $fB    = isset($brAll[$g('b')]) ? $g('b') : 'ALL';
-$fMode = in_array($g('mode'), array('day', 'month', 'year'), true) ? $g('mode') : 'month';
+$fMode = in_array($g('mode'), array('day', 'month', 'year'), true) ? $g('mode') : 'recent';
 $fWhy  = isset($reasons[$g('why')]) ? $g('why') : '';
 $fVoid = $g('void') === '1';
 $fQ    = substr($g('q'), 0, 120);
@@ -54,19 +54,7 @@ if (preg_match('/^\d{4}$/', $g('y'))) {
     $year = max($yearMin, min((int) date('Y'), (int) $g('y')));
 }
 
-if ($fMode === 'day') {
-    $from = $dayTs;
-    $to   = $dayTs;
-    $rangeTxt = thai_date_full($dayTs);
-} elseif ($fMode === 'month') {
-    $from = $monTs;
-    $to   = min(strtotime(date('Y-m-t', $monTs)), $today);
-    $rangeTxt = thai_month_full($monTs);
-} else {
-    $from = strtotime($year . '-01-01');
-    $to   = min(strtotime($year . '-12-31'), $today);
-    $rangeTxt = 'ปี ' . ($year + 543);
-}
+list($from, $to, $rangeTxt) = adm_range($fMode, $dayTs, $monTs, $year);
 
 /** ลิงก์ของหน้านี้ โดยเปลี่ยนค่าบางตัว */
 $aq = function ($chg) use ($fB, $fMode, $fWhy, $fVoid, $fQ, $fSort, $fDir, $dayTs, $monTs, $year) {
@@ -78,7 +66,7 @@ $aq = function ($chg) use ($fB, $fMode, $fWhy, $fVoid, $fQ, $fSort, $fDir, $dayT
             unset($q[$key]);
         }
     }
-    foreach (array('b' => 'ALL', 'mode' => 'month', 'why' => '', 'void' => '', 'q' => '', 'sort' => 'time', 'dir' => 'desc', 'p' => 1) as $k => $def) {
+    foreach (array('b' => 'ALL', 'mode' => 'recent', 'why' => '', 'void' => '', 'q' => '', 'sort' => 'time', 'dir' => 'desc', 'p' => 1) as $k => $def) {
         if (isset($q[$k]) && (string) $q[$k] === (string) $def) {
             unset($q[$k]);
         }
@@ -173,7 +161,7 @@ require dirname(__FILE__) . '/inc/header.php';
 <section class="card acct-filter hist-filter">
   <form method="get" action="adm-issue.php" class="acct-row">
     <div class="segs">
-      <?php foreach (array('day' => 'รายวัน', 'month' => 'รายเดือน', 'year' => 'รายปี') as $md => $lb): ?>
+      <?php foreach (array('recent' => '30 วัน', 'day' => 'รายวัน', 'month' => 'รายเดือน', 'year' => 'รายปี') as $md => $lb): ?>
         <a class="seg<?= $fMode === $md ? ' on' : '' ?>" href="<?= e($aq(array('mode' => $md))) ?>"><?= e($lb) ?></a>
       <?php endforeach; ?>
     </div>
@@ -193,7 +181,7 @@ require dirname(__FILE__) . '/inc/header.php';
       <?php if ($monTs < strtotime(date('Y-m-01'))): ?>
         <a class="btn btn-ghost btn-sm" href="<?= e($aq(array('m' => date('Y-m', strtotime('+1 month', $monTs))))) ?>" aria-label="เดือนถัดไป">›</a>
       <?php endif; ?>
-    <?php else: ?>
+    <?php elseif ($fMode === 'year'): ?>
       <label class="sr-only" for="fy">ปี</label>
       <select class="input acct-date" id="fy" name="y" onchange="this.form.submit()">
         <?php for ($y = (int) date('Y'); $y >= $yearMin; $y--): ?>
@@ -286,23 +274,23 @@ require dirname(__FILE__) . '/inc/header.php';
         <tbody>
           <?php foreach ($show as $r): ?>
             <tr<?= $r['void'] ? ' class="is-void"' : '' ?>>
-              <td class="num nowrap"><?php if ($fMode !== 'day'): ?><?= e(thai_day_month(strtotime($r['date']))) ?> · <?php endif; ?><?= e($r['time']) ?>
+              <td data-label="เวลา" class="num nowrap"><?php if ($fMode !== 'day'): ?><?= e(thai_day_month(strtotime($r['date']))) ?> · <?php endif; ?><?= e($r['time']) ?>
                 <small class="hist-n"><?= e($r['no']) ?></small></td>
-              <td><span class="hist-br"><?= e($brAll[$r['branch']]['short']) ?></span></td>
-              <td>
+              <td data-label="สาขา"><span class="hist-br"><?= e($brAll[$r['branch']]['short']) ?></span></td>
+              <td data-label="สินค้า">
                 <b class="hist-t"><?= e($r['name']) ?></b>
                 <small class="hist-n"><?= e($r['sku']) ?><?= $r['cat'] !== '' ? ' · ' . e($r['cat']) : '' ?></small>
                 <?php if ($r['void']): ?><small class="hist-n hist-void">ยกเลิกโดย <?= e($r['void_by']) ?><?= $r['void_reason'] !== '' ? ' — ' . e($r['void_reason']) : '' ?></small><?php endif; ?>
               </td>
-              <td class="r num nowrap"><?= number_format($r['qty']) ?> <?= e($r['unit']) ?></td>
-              <td class="r num nowrap"><?= e(money2($r['cost'])) ?><small class="hist-n">ขาย <?= e(money2($r['price'])) ?></small></td>
-              <td class="r num nowrap"><b><?= e(money2($r['value'])) ?></b></td>
-              <td>
+              <td data-label="จำนวน" class="r num nowrap"><?= number_format($r['qty']) ?> <?= e($r['unit']) ?></td>
+              <td data-label="ราคาทุน / ชิ้น" class="r num nowrap"><?= e(money2($r['cost'])) ?><small class="hist-n">ขาย <?= e(money2($r['price'])) ?></small></td>
+              <td data-label="มูลค่ารวม" class="r num nowrap"><b><?= e(money2($r['value'])) ?></b></td>
+              <td data-label="เหตุผล">
                 <span class="bdg <?= in_array($r['reason'], array('lost', 'damaged', 'expired'), true) ? 'bdg-out' : 'bdg-adj' ?>"><?= e(issue_reason_label($r['reason'])) ?></span>
                 <?php if ($r['note'] !== ''): ?><small class="hist-n"><?= e($r['note']) ?></small><?php endif; ?>
                 <?php if ($r['ref'] !== ''): ?><small class="hist-n">อ้างอิง <?= e($r['ref']) ?></small><?php endif; ?>
               </td>
-              <td class="nowrap"><?= e($r['by']) ?></td>
+              <td data-label="ผู้ทำ" class="nowrap"><?= e($r['by']) ?></td>
             </tr>
           <?php endforeach; ?>
         </tbody>

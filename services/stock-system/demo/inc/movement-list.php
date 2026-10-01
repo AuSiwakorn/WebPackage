@@ -2,6 +2,7 @@
 /* ==========================================================
    AOSTOCK DEMO — รายการสินค้าทางซ้ายของหน้าประวัติเคลื่อนไหว (htmx สลับได้)
    ต้องกำหนดก่อน include: $code $list $q $cat $sku $period
+   ใช้ร่วมกับ adm-movements.php — ตั้ง $MV_PAGE (หน้าปลายทาง) และ $MV_EXTRA (เช่น array('b' => 'RS')) ได้
    ========================================================== */
 
 require_once dirname(__FILE__) . '/../include/function.php';
@@ -13,7 +14,7 @@ require_once dirname(__FILE__) . '/../include/function.php';
   <?php foreach ($list as $p): ?>
     <li>
       <a class="mv-item<?= $p['sku'] === $sku ? ' on' : '' ?>"
-         href="movements.php<?= e(move_qs($q, $cat, $p['sku'], $period)) ?>">
+         href="<?= e((isset($MV_PAGE) ? $MV_PAGE : 'movements.php') . move_qs($q, $cat, $p['sku'], $period, isset($MV_EXTRA) ? $MV_EXTRA : array())) ?>">
         <?= thumb_html($p) ?>
         <span class="mv-it">
           <b><?= e($p['name']) ?></b>

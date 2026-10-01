@@ -13,37 +13,56 @@ require_once dirname(__FILE__) . '/../include/function.php';
 
 $PAGE_TITLE = isset($PAGE_TITLE) ? $PAGE_TITLE : 'ภาพรวม';
 $PAGE_SUB   = isset($PAGE_SUB) ? $PAGE_SUB : '';
-$NAV_ACTIVE = isset($NAV_ACTIVE) ? $NAV_ACTIVE : 'dashboard.php';
+$NAV_ACTIVE = isset($NAV_ACTIVE) ? $NAV_ACTIVE : home_page($user);
 
-/* เมนูทั้งหมด — แสดงเฉพาะที่เปิดใช้ใน active_menus() (include/function.php) */
-$NAV_ALL = array(
-    'ใช้งานประจำวัน' => array(
-        array('file' => 'dashboard.php',  'label' => ($user['role'] === 'admin') ? 'ภาพรวม' : 'ภาพรวมของฉัน', 'icon' => 'i-home'),
-        array('file' => 'store.php',      'label' => 'เปิด / ปิดร้าน',    'icon' => 'i-store',     'perm' => 'sale'),
-        array('file' => 'sale.php',       'label' => 'ขายสินค้า',         'icon' => 'i-cart',      'perm' => 'sale'),
-        array('file' => 'products.php',   'label' => 'สินค้าในสต๊อก',     'icon' => 'i-boxes'),
-        array('file' => 'receive.php',    'label' => 'นำเข้าสินค้า',      'icon' => 'i-in',        'perm' => 'receive'),
-        array('file' => 'issue.php',      'label' => 'เบิก / ตัดออก',     'icon' => 'i-out',       'perm' => 'issue', 'adm' => 'adm-issue.php'),
-        array('file' => 'stocktake.php',  'label' => 'ตรวจนับ / ปรับยอด',  'icon' => 'i-clipboard', 'perm' => 'stocktake'),
-        array('file' => 'return.php',     'label' => 'รับคืนสินค้า',       'icon' => 'i-receipt', 'perm' => 'refund'),
-        array('file' => 'history.php',    'label' => 'ประวัติการทำรายการ', 'icon' => 'i-history',   'perm' => 'history'),
-        array('file' => 'movements.php',  'label' => 'ประวัติเคลื่อนไหว', 'icon' => 'i-activity'),
-    ),
-    'รายงาน' => array(
-        array('file' => 'report-sales.php',    'label' => 'รายงานยอดขาย',  'icon' => 'i-chart'),
-        array('file' => 'report-stock.php',    'label' => 'ยอดคงเหลือ',    'icon' => 'i-chart'),
-        array('file' => 'report-lowstock.php', 'label' => 'สินค้าใกล้หมด', 'icon' => 'i-alert'),
-    ),
-    'บัญชี' => array(
-        array('file' => 'account.php',          'label' => 'บิลขายและเงินเข้า', 'icon' => 'i-receipt',  'roles' => array('account', 'admin')),
-        array('file' => 'account-settings.php', 'label' => 'ตั้งค่าเลขที่บิล',   'icon' => 'i-settings', 'roles' => array('account', 'admin')),
-    ),
-    'ตั้งค่า' => array(
-        array('file' => 'branches.php', 'label' => 'จัดการสาขา',      'icon' => 'i-building', 'admin' => true),
-        array('file' => 'users.php',    'label' => 'จัดการพนักงาน',   'icon' => 'i-users',    'admin' => true),
-        array('file' => 'settings.php', 'label' => 'ตั้งค่าทั่วไป',   'icon' => 'i-settings'),
-    ),
-);
+/* เมนู — แสดงเฉพาะที่เปิดใช้ใน active_menus() (include/function.php)
+   ผู้ดูแลใช้เมนูชุด adm- ของตัวเอง (ตรวจสอบทุกสาขา) · พนักงานและบัญชีใช้ชุดปกติ */
+if ($user['role'] === 'admin') {
+    $NAV_ALL = array(
+        'ตรวจสอบ' => array(
+            array('file' => 'adm-dashboard.php', 'label' => 'ภาพรวม',              'icon' => 'i-home'),
+            array('file' => 'adm-products.php',  'label' => 'สินค้าในสต๊อก',        'icon' => 'i-boxes'),
+            array('file' => 'adm-receive.php',   'label' => 'นำเข้าสินค้า',          'icon' => 'i-in'),
+            array('file' => 'adm-issue.php',     'label' => 'เบิก / ตัดออก',        'icon' => 'i-out'),
+            array('file' => 'adm-return.php',    'label' => 'รับคืนสินค้า',          'icon' => 'i-receipt'),
+            array('file' => 'adm-history.php',   'label' => 'ประวัติการทำรายการ',    'icon' => 'i-history'),
+            array('file' => 'adm-movements.php', 'label' => 'ประวัติเคลื่อนไหว',     'icon' => 'i-activity'),
+        ),
+        'รายงาน' => array(
+            array('file' => 'adm-report.php',    'label' => 'รายงานยอดขาย',        'icon' => 'i-chart'),
+        ),
+        'บัญชี' => array(
+            array('file' => 'account.php',          'label' => 'บิลขายและเงินเข้า', 'icon' => 'i-receipt'),
+            array('file' => 'account-settings.php', 'label' => 'ตั้งค่าเลขที่บิล',   'icon' => 'i-settings'),
+        ),
+        'ตั้งค่า' => array(
+            array('file' => 'adm-branches.php', 'label' => 'จัดการสาขา',    'icon' => 'i-building'),
+            array('file' => 'adm-users.php',    'label' => 'จัดการพนักงาน', 'icon' => 'i-users'),
+        ),
+    );
+} else {
+    $NAV_ALL = array(
+        'ใช้งานประจำวัน' => array(
+            array('file' => 'dashboard.php',  'label' => 'ภาพรวมของฉัน',      'icon' => 'i-home'),
+            array('file' => 'store.php',      'label' => 'เปิด / ปิดร้าน',    'icon' => 'i-store',     'perm' => 'sale'),
+            array('file' => 'sale.php',       'label' => 'ขายสินค้า',         'icon' => 'i-cart',      'perm' => 'sale'),
+            array('file' => 'products.php',   'label' => 'สินค้าในสต๊อก',     'icon' => 'i-boxes'),
+            array('file' => 'receive.php',    'label' => 'นำเข้าสินค้า',      'icon' => 'i-in',        'perm' => 'receive'),
+            array('file' => 'issue.php',      'label' => 'เบิก / ตัดออก',     'icon' => 'i-out',       'perm' => 'issue'),
+            array('file' => 'stocktake.php',  'label' => 'ตรวจนับ / ปรับยอด',  'icon' => 'i-clipboard', 'perm' => 'stocktake'),
+            array('file' => 'return.php',     'label' => 'รับคืนสินค้า',       'icon' => 'i-receipt',   'perm' => 'refund'),
+            array('file' => 'history.php',    'label' => 'ประวัติการทำรายการ', 'icon' => 'i-history',   'perm' => 'history'),
+            array('file' => 'movements.php',  'label' => 'ประวัติเคลื่อนไหว', 'icon' => 'i-activity'),
+        ),
+        'รายงาน' => array(
+            array('file' => 'report-sales.php', 'label' => 'รายงานยอดขาย', 'icon' => 'i-chart'),
+        ),
+        'บัญชี' => array(
+            array('file' => 'account.php',          'label' => 'บิลขายและเงินเข้า', 'icon' => 'i-receipt',  'roles' => array('account')),
+            array('file' => 'account-settings.php', 'label' => 'ตั้งค่าเลขที่บิล',   'icon' => 'i-settings', 'roles' => array('account')),
+        ),
+    );
+}
 
 $NAV = array();
 foreach ($NAV_ALL as $group => $items) {
@@ -52,11 +71,7 @@ foreach ($NAV_ALL as $group => $items) {
         /* ใครเห็นเมนูนี้: ค่าเริ่มต้น = พนักงาน + ผู้ดูแล · ฝ่ายบัญชีเห็นเฉพาะเมนูที่ระบุ roles */
         $roles = isset($it['roles']) ? $it['roles'] : array('staff', 'admin');
         if (menu_enabled($it['file']) && in_array($user['role'], $roles, true)
-            && (!isset($it['perm']) || can($user, $it['perm']))
-            && (empty($it['admin']) || $user['role'] === 'admin')) {
-            if ($user['role'] === 'admin' && isset($it['adm'])) {
-                $it['file'] = $it['adm'];          // ผู้ดูแลใช้หน้าชุด adm- (ตรวจสอบทุกสาขา) แทนหน้าทำงานของพนักงาน
-            }
+            && (!isset($it['perm']) || can($user, $it['perm']))) {
             $keep[] = $it;
         }
     }
@@ -143,7 +158,7 @@ $branches = visible_branches($user);
       <svg class="ico"><use href="#i-x"/></svg>
     </button>
     <div class="side-head">
-      <a class="side-brand" href="dashboard.php" aria-label="<?= e(APP_NAME) ?> หน้าแรก">
+      <a class="side-brand" href="<?= e(home_page($user)) ?>" aria-label="<?= e(APP_NAME) ?> หน้าแรก">
         <span class="logo logo--light logo-full"><span class="logo-ao">AO</span><span class="logo-sk">STOCK</span></span>
         <span class="logo-mark">AO</span>
       </a>
@@ -216,8 +231,8 @@ $branches = visible_branches($user);
       <div class="top-tools">
         <?php /* พนักงานผูกกับสาขาเดียวตั้งแต่ตอนสร้างรหัส จึงไม่ต้องมีตัวเลือกสาขา
                  ช่องนี้จะโผล่เฉพาะสิทธิ์ที่เห็นได้หลายสาขาเท่านั้น */ ?>
-        <?php if (empty($NO_BRANCH_PICK) && (($user['role'] === 'admin' && strpos($NAV_ACTIVE, 'account') !== 0) || (feature_enabled('branch_pick') && count($branches) > 1))): ?>
-        <?php /* ผู้ดูแล: เลือกสาขาที่จะทำงาน — "ทุกสาขา" มีเฉพาะหน้าภาพรวม */ ?>
+        <?php if (empty($NO_BRANCH_PICK) && (($user['role'] === 'admin' && $NAV_ACTIVE === 'adm-dashboard.php') || ($user['role'] !== 'admin' && feature_enabled('branch_pick') && count($branches) > 1))): ?>
+        <?php /* ผู้ดูแล: ตัวเลือกสาขาบนแถบบนมีเฉพาะหน้าภาพรวม — หน้า adm- อื่นมีตัวกรองสาขาในหน้าเอง */ ?>
         <form class="branch-pick" method="get" action="<?= e($NAV_ACTIVE) ?>">
           <?php if (!empty($PICK_HIDDEN)) { foreach ($PICK_HIDDEN as $hk => $hv): ?>
             <input type="hidden" name="<?= e($hk) ?>" value="<?= e($hv) ?>">
@@ -225,7 +240,7 @@ $branches = visible_branches($user);
           <label class="sr-only" for="branch">สาขาที่กำลังดู</label>
           <select class="select" name="branch" id="branch" onchange="this.form.submit()">
             <?php foreach ($branches as $bcode => $b): ?>
-              <?php if ($bcode === 'ALL' && $NAV_ACTIVE !== 'dashboard.php') { continue; } ?>
+              <?php if ($bcode === 'ALL' && $NAV_ACTIVE !== 'adm-dashboard.php') { continue; } ?>
               <option value="<?= e($bcode) ?>" <?= $branch === $bcode ? 'selected' : '' ?>><?= e($b['name']) ?></option>
             <?php endforeach; ?>
           </select>

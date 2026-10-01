@@ -1,35 +1,14 @@
 <?php
 require_once dirname(__FILE__) . '/include/function.php';
 
-$user   = require_login();                // ฝ่ายบัญชีถูกพาไปหน้า account.php เอง
-
-/* ผู้ดูแล: เปิดร้านใหม่หลังปิด (ทำจากภาพรวม — ผู้ดูแลไม่เข้าหน้าเปิด/ปิดร้านแล้ว) */
-if ($user['role'] === 'admin' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['act']) && $_POST['act'] === 'reopen') {
-    $rb = isset($_POST['b']) ? $_POST['b'] : '';
-    $rr = isset($_POST['reason']) ? trim($_POST['reason']) : '';
-    $bb = demo_branches();
-    if (!csrf_check(isset($_POST['csrf']) ? $_POST['csrf'] : null) || !isset($bb[$rb])) {
-        $_SESSION['flash'] = 'เซสชันหมดอายุ หรือไม่พบสาขา';
-    } elseif ($rr === '') {
-        $_SESSION['flash'] = 'การเปิดร้านใหม่หลังปิดต้องระบุเหตุผล';
-    } elseif (store_reopen($rb, $user, $rr) === null) {
-        $_SESSION['flash'] = branch_name($rb) . ' ยังไม่ได้ปิดร้าน';
-    } else {
-        $_SESSION['flash'] = 'เปิดร้าน' . branch_name($rb) . 'ใหม่แล้ว — พนักงานขายต่อได้ และต้องปิดร้านอีกครั้ง';
-    }
-    header('Location: ' . url('dashboard.php?branch=ALL'));
-    exit;
-}
+$user   = require_login();                // บัญชี → account.php · ผู้ดูแล → adm-dashboard.php (require_login พาไปเอง)
 
 /* พนักงานหน้างานต้องเปิดร้านก่อนใช้งานในแต่ละวัน */
-if ($user['role'] !== 'admin' && can($user, 'sale') && store_state($user['branch']) === null) {
+if (can($user, 'sale') && store_state($user['branch']) === null) {
     header('Location: ' . url('store.php'));
     exit;
 }
 $branch = resolve_branch($user, isset($_GET['branch']) ? $_GET['branch'] : null);
-if ($user['role'] === 'admin' && $branch !== 'ALL') {
-    $_SESSION['admin_branch'] = $branch;          // หน้าอื่นทำงานกับสาขาเดียวกันต่อ
-}
 $me     = $user['username'];
 
 /* ---------- ผลงานของฉัน ---------- */
@@ -59,17 +38,11 @@ $greet = $hour < 12 ? 'สวัสดีตอนเช้า' : ($hour < 17 ? 
 $first = explode(' ', $user['name']);
 $first = $first[0];
 
-$PAGE_TITLE = ($user['role'] === 'admin') ? 'ภาพรวมผู้ดูแล' : 'ภาพรวมของฉัน';
+$PAGE_TITLE = 'ภาพรวมของฉัน';
 $PAGE_SUB   = branch_label($branch) . ' · ' . thai_date_full(time()) . ' ' . date('H:i') . ' น.';
 $NAV_ACTIVE = 'dashboard.php';
 require dirname(__FILE__) . '/inc/header.php';
 
-/* ผู้ดูแลเห็นภาพรวมร้าน/รายการที่ต้องตรวจ แทนผลงานส่วนตัวแบบพนักงาน */
-if ($user['role'] === 'admin') {
-    require dirname(__FILE__) . '/inc/dash-admin.php';
-    require dirname(__FILE__) . '/inc/footer.php';
-    exit;
-}
 ?>
 
 <div class="demo-bar">
@@ -89,7 +62,7 @@ if ($user['role'] === 'admin') {
         <span><?= e($greet) ?> <b><?= e($first) ?></b> · <?= e(thai_date_full(time())) ?>
               · <?= e(branch_name($user['branch'])) ?></span>
       </div>
-      <?php $myPerms = ($user['role'] === 'admin') ? array() : user_perms($user); ?>
+      <?php $myPerms = user_perms($user); ?>
       <?php if ($myPerms): $pl = perm_list(); ?>
         <div class="hm-perms" aria-label="สิทธิ์เสริมของฉัน">
           <span class="hm-perms-lb">สิทธิ์เสริม</span>
@@ -388,35 +361,6 @@ if ($user['role'] === 'admin') {
       </div>
     </section>
 
-    <!-- ===== แยกตามสาขา (เฉพาะผู้ดูแล) ===== -->
-    <?php if ($user['role'] === 'admin'): ?>
-      <section class="card">
-        <div class="card-head">
-          <div>
-            <h3>แยกตามสาขา</h3>
-            <p>มูลค่าสต๊อกและรายการที่ต้องดูแล</p>
-          </div>
-        </div>
-        <div class="card-body card-body--flush">
-          <div class="tbl-wrap">
-            <table class="tbl tbl--compact num">
-              <thead><tr><th>สาขา</th><th class="r">มูลค่าสต๊อก</th><th class="r">ใกล้หมด</th><th class="r">หมด</th></tr></thead>
-              <tbody>
-                <?php foreach (demo_branches() as $code => $b):
-                    $s = stock_summary($code); ?>
-                  <tr>
-                    <td><?= e($b['name']) ?></td>
-                    <td class="r" data-label="มูลค่าสต๊อก"><?= e(money($s['value'])) ?></td>
-                    <td class="r" data-label="ใกล้หมด"><?= $s['low'] ? '<span class="bdg bdg-warn">' . number_format($s['low']) . '</span>' : '—' ?></td>
-                    <td class="r" data-label="หมด"><?= $s['out'] ? '<span class="bdg bdg-out">' . number_format($s['out']) . '</span>' : '—' ?></td>
-                  </tr>
-                <?php endforeach; ?>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-    <?php endif; ?>
   </div>
 </div>
 

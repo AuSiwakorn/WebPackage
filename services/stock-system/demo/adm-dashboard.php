@@ -1,17 +1,44 @@
 <?php
 /* ==========================================================
-   AOSTOCK DEMO — ภาพรวมของผู้ดูแล (ใส่ใน dashboard.php เมื่อ role = admin)
+   AOSTOCK DEMO — [ผู้ดูแล] ภาพรวม (หน้าแรกของผู้ดูแลหลังเข้าระบบ)
    ----------------------------------------------------------
    สิ่งที่เจ้าของร้านต้องเห็นทุกวัน
      1. สถานะร้านวันนี้ทุกสาขา — เปิด/ปิดกี่โมง ยอดขาย เงินขาด/เกินตอนปิดร้าน
      2. รายการที่ต้องตรวจ — ยกเลิก/แก้เอกสาร รับคืน+เงินคืน เปิดร้านใหม่หลังปิด
         ตัดออกเหตุผลสูญหาย เงินไม่ตรงตอนปิดร้าน · บอกว่าใครทำ
      3. สต๊อกแยกตามสาขา — มูลค่า ใกล้หมด หมด
-   ตัวแปรที่ใช้จาก dashboard.php: $user, $branch ('ALL' หรือรหัสสาขา)
+   เลือกสาขาจากแถบบน (?branch=ALL | รหัสสาขา) · เปิดร้านใหม่หลังปิดทำได้จากหน้านี้ (POST act=reopen)
    ระบบจริง: SELECT จาก store_day, sale, stock_log, return ของวันนี้
    ========================================================== */
 
-require_once dirname(__FILE__) . '/../include/function.php';
+require_once dirname(__FILE__) . '/include/function.php';
+
+$user = require_login();                 // หน้า adm- : เฉพาะผู้ดูแล
+
+/* ผู้ดูแล: เปิดร้านใหม่หลังปิด (ทำจากภาพรวม — ผู้ดูแลไม่เข้าหน้าเปิด/ปิดร้านแล้ว) */
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['act']) && $_POST['act'] === 'reopen') {
+    $rb = isset($_POST['b']) ? $_POST['b'] : '';
+    $rr = isset($_POST['reason']) ? trim($_POST['reason']) : '';
+    $bb = demo_branches();
+    if (!csrf_check(isset($_POST['csrf']) ? $_POST['csrf'] : null) || !isset($bb[$rb])) {
+        $_SESSION['flash'] = 'เซสชันหมดอายุ หรือไม่พบสาขา';
+    } elseif ($rr === '') {
+        $_SESSION['flash'] = 'การเปิดร้านใหม่หลังปิดต้องระบุเหตุผล';
+    } elseif (store_reopen($rb, $user, $rr) === null) {
+        $_SESSION['flash'] = branch_name($rb) . ' ยังไม่ได้ปิดร้าน';
+    } else {
+        $_SESSION['flash'] = 'เปิดร้าน' . branch_name($rb) . 'ใหม่แล้ว — พนักงานขายต่อได้ และต้องปิดร้านอีกครั้ง';
+    }
+    header('Location: ' . url('adm-dashboard.php?branch=ALL'));
+    exit;
+}
+
+$branch = resolve_branch($user, isset($_GET['branch']) ? $_GET['branch'] : null);
+
+$PAGE_TITLE = 'ภาพรวมผู้ดูแล';
+$PAGE_SUB   = branch_label($branch) . ' · ' . thai_date_full(time()) . ' ' . date('H:i') . ' น.';
+$NAV_ACTIVE = 'adm-dashboard.php';
+require dirname(__FILE__) . '/inc/header.php';
 
 $__codes = ($branch === 'ALL') ? array_keys(demo_branches()) : array($branch);
 
@@ -113,7 +140,7 @@ $__tones = array('ยกเลิกเอกสาร' => 'bdg-out', 'แก้
                   <span class="bdg bdg-ok">เปิดอยู่</span><small>เปิด <?= e($st['opened_at']) ?> น. · <?= e($st['opened_by']) ?><?= !empty($st['reopens']) ? ' · เปิดใหม่ ' . count($st['reopens']) . ' ครั้ง' : '' ?></small>
                 <?php else: ?>
                   <span class="bdg bdg-adj">ปิดแล้ว</span><small><?= e($st['opened_at']) ?>–<?= e($st['closed_at']) ?> น. · ปิดโดย <?= e($st['closed_by']) ?></small>
-                  <form class="dash-reopen" method="post" action="dashboard.php">
+                  <form class="dash-reopen" method="post" action="adm-dashboard.php">
                     <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
                     <input type="hidden" name="act" value="reopen">
                     <input type="hidden" name="b" value="<?= e($r['code']) ?>">
@@ -164,7 +191,7 @@ $__tones = array('ยกเลิกเอกสาร' => 'bdg-out', 'แก้
                   <?php if ($r['amount'] !== null): ?><small>คืนเงินสด <?= e(money2($r['amount'])) ?> บาท</small><?php endif; ?>
                 </td>
                 <td data-label="ผู้ทำ"><?= e($r['by']) ?></td>
-                <td class="r"><a class="btn btn-ghost btn-sm" href="history.php?b=<?= e(rawurlencode($r['code'])) ?>">ดูประวัติ</a></td>
+                <td class="r"><a class="btn btn-ghost btn-sm" href="adm-history.php?b=<?= e(rawurlencode($r['code'])) ?>">ดูประวัติ</a></td>
               </tr>
             <?php endforeach; ?>
           </tbody>
@@ -199,3 +226,5 @@ $__tones = array('ยกเลิกเอกสาร' => 'bdg-out', 'แก้
     </div>
   </div>
 </section>
+
+<?php require dirname(__FILE__) . '/inc/footer.php'; ?>

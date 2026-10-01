@@ -3,7 +3,8 @@
    AOSTOCK DEMO — ประวัติของวันก่อน (ส่วนหนึ่งของ history.php)
    แสดงเอกสารคลังของวันนั้น พร้อมปุ่มแก้/ยกเลิกย้อนหลังตามสิทธิ์
    และบิลขายของวันนั้น (ดูอย่างเดียว — คืนของใช้หน้า "รับคืนสินค้า")
-   ตัวแปรจาก history.php: $user, $code, $pastTs, $pastDay
+   ใช้ทั้งใน history.php (พนักงาน) และ inc/adm-history-day.php (ผู้ดูแล)
+   ตัวแปรที่ต้องมี: $user, $code, $pastTs, $pastDay · ฐานลิงก์ของฟอร์มมาจาก hist_url()
    ========================================================== */
 
 require_once dirname(__FILE__) . '/../include/function.php';
@@ -65,10 +66,12 @@ $age   = (int) round((strtotime(date('Y-m-d')) - $pastTs) / 86400);
               <?php $dat = ' data-doc="' . e($docK[$d['kind']]) . '" data-bill="' . e($d['no']) . '" data-qty="' . (int) $d['qty']
                          . '" data-items="' . (int) $d['items'] . '"'; ?>
               <div class="tl-act">
-                <?php foreach (array(
-                    array('edit', 'past_edit', 'แก้ไขใบนี้',  'i-arrow'),
-                    array('void', 'past_void', 'ยกเลิกใบนี้', 'i-ban'),
-                ) as $b): ?>
+                <?php
+                $btns = array(array('void', 'past_void', 'ยกเลิกใบนี้', 'i-ban'));
+                if ($user['role'] === 'staff') {                  // แก้ไข = ทำใบใหม่ในหน้างานคลัง → เฉพาะพนักงาน
+                    array_unshift($btns, array('edit', 'past_edit', 'แก้ไขใบนี้', 'i-arrow'));
+                }
+                foreach ($btns as $b): ?>
                   <form method="post" action="<?= e(hist_url('d=' . $pastDay)) ?>" data-confirm="<?= e($b[0]) ?>"<?= $dat ?>>
                     <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
                     <input type="hidden" name="act" value="<?= e($b[1]) ?>">
@@ -113,7 +116,7 @@ $age   = (int) round((strtotime(date('Y-m-d')) - $pastTs) / 86400);
               <td data-label="รายการ"><span class="ret-names"><?= e(implode(' · ', $names)) ?></span></td>
               <td class="r" data-label="ยอด"><?= e(money2($b['total'])) ?></td>
               <td class="r">
-                <?php if (can($user, 'refund')): ?>
+                <?php if ($user['role'] === 'staff' && can($user, 'refund')): ?>
                   <a class="btn btn-ghost btn-sm" href="return.php?bill=<?= e(rawurlencode($b['no'])) ?>">รับคืน</a>
                 <?php endif; ?>
               </td>
