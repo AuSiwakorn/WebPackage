@@ -1,0 +1,503 @@
+<?php
+/* ==========================================================
+   FILE    : modules/stock/database.php
+   ROLE    : โครงสร้างฐานข้อมูล AOSTOCK (ระบบบริหารสต๊อก) สำหรับ admweb
+   STATUS  : ร่างออกแบบ — ยังไม่ติดตั้ง / ยังไม่มีโค้ดเรียกใช้ (25 ก.ย. 2026)
+   PREFIX  : _DBPREFIX_ ของ admweb (= ao_) + stock_  →  ao_stock_{ชื่อตาราง}
+   DEPENDS : admweb v8 · inc_install.php โหลดไฟล์นี้อัตโนมัติ · Reinstall ที่ index.php?module=db&mp=db
+   MYSQL   : InnoDB · utf8 · ต้องการ MySQL 5.6.5+ (DATETIME DEFAULT CURRENT_TIMESTAMP)
+   PHP     : ไฟล์นี้มีแค่ string — ใช้ได้กับ PHP 5.6 (เซิร์ฟเวอร์ aosoft.co.th)
+
+   หลักการ
+   1. สต๊อกคงเหลือ = ผลรวมของ stock_move ทุกการเปลี่ยนแปลงสต๊อกต้องเขียน stock_move
+      ห้ามแก้ยอดตรง ๆ · stock_balance เป็นแค่ cache ให้อ่านเร็ว สร้างใหม่จาก stock_move ได้เสมอ
+   2. สาขาเป็นแกนกลาง — เอกสารทุกใบผูก branch_id ของ "ตอนทำรายการ" (ไม่อ่านจากโปรไฟล์พนักงาน)
+   3. เอกสารไม่ลบ — ยกเลิกด้วย status='void' + เหตุผล แล้วเขียน stock_move กลับรายการ
+      "แก้ไขใบ" = ยกเลิกใบเดิม (void_mode='edit') แล้วออกใบใหม่ที่ edit_of_id ชี้กลับมา
+   4. รายการในใบเก็บ snapshot (sku, ชื่อ, ราคา/ทุน ณ ตอนนั้น) เพื่อให้รายงานย้อนหลังถูก
+   5. ผู้ทำรายการทุกคน (พนักงาน PIN และผู้ดูแล) อยู่ใน stock_staff → created_by ใช้ staff_id ฟิลด์เดียว
+
+   ขอบเขต
+   - แกน AOSTOCK      : ตาราง 1–11
+   - โมดูล POS (Option): เปิด–ปิดร้าน, เงินสด, บิลขาย, รับคืนสินค้า
+   - ยังไม่ทำ          : โอนระหว่างสาขา (ใช้เบิกออก reason='branch' + นำเข้าแทน), IMEI/Serial,
+                         ผู้จำหน่าย, ลูกค้า/สะสมแต้ม, จ่ายเงินหลายช่องทางในบิลเดียว
+
+   aModuleConfig.php → $aTablename ต้องมีทุกตารางด้านล่าง (ดูรายการท้ายไฟล์)
+   ========================================================== */
+
+
+/* ==========================================================
+   1. ข้อมูลหลัก
+   ========================================================== */
+
+/* 1) สาขา — รวมค่าตั้งของสาขาที่ผู้ดูแลกำหนด (วันเริ่มรอบนับ, จำนวนที่นับได้ระหว่างเปิดร้าน, วันย้อนหลัง, เงินทอน) */
+$sqlArray[_DBPREFIX_ . 'stock_branch'] = "
+CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_branch` (
+	`branch_id`        int UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+	`code`             varchar(10)  NOT NULL COMMENT 'รหัสสั้น เช่น HQ, RS, BN',
+	`name`             varchar(100) NOT NULL COMMENT 'ชื่อเต็ม เช่น สาขารังสิต',
+	`short_name`       varchar(40)  NOT NULL DEFAULT '' COMMENT 'ชื่อย่อบนแถบ/การ์ด',
+	`address`          varchar(255) NOT NULL DEFAULT '',
+	`phone`            varchar(30)  NOT NULL DEFAULT '',
+	`tax_id`           varchar(20)  NOT NULL DEFAULT '' COMMENT 'เลขผู้เสียภาษี (ออกบิล VAT)',
+	`receipt_footer`   varchar(255) NOT NULL DEFAULT '',
+	`count_day`        tinyint UNSIGNED NOT NULL DEFAULT 1 COMMENT 'รอบตรวจนับเริ่มวันที่เท่าไรของเดือน (1-28) ผู้ดูแลตั้ง',
+	`count_open_limit` smallint UNSIGNED NOT NULL DEFAULT 1 COMMENT 'ระหว่างร้านเปิดนับได้ครั้งละกี่รายการ (0=ไม่จำกัด)',
+	`default_float`    decimal(12,2) NOT NULL DEFAULT 0 COMMENT 'เงินทอนมาตรฐาน (โมดูล POS)',
+	`backdate_days`    smallint UNSIGNED NOT NULL DEFAULT 7 COMMENT 'แก้เอกสาร/รับคืนย้อนหลังได้กี่วัน ผู้ดูแลตั้ง',
+	`allow_negative`   tinyint(1) NOT NULL DEFAULT 0 COMMENT '1=ยอมให้สต๊อกติดลบ',
+	`is_active`        tinyint(1) NOT NULL DEFAULT 1,
+	`sort`             int NOT NULL DEFAULT 0,
+	`add_date`         datetime DEFAULT CURRENT_TIMESTAMP,
+	`edit_date`        datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+	UNIQUE KEY `uq_code` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='AOSTOCK สาขา';
+";
+
+/* 2) ผู้ใช้ระบบ — พนักงาน (PIN 4 หลัก + เลือกชื่อ) และผู้ดูแล (username/password) อยู่ตารางเดียวกัน
+      role: staff=พนักงาน (ขาย+งานคลัง เฉพาะสาขาตนเอง) · admin=ผู้ดูแล (ทุกสาขา)
+      ไม่มีบทบาทหัวหน้าคลัง — ใช้สิทธิ์เสริม perms ติ๊กให้พนักงานรายคนแทน
+      perms (คั่นด้วย ,): void_others แก้/ยกเลิกเอกสารคนอื่นในสาขา · backdate แก้ย้อนหลัง
+                           · refund รับคืนสินค้าบิลวันก่อน · report_branch รายงานยอดขายทั้งสาขา
+      branch_id = สาขาปัจจุบัน (admin ใส่สาขาหลักได้ แต่สลับดูทุกสาขา)
+      fail_count / locked_until = กรอกผิด 5 ครั้งล็อก 1 นาที */
+$sqlArray[_DBPREFIX_ . 'stock_staff'] = "
+CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_staff` (
+	`staff_id`      int UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+	`branch_id`     int UNSIGNED NOT NULL DEFAULT 0 COMMENT 'สาขาปัจจุบัน',
+	`username`      varchar(40)  NOT NULL COMMENT 'ใช้ภายใน/ผู้ดูแลใช้ login',
+	`name`          varchar(60)  NOT NULL COMMENT 'ชื่อที่แสดงบนรายการ/เอกสาร',
+	`initials`      varchar(6)   NOT NULL DEFAULT '' COMMENT 'อักษรย่อบนปุ่มเลือกชื่อ',
+	`role`          enum('staff','admin') NOT NULL DEFAULT 'staff',
+	`perms`         varchar(255) NOT NULL DEFAULT '' COMMENT 'สิทธิ์เสริม คั่นด้วย , (admin ได้ทุกสิทธิ์)',
+	`pin_hash`      varchar(255) NOT NULL DEFAULT '' COMMENT 'password_hash ของ PIN 4 หลัก',
+	`password_hash` varchar(255) NOT NULL DEFAULT '' COMMENT 'เฉพาะผู้ดูแล',
+	`fail_count`    tinyint UNSIGNED NOT NULL DEFAULT 0,
+	`locked_until`  datetime NULL,
+	`last_login`    datetime NULL,
+	`is_active`     tinyint(1) NOT NULL DEFAULT 1 COMMENT '0=ลาออก/พัก (เอกสารเก่ายังอ้างถึงได้)',
+	`add_date`      datetime DEFAULT CURRENT_TIMESTAMP,
+	`edit_date`     datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+	UNIQUE KEY `uq_username` (`username`),
+	KEY `idx_branch` (`branch_id`, `is_active`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='AOSTOCK ผู้ใช้ระบบ';
+";
+
+/* 3) ประวัติการประจำสาขาของพนักงาน — ใช้ตอบ "พนักงานคนนี้อยู่สาขาไหน ณ วันที่ X"
+      แถวปัจจุบัน date_to = NULL · ย้ายสาขา = ปิดแถวเดิม + เพิ่มแถวใหม่ + อัปเดต stock_staff.branch_id */
+$sqlArray[_DBPREFIX_ . 'stock_staff_branch'] = "
+CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_staff_branch` (
+	`sb_id`     int UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+	`staff_id`  int UNSIGNED NOT NULL,
+	`branch_id` int UNSIGNED NOT NULL,
+	`date_from` date NOT NULL,
+	`date_to`   date NULL COMMENT 'NULL = ยังประจำอยู่',
+	`add_date`  datetime DEFAULT CURRENT_TIMESTAMP,
+	KEY `idx_staff` (`staff_id`, `date_from`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='AOSTOCK ประวัติสาขาของพนักงาน';
+";
+
+/* 4) หมวดสินค้า */
+$sqlArray[_DBPREFIX_ . 'stock_category'] = "
+CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_category` (
+	`cate_id`   int UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+	`name`      varchar(100) NOT NULL,
+	`sort`      int NOT NULL DEFAULT 0,
+	`is_active` tinyint(1) NOT NULL DEFAULT 1,
+	`add_date`  datetime DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='AOSTOCK หมวดสินค้า';
+";
+
+/* 5) สินค้า (SKU) — ไม่จำกัดจำนวน · 1 สี/รุ่น = 1 SKU
+      barcode เก็บไว้ก่อน (เรื่องบาร์โค้ดยังรอตัดสิน) · image = path จาก UpFile */
+$sqlArray[_DBPREFIX_ . 'stock_product'] = "
+CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_product` (
+	`product_id`    int UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+	`sku`           varchar(40)  NOT NULL,
+	`barcode`       varchar(40)  NULL,
+	`name`          varchar(200) NOT NULL,
+	`cate_id`       int UNSIGNED NOT NULL DEFAULT 0,
+	`unit`          varchar(20)  NOT NULL DEFAULT 'ชิ้น',
+	`cost_price`    decimal(10,2) NOT NULL DEFAULT 0 COMMENT 'ทุนล่าสุด',
+	`sell_price`    decimal(10,2) NOT NULL DEFAULT 0,
+	`reorder_point` int NOT NULL DEFAULT 0 COMMENT 'ต่ำกว่านี้ = ใกล้หมด (ใช้ทุกสาขา)',
+	`image`         varchar(255) NOT NULL DEFAULT '',
+	`is_active`     tinyint(1) NOT NULL DEFAULT 1 COMMENT '0=เลิกขาย ประวัติยังอยู่',
+	`add_date`      datetime DEFAULT CURRENT_TIMESTAMP,
+	`edit_date`     datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+	UNIQUE KEY `uq_sku` (`sku`),
+	KEY `idx_barcode` (`barcode`),
+	KEY `idx_cate` (`cate_id`, `is_active`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='AOSTOCK สินค้า';
+";
+
+
+/* ==========================================================
+   2. สต๊อก
+   ========================================================== */
+
+/* 6) ยอดคงเหลือต่อสาขา (cache) — อัปเดตพร้อมกับทุกครั้งที่เขียน stock_move */
+$sqlArray[_DBPREFIX_ . 'stock_balance'] = "
+CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_balance` (
+	`branch_id`  int UNSIGNED NOT NULL,
+	`product_id` int UNSIGNED NOT NULL,
+	`qty`        int NOT NULL DEFAULT 0,
+	`edit_date`  datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+	PRIMARY KEY (`branch_id`, `product_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='AOSTOCK ยอดคงเหลือ (cache จาก stock_move)';
+";
+
+/* 7) สมุดความเคลื่อนไหว (ledger) — แหล่งความจริงหนึ่งเดียว
+      type : receive / receive_void · issue / issue_void · adjust / adjust_void · sale / sale_void / return (POS)
+      qty  : มีเครื่องหมาย + เพิ่ม / − ลด
+      ref_type + ref_id = เอกสารต้นทาง (receive, issue, count, sale) · doc_no เก็บซ้ำไว้แสดงผลเร็ว */
+$sqlArray[_DBPREFIX_ . 'stock_move'] = "
+CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_move` (
+	`move_id`    bigint UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+	`branch_id`  int UNSIGNED NOT NULL,
+	`product_id` int UNSIGNED NOT NULL,
+	`type`       varchar(20)  NOT NULL,
+	`qty`        int NOT NULL,
+	`qty_after`  int NOT NULL COMMENT 'ยอดคงเหลือหลังรายการนี้ (audit)',
+	`unit_cost`  decimal(10,2) NOT NULL DEFAULT 0,
+	`ref_type`   varchar(20)  NOT NULL,
+	`ref_id`     int UNSIGNED NOT NULL,
+	`doc_no`     varchar(24)  NOT NULL DEFAULT '',
+	`note`       varchar(255) NOT NULL DEFAULT '',
+	`created_by` int UNSIGNED NOT NULL COMMENT 'staff_id',
+	`add_date`   datetime DEFAULT CURRENT_TIMESTAMP,
+	KEY `idx_bp_date` (`branch_id`, `product_id`, `add_date`),
+	KEY `idx_ref` (`ref_type`, `ref_id`),
+	KEY `idx_staff_date` (`created_by`, `add_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='AOSTOCK ความเคลื่อนไหวสต๊อก';
+";
+
+
+/* ==========================================================
+   3. เอกสารคลัง — รับเข้า · เบิก/ตัดออก · ตรวจนับ
+   ทุกใบมีโครงเดียวกัน: doc_no (XX-YYMMDD-NNNN รันต่อสาขาต่อวัน) · status posted/void
+   · void_mode void=ยกเลิก / edit=ยกเลิกเพื่อแก้ · edit_of_id = ใบเดิมที่ถูกแก้ · void_reason บังคับกรอก
+   ========================================================== */
+
+/* 8) ใบรับเข้า (RC-) — ยกเลิกไม่ได้ถ้าของขาย/ตัดออกไปจนยอดไม่พอถอน */
+$sqlArray[_DBPREFIX_ . 'stock_receive'] = "
+CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_receive` (
+	`receive_id`  int UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+	`doc_no`      varchar(24)  NOT NULL,
+	`branch_id`   int UNSIGNED NOT NULL,
+	`doc_date`    date NOT NULL,
+	`ref_no`      varchar(60)  NOT NULL DEFAULT '' COMMENT 'เลขบิลซื้อ/เอกสารอ้างอิง',
+	`note`        varchar(255) NOT NULL DEFAULT '',
+	`item_count`  int NOT NULL DEFAULT 0,
+	`total_qty`   int NOT NULL DEFAULT 0,
+	`total_cost`  decimal(12,2) NOT NULL DEFAULT 0,
+	`status`      enum('posted','void') NOT NULL DEFAULT 'posted',
+	`void_mode`   enum('void','edit') NULL,
+	`void_reason` varchar(255) NOT NULL DEFAULT '',
+	`void_by`     int UNSIGNED NULL,
+	`void_date`   datetime NULL,
+	`edit_of_id`  int UNSIGNED NULL COMMENT 'ใบนี้ออกแทนใบไหน',
+	`created_by`  int UNSIGNED NOT NULL,
+	`add_date`    datetime DEFAULT CURRENT_TIMESTAMP,
+	UNIQUE KEY `uq_doc` (`branch_id`, `doc_no`),
+	KEY `idx_branch_date` (`branch_id`, `doc_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='AOSTOCK ใบรับเข้า';
+";
+
+$sqlArray[_DBPREFIX_ . 'stock_receive_item'] = "
+CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_receive_item` (
+	`item_id`      int UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+	`receive_id`   int UNSIGNED NOT NULL,
+	`product_id`   int UNSIGNED NOT NULL,
+	`sku`          varchar(40)  NOT NULL,
+	`product_name` varchar(200) NOT NULL,
+	`qty`          int NOT NULL,
+	`unit_cost`    decimal(10,2) NOT NULL DEFAULT 0,
+	`qty_before`   int NOT NULL DEFAULT 0 COMMENT 'ยอดในระบบก่อนรับ (แสดงในใบ)',
+	KEY `idx_receive` (`receive_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='AOSTOCK รายการรับเข้า';
+";
+
+/* 9) ใบเบิก / ตัดออก (IS-) — ตัดเกินยอดคงเหลือไม่ได้
+      reason: use เบิกใช้ · damaged ชำรุด · expired หมดอายุ · return คืนผู้จำหน่าย
+              · branch ส่งไปสาขาอื่น (ใช้แทนการโอน ต้องกรอก note) · lost สูญหาย · other อื่น ๆ */
+$sqlArray[_DBPREFIX_ . 'stock_issue'] = "
+CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_issue` (
+	`issue_id`    int UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+	`doc_no`      varchar(24)  NOT NULL,
+	`branch_id`   int UNSIGNED NOT NULL,
+	`doc_date`    date NOT NULL,
+	`reason`      varchar(20)  NOT NULL,
+	`ref_no`      varchar(60)  NOT NULL DEFAULT '',
+	`note`        varchar(255) NOT NULL DEFAULT '' COMMENT 'บังคับเมื่อ reason = branch, lost, other',
+	`item_count`  int NOT NULL DEFAULT 0,
+	`total_qty`   int NOT NULL DEFAULT 0,
+	`total_cost`  decimal(12,2) NOT NULL DEFAULT 0,
+	`status`      enum('posted','void') NOT NULL DEFAULT 'posted',
+	`void_mode`   enum('void','edit') NULL,
+	`void_reason` varchar(255) NOT NULL DEFAULT '',
+	`void_by`     int UNSIGNED NULL,
+	`void_date`   datetime NULL,
+	`edit_of_id`  int UNSIGNED NULL,
+	`created_by`  int UNSIGNED NOT NULL,
+	`add_date`    datetime DEFAULT CURRENT_TIMESTAMP,
+	UNIQUE KEY `uq_doc` (`branch_id`, `doc_no`),
+	KEY `idx_branch_date` (`branch_id`, `doc_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='AOSTOCK ใบเบิก/ตัดออก';
+";
+
+$sqlArray[_DBPREFIX_ . 'stock_issue_item'] = "
+CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_issue_item` (
+	`item_id`      int UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+	`issue_id`     int UNSIGNED NOT NULL,
+	`product_id`   int UNSIGNED NOT NULL,
+	`sku`          varchar(40)  NOT NULL,
+	`product_name` varchar(200) NOT NULL,
+	`qty`          int NOT NULL COMMENT 'จำนวนที่ตัดออก (บวก)',
+	`unit_cost`    decimal(10,2) NOT NULL DEFAULT 0,
+	`qty_before`   int NOT NULL DEFAULT 0,
+	KEY `idx_issue` (`issue_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='AOSTOCK รายการเบิก/ตัดออก';
+";
+
+/* 10) ใบตรวจนับ / ปรับยอด (AD-) — กรอก "ยอดที่นับได้จริง" ระบบคิดส่วนต่างกับยอด ณ ตอนบันทึก
+       reason: miscount นับผิดครั้งก่อน · unlogged ใช้/เสียไม่ได้บันทึก · wrongkey บันทึกผิด
+               · found เจอของเพิ่ม · lost ของหาย · other อื่น ๆ (lost/other ต้องกรอก note)
+       รอบการนับ: คำนวณจาก stock_branch.count_day ไม่มีตารางรอบแยก
+       "นับแล้วในรอบนี้" = มี count_item ของสินค้านั้นในช่วงรอบ ที่ใบยังไม่ถูก void */
+$sqlArray[_DBPREFIX_ . 'stock_count'] = "
+CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_count` (
+	`count_id`    int UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+	`doc_no`      varchar(24)  NOT NULL,
+	`branch_id`   int UNSIGNED NOT NULL,
+	`doc_date`    date NOT NULL,
+	`round_start` date NOT NULL COMMENT 'วันเริ่มรอบนับที่ใบนี้อยู่',
+	`reason`      varchar(20)  NOT NULL DEFAULT '',
+	`note`        varchar(255) NOT NULL DEFAULT '',
+	`item_count`  int NOT NULL DEFAULT 0,
+	`n_same`      int NOT NULL DEFAULT 0,
+	`n_over`      int NOT NULL DEFAULT 0,
+	`n_short`     int NOT NULL DEFAULT 0,
+	`diff_value`  decimal(12,2) NOT NULL DEFAULT 0 COMMENT 'มูลค่าส่วนต่างรวม (ทุน)',
+	`status`      enum('posted','void') NOT NULL DEFAULT 'posted',
+	`void_mode`   enum('void','edit') NULL,
+	`void_reason` varchar(255) NOT NULL DEFAULT '',
+	`void_by`     int UNSIGNED NULL,
+	`void_date`   datetime NULL,
+	`edit_of_id`  int UNSIGNED NULL,
+	`created_by`  int UNSIGNED NOT NULL,
+	`add_date`    datetime DEFAULT CURRENT_TIMESTAMP,
+	UNIQUE KEY `uq_doc` (`branch_id`, `doc_no`),
+	KEY `idx_branch_round` (`branch_id`, `round_start`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='AOSTOCK ใบตรวจนับ';
+";
+
+$sqlArray[_DBPREFIX_ . 'stock_count_item'] = "
+CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_count_item` (
+	`item_id`      int UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+	`count_id`     int UNSIGNED NOT NULL,
+	`branch_id`    int UNSIGNED NOT NULL COMMENT 'ซ้ำจากหัวใบ ใช้หา นับแล้วในรอบ เร็วขึ้น',
+	`product_id`   int UNSIGNED NOT NULL,
+	`sku`          varchar(40)  NOT NULL,
+	`product_name` varchar(200) NOT NULL,
+	`qty_system`   int NOT NULL COMMENT 'ยอดในระบบตอนบันทึก',
+	`qty_counted`  int NOT NULL,
+	`diff`         int NOT NULL COMMENT 'counted - system',
+	`unit_cost`    decimal(10,2) NOT NULL DEFAULT 0,
+	`add_date`     datetime DEFAULT CURRENT_TIMESTAMP,
+	KEY `idx_count` (`count_id`),
+	KEY `idx_bp_date` (`branch_id`, `product_id`, `add_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='AOSTOCK รายการตรวจนับ';
+";
+
+
+/* ==========================================================
+   4. ประวัติการทำรายการ (หน้า "ประวัติการทำรายการ")
+   ========================================================== */
+
+/* 11) log รายวันต่อสาขา — type: open close sale void receive rvoid issue ivoid adjust avoid cash stock
+       detail เก็บเป็น JSON ของคู่ "หัวข้อ => ค่า" ที่แสดงในหน้าประวัติ (json_encode ใช้ได้ใน PHP 5.6) */
+$sqlArray[_DBPREFIX_ . 'stock_log'] = "
+CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_log` (
+	`log_id`     bigint UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+	`branch_id`  int UNSIGNED NOT NULL,
+	`log_date`   date NOT NULL,
+	`type`       varchar(20)  NOT NULL,
+	`title`      varchar(200) NOT NULL,
+	`amount`     decimal(12,2) NULL,
+	`doc_no`     varchar(24)  NOT NULL DEFAULT '',
+	`detail`     text NULL,
+	`created_by` int UNSIGNED NOT NULL DEFAULT 0 COMMENT '0 = ระบบ',
+	`add_date`   datetime DEFAULT CURRENT_TIMESTAMP,
+	KEY `idx_branch_date` (`branch_id`, `log_date`, `type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='AOSTOCK ประวัติการทำรายการ';
+";
+
+
+/* ==========================================================
+   5. โมดูล POS (Option) — เปิด–ปิดร้าน · เงินสด · บิลขาย
+   ติดตั้งเฉพาะลูกค้าที่ซื้อ POS · ถ้าไม่ใช้ ตัดส่วนนี้ออกได้โดยแกนยังทำงานครบ
+   ========================================================== */
+
+/* 12) เปิด–ปิดร้าน (1 แถว / สาขา / วัน) — เงินทอนเป็นก้อนหมุนเวียน keep_cash → float_carried ของวันถัดไป */
+$sqlArray[_DBPREFIX_ . 'stock_store_day'] = "
+CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_store_day` (
+	`day_id`        int UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+	`branch_id`     int UNSIGNED NOT NULL,
+	`store_date`    date NOT NULL,
+	`status`        enum('open','closed') NOT NULL DEFAULT 'open',
+	`opened_by`     int UNSIGNED NOT NULL,
+	`opened_at`     datetime NOT NULL,
+	`float_carried` decimal(12,2) NOT NULL DEFAULT 0 COMMENT 'ยกมาจาก keep_cash เมื่อวาน',
+	`float_counted` decimal(12,2) NULL COMMENT 'กรอกเมื่อนับเงินทอนยกมาได้ไม่ตรง',
+	`open_reason`   varchar(255) NOT NULL DEFAULT '',
+	`float_topup`   decimal(12,2) NOT NULL DEFAULT 0,
+	`open_cash`     decimal(12,2) NOT NULL DEFAULT 0 COMMENT 'เงินทอนเริ่มวัน',
+	`closed_by`     int UNSIGNED NULL,
+	`closed_at`     datetime NULL,
+	`expected_cash` decimal(12,2) NULL,
+	`counted_cash`  decimal(12,2) NULL,
+	`keep_cash`     decimal(12,2) NULL COMMENT 'แยกไว้เป็นเงินทอนพรุ่งนี้',
+	`handover_cash` decimal(12,2) NULL COMMENT 'counted - keep = นำส่ง',
+	`close_note`    varchar(255) NOT NULL DEFAULT '',
+	UNIQUE KEY `uq_branch_date` (`branch_id`, `store_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='AOSTOCK POS เปิด-ปิดร้าน';
+";
+
+/* 13) เงินเข้า/ออกลิ้นชักระหว่างวัน (เติมเงินทอน / หยิบออก) */
+$sqlArray[_DBPREFIX_ . 'stock_cash_move'] = "
+CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_cash_move` (
+	`cash_id`    int UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+	`day_id`     int UNSIGNED NOT NULL,
+	`branch_id`  int UNSIGNED NOT NULL,
+	`direction`  enum('in','out') NOT NULL,
+	`amount`     decimal(12,2) NOT NULL,
+	`reason`     varchar(255) NOT NULL DEFAULT '',
+	`created_by` int UNSIGNED NOT NULL,
+	`add_date`   datetime DEFAULT CURRENT_TIMESTAMP,
+	KEY `idx_day` (`day_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='AOSTOCK POS เงินเข้าออกลิ้นชัก';
+";
+
+/* 14) บิลขาย (SL-) — ชำระ 1 ช่องทางต่อบิล (เงินสด / โอน-พร้อมเพย์) ตามเดโม */
+$sqlArray[_DBPREFIX_ . 'stock_sale'] = "
+CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_sale` (
+	`sale_id`       int UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+	`doc_no`        varchar(24)  NOT NULL,
+	`branch_id`     int UNSIGNED NOT NULL,
+	`day_id`        int UNSIGNED NOT NULL COMMENT 'stock_store_day ที่บิลนี้อยู่',
+	`sale_date`     date NOT NULL,
+	`pay_method`    enum('cash','transfer') NOT NULL DEFAULT 'cash',
+	`item_count`    int NOT NULL DEFAULT 0,
+	`total_qty`     int NOT NULL DEFAULT 0,
+	`total`         decimal(12,2) NOT NULL DEFAULT 0,
+	`total_cost`    decimal(12,2) NOT NULL DEFAULT 0 COMMENT 'ไว้คิดกำไรขั้นต้น',
+	`received`      decimal(12,2) NOT NULL DEFAULT 0,
+	`change_amount` decimal(12,2) NOT NULL DEFAULT 0,
+	`status`        enum('paid','void') NOT NULL DEFAULT 'paid',
+	`void_mode`     enum('void','edit') NULL,
+	`void_reason`   varchar(255) NOT NULL DEFAULT '',
+	`void_by`       int UNSIGNED NULL,
+	`void_date`     datetime NULL,
+	`edit_of_id`    int UNSIGNED NULL,
+	`created_by`    int UNSIGNED NOT NULL COMMENT 'พนักงานที่ขาย',
+	`add_date`      datetime DEFAULT CURRENT_TIMESTAMP,
+	UNIQUE KEY `uq_doc` (`branch_id`, `doc_no`),
+	KEY `idx_branch_date` (`branch_id`, `sale_date`, `status`),
+	KEY `idx_staff_date` (`created_by`, `sale_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='AOSTOCK POS บิลขาย';
+";
+
+$sqlArray[_DBPREFIX_ . 'stock_sale_item'] = "
+CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_sale_item` (
+	`item_id`      int UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+	`sale_id`      int UNSIGNED NOT NULL,
+	`product_id`   int UNSIGNED NOT NULL,
+	`sku`          varchar(40)  NOT NULL,
+	`product_name` varchar(200) NOT NULL,
+	`qty`          int NOT NULL,
+	`unit_price`   decimal(10,2) NOT NULL,
+	`unit_cost`    decimal(10,2) NOT NULL DEFAULT 0,
+	`line_total`   decimal(12,2) NOT NULL,
+	KEY `idx_sale` (`sale_id`),
+	KEY `idx_product` (`product_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='AOSTOCK POS รายการในบิล';
+";
+
+
+/* 17) ใบรับคืนสินค้า (RT-) — อ้างอิงบิลเดิม คืนบางรายการ/บางชิ้นได้
+       กติกา: ต้องมีสิทธิ์ refund · บิลไม่เก่ากว่า stock_branch.backdate_days
+       · คืนเป็นเงินสดจากลิ้นชักของวันนี้เท่านั้น (เขียน stock_cash_move direction=out ของ day_id วันนี้)
+       · reason กำหนดว่าของกลับเข้าสต๊อกไหม: wrong ซื้อผิดรุ่น/ผิดแบบ → restock=1 (stock_move type=return)
+         defect ชำรุด · used ใช้แล้ว · other อื่น ๆ → restock=0 ไม่เข้าสต๊อก แยกเก็บ
+       · refund แก้ได้ 0..calc_amount ถ้าไม่เท่ากับ calc ต้องมี refund_note
+       · บิลที่มีการรับคืนแล้ว ยกเลิก/แก้ทั้งบิลไม่ได้ */
+$sqlArray[_DBPREFIX_ . 'stock_return'] = "
+CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_return` (
+	`return_id`   int UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+	`doc_no`      varchar(24)  NOT NULL,
+	`branch_id`   int UNSIGNED NOT NULL,
+	`doc_date`    date NOT NULL,
+	`day_id`      int UNSIGNED NOT NULL COMMENT 'stock_store_day วันที่จ่ายเงินคืน',
+	`sale_id`     int UNSIGNED NOT NULL COMMENT 'บิลเดิม',
+	`reason`      varchar(20)  NOT NULL,
+	`note`        varchar(255) NOT NULL DEFAULT '',
+	`restock`     tinyint(1) NOT NULL DEFAULT 0 COMMENT '1=ของกลับเข้าสต๊อก',
+	`item_count`  int NOT NULL DEFAULT 0,
+	`total_qty`   int NOT NULL DEFAULT 0,
+	`calc_amount` decimal(12,2) NOT NULL DEFAULT 0 COMMENT 'ตามราคาที่ขาย',
+	`refund`      decimal(12,2) NOT NULL DEFAULT 0 COMMENT 'เงินสดที่คืนจริง',
+	`refund_note` varchar(255) NOT NULL DEFAULT '',
+	`created_by`  int UNSIGNED NOT NULL COMMENT 'ผู้รับคืน',
+	`add_date`    datetime DEFAULT CURRENT_TIMESTAMP,
+	UNIQUE KEY `uq_doc` (`branch_id`, `doc_no`),
+	KEY `idx_sale` (`sale_id`),
+	KEY `idx_branch_date` (`branch_id`, `doc_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='AOSTOCK POS ใบรับคืนสินค้า';
+";
+
+$sqlArray[_DBPREFIX_ . 'stock_return_item'] = "
+CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_return_item` (
+	`item_id`      int UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+	`return_id`    int UNSIGNED NOT NULL,
+	`sale_item_id` int UNSIGNED NOT NULL COMMENT 'แถวในบิลเดิม — ใช้รวมยอดที่คืนไปแล้ว',
+	`product_id`   int UNSIGNED NOT NULL,
+	`sku`          varchar(40)  NOT NULL,
+	`product_name` varchar(200) NOT NULL,
+	`qty`          int NOT NULL,
+	`unit_price`   decimal(10,2) NOT NULL,
+	`line_total`   decimal(12,2) NOT NULL,
+	KEY `idx_return` (`return_id`),
+	KEY `idx_sale_item` (`sale_item_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='AOSTOCK POS รายการรับคืน';
+";
+
+
+/* ==========================================================
+   ใส่ใน modules/stock/aModuleConfig.php
+   ----------------------------------------------------------
+   $aTablename = array(
+   	_DBPREFIX_ . 'stock_branch',
+   	_DBPREFIX_ . 'stock_staff',
+   	_DBPREFIX_ . 'stock_staff_branch',
+   	_DBPREFIX_ . 'stock_category',
+   	_DBPREFIX_ . 'stock_product',
+   	_DBPREFIX_ . 'stock_balance',
+   	_DBPREFIX_ . 'stock_move',
+   	_DBPREFIX_ . 'stock_receive',
+   	_DBPREFIX_ . 'stock_receive_item',
+   	_DBPREFIX_ . 'stock_issue',
+   	_DBPREFIX_ . 'stock_issue_item',
+   	_DBPREFIX_ . 'stock_count',
+   	_DBPREFIX_ . 'stock_count_item',
+   	_DBPREFIX_ . 'stock_log',
+   	// โมดูล POS
+   	_DBPREFIX_ . 'stock_store_day',
+   	_DBPREFIX_ . 'stock_cash_move',
+   	_DBPREFIX_ . 'stock_sale',
+   	_DBPREFIX_ . 'stock_sale_item',
+   	_DBPREFIX_ . 'stock_return',
+   	_DBPREFIX_ . 'stock_return_item',
+   );
+   ========================================================== */

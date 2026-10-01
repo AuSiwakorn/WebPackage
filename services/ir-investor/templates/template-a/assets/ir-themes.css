@@ -1,0 +1,150 @@
+/* =====================================================================
+   AOINVESTOR IR — THEMES
+   หน้า HTML และ component ทั้งหมดใช้ ir-core.css ชุดเดียว
+   template แต่ละแบบต่างกันเฉพาะ token (สี / ฟอนต์ / มุมโค้ง) และ hero
+   เลือกด้วย <html data-template="a|b|c">  ← Admweb ใส่ค่าจาก ir_setting.template
+   สี CI ของลูกค้า (--ci, --ci-700, --ci-400, --ci-50, --accent) Admweb ใส่ทับ
+   ต่อท้ายไฟล์นี้ได้เลย โดยไม่ต้องแก้ theme
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   TEMPLATE A — "Dashboard"  (ค่าเริ่มต้น)
+   Hero แบ่งสองคอลัมน์: ข้อความซ้าย + Stock card ขวา · ฟอนต์ IBM Plex Sans Thai
+   มุมโค้งกลาง · โทนน้ำเงินกรมท่า
+   --------------------------------------------------------------------- */
+[data-template="a"]{
+  --ci:#0B3D91;--ci-700:#082D6B;--ci-400:#2A64AE;--ci-50:#EAF0FA;
+  --accent:#E0A82E;--accent-ink:#1C1608;--on-ci-muted:#D6E0F0;--link:var(--ci);
+  --radius:10px;--radius-lg:14px;--radius-btn:8px;
+  --font-body:"IBM Plex Sans Thai",system-ui,sans-serif;--font-head:var(--font-body);--head-weight:600;
+  --hero-bg:linear-gradient(120deg,var(--ci-700) 0%,var(--ci) 60%,#1F5FBF 100%);
+  --hero-pattern:1;
+  --chart:var(--ci);--chart-2:var(--accent);--chart-3:var(--ci-400);--chart-4:#C9D5E6;
+}
+
+/* ---------------------------------------------------------------------
+   TEMPLATE B — "Classic Banner"  (Layout B ใน wireframe)
+   แบนเนอร์เต็มความกว้าง + แถบราคาหุ้นแนวนอนลอยทับขอบล่าง
+   ฟอนต์ Sarabun · มุมเหลี่ยม · โทนเขียวองค์กร
+   --------------------------------------------------------------------- */
+[data-template="b"]{
+  --ci:#0A6B4F;--ci-700:#07503B;--ci-400:#2E9B7A;--ci-50:#E8F3EF;
+  --accent:#D4A017;--accent-ink:#1C1608;--on-ci-muted:#CFE6DC;--link:var(--ci);
+  --radius:4px;--radius-lg:6px;--radius-btn:4px;
+  --font-body:"Sarabun",system-ui,sans-serif;--font-head:var(--font-body);--head-weight:700;
+  --card-shadow:0 1px 2px rgba(0,0,0,.04);
+  --hero-bg:
+    radial-gradient(700px 360px at 85% 20%,rgba(255,255,255,.14),transparent 60%),
+    linear-gradient(105deg,var(--ci-700) 0%,var(--ci) 55%,var(--ci-400) 100%);
+  --hero-pattern:0;
+  --chart:var(--ci);--chart-2:var(--accent);--chart-3:var(--ci-400);--chart-4:#BFD9CE;
+}
+[data-template="b"] body{font-size:16.5px}
+/* hero → banner */
+[data-template="b"] .hero{
+  overflow:visible;
+  background:
+    linear-gradient(var(--bg),var(--bg)) bottom / 100% 76px no-repeat,   /* แถบขาวด้านล่างให้แถบราคาลอยทับ */
+    var(--hero-bg);
+}
+[data-template="b"] .hero::after{display:none}
+[data-template="b"] .hero .container{display:block;padding-top:0;padding-bottom:0}
+[data-template="b"] .hero .hero-copy{padding:72px 0 112px;max-width:780px}
+[data-template="b"] .hero h1{font-size:clamp(2rem,3.6vw,2.9rem);line-height:1.25}
+[data-template="b"] .hero p.lead{max-width:640px}
+[data-template="b"] .eyebrow{letter-spacing:.14em}
+/* stock card → strip */
+[data-template="b"] .hero .stock-card{
+  display:grid;grid-template-columns:auto auto minmax(140px,220px) 1fr;align-items:center;gap:8px 32px;
+  padding:18px 28px 14px;box-shadow:0 14px 40px rgba(0,0,0,.16);--sc-border:var(--line);
+}
+[data-template="b"] .hero .stock-card .sym{flex-direction:column;align-items:flex-start;gap:2px}
+[data-template="b"] .hero .stock-card .price{margin-top:0;flex-direction:column;align-items:flex-start;gap:2px}
+[data-template="b"] .hero .stock-card .price strong{font-size:2.2rem}
+[data-template="b"] .hero .spark{margin:0;height:52px}
+[data-template="b"] .hero .stock-grid{border-top:0;padding-top:0;gap:6px 18px}
+[data-template="b"] .hero .stock-card .asof{grid-column:1/-1;border-top:1px solid var(--sc-line);padding-top:10px;margin-top:4px}
+[data-template="b"] .quick{margin-top:36px}
+/* classic touches */
+[data-template="b"] .ir-nav{background:var(--ci-700)}
+[data-template="b"] .ir-nav a{font-weight:600}
+[data-template="b"] .sec-head h2,[data-template="b"] .block h2{padding-left:14px;border-left:4px solid var(--accent)}
+[data-template="b"] .btn{letter-spacing:.01em}
+[data-template="b"] .kpi strong{color:var(--ci-700)}
+[data-template="b"] .filters .tabs a,[data-template="b"] .news-list .tag{border-radius:var(--radius)}
+@media (max-width:900px){
+  [data-template="b"] .hero .stock-card{grid-template-columns:auto 1fr;gap:10px 24px}
+  [data-template="b"] .hero .spark{grid-column:1/-1;height:44px}
+  [data-template="b"] .hero .stock-grid{grid-column:1/-1;border-top:1px solid var(--sc-line);padding-top:10px}
+  [data-template="b"] .hero .hero-copy{padding:56px 0 100px}
+}
+
+/* ---------------------------------------------------------------------
+   TEMPLATE C — "Executive Dark"
+   โทนกรมท่าเข้มเกือบดำ + สีทอง · หัวข้อฟอนต์ Noto Serif Thai · มุมคม
+   Hero, IR nav, pagebar และกล่องสมัครรับข่าวเป็นสีเข้ม เนื้อหายังพื้นขาวเพื่ออ่านง่าย
+   --------------------------------------------------------------------- */
+[data-template="c"]{
+  --ci:#0A1628;--ci-700:#050C1A;--ci-400:#1E3A6E;--ci-50:#EEF1F6;
+  --accent:#C9A86A;--accent-ink:#0A1628;--on-ci-muted:#9AAAC2;--link:#1747A6;
+  --ink:#141B26;--line:#DDE1E8;--line-2:#EBEEF3;--bg-soft:#F7F8FA;
+  --radius:2px;--radius-lg:4px;--radius-btn:3px;
+  --font-body:"IBM Plex Sans Thai",system-ui,sans-serif;
+  --font-head:"Noto Serif Thai",Georgia,serif;--head-weight:600;
+  --card-shadow:none;
+  --hero-bg:
+    radial-gradient(800px 420px at 90% 0%,rgba(201,168,106,.16),transparent 60%),
+    linear-gradient(165deg,#040A17 0%,#0A1628 55%,#0F1E3A 100%);
+  --hero-pattern:.6;
+  --chart:#1E3A6E;--chart-2:var(--accent);--chart-3:#5B7BB8;--chart-4:#D5DAE3;
+}
+[data-template="c"] .eyebrow{color:var(--accent);letter-spacing:.18em;font-weight:500;padding-bottom:10px;position:relative}
+[data-template="c"] .eyebrow::after{content:"";position:absolute;left:0;bottom:0;width:36px;height:1px;background:var(--accent)}
+[data-template="c"] .hero h1{letter-spacing:-.005em}
+[data-template="c"] .hero .container{padding-top:72px;padding-bottom:72px}
+/* stock card เป็นกล่องเข้มขอบทอง */
+[data-template="c"] .hero .stock-card{
+  --sc-bg:#0F1E3A;--sc-ink:#fff;--sc-muted:#9AAAC2;--sc-line:rgba(255,255,255,.12);--sc-border:rgba(201,168,106,.45);
+  box-shadow:0 30px 60px rgba(0,0,0,.45);
+}
+[data-template="c"] .hero .stock-card .price .chg{color:#5FD3A0}
+[data-template="c"] .hero .spark stop,[data-template="c"] .hero .spark path[stroke]{stop-color:var(--accent);stroke:var(--accent)}
+[data-template="c"] .hero .stock-card .asof a{color:var(--accent)}
+[data-template="c"] .btn-ci{background:var(--accent);color:var(--accent-ink)}
+[data-template="c"] .btn-ci:hover{background:#D9BC82}
+[data-template="c"] .btn-ghost{border-color:rgba(201,168,106,.55);color:#fff}
+/* nav / bars */
+[data-template="c"] .ir-nav{background:var(--ci);border-top:1px solid rgba(255,255,255,.06)}
+[data-template="c"] .ir-nav a{font-weight:500;letter-spacing:.01em}
+[data-template="c"] .ir-nav a.on{color:var(--accent)}
+[data-template="c"] .cust-top{background:#040A17}
+[data-template="c"] .pagebar{--pb-bg:var(--ci);--pb-ink:#fff;--pb-muted:#9AAAC2;border-bottom:1px solid rgba(201,168,106,.35)}
+[data-template="c"] .pagebar .ticker{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.18);color:#fff}
+[data-template="c"] .pagebar .ticker .chg{color:#5FD3A0}
+/* content */
+[data-template="c"] .card{border-color:var(--line)}
+[data-template="c"] .sec-head h2,[data-template="c"] .block h2{font-size:1.5rem}
+[data-template="c"] .kpi strong{color:var(--ci);font-family:var(--font-head);font-weight:600}
+[data-template="c"] .quick .ic{background:var(--ci);color:var(--accent);border-radius:0}
+[data-template="c"] .date{background:var(--ci-50)}
+[data-template="c"] .date b{color:var(--ci)}
+[data-template="c"] .news-list .tag,[data-template="c"] .filters .tabs a{border-radius:0}
+[data-template="c"] .news-list .tag{background:transparent;border:1px solid var(--line);color:var(--ink-2)}
+[data-template="c"] .subnav li a.on{border-left-color:var(--accent);background:var(--ci-50)}
+[data-template="c"] .subscribe,[data-template="c"] .side-sub{background:var(--ci);border:1px solid rgba(201,168,106,.35)}
+[data-template="c"] .subscribe .btn,[data-template="c"] .side-sub button{background:var(--accent);color:var(--accent-ink)}
+[data-template="c"] .policy{border-left-color:var(--accent);background:#FBF8F1}
+[data-template="c"] .cal .type{background:#F3EBDA;color:#6E5320}
+[data-template="c"] .doc .cover,[data-template="c"] .doc-card .cover{border-radius:0;box-shadow:none;border:1px solid rgba(201,168,106,.4)}
+[data-template="c"] .doc small{color:#8A6A2F}
+[data-template="c"] .cust-footer{background:#040A17}
+
+/* ---------------------------------------------------------------------
+   DEMO BAR — ตัวสลับ template (เฉพาะไฟล์สาธิต ไม่ต้องใส่ในระบบจริง)
+   --------------------------------------------------------------------- */
+.demo-bar{position:fixed;left:14px;bottom:14px;z-index:99;display:flex;align-items:center;gap:10px;background:#111;color:#fff;font-size:.74rem;padding:6px 8px 6px 12px;border-radius:999px;box-shadow:0 8px 24px rgba(0,0,0,.3);font-family:"IBM Plex Sans Thai",system-ui,sans-serif}
+.demo-bar .sw{display:flex;gap:4px;padding-left:10px;border-left:1px solid rgba(255,255,255,.2)}
+.demo-bar button{font:inherit;font-weight:700;font-size:.72rem;width:28px;height:24px;border:0;border-radius:999px;background:rgba(255,255,255,.12);color:#fff;cursor:pointer}
+.demo-bar button[aria-pressed="true"]{background:#fff;color:#111}
+.demo-bar .lbl{opacity:.85}
+@media (max-width:600px){.demo-bar .lbl{display:none}.demo-bar{padding-left:8px}.demo-bar .sw{border-left:0;padding-left:0}}

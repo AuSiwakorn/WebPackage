@@ -1,0 +1,1552 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- ===== SEO ===== -->
+<title>AOACCESS – ระบบไอคอนช่วยเหลือผู้พิการสำหรับเว็บไซต์ (Web Accessibility Widget) | AOSOFT</title>
+<meta name="description" content="AOACCESS เครื่องมือช่วยการเข้าถึงเว็บไซต์ (Web Accessibility Widget) ไอคอนช่วยเหลือผู้พิการและผู้สูงอายุ ติดตั้งด้วยสคริปต์บรรทัดเดียว รองรับแนวทาง WCAG 2.1 และมาตรฐานเว็บไซต์ภาครัฐ สำหรับหน่วยงานราชการ องค์กร และเว็บไซต์ธุรกิจ เริ่มต้น 2,500 บาท/ปี">
+<meta name="keywords" content="Web Accessibility Widget, ไอคอนช่วยเหลือผู้พิการ, เครื่องมือช่วยการเข้าถึงเว็บไซต์, ปุ่มช่วยเหลือผู้พิการ, WCAG 2.1, TWCAG, มาตรฐานเว็บไซต์ภาครัฐ, เว็บไซต์หน่วยงานราชการ, Accessibility Toolbar, AOACCESS, AOSOFT">
+<link rel="canonical" href="https://www.aosoft.co.th/aoaccess.html">
+<link rel="alternate" hreflang="th" href="https://www.aosoft.co.th/aoaccess.html">
+<link rel="alternate" hreflang="x-default" href="https://www.aosoft.co.th/aoaccess.html">
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+<meta name="author" content="บริษัท เอโอซอฟต์ จำกัด (AOSOFT CO., LTD.)">
+<meta name="theme-color" content="#0F766E">
+<meta name="color-scheme" content="light">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2064%2064'%3E%3Crect%20width='64'%20height='64'%20rx='14'%20fill='%230B1F3A'/%3E%3Ccircle%20cx='32'%20cy='32'%20r='22'%20fill='%230F766E'/%3E%3Ccircle%20cx='32'%20cy='20'%20r='4'%20fill='%23fff'/%3E%3Cpath%20d='M20%2027h24v4l-8.5%201.5v6l4.5%2010h-4.5L32%2039l-3.5%209.5H24l4.5-10v-6L20%2031z'%20fill='%23fff'/%3E%3C/svg%3E">
+
+<!-- ===== Open Graph (Facebook / LINE / Messenger) ===== -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="AOSOFT">
+<meta property="og:locale" content="th_TH">
+<meta property="og:url" content="https://www.aosoft.co.th/aoaccess.html">
+<meta property="og:title" content="AOACCESS – ไอคอนช่วยเหลือผู้พิการสำหรับเว็บไซต์ เริ่มต้น 2,500 บาท/ปี">
+<meta property="og:description" content="เครื่องมือช่วยการเข้าถึงเว็บไซต์สำหรับผู้พิการและผู้สูงอายุ ติดตั้งด้วยสคริปต์บรรทัดเดียว รองรับแนวทาง WCAG 2.1 และมาตรฐานเว็บไซต์ภาครัฐ พร้อมเอกสารประกอบ TOR โดย บริษัท เอโอซอฟต์ จำกัด">
+<meta property="og:image" content="https://www.aosoft.co.th/aoaccess-og.png">
+<meta property="og:image:secure_url" content="https://www.aosoft.co.th/aoaccess-og.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="AOACCESS – ระบบไอคอนช่วยเหลือผู้พิการสำหรับเว็บไซต์ รองรับแนวทาง WCAG 2.1 โดย AOSOFT">
+
+<!-- ===== X / Twitter Card ===== -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="AOACCESS – ไอคอนช่วยเหลือผู้พิการสำหรับเว็บไซต์ เริ่มต้น 2,500 บาท/ปี">
+<meta name="twitter:description" content="เครื่องมือช่วยการเข้าถึงเว็บไซต์สำหรับผู้พิการและผู้สูงอายุ ติดตั้งด้วยสคริปต์บรรทัดเดียว รองรับแนวทาง WCAG 2.1 และมาตรฐานเว็บไซต์ภาครัฐ โดย บริษัท เอโอซอฟต์ จำกัด">
+<meta name="twitter:image" content="https://www.aosoft.co.th/aoaccess-og.png">
+<meta name="twitter:image:alt" content="AOACCESS – ระบบไอคอนช่วยเหลือผู้พิการสำหรับเว็บไซต์ รองรับแนวทาง WCAG 2.1 โดย AOSOFT">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Sarabun:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+
+<!-- ===== Structured Data (schema.org) ===== -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://www.aosoft.co.th/#organization",
+      "name": "บริษัท เอโอซอฟต์ จำกัด",
+      "alternateName": ["AOSOFT CO., LTD.", "AOSOFT"],
+      "url": "https://www.aosoft.co.th/",
+      "logo": {"@type": "ImageObject", "url": "https://www.aosoft.co.th/img/logo2.png"},
+      "email": "info@aosoft.co.th",
+      "telephone": "+66-2-957-8755",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "91/940 หมู่ 3",
+        "addressLocality": "บึงยี่โถ ธัญบุรี",
+        "addressRegion": "ปทุมธานี",
+        "postalCode": "12130",
+        "addressCountry": "TH"
+      },
+      "contactPoint": [{
+        "@type": "ContactPoint",
+        "contactType": "sales",
+        "telephone": "+66-2-957-8755",
+        "email": "info@aosoft.co.th",
+        "availableLanguage": ["th", "en"],
+        "hoursAvailable": {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+          "opens": "09:00",
+          "closes": "17:30"
+        }
+      }],
+      "sameAs": ["https://www.facebook.com/aosoft.co.th"]
+    },
+    {
+      "@type": "WebPage",
+      "@id": "https://www.aosoft.co.th/aoaccess.html#webpage",
+      "url": "https://www.aosoft.co.th/aoaccess.html",
+      "name": "AOACCESS – ระบบไอคอนช่วยเหลือผู้พิการสำหรับเว็บไซต์ (Web Accessibility Widget) | AOSOFT",
+      "description": "AOACCESS เครื่องมือช่วยการเข้าถึงเว็บไซต์ (Web Accessibility Widget) ไอคอนช่วยเหลือผู้พิการและผู้สูงอายุ ติดตั้งด้วยสคริปต์บรรทัดเดียว รองรับแนวทาง WCAG 2.1 และมาตรฐานเว็บไซต์ภาครัฐ เริ่มต้น 2,500 บาท/ปี",
+      "inLanguage": "th",
+      "isPartOf": {
+        "@type": "WebSite",
+        "@id": "https://www.aosoft.co.th/#website",
+        "url": "https://www.aosoft.co.th/",
+        "name": "AOSOFT",
+        "publisher": {"@id": "https://www.aosoft.co.th/#organization"}
+      },
+      "about": {"@id": "https://www.aosoft.co.th/aoaccess.html#service"},
+      "primaryImageOfPage": {"@type": "ImageObject", "url": "https://www.aosoft.co.th/aoaccess-og.png", "width": 1200, "height": 630},
+      "breadcrumb": {"@id": "https://www.aosoft.co.th/aoaccess.html#breadcrumb"}
+    },
+    {
+      "@type": "BreadcrumbList",
+      "@id": "https://www.aosoft.co.th/aoaccess.html#breadcrumb",
+      "itemListElement": [
+        {"@type": "ListItem", "position": 1, "name": "หน้าแรก", "item": "https://www.aosoft.co.th/"},
+        {"@type": "ListItem", "position": 2, "name": "AOACCESS – Web Accessibility Widget", "item": "https://www.aosoft.co.th/aoaccess.html"}
+      ]
+    },
+    {
+      "@type": "Service",
+      "@id": "https://www.aosoft.co.th/aoaccess.html#service",
+      "name": "AOACCESS – Web Accessibility Widget",
+      "alternateName": "ระบบไอคอนช่วยเหลือผู้พิการสำหรับเว็บไซต์",
+      "serviceType": "Web Accessibility Widget",
+      "category": "Web Accessibility / WCAG",
+      "description": "เครื่องมือช่วยการเข้าถึงเว็บไซต์สำหรับผู้พิการและผู้สูงอายุ ติดตั้งด้วยสคริปต์บรรทัดเดียว ปรับขนาดตัวอักษร ความคมชัด ระยะห่าง เน้นลิงก์ อ่านออกเสียง และอื่น ๆ รองรับแนวทาง WCAG 2.1 และมาตรฐานเว็บไซต์ภาครัฐ",
+      "url": "https://www.aosoft.co.th/aoaccess.html",
+      "image": "https://www.aosoft.co.th/aoaccess-og.png",
+      "areaServed": {"@type": "Country", "name": "Thailand"},
+      "audience": {"@type": "Audience", "audienceType": "หน่วยงานราชการ รัฐวิสาหกิจ สถานศึกษา โรงพยาบาล และองค์กรธุรกิจ"},
+      "provider": {"@id": "https://www.aosoft.co.th/#organization"},
+      "offers": [
+        {
+          "@type": "Offer", "name": "01 STARTER", "url": "https://www.aosoft.co.th/aoaccess.html#pricing",
+          "price": "2500", "priceCurrency": "THB", "availability": "https://schema.org/InStock",
+          "priceSpecification": {"@type": "UnitPriceSpecification", "price": 2500, "priceCurrency": "THB", "valueAddedTaxIncluded": false, "unitCode": "ANN", "unitText": "ปี"},
+          "description": "1 โดเมน · เครื่องมือช่วยการเข้าถึงครบ 12 รายการ รวมอ่านออกเสียง · ติดตั้งฟรี · อัปเดตระบบตลอดอายุสัญญา"
+        },
+        {
+          "@type": "Offer", "name": "02 BUSINESS", "url": "https://www.aosoft.co.th/aoaccess.html#pricing",
+          "price": "4500", "priceCurrency": "THB", "availability": "https://schema.org/InStock",
+          "priceSpecification": {"@type": "UnitPriceSpecification", "price": 4500, "priceCurrency": "THB", "valueAddedTaxIncluded": false, "unitCode": "ANN", "unitText": "ปี"},
+          "description": "1 โดเมน · เครื่องมือครบ 12 รายการ · ปรับสีและตำแหน่งไอคอนตามแบรนด์ · ไม่แสดง Powered by · หน้า Accessibility Statement · ติดตั้งฟรี"
+        },
+        {
+          "@type": "Offer", "name": "03 GOVERNMENT", "url": "https://www.aosoft.co.th/aoaccess.html#pricing",
+          "price": "7500", "priceCurrency": "THB", "availability": "https://schema.org/InStock",
+          "priceSpecification": {"@type": "UnitPriceSpecification", "price": 7500, "priceCurrency": "THB", "valueAddedTaxIncluded": false, "unitCode": "ANN", "unitText": "ปี"},
+          "description": "โดเมนหลัก + Subdomain ในสังกัด · เครื่องมือครบทุกรายการ · เอกสารประกอบ TOR และการตรวจรับ · ติดตั้งและตรวจเบื้องต้นโดยทีมงาน · ค่าติดตั้งและจัดทำเอกสาร 3,000 บาท (ครั้งแรก)"
+        }
+      ]
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://www.aosoft.co.th/aoaccess.html#faq",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Web Accessibility Widget หรือไอคอนช่วยเหลือผู้พิการคืออะไร",
+          "acceptedAnswer": {"@type": "Answer", "text": "คือเครื่องมือที่ติดตั้งบนเว็บไซต์ในรูปแบบไอคอนลอย เมื่อผู้ใช้กดจะเปิดเมนูสำหรับปรับการแสดงผลให้เหมาะกับตนเอง เช่น ขยายตัวอักษร เพิ่มความคมชัดของสี เพิ่มระยะห่างระหว่างบรรทัด เน้นลิงก์ หยุดภาพเคลื่อนไหว หรืออ่านออกเสียงข้อความ เพื่อช่วยให้ผู้พิการทางสายตา ผู้สูงอายุ และผู้ที่มีข้อจำกัดในการใช้งานเข้าถึงเนื้อหาได้สะดวกขึ้น"}
+        },
+        {
+          "@type": "Question",
+          "name": "เว็บไซต์หน่วยงานราชการจำเป็นต้องมีเครื่องมือนี้หรือไม่",
+          "acceptedAnswer": {"@type": "Answer", "text": "มาตรฐานเว็บไซต์ภาครัฐกำหนดให้เว็บไซต์ของหน่วยงานรัฐต้องคำนึงถึงการเข้าถึงของคนพิการและผู้สูงอายุตามแนวทาง TWCAG / WCAG และขอบเขตงาน (TOR) ในการจ้างพัฒนาหรือปรับปรุงเว็บไซต์ของหลายหน่วยงานระบุให้มีเครื่องมือช่วยการเข้าถึงสำหรับผู้พิการเป็นคุณสมบัติหนึ่งของระบบ AOACCESS ออกแบบมาเพื่อตอบข้อกำหนดในส่วนนี้ พร้อมเอกสารประกอบสำหรับการตรวจรับงาน"}
+        },
+        {
+          "@type": "Question",
+          "name": "ติดตั้ง AOACCESS บนเว็บไซต์ต้องแก้โค้ดเดิมมากหรือไม่",
+          "acceptedAnswer": {"@type": "Answer", "text": "ไม่จำเป็นต้องปรับโครงสร้างเว็บไซต์เดิม เพียงเพิ่มสคริปต์ 1 บรรทัดก่อนปิดแท็ก body ของทุกหน้า หรือใส่ผ่านระบบจัดการเว็บไซต์ที่ใช้อยู่ เช่น WordPress, Joomla หรือระบบที่พัฒนาเอง ทีมงานสามารถติดตั้งให้ได้เมื่อได้รับสิทธิ์เข้าถึงเว็บไซต์"}
+        },
+        {
+          "@type": "Question",
+          "name": "ติดตั้ง AOACCESS แล้วเว็บไซต์จะผ่านมาตรฐาน WCAG ทันทีหรือไม่",
+          "acceptedAnswer": {"@type": "Answer", "text": "AOACCESS เป็นเครื่องมือช่วยให้ผู้ใช้ปรับการแสดงผลตามความต้องการ และช่วยตอบข้อกำหนดเรื่องเครื่องมือช่วยการเข้าถึงในหลายกรณี แต่การผ่านเกณฑ์ WCAG อย่างสมบูรณ์ยังขึ้นอยู่กับโครงสร้างและเนื้อหาของเว็บไซต์เอง เช่น ข้อความอธิบายรูปภาพ (alt) และลำดับหัวข้อ สำหรับแพ็กเกจ GOVERNMENT ทีมงานจะตรวจสอบเบื้องต้นและแนะนำจุดที่ควรปรับปรุงให้"}
+        },
+        {
+          "@type": "Question",
+          "name": "มีเงื่อนไขการชำระค่าบริการอย่างไร",
+          "acceptedAnswer": {"@type": "Answer", "text": "ชำระค่าบริการรายปีก่อนเริ่มดำเนินการติดตั้ง แพ็กเกจ GOVERNMENT มีค่าติดตั้งและจัดทำเอกสาร 3,000 บาท ชำระครั้งแรกพร้อมค่าบริการปีแรก ราคาทั้งหมดยังไม่รวมภาษีมูลค่าเพิ่ม 7% หน่วยงานที่ต้องการจัดซื้อแบบซื้อขาดพร้อมบำรุงรักษารายปี สามารถติดต่อขอใบเสนอราคาได้"}
+        },
+        {
+          "@type": "Question",
+          "name": "ใช้ได้กับหลายเว็บไซต์หรือหลาย Subdomain หรือไม่",
+          "acceptedAnswer": {"@type": "Answer", "text": "แพ็กเกจ STARTER และ BUSINESS ใช้ได้ 1 โดเมน (เครื่องมือครบ 12 รายการเท่ากันทุกแพ็กเกจ) แพ็กเกจ GOVERNMENT ครอบคลุมโดเมนหลักและ Subdomain ในสังกัดเดียวกัน หากมีหลายเว็บไซต์ในหลายโดเมน กรุณาติดต่อฝ่ายขายเพื่อรับราคาพิเศษ"}
+        }
+      ]
+    }
+  ]
+}
+</script>
+
+<style>
+  :root{
+    --navy-950:#081629;
+    --navy-900:#0B1F3A;
+    --navy-800:#12294B;
+    --navy-700:#1A3761;
+    --blue-600:#1F4F8F;
+    --blue-500:#2A64AE;
+    --blue-50:#EEF3FA;
+    --brand:#0F766E;
+    --brand-700:#0B5C56;
+    --brand-50:#E6F4F2;
+    --gold-500:#B8912F;
+    --gold-100:#F6EFD9;
+    --ink:#1C2733;
+    --ink-2:#4A5666;
+    --ink-3:#6B7686;
+    --line:#DCE2EA;
+    --line-2:#E9EDF2;
+    --bg:#FFFFFF;
+    --bg-soft:#F5F7FA;
+    --ok:#1E7A4F;
+    --no:#A23B3B;
+    --radius:10px;
+    --radius-lg:14px;
+    --shadow:0 1px 2px rgba(11,31,58,.06),0 8px 24px rgba(11,31,58,.06);
+    --container:1160px;
+    --header-h:68px;
+  }
+  *,*::before,*::after{box-sizing:border-box}
+  html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+  body{
+    margin:0;background:var(--bg);color:var(--ink);
+    font-family:"IBM Plex Sans Thai",system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;
+    font-size:16px;line-height:1.7;
+    -webkit-font-smoothing:antialiased;
+  }
+  img{max-width:100%;display:block}
+  a{color:var(--blue-600);text-decoration:none}
+  a:hover{text-decoration:underline}
+  h1,h2,h3,h4{margin:0;line-height:1.35;color:var(--navy-900);font-weight:700}
+  p{margin:0;text-wrap:pretty}
+  h1,h2,h3{text-wrap:balance}
+  section[id]{scroll-margin-top:calc(var(--header-h) + 8px)}
+  .container{max-width:var(--container);margin:0 auto;padding:0 24px}
+  .section{padding:88px 0}
+  .section--soft{background:var(--bg-soft)}
+  .eyebrow{
+    display:inline-block;font-size:.8125rem;font-weight:600;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--brand);margin-bottom:12px;
+  }
+  .section-head{max-width:760px;margin:0 auto 48px;text-align:center}
+  .section-head h2{font-size:clamp(1.6rem,2.6vw,2.125rem)}
+  .section-head p{margin-top:14px;color:var(--ink-2);font-size:1.0625rem}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+  .skip-link{position:absolute;left:16px;top:-60px;z-index:100;background:var(--navy-900);color:#fff;padding:10px 16px;border-radius:8px;font-weight:600}
+  .skip-link:focus{top:12px;outline:3px solid #8DB3E8}
+
+  /* Buttons */
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:10px;
+    padding:12px 22px;border-radius:8px;border:1px solid transparent;
+    font:inherit;font-weight:600;font-size:.975rem;line-height:1.2;cursor:pointer;
+    transition:background-color .15s ease,border-color .15s ease,color .15s ease;
+    text-decoration:none !important;white-space:nowrap;
+  }
+  .btn-primary{background:var(--blue-600);color:#fff}
+  .btn-primary:hover{background:var(--navy-700)}
+  .btn-light{background:#fff;color:var(--navy-900)}
+  .btn-light:hover{background:var(--blue-50)}
+  .btn-outline-light{border-color:rgba(255,255,255,.45);color:#fff;background:transparent}
+  .btn-outline-light:hover{border-color:#fff;background:rgba(255,255,255,.06)}
+  .btn-outline{border-color:var(--line);color:var(--navy-900);background:#fff}
+  .btn-outline:hover{border-color:var(--blue-600);color:var(--blue-600)}
+  .btn-block{width:100%}
+  .btn:focus-visible,a:focus-visible,summary:focus-visible,button:focus-visible{outline:3px solid #8DB3E8;outline-offset:2px}
+
+  /* Header */
+  .site-header{
+    position:sticky;top:0;z-index:50;background:rgba(255,255,255,.97);
+    border-bottom:1px solid var(--line-2);backdrop-filter:saturate(1.4) blur(6px);
+  }
+  .site-header .container{display:flex;align-items:center;justify-content:space-between;height:var(--header-h);gap:24px}
+  .brand{display:flex;align-items:center;gap:14px;color:var(--navy-900);text-decoration:none !important}
+  .brand .logo{font-size:1.5rem;line-height:1;letter-spacing:.02em;white-space:nowrap}
+  .logo-ao{color:#000;font-weight:700}
+  .logo-access{color:var(--brand);font-weight:500}
+  .brand-by{padding-left:14px;border-left:1px solid var(--line);font-size:.72rem;line-height:1.35;color:var(--ink-3);letter-spacing:.04em;white-space:nowrap}
+  .brand-by strong{display:block;color:var(--navy-900);font-weight:600;letter-spacing:.08em}
+  .nav{display:flex;align-items:center;gap:28px}
+  .nav a{color:var(--ink-2);font-weight:500;font-size:.95rem;white-space:nowrap}
+  .nav a:hover{color:var(--navy-900);text-decoration:none}
+  .nav .btn{color:#fff}
+  @media (max-width:1100px){.nav{gap:20px}.nav a{font-size:.9rem}}
+  .nav-toggle{
+    display:none;background:none;border:1px solid var(--line);border-radius:8px;
+    width:42px;height:42px;color:var(--navy-900);font-size:1.1rem;cursor:pointer;
+  }
+
+  /* Hero */
+  .hero{
+    background:
+      radial-gradient(900px 480px at 85% 10%,rgba(94,234,212,.28),transparent 60%),
+      linear-gradient(160deg,#083F3A 0%,var(--brand) 50%,#13908A 100%);
+    color:#fff;padding:80px 0 88px;position:relative;overflow:hidden;
+  }
+  .hero::after{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);
+    background-size:48px 48px;mask-image:linear-gradient(180deg,rgba(0,0,0,.9),transparent 90%);
+  }
+  .hero .container{position:relative;z-index:1;display:grid;grid-template-columns:1.05fr .95fr;gap:56px;align-items:center}
+  .hero .eyebrow{color:#B4F0E4}
+  .hero h1{color:#fff;font-size:clamp(1.9rem,3.6vw,2.75rem);font-weight:700}
+  .hero-lead{margin-top:20px;color:#DDF5F0;font-size:1.0875rem;max-width:560px}
+  .hero-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:32px}
+  .hero-facts{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin-top:44px;
+    border-top:1px solid rgba(255,255,255,.24);padding-top:24px;max-width:600px;
+  }
+  .hero-facts div{padding-right:16px}
+  .hero-facts div + div{padding-left:20px;border-left:1px solid rgba(255,255,255,.22)}
+  .hero-facts strong{display:block;font-size:1.3rem;color:#fff;font-weight:700;line-height:1.3}
+  .hero-facts span{font-size:.85rem;color:#B9E3DC}
+  .hero-try{
+    display:inline-flex;align-items:center;gap:10px;margin-top:22px;padding:10px 14px;border-radius:999px;
+    background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.4);color:#fff;font-size:.9rem;
+  }
+  .hero-try .pulse{width:10px;height:10px;border-radius:50%;background:#5EEAD4;box-shadow:0 0 0 0 rgba(94,234,212,.7);animation:pulse 1.8s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(94,234,212,.7)}70%{box-shadow:0 0 0 10px rgba(94,234,212,0)}100%{box-shadow:0 0 0 0 rgba(94,234,212,0)}}
+
+  /* Browser mock */
+  .mock{
+    background:#fff;border-radius:12px;box-shadow:0 24px 60px rgba(0,0,0,.35);
+    overflow:hidden;color:var(--ink);position:relative;
+  }
+  .mock-bar{display:flex;align-items:center;gap:8px;padding:10px 14px;background:#EEF1F5;border-bottom:1px solid var(--line)}
+  .mock-dot{width:10px;height:10px;border-radius:50%;background:#C8CFD8}
+  .mock-url{
+    flex:1;margin-left:10px;background:#fff;border:1px solid var(--line);border-radius:6px;
+    font-size:.75rem;color:var(--ink-3);padding:4px 10px;display:flex;align-items:center;gap:8px;
+  }
+  .mock-url i{color:var(--ok);font-size:.7rem}
+  .mock-body{padding:22px 22px 0;height:440px;position:relative;background:#fff;overflow:hidden}
+  .sk{background:#E9EDF2;border-radius:4px;height:10px;margin-bottom:10px}
+  .sk-nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:26px}
+  .sk-logo{width:70px;height:14px;background:#CBD3DD;border-radius:4px}
+  .sk-links{display:flex;gap:10px}
+  .sk-links span{width:34px;height:8px;background:#E1E6EC;border-radius:4px}
+  .sk-hero{height:92px;border-radius:8px;background:linear-gradient(120deg,#E4EAF2,#F1F4F8);margin-bottom:18px}
+  .sk-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .sk-cols div{height:54px;border-radius:6px;background:#F0F3F6}
+
+  .mk-panel{
+    position:absolute;right:18px;bottom:18px;width:270px;background:#fff;border:1px solid var(--line);
+    border-radius:14px;box-shadow:0 14px 40px rgba(11,31,58,.22);overflow:hidden;
+  }
+  .mk-head{display:flex;align-items:center;gap:10px;padding:11px 14px;background:var(--brand);color:#fff;font-weight:600;font-size:.86rem}
+  .mk-lang{margin-left:auto;display:flex;border:1px solid rgba(255,255,255,.6);border-radius:6px;overflow:hidden;font-size:.64rem;font-weight:500;line-height:1}
+  .mk-lang b,.mk-lang em{padding:4px 8px;font-style:normal}
+  .mk-lang b{background:#fff;color:var(--brand)}
+  .mk-sec{font-size:.66rem;font-weight:600;color:var(--brand);padding:10px 12px 4px;border-bottom:1px solid var(--line-2);margin:0 0 6px}
+  .mk-row{display:flex;justify-content:space-between;align-items:center;padding:6px 12px;font-size:.7rem;color:var(--ink)}
+  .mk-stp{display:flex;align-items:center;gap:6px;font-weight:600;font-size:.66rem}
+  .mk-stp i{width:22px;height:22px;border:1px solid var(--line);border-radius:6px;display:grid;place-items:center;font-style:normal;color:var(--navy-900)}
+  .mk-sw{width:30px;height:16px;border-radius:999px;background:#C9D1DB;position:relative;flex:none}
+  .mk-sw::after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#fff}
+  .mk-sw.on{background:var(--brand)}
+  .mk-sw.on::after{left:16px}
+  .mk-themes{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;padding:4px 12px 8px}
+  .mk-th{border:1px solid var(--line);border-radius:8px;padding:6px 2px;display:grid;gap:4px;justify-items:center;font-size:.56rem;color:var(--ink-2);line-height:1.2;text-align:center}
+  .mk-th span{width:18px;height:18px;border-radius:50%;display:block}
+  .mk-th.on{border-color:var(--brand);background:var(--brand-50);color:var(--brand-700);font-weight:600}
+  .mk-fab{
+    position:absolute;right:18px;bottom:18px;width:52px;height:52px;border-radius:50%;background:var(--brand);color:#fff;
+    display:grid;place-items:center;font-size:1.4rem;box-shadow:0 10px 24px rgba(15,118,110,.4);
+  }
+  .mock-caption{margin-top:14px;text-align:center;font-size:.8rem;color:#B9E3DC}
+
+  /* About / Why */
+  .why{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:start}
+  .why h2{font-size:clamp(1.6rem,2.6vw,2.125rem)}
+  .why-text p{color:var(--ink-2);margin-top:16px;font-size:1.0375rem}
+  .law-box{
+    margin-top:28px;border-left:3px solid var(--gold-500);background:var(--gold-100);
+    padding:16px 20px;border-radius:0 8px 8px 0;font-size:.95rem;color:#4F4222;
+  }
+  .law-box strong{color:#3C3218;display:block;margin-bottom:4px}
+  .law-box ul{margin:8px 0 0;padding-left:18px;display:grid;gap:4px}
+  .why-list{display:grid;gap:16px}
+  .why-item{display:flex;gap:18px;padding:22px;border:1px solid var(--line);border-radius:var(--radius-lg);background:#fff}
+  .why-item .ic{
+    flex:none;width:46px;height:46px;border-radius:10px;background:var(--brand-50);color:var(--brand);
+    display:grid;place-items:center;font-size:1.15rem;
+  }
+  .why-item h3{font-size:1.05rem}
+  .why-item p{color:var(--ink-2);font-size:.95rem;margin-top:4px}
+
+  /* Features */
+  .features{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+  .feature{background:#fff;border:1px solid var(--line);border-radius:var(--radius-lg);padding:24px 22px}
+  .feature .ic{
+    width:46px;height:46px;border-radius:10px;background:var(--navy-900);color:#fff;
+    display:grid;place-items:center;font-size:1.05rem;margin-bottom:16px;
+  }
+  .feature h3{font-size:1.02rem}
+  .feature p{color:var(--ink-2);font-size:.92rem;margin-top:6px}
+  .feature-notes{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:28px}
+  .feature-notes > div{display:flex;gap:14px;align-items:flex-start;padding:18px 20px;border:1px solid #BFE3DC;background:var(--brand-50);border-radius:var(--radius-lg)}
+  .feature-notes i{color:var(--brand);font-size:1.2rem;margin-top:4px}
+  .feature-notes strong{display:block;color:var(--navy-900);font-size:.95rem}
+  .feature-notes span{display:block;color:var(--ink-2);font-size:.86rem;margin-top:2px}
+
+  /* Suitability */
+  .fit{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+  .fit-card{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:var(--radius-lg);padding:30px 28px 28px;background:#fff}
+  .fit-card::before{content:"";position:absolute;left:0;right:0;top:0;height:4px;background:var(--brand)}
+  .fit-card h3{display:flex;align-items:center;gap:12px;font-size:1.12rem}
+  .fit-card h3 i{font-size:1.2rem;color:var(--brand)}
+  .fit-card ul{list-style:none;margin:16px 0 0;padding:0;display:grid;gap:10px}
+  .fit-card li{display:flex;gap:12px;color:var(--ink-2);font-size:.95rem}
+  .fit-card li i{margin-top:6px;font-size:.85rem;flex:none;color:var(--ok)}
+
+  /* Pricing */
+  .plans{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;align-items:stretch}
+  .plan{
+    position:relative;background:#fff;border:1px solid var(--line);border-radius:var(--radius-lg);
+    padding:32px 28px;display:flex;flex-direction:column;box-shadow:var(--shadow);
+  }
+  .plan--featured{border:2px solid var(--navy-900);padding-top:40px}
+  .plan-badge{
+    position:absolute;top:-1px;left:50%;transform:translate(-50%,-50%);
+    background:var(--gold-500);color:#fff;font-size:.78rem;font-weight:600;letter-spacing:.04em;
+    padding:5px 16px;border-radius:999px;white-space:nowrap;
+  }
+  .plan-code{font-size:.78rem;font-weight:600;letter-spacing:.1em;color:var(--brand)}
+  .plan h3{font-size:1.45rem;margin-top:4px}
+  .plan-desc{color:var(--ink-3);font-size:.92rem;margin-top:6px;min-height:3.1em}
+  .plan-price{margin-top:22px;padding-top:22px;border-top:1px solid var(--line-2)}
+  .plan-price .amount{display:flex;align-items:baseline;gap:8px;color:var(--navy-900)}
+  .plan-price .amount strong{font-size:2.5rem;font-weight:700;line-height:1;letter-spacing:-.01em}
+  .plan-price .amount span{font-size:.95rem;color:var(--ink-2)}
+  .plan-price .sub{font-size:.85rem;color:var(--ink-3);margin-top:8px}
+  .plan-setup{
+    margin-top:16px;display:flex;justify-content:space-between;align-items:center;gap:12px;
+    background:var(--bg-soft);border-radius:8px;padding:10px 14px;font-size:.9rem;
+  }
+  .plan-setup span{color:var(--ink-2)}
+  .plan-setup strong{color:var(--navy-900)}
+  .plan-setup .free{color:var(--ok)}
+  .plan ul{list-style:none;margin:22px 0 26px;padding:0;display:grid;gap:12px;flex:1;align-content:start}
+  .plan li{display:flex;gap:12px;font-size:.95rem;color:var(--ink)}
+  .plan li i{color:var(--blue-600);margin-top:6px;font-size:.85rem;flex:none}
+  .plan li.no{color:var(--ink-3)}
+  .plan li.no i{color:#B9C2CE}
+  .plan li small{display:block;color:var(--ink-3);font-size:.82rem}
+
+  .compare-wrap{margin-top:64px}
+  .compare-wrap h3{font-size:1.3rem;text-align:center;margin-bottom:24px}
+  .table-scroll{position:relative;overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius-lg);background:#fff;-webkit-overflow-scrolling:touch}
+  table.compare{width:100%;border-collapse:collapse;min-width:680px;font-size:.95rem;table-layout:fixed}
+  .compare col.c-label{width:31%}
+  .compare col.c-plan{width:23%}
+  .compare th,.compare td{padding:14px 20px;text-align:center;border-bottom:1px solid var(--line-2);vertical-align:middle}
+  .compare thead th{background:var(--navy-900);color:#fff;font-weight:600;font-size:1rem}
+  .compare thead th:first-child{text-align:left}
+  .compare thead th.is-featured{background:var(--blue-600)}
+  .compare thead th small{display:block;font-weight:400;font-size:.78rem;color:#C9D5E6}
+  .compare tbody th{text-align:left;font-weight:500;color:var(--ink);background:#FBFCFD}
+  .compare tbody th.group{background:var(--blue-50);color:var(--navy-900);font-weight:700;font-size:.85rem;letter-spacing:.04em;text-transform:uppercase}
+  .compare tbody td.is-featured{background:#F4F8FD}
+  .compare tbody tr:last-child th,.compare tbody tr:last-child td{border-bottom:0}
+  .compare .yes{color:var(--ok)}
+  .compare .dash{color:#B9C2CE}
+  .compare .muted{color:var(--ink-3)}
+  .compare tr.total th,.compare tr.total td{font-weight:700;color:var(--navy-900);background:#EEF3FA}
+  .compare tr.total td.is-featured{background:#E3ECF7}
+  .table-hint{display:none;font-size:.85rem;color:var(--ink-3);margin:-12px 0 12px;text-align:center}
+  .notes{margin:20px 0 0;padding:0;list-style:none;font-size:.88rem;color:var(--ink-3);display:grid;gap:4px}
+  .gov-note{
+    margin-top:28px;display:flex;gap:18px;align-items:flex-start;padding:22px 24px;border:1px solid #BFE3DC;
+    background:var(--brand-50);border-radius:var(--radius-lg);
+  }
+  .gov-note i{font-size:1.4rem;color:var(--brand);margin-top:4px}
+  .gov-note h4{font-size:1.05rem}
+  .gov-note p{color:var(--ink-2);font-size:.95rem;margin-top:4px}
+
+  /* Steps */
+  .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
+  .step{position:relative;background:#fff;border:1px solid var(--line);border-radius:var(--radius-lg);padding:28px 24px}
+  .step-num{
+    width:40px;height:40px;border-radius:50%;border:2px solid var(--navy-900);color:var(--navy-900);
+    display:grid;place-items:center;font-weight:700;margin-bottom:16px;
+  }
+  .step h3{font-size:1.02rem}
+  .step p{color:var(--ink-2);font-size:.93rem;margin-top:6px}
+  .code-block{
+    margin:40px auto 0;max-width:820px;background:var(--navy-950);color:#DCE6F5;border-radius:var(--radius-lg);
+    padding:20px 24px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.86rem;line-height:1.7;overflow-x:auto;
+  }
+  .code-block .c{color:#7F93B0}
+  .code-block .k{color:#7DD3C4}
+  .code-block .s{color:#86EFAC}
+  .code-caption{text-align:center;color:var(--ink-3);font-size:.88rem;margin-top:12px}
+
+  /* Compare vs foreign */
+  .versus{max-width:900px;margin:0 auto}
+  table.vs{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:var(--radius-lg);overflow:hidden;font-size:.95rem}
+  .vs th,.vs td{padding:14px 18px;border-bottom:1px solid var(--line-2);text-align:left;vertical-align:top}
+  .vs thead th{background:var(--navy-900);color:#fff;font-weight:600}
+  .vs thead th:last-child{background:var(--brand)}
+  .vs tbody tr:last-child td,.vs tbody tr:last-child th{border-bottom:0}
+  .vs tbody th{font-weight:500;background:#FBFCFD;width:34%}
+  .vs td:last-child{background:#F8F7FE;font-weight:500;color:var(--navy-900)}
+  .vs td .yes{color:var(--ok);margin-right:6px}
+  .vs td .no{color:var(--ink-3);margin-right:6px}
+
+  /* FAQ */
+  .faq{max-width:860px;margin:0 auto;display:grid;gap:12px}
+  .faq details{background:#fff;border:1px solid var(--line);border-radius:var(--radius)}
+  .faq details[open]{border-color:#B9C8DB}
+  .faq summary{
+    list-style:none;cursor:pointer;padding:18px 22px;font-weight:600;color:var(--navy-900);
+    display:flex;justify-content:space-between;align-items:center;gap:16px;
+  }
+  .faq summary::-webkit-details-marker{display:none}
+  .faq summary i{color:var(--ink-3);transition:transform .2s ease;flex:none}
+  .faq details[open] summary i{transform:rotate(180deg)}
+  .faq .answer{padding:0 22px 20px;color:var(--ink-2)}
+
+  /* Contact */
+  .contact{background:var(--navy-900);color:#fff;padding:88px 0}
+  .contact .container{display:grid;grid-template-columns:1fr 1.1fr;gap:56px;align-items:center}
+  .contact h2{color:#fff;font-size:clamp(1.6rem,2.6vw,2.125rem)}
+  .contact p.lead{color:#C9D5E6;margin-top:16px;font-size:1.0375rem}
+  .contact .hero-actions{margin-top:28px}
+  .contact-list{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .contact-item{
+    display:flex;gap:16px;align-items:flex-start;padding:20px;border:1px solid rgba(255,255,255,.14);
+    border-radius:var(--radius-lg);background:rgba(255,255,255,.03);color:#fff;text-decoration:none !important;
+    transition:border-color .15s ease,background-color .15s ease;
+  }
+  a.contact-item:hover{border-color:rgba(255,255,255,.4);background:rgba(255,255,255,.06)}
+  .contact-item i{font-size:1.15rem;color:#9CC0EE;margin-top:4px;width:22px;text-align:center;flex:none}
+  .contact-item span{display:block;font-size:.82rem;color:#A9B8CC}
+  .contact-item strong{display:block;font-weight:600;font-size:1rem;word-break:break-word}
+  .contact-item--wide{grid-column:1 / -1}
+
+  /* Footer */
+  .site-footer{background:var(--navy-950);color:#8FA0B7;padding:28px 0;font-size:.875rem}
+  .site-footer .container{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+  .site-footer a{color:#C9D5E6}
+  .footer-links{display:flex;gap:18px;align-items:center}
+  .footer-links a{display:inline-flex;align-items:center;gap:8px}
+
+  /* ===== AOACCESS live widget (demo on this page) ===== */
+  .aoa-fab{
+    position:fixed;right:22px;bottom:22px;z-index:90;width:60px;height:60px;border-radius:50%;border:0;
+    background:var(--brand);color:#fff;font-size:1.7rem;cursor:pointer;display:grid;place-items:center;
+    box-shadow:0 12px 30px rgba(15,118,110,.45);transition:transform .15s ease,background-color .15s ease;
+  }
+  .aoa-fab:hover{background:var(--brand-700);transform:scale(1.05)}
+  .aoa-fab .lbl{
+    position:absolute;right:70px;top:50%;transform:translateY(-50%);white-space:nowrap;background:var(--navy-900);color:#fff;
+    font-size:.78rem;font-weight:500;padding:6px 12px;border-radius:8px;opacity:0;pointer-events:none;transition:opacity .15s;
+  }
+  .aoa-fab:hover .lbl,.aoa-fab:focus-visible .lbl{opacity:1}
+  .aoa-panel{
+    position:fixed;right:22px;bottom:94px;z-index:91;width:360px;max-width:calc(100vw - 32px);max-height:calc(100vh - 120px);
+    background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 20px 60px rgba(11,31,58,.28);
+    display:none;flex-direction:column;overflow:hidden;color:var(--ink);font-family:"IBM Plex Sans Thai",system-ui,sans-serif;font-size:16px;line-height:1.5;
+  }
+  .aoa-panel.is-open{display:flex}
+  .aoa-head{display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--brand);color:#fff}
+  .aoa-head h2{color:#fff;font-size:1.05rem;font-weight:600;margin:0;flex:1}
+  .aoa-lang{display:flex;border:1px solid rgba(255,255,255,.7);border-radius:8px;overflow:hidden}
+  .aoa-lang button{font:inherit;font-size:.8rem;font-weight:500;background:transparent;border:0;color:#fff;padding:5px 10px;cursor:pointer}
+  .aoa-lang button[aria-pressed="true"]{background:#fff;color:var(--brand);font-weight:600}
+  .aoa-x{background:transparent;border:0;color:#fff;width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:1.05rem}
+  .aoa-x:hover{background:rgba(255,255,255,.2)}
+  .aoa-body{padding:6px 14px 12px;overflow-y:auto}
+  .aoa-sec{font-size:.8rem;font-weight:600;color:var(--brand);margin:12px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--line-2)}
+  .aoa-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 2px;margin-bottom:6px;font-size:.9rem}
+  .aoa-row .stp{display:flex;align-items:center;gap:6px}
+  .aoa-row .stp button{width:34px;height:34px;border-radius:8px;border:1px solid var(--line);background:#fff;cursor:pointer;font:inherit;font-weight:700;color:var(--navy-900)}
+  .aoa-row .stp button:hover{border-color:var(--brand);color:var(--brand)}
+  .aoa-row .stp output{min-width:48px;text-align:center;font-weight:600;font-size:.85rem}
+  .aoa-themes{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:6px}
+  .aoa-th{border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px 2px 6px;cursor:pointer;display:grid;gap:5px;justify-items:center;font:inherit;font-size:.66rem;line-height:1.2;color:var(--ink-2);text-align:center}
+  .aoa-th .sw{width:22px;height:22px;border-radius:50%;display:block}
+  .aoa-th em{font-style:normal}
+  .aoa-th:hover{border-color:var(--brand)}
+  .aoa-th[aria-checked="true"]{border-color:var(--brand);background:var(--brand-50);color:var(--brand-700);font-weight:600}
+  .aoa-tg{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--line);background:#fff;border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:pointer;font:inherit;font-size:.9rem;color:var(--ink);text-align:left}
+  .aoa-tg:hover{border-color:var(--brand)}
+  .aoa-tg .sw{position:relative;width:40px;height:22px;border-radius:999px;background:#C9D1DB;flex:none;transition:background .15s}
+  .aoa-tg .sw::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .15s}
+  .aoa-tg[aria-pressed="true"]{border-color:var(--brand);background:var(--brand-50)}
+  .aoa-tg[aria-pressed="true"] .sw{background:var(--brand)}
+  .aoa-tg[aria-pressed="true"] .sw::after{transform:translateX(18px)}
+  .aoa-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;border-top:1px solid var(--line-2);background:var(--bg-soft);font-size:.72rem;color:var(--ink-3);line-height:1.4}
+  .aoa-foot button{font:inherit;font-size:.85rem;font-weight:600;color:var(--brand);background:#fff;border:1px solid var(--brand);border-radius:8px;padding:8px 14px;cursor:pointer;white-space:nowrap}
+  .aoa-foot button:hover{background:var(--brand);color:#fff}
+
+  /* Effects applied by the widget to the page (scoped to header, main and footer) */
+  .aoa-scope{--aoa-fs:1;--aoa-lh:0;--aoa-ls:0}
+  .aoa-scope{font-size:calc(1em * var(--aoa-fs))}
+  .aoa-scope .hero h1{font-size:calc(clamp(1.9rem,3.6vw,2.75rem) * var(--aoa-fs))}
+  .aoa-scope h2{font-size:calc(clamp(1.6rem,2.6vw,2.125rem) * var(--aoa-fs))}
+  .aoa-scope p,.aoa-scope li,.aoa-scope td,.aoa-scope th,.aoa-scope summary,.aoa-scope .answer{line-height:calc(1.7 + var(--aoa-lh) * .45)}
+  .aoa-scope{letter-spacing:calc(var(--aoa-ls) * .06em);word-spacing:calc(var(--aoa-ls) * .14em)}
+
+  /* Colour modes */
+  body[data-aoa-theme="contrast"]{--aoa-bg:#000;--aoa-fg:#FFE600;--aoa-link:#fff;--aoa-line:#FFE600}
+  body[data-aoa-theme="dark"]{--aoa-bg:#121417;--aoa-fg:#F1F3F5;--aoa-link:#8CC4FF;--aoa-line:#3A3F46}
+  body[data-aoa-theme="contrast"],body[data-aoa-theme="dark"]{background:var(--aoa-bg) !important;color:var(--aoa-fg) !important}
+  body[data-aoa-theme="contrast"] .aoa-scope,body[data-aoa-theme="dark"] .aoa-scope,
+  body[data-aoa-theme="contrast"] .aoa-scope :is(.site-header,.section,.section--soft,.hero,.contact,.site-footer,.plan,.feature,.why-item,.fit-card,.step,.faq details,.table-scroll,table.vs,.gov-note,.law-box,.plan-setup,.code-block,.mock,.mock-body,.mock-bar,.mk-panel,.feature-notes > div,.contact-item,.nav,.hero-try),
+  body[data-aoa-theme="dark"] .aoa-scope :is(.site-header,.section,.section--soft,.hero,.contact,.site-footer,.plan,.feature,.why-item,.fit-card,.step,.faq details,.table-scroll,table.vs,.gov-note,.law-box,.plan-setup,.code-block,.mock,.mock-body,.mock-bar,.mk-panel,.feature-notes > div,.contact-item,.nav,.hero-try)
+  {background:var(--aoa-bg) !important;background-image:none !important;color:var(--aoa-fg) !important;border-color:var(--aoa-line) !important;box-shadow:none !important}
+  body[data-aoa-theme="contrast"] .aoa-scope :is(h1,h2,h3,h4,p,li,td,th,span,small,strong,em,summary,label,output,.eyebrow,.brand,.logo-ao,.logo-access,.answer,code,pre),
+  body[data-aoa-theme="dark"] .aoa-scope :is(h1,h2,h3,h4,p,li,td,th,span,small,strong,em,summary,label,output,.eyebrow,.brand,.logo-ao,.logo-access,.answer,code,pre){color:var(--aoa-fg) !important}
+  body[data-aoa-theme="contrast"] .aoa-scope a:not(.btn),body[data-aoa-theme="dark"] .aoa-scope a:not(.btn){color:var(--aoa-link) !important;text-decoration:underline}
+  body[data-aoa-theme="contrast"] .aoa-scope .btn,body[data-aoa-theme="dark"] .aoa-scope .btn{background:var(--aoa-fg) !important;color:var(--aoa-bg) !important;border-color:var(--aoa-fg) !important}
+  body[data-aoa-theme="contrast"] .aoa-scope :is(.compare thead th,.vs thead th,.compare tbody th,tr.total th,tr.total td,.compare td.is-featured,.step-num,.feature .ic,.why-item .ic),
+  body[data-aoa-theme="dark"] .aoa-scope :is(.compare thead th,.vs thead th,.compare tbody th,tr.total th,tr.total td,.compare td.is-featured,.step-num,.feature .ic,.why-item .ic){background:var(--aoa-bg) !important;color:var(--aoa-fg) !important;border-color:var(--aoa-line) !important}
+  body[data-aoa-theme="contrast"] .aoa-scope .hero::after,body[data-aoa-theme="dark"] .aoa-scope .hero::after{display:none}
+  body[data-aoa-theme="contrast"] .aoa-scope :is(.sk,.sk-logo,.sk-links span,.sk-hero,.sk-cols div),body[data-aoa-theme="dark"] .aoa-scope :is(.sk,.sk-logo,.sk-links span,.sk-hero,.sk-cols div){background:var(--aoa-line) !important}
+  body[data-aoa-theme="invert"] .aoa-scope{filter:invert(1) hue-rotate(180deg)}
+  body[data-aoa-theme="gray"] .aoa-scope{filter:grayscale(1)}
+
+  /* Reading */
+  body.aoa-font .aoa-scope,body.aoa-font .aoa-scope *{font-family:"Sarabun",Arial,Tahoma,sans-serif !important}
+  body.aoa-dyslexia .aoa-scope,body.aoa-dyslexia .aoa-scope *{font-family:"Comic Sans MS","Verdana","Sarabun",sans-serif !important;font-weight:500}
+  body.aoa-left .aoa-scope,body.aoa-left .aoa-scope *{text-align:left !important}
+  body.aoa-links .aoa-scope a:not(.btn){text-decoration:underline !important;outline:2px solid #FFD400;outline-offset:2px;background:#FFF7B0;color:#000 !important}
+  body.aoa-headings .aoa-scope :is(h1,h2,h3,h4){outline:3px solid var(--brand);outline-offset:4px;background:var(--brand-50);color:var(--navy-900) !important}
+
+  /* Navigation / motor */
+  body.aoa-cursor,body.aoa-cursor *{cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 24 24'%3E%3Cpath d='M4 2l14 12-6 1 4 7-2.5 1.2-4-7-4.5 4z' fill='%23000' stroke='%23fff' stroke-width='1.2'/%3E%3C/svg%3E") 4 2,auto !important}
+  body.aoa-cursor a,body.aoa-cursor button,body.aoa-cursor summary,body.aoa-cursor [role="button"]{cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 24 24'%3E%3Cpath d='M9 2v11l-3-2-2 1 5 8h7l3-6v-5a1 1 0 0 0-2 0v2h-1V9a1 1 0 0 0-2 0v2h-1V8a1 1 0 0 0-2 0v3h-1V2a1 1 0 0 0-2 0z' fill='%23000' stroke='%23fff' stroke-width='1.2'/%3E%3C/svg%3E") 12 2,pointer !important}
+  body.aoa-pause *,body.aoa-pause *::before,body.aoa-pause *::after{animation:none !important;transition:none !important}
+
+  /* Responsive */
+  @media (max-width:1024px){
+    .hero .container{grid-template-columns:1fr;gap:48px}
+    .mock-wrap{max-width:560px}
+    .features{grid-template-columns:repeat(2,1fr)}
+    .feature-notes{grid-template-columns:1fr}
+    .steps{grid-template-columns:repeat(2,1fr)}
+    .fit{grid-template-columns:1fr}
+    .plans{grid-template-columns:1fr;max-width:520px;margin:0 auto}
+    .plan-desc{min-height:0}
+    .contact .container{grid-template-columns:1fr;gap:40px}
+  }
+  @media (max-width:1000px){
+    .nav{
+      display:none;position:absolute;top:var(--header-h);left:0;right:0;background:#fff;
+      flex-direction:column;align-items:stretch;gap:0;padding:8px 16px 16px;border-bottom:1px solid var(--line);
+      box-shadow:0 12px 24px rgba(11,31,58,.08);
+    }
+    .nav.is-open{display:flex}
+    .nav a{padding:12px 4px;border-bottom:1px solid var(--line-2)}
+    .nav .btn{margin-top:12px;border-bottom:0;padding:12px 22px}
+    .nav-toggle{display:grid;place-items:center}
+    .why{grid-template-columns:1fr;gap:36px}
+  }
+  @media (max-width:600px){
+    .container{padding:0 16px}
+    .section{padding:64px 0}
+    .hero{padding:56px 0 64px}
+    .hero-facts{margin-top:36px;padding-top:20px}
+    .hero-facts div{padding-right:10px}
+    .hero-facts div + div{padding-left:12px}
+    .hero-facts strong{font-size:1rem}
+    .hero-facts span{font-size:.75rem;display:block;line-height:1.5;margin-top:2px}
+    .hero-actions .btn{flex:1 1 100%}
+    .brand-by{display:none}
+    .brand .logo{font-size:1.3rem}
+    .features,.steps,.feature-notes{grid-template-columns:1fr}
+    .contact-list{grid-template-columns:1fr}
+    .mock-body{height:420px;padding:16px 16px 0}
+    .sk-cols{display:none}
+    .mk-panel{width:236px;right:10px;bottom:10px}
+    .fit-card,.plan{padding:26px 20px}
+    .table-hint{display:block}
+    table.compare{min-width:560px;font-size:.9rem}
+    .compare col.c-label{width:34%}
+    .compare col.c-plan{width:22%}
+    .compare th,.compare td{padding:12px 10px}
+    .compare tbody th,.compare thead th:first-child{position:sticky;left:0;z-index:1;box-shadow:1px 0 0 var(--line-2)}
+    .compare thead th:first-child{background:var(--navy-900)}
+    .compare tr.total th{background:#EEF3FA}
+    .plan--featured{padding-top:36px}
+    .site-footer .container{flex-direction:column;align-items:flex-start}
+    .section-head{margin-bottom:36px}
+    table.vs{font-size:.88rem}
+    .vs th,.vs td{padding:12px}
+    .aoa-fab{right:14px;bottom:14px;width:54px;height:54px}
+    .aoa-panel{right:14px;bottom:80px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto}
+    *{transition:none !important;animation:none !important}
+  }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#top">ข้ามไปยังเนื้อหาหลัก</a>
+
+<!-- ============ HEADER ============ -->
+<header class="site-header aoa-scope">
+  <div class="container">
+    <a class="brand" href="#top" aria-label="AOACCESS หน้าแรก">
+      <span class="logo"><span class="logo-ao">AO</span><span class="logo-access">ACCESS</span></span>
+      <span class="brand-by">Web Accessibility Widget<strong>BY AOSOFT</strong></span>
+    </a>
+    <button class="nav-toggle" type="button" aria-controls="site-nav" aria-expanded="false" aria-label="เปิดเมนู">
+      <i class="fa-solid fa-bars" aria-hidden="true"></i>
+    </button>
+    <nav class="nav" id="site-nav" aria-label="เมนูหลัก">
+      <a href="https://www.aosoft.co.th">หน้าแรก</a>
+      <a href="#about">ทำไมต้องมี</a>
+      <a href="#features">คุณสมบัติ</a>
+      <a href="#pricing">แพ็กเกจและราคา</a>
+      <a href="#process">การติดตั้ง</a>
+      <a href="#faq">คำถามที่พบบ่อย</a>
+      <a class="btn btn-primary" href="#contact">ติดต่อสอบถาม</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top" class="aoa-scope">
+
+<!-- ============ HERO ============ -->
+<section class="hero">
+  <div class="container">
+    <div>
+      <span class="eyebrow">Web Accessibility Widget · ไอคอนช่วยเหลือผู้พิการ</span>
+      <h1>ระบบไอคอนช่วยเหลือผู้พิการสำหรับเว็บไซต์ ติดตั้งง่าย รองรับแนวทาง WCAG 2.1</h1>
+      <p class="hero-lead">
+        เครื่องมือช่วยการเข้าถึงเว็บไซต์สำหรับผู้พิการทางสายตา ผู้สูงอายุ และผู้ที่มีข้อจำกัดในการใช้งาน
+        ติดตั้งด้วยสคริปต์เพียงบรรทัดเดียว ตอบข้อกำหนดเครื่องมือช่วยการเข้าถึงใน TOR ของหน่วยงานราชการ
+        พร้อมเอกสารประกอบการตรวจรับ ดูแลโดย บริษัท เอโอซอฟต์ จำกัด
+      </p>
+      <div class="hero-actions">
+        <a class="btn btn-light" href="#pricing">ดูแพ็กเกจและราคา <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
+        <a class="btn btn-outline-light" href="#contact">ขอใบเสนอราคา</a>
+      </div>
+      <button type="button" class="hero-try" id="hero-try">
+        <span class="pulse" aria-hidden="true"></span>
+        ทดลองใช้งานจริงได้เลย — กดไอคอนมุมขวาล่างของหน้านี้ (ตัวเดียวกับที่จะติดตั้งบนเว็บไซต์ของท่าน)
+      </button>
+      <div class="hero-facts">
+        <div><strong id="fact-price">2,500 บาท/ปี</strong><span>ค่าบริการเริ่มต้น</span></div>
+        <div><strong>1 บรรทัด</strong><span>ติดตั้งด้วยสคริปต์</span></div>
+        <div><strong>ไทย / อังกฤษ</strong><span>เมนูสองภาษา</span></div>
+      </div>
+    </div>
+
+    <div class="mock-wrap">
+      <div class="mock" role="img" aria-label="ตัวอย่างเมนูช่วยเหลือการเข้าถึงของ AOACCESS บนเว็บไซต์หน่วยงาน">
+        <div class="mock-bar" aria-hidden="true">
+          <span class="mock-dot"></span><span class="mock-dot"></span><span class="mock-dot"></span>
+          <span class="mock-url"><i class="fa-solid fa-lock"></i>www.your-agency.go.th</span>
+        </div>
+        <div class="mock-body" aria-hidden="true">
+          <div class="sk-nav"><span class="sk-logo"></span><span class="sk-links"><span></span><span></span><span></span></span></div>
+          <div class="sk-hero"></div>
+          <div class="sk" style="width:62%"></div>
+          <div class="sk" style="width:84%"></div>
+          <div class="sk" style="width:48%;margin-bottom:18px"></div>
+          <div class="sk-cols"><div></div><div></div><div></div></div>
+
+          <div class="mk-panel">
+            <div class="mk-head">การเข้าถึง<span class="mk-lang"><b>ไทย</b><em>EN</em></span></div>
+            <div class="mk-sec">การมองเห็น</div>
+            <div class="mk-row"><span>ขนาดตัวอักษร</span><span class="mk-stp"><i>−</i>100%<i>+</i></span></div>
+            <div class="mk-themes">
+              <div class="mk-th on"><span style="background:#fff;border:2px solid var(--brand)"></span>ปกติ</div>
+              <div class="mk-th"><span style="background:linear-gradient(90deg,#000 50%,#FFE600 50%)"></span>คอนทราสต์</div>
+              <div class="mk-th"><span style="background:#111"></span>โหมดมืด</div>
+              <div class="mk-th"><span style="background:linear-gradient(90deg,#fff 50%,#111 50%);border:1px solid #999"></span>กลับสี</div>
+              <div class="mk-th"><span style="background:#9a9a9a"></span>ขาวดำ</div>
+            </div>
+            <div class="mk-sec">การอ่าน</div>
+            <div class="mk-row"><span>ระยะห่างบรรทัด</span><span class="mk-stp"><i>−</i>ปกติ<i>+</i></span></div>
+            <div class="mk-row"><span>ฟอนต์อ่านง่าย</span><span class="mk-sw on"></span></div>
+            <div class="mk-row"><span>ไฮไลต์ลิงก์</span><span class="mk-sw on"></span></div>
+            <div class="mk-sec">การนำทาง / มอเตอร์</div>
+            <div class="mk-row"><span>อ่านออกเสียง</span><span class="mk-sw"></span></div>
+          </div>
+        </div>
+      </div>
+      <p class="mock-caption">ตัวอย่างการแสดงผลบนเว็บไซต์ของท่าน — ปรับสี ตำแหน่ง และไอคอนให้เข้ากับแบรนด์ได้</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ABOUT / WHY ============ -->
+<section class="section" id="about">
+  <div class="container why">
+    <div class="why-text">
+      <span class="eyebrow">ทำไมเว็บไซต์ต้องมีเครื่องมือช่วยการเข้าถึง</span>
+      <h2>เว็บไซต์ที่ทุกคนเข้าถึงได้ คือมาตรฐานของหน่วยงานยุคใหม่</h2>
+      <p>
+        Web Accessibility คือการออกแบบให้เว็บไซต์ใช้งานได้โดยคนทุกกลุ่ม รวมถึงผู้พิการทางสายตา
+        ผู้ที่มีภาวะสายตาเลือนราง ตาบอดสี ผู้สูงอายุ และผู้ที่ใช้งานผ่านคีย์บอร์ดหรือโปรแกรมอ่านหน้าจอ
+        ซึ่งในประเทศไทยมีผู้พิการที่ขึ้นทะเบียนกว่า 2 ล้านคน และมีผู้สูงอายุมากกว่า 13 ล้านคน
+      </p>
+      <p>
+        AOACCESS คือเครื่องมือช่วยการเข้าถึงในรูปแบบไอคอนลอยบนเว็บไซต์ ผู้ใช้กดครั้งเดียวเพื่อปรับการแสดงผลตามความต้องการของตนเอง
+        ช่วยให้เว็บไซต์ของหน่วยงานตอบข้อกำหนดด้านการเข้าถึงได้โดยไม่ต้องพัฒนาระบบเอง
+        ติดตั้งและดูแลโดยทีมงานที่มีประสบการณ์พัฒนาเว็บไซต์หน่วยงานภาครัฐ
+      </p>
+      <div class="law-box">
+        <strong>ข้อกำหนดและมาตรฐานที่เกี่ยวข้อง</strong>
+        <ul>
+          <li>พระราชบัญญัติส่งเสริมและพัฒนาคุณภาพชีวิตคนพิการ พ.ศ. 2550 และกฎกระทรวงว่าด้วยการเข้าถึงข้อมูลข่าวสารและบริการทางเทคโนโลยีสารสนเทศ</li>
+          <li>มาตรฐานเว็บไซต์ภาครัฐ (สพร. / DGA) กำหนดให้คำนึงถึงการเข้าถึงของคนพิการและผู้สูงอายุตามแนวทาง TWCAG 2.0</li>
+          <li>Web Content Accessibility Guidelines (WCAG) 2.1 ระดับ AA มาตรฐานสากลจาก W3C</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="why-list">
+      <div class="why-item">
+        <span class="ic"><i class="fa-solid fa-file-contract" aria-hidden="true"></i></span>
+        <div>
+          <h3>ตอบข้อกำหนดใน TOR ของหน่วยงานราชการ</h3>
+          <p>ขอบเขตงานพัฒนาเว็บไซต์ของหน่วยงานรัฐจำนวนมากระบุให้มี "เครื่องมือช่วยการเข้าถึงสำหรับผู้พิการ" AOACCESS พร้อมเอกสารคุณสมบัติสำหรับแนบประกอบการตรวจรับ</p>
+        </div>
+      </div>
+      <div class="why-item">
+        <span class="ic"><i class="fa-solid fa-users" aria-hidden="true"></i></span>
+        <div>
+          <h3>ดูแลผู้ใช้ทุกกลุ่มอย่างเท่าเทียม</h3>
+          <p>ผู้สูงอายุ ผู้มีสายตาเลือนราง ตาบอดสี หรือผู้ที่อ่านหนังสือลำบาก ปรับหน้าเว็บให้อ่านง่ายได้ด้วยตนเองในไม่กี่คลิก</p>
+        </div>
+      </div>
+      <div class="why-item">
+        <span class="ic"><i class="fa-solid fa-code" aria-hidden="true"></i></span>
+        <div>
+          <h3>ไม่ต้องแก้โครงสร้างเว็บไซต์เดิม</h3>
+          <p>ใช้ได้กับเว็บไซต์ทุกระบบ ทั้ง WordPress, Joomla, เว็บไซต์ที่พัฒนาเอง หรือระบบของหน่วยงาน เพียงเพิ่มสคริปต์ 1 บรรทัด</p>
+        </div>
+      </div>
+      <div class="why-item">
+        <span class="ic"><i class="fa-solid fa-flag" aria-hidden="true"></i></span>
+        <div>
+          <h3>พัฒนาและซัพพอร์ตโดยทีมงานไทย</h3>
+          <p>เมนูภาษาไทยที่ถูกต้อง อ่านออกเสียงภาษาไทยได้ ราคาเป็นบาท ออกใบกำกับภาษี และติดต่อทีมงานได้โดยตรงในเวลาทำการ</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FEATURES ============ -->
+<section class="section section--soft" id="features">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">คุณสมบัติของ AOACCESS</span>
+      <h2>เครื่องมือช่วยการเข้าถึงที่ผู้ใช้ปรับได้เองในคลิกเดียว</h2>
+      <p>เครื่องมือ 12 รายการ แบ่งเป็น 3 หมวด การมองเห็น · การอ่าน · การนำทาง/มอเตอร์ ทำงานฝั่งผู้ใช้ทันที ไม่กระทบความเร็วเว็บไซต์</p>
+    </div>
+    <div class="features">
+      <article class="feature">
+        <span class="ic"><i class="fa-solid fa-text-height" aria-hidden="true"></i></span>
+        <h3>ปรับขนาดตัวอักษร</h3>
+        <p>ขยายหรือย่อตัวอักษรทั้งหน้าเป็นขั้น ๆ โดยไม่ทำให้เลย์เอาต์เว็บไซต์เสีย</p>
+      </article>
+      <article class="feature">
+        <span class="ic"><i class="fa-solid fa-circle-half-stroke" aria-hidden="true"></i></span>
+        <h3>โหมดสี 4 แบบ</h3>
+        <p>คอนทราสต์สูง (เหลือง–ดำ) โหมดมืด กลับสี และขาวดำ สำหรับผู้ที่มีสายตาเลือนรางหรือตาบอดสี</p>
+      </article>
+      <article class="feature">
+        <span class="ic"><i class="fa-solid fa-arrows-up-down" aria-hidden="true"></i></span>
+        <h3>ระยะห่างบรรทัด</h3>
+        <p>เพิ่มระยะห่างระหว่างบรรทัดเป็นขั้น ๆ ให้ไล่สายตาอ่านได้ง่ายขึ้น</p>
+      </article>
+      <article class="feature">
+        <span class="ic"><i class="fa-solid fa-arrows-left-right" aria-hidden="true"></i></span>
+        <h3>ระยะตัวอักษรและคำ</h3>
+        <p>เพิ่มระยะห่างระหว่างตัวอักษรและคำ ช่วยผู้ที่มีภาวะอ่านยาก (Dyslexia)</p>
+      </article>
+      <article class="feature">
+        <span class="ic"><i class="fa-solid fa-font" aria-hidden="true"></i></span>
+        <h3>ฟอนต์อ่านง่าย</h3>
+        <p>สลับเป็นฟอนต์ที่อ่านง่ายทั้งภาษาไทยและอังกฤษด้วยสวิตช์เดียว</p>
+      </article>
+      <article class="feature">
+        <span class="ic"><i class="fa-solid fa-spell-check" aria-hidden="true"></i></span>
+        <h3>ฟอนต์ Dyslexia-friendly</h3>
+        <p>ฟอนต์ที่ออกแบบสำหรับผู้มีภาวะบกพร่องทางการอ่าน ลดการสับสนของตัวอักษรที่คล้ายกัน</p>
+      </article>
+      <article class="feature">
+        <span class="ic"><i class="fa-solid fa-align-left" aria-hidden="true"></i></span>
+        <h3>จัดข้อความชิดซ้าย</h3>
+        <p>เปลี่ยนข้อความที่จัดกึ่งกลางหรือเต็มบรรทัดให้ชิดซ้าย เพื่อจุดเริ่มอ่านที่คงที่ทุกบรรทัด</p>
+      </article>
+      <article class="feature">
+        <span class="ic"><i class="fa-solid fa-link" aria-hidden="true"></i></span>
+        <h3>ไฮไลต์ลิงก์</h3>
+        <p>ขีดเส้นใต้และไฮไลต์ลิงก์ทุกจุดบนหน้า ให้รู้ทันทีว่าจุดใดคลิกได้</p>
+      </article>
+      <article class="feature">
+        <span class="ic"><i class="fa-solid fa-heading" aria-hidden="true"></i></span>
+        <h3>ไฮไลต์หัวข้อ</h3>
+        <p>ใส่กรอบเน้นหัวข้อทุกระดับ ให้มองเห็นโครงสร้างของหน้าและข้ามไปยังส่วนที่ต้องการได้ง่าย</p>
+      </article>
+      <article class="feature">
+        <span class="ic"><i class="fa-solid fa-arrow-pointer" aria-hidden="true"></i></span>
+        <h3>เคอร์เซอร์ขนาดใหญ่</h3>
+        <p>ขยายตัวชี้เมาส์ให้มองเห็นชัด เหมาะกับผู้สูงอายุและผู้ที่มีข้อจำกัดด้านการเคลื่อนไหว</p>
+      </article>
+      <article class="feature">
+        <span class="ic"><i class="fa-solid fa-pause" aria-hidden="true"></i></span>
+        <h3>หยุดภาพเคลื่อนไหว</h3>
+        <p>หยุดแอนิเมชันและสไลด์อัตโนมัติ ลดสิ่งรบกวนสำหรับผู้ที่ไวต่อการเคลื่อนไหว</p>
+      </article>
+      <article class="feature">
+        <span class="ic"><i class="fa-solid fa-volume-high" aria-hidden="true"></i></span>
+        <h3>อ่านออกเสียง (Text to Speech)</h3>
+        <p>อ่านข้อความบนหน้าเป็นเสียงภาษาไทยและอังกฤษ สำหรับผู้พิการทางสายตาและผู้ที่อ่านลำบาก</p>
+      </article>
+    </div>
+    <div class="feature-notes">
+      <div><i class="fa-solid fa-language" aria-hidden="true"></i><div><strong>เมนูสองภาษา ไทย / อังกฤษ</strong><span>ผู้ใช้สลับภาษาของเมนูได้เองจากปุ่มบนแผงควบคุม</span></div></div>
+      <div><i class="fa-solid fa-user-shield" aria-hidden="true"></i><div><strong>บันทึกค่าในเครื่องของผู้ใช้ ไม่ส่งข้อมูลออกภายนอก</strong><span>จดจำการตั้งค่าไว้ในเบราว์เซอร์ของผู้ใช้เอง ไม่เก็บข้อมูลส่วนบุคคล สอดคล้อง PDPA</span></div></div>
+      <div><i class="fa-solid fa-keyboard" aria-hidden="true"></i><div><strong>ใช้งานด้วยคีย์บอร์ดได้</strong><span>เปิดเมนู เลื่อน และเลือกทุกตัวเลือกได้ด้วย Tab / Enter รองรับโปรแกรมอ่านหน้าจอ</span></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SUITABILITY ============ -->
+<section class="section" id="suitability">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">เหมาะกับใคร</span>
+      <h2>ออกแบบมาสำหรับเว็บไซต์หน่วยงานและองค์กรในประเทศไทย</h2>
+    </div>
+    <div class="fit">
+      <div class="fit-card">
+        <h3><i class="fa-solid fa-landmark" aria-hidden="true"></i>หน่วยงานราชการและรัฐวิสาหกิจ</h3>
+        <ul>
+          <li><i class="fa-solid fa-check" aria-hidden="true"></i><span>กระทรวง กรม สำนักงาน องค์กรปกครองส่วนท้องถิ่น</span></li>
+          <li><i class="fa-solid fa-check" aria-hidden="true"></i><span>ต้องมีเครื่องมือช่วยการเข้าถึงตาม TOR หรือมาตรฐานเว็บไซต์ภาครัฐ</span></li>
+          <li><i class="fa-solid fa-check" aria-hidden="true"></i><span>ต้องการเอกสารคุณสมบัติสำหรับตรวจรับงาน</span></li>
+        </ul>
+      </div>
+      <div class="fit-card">
+        <h3><i class="fa-solid fa-school" aria-hidden="true"></i>สถานศึกษาและโรงพยาบาล</h3>
+        <ul>
+          <li><i class="fa-solid fa-check" aria-hidden="true"></i><span>มหาวิทยาลัย โรงเรียน โรงพยาบาลรัฐและเอกชน</span></li>
+          <li><i class="fa-solid fa-check" aria-hidden="true"></i><span>ผู้ใช้หลากหลายวัย รวมถึงผู้สูงอายุและผู้ป่วย</span></li>
+          <li><i class="fa-solid fa-check" aria-hidden="true"></i><span>ต้องการภาพลักษณ์องค์กรที่ใส่ใจทุกคน</span></li>
+        </ul>
+      </div>
+      <div class="fit-card">
+        <h3><i class="fa-solid fa-building" aria-hidden="true"></i>องค์กรธุรกิจและบริษัทรับพัฒนาเว็บไซต์</h3>
+        <ul>
+          <li><i class="fa-solid fa-check" aria-hidden="true"></i><span>บริษัทที่รับงานเว็บไซต์ภาครัฐและต้องส่งมอบเครื่องมือนี้</span></li>
+          <li><i class="fa-solid fa-check" aria-hidden="true"></i><span>ธนาคาร ประกัน โรงแรม และธุรกิจที่มีลูกค้าผู้สูงอายุ</span></li>
+          <li><i class="fa-solid fa-check" aria-hidden="true"></i><span>บริษัทที่ทำรายงานความยั่งยืน (ESG) ด้านความเท่าเทียม</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PRICING ============ -->
+<section class="section section--soft" id="pricing">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">แพ็กเกจและราคา</span>
+      <h2>เลือกแพ็กเกจที่เหมาะกับเว็บไซต์ของท่าน</h2>
+      <p>ทุกแพ็กเกจติดตั้งด้วยสคริปต์บรรทัดเดียว อัปเดตระบบให้ตลอดอายุสัญญา ชำระค่าบริการรายปีก่อนเริ่มติดตั้ง</p>
+    </div>
+
+    <div class="plans">
+      <!-- 01 STARTER -->
+      <article class="plan" data-plan-card="starter">
+        <span class="plan-code">PACKAGE 01</span>
+        <h3>STARTER</h3>
+        <p class="plan-desc">สำหรับเว็บไซต์ธุรกิจและองค์กรที่ต้องการเครื่องมือครบ ติดตั้งเองได้ทันที</p>
+        <div class="plan-price">
+          <div class="amount"><strong data-price="starter.annual">2,500</strong><span>บาท / ปี</span></div>
+          <p class="sub">เฉลี่ยเดือนละประมาณ <span data-price="starter.monthly">208</span> บาท</p>
+        </div>
+        <div class="plan-setup"><span>ค่าติดตั้ง</span><strong class="free" data-price="starter.setup">ฟรี</strong></div>
+        <ul>
+          <li><i class="fa-solid fa-check" aria-hidden="true"></i><span>ใช้งาน 1 โดเมน</span></li>
+          <li><i class="fa-solid fa-check" aria-hidden="true"></i><span>เครื่องมือช่วยการเข้าถึงครบ 12 รายการ<small>รวมโหมดสี 4 แบบ และอ่านออกเสียงไทย / อังกฤษ</small></span></li>
+          <li><i class="fa-solid fa-check" aria-hidden="true"></i><span>เมนูภาษาไทย / อังกฤษ</span></li>
+          <li><i class="fa-solid fa-check" aria-hidden="true"></i><span>จดจำการตั้งค่าในเครื่องของผู้ใช้</span></li>
+          <li><i class="fa-solid fa-check" aria-hidden="true"></i><span>อัปเดตระบบตลอดอายุสัญญา</span></li>
+          <li><i class="fa-solid fa-check" aria-hidden="true"></i><span>คู่มือติดตั้งและซัพพอร์ตทางอีเมล</span></li>
+          <li class="no"><i class="fa-solid fa-minus" aria-hidden="true"></i><span>ปรับสีและตำแหน่งไอคอนตามแบรนด์</span></li>
+          <li class="no"><i class="fa-solid fa-minus" aria-hidden="true"></i><span>เอกสารประกอบ TOR</span></li>
+        </ul>
+        <a class="btn btn-outline btn-block" href="#contact" data-plan="01 STARTER">สนใจแพ็กเกจ STARTER</a>
+      </article>
+
+      <!-- 02 BUSINESS -->
+      <article class="plan plan--featured" data-plan-card="business">
+        <span class="plan-badge">แนะนำ</span>
+        <span class="plan-code">PACKAGE 02</span>
+        <h3>BUSINESS</h3>
+        <p class="plan-desc">สำหรับองค์กรที่ต้องการปรับไอคอนให้เข้ากับแบรนด์ พร้อมหน้าประกาศนโยบายการเข้าถึง</p>
+        <div class="plan-price">
+          <div class="amount"><strong data-price="business.annual">4,500</strong><span>บาท / ปี</span></div>
+          <p class="sub">เฉลี่ยเดือนละประมาณ <span data-price="business.monthly">375</span> บาท</p>
+        </div>
+        <div class="plan-setup"><span>ค่าติดตั้ง</span><strong class="free" data-price="business.setup">ฟรี</strong></div>
+        <ul>
+          <li><i class="fa-solid fa-check" aria-hidden="true"></i><span>ใช้งาน 1 โดเมน</span></li>
+          <li><i class="fa-solid fa-check" aria-hidden="true"></i><span>เครื่องมือช่วยการเข้าถึงครบ 12 รายการ<small>เหมือนแพ็กเกจ STARTER</small></span></li>
+          <li><i class="fa-solid fa-check" aria-hidden="true"></i><span>ปรับสี ตำแหน่ง และภาษาเริ่มต้นของไอคอนตามแบรนด์<small>ทีมงานตั้งค่าให้</small></span></li>
+          <li><i class="fa-solid fa-check" aria-hidden="true"></i><span>ไม่แสดงข้อความ "Powered by"</span></li>
+          <li><i class="fa-solid fa-check" aria-hidden="true"></i><span>หน้า Accessibility Statement (ประกาศนโยบายการเข้าถึง)</span></li>
+          <li><i class="fa-solid fa-check" aria-hidden="true"></i><span>อัปเดตระบบตลอดอายุสัญญา</span></li>
+          <li><i class="fa-solid fa-check" aria-hidden="true"></i><span>ซัพพอร์ตทางอีเมลและโทรศัพท์</span></li>
+        </ul>
+        <a class="btn btn-primary btn-block" href="#contact" data-plan="02 BUSINESS">สนใจแพ็กเกจ BUSINESS</a>
+      </article>
+
+      <!-- 03 GOVERNMENT -->
+      <article class="plan" data-plan-card="gov">
+        <span class="plan-code">PACKAGE 03</span>
+        <h3>GOVERNMENT</h3>
+        <p class="plan-desc">สำหรับหน่วยงานราชการที่ต้องมีเอกสารประกอบ TOR และการตรวจรับงาน</p>
+        <div class="plan-price">
+          <div class="amount"><strong data-price="gov.annual">7,500</strong><span>บาท / ปี</span></div>
+          <p class="sub">ชำระปีแรกรวมค่าติดตั้ง <span data-price="gov.firstYear">10,500</span> บาท</p>
+        </div>
+        <div class="plan-setup"><span>ค่าติดตั้งและจัดทำเอกสาร (ครั้งแรก)</span><strong data-price="gov.setup">3,000 บาท</strong></div>
+        <ul>
+          <li><i class="fa-solid fa-check" aria-hidden="true"></i><span>โดเมนหลัก + Subdomain ในสังกัดเดียวกัน</span></li>
+          <li><i class="fa-solid fa-check" aria-hidden="true"></i><span>ทุกคุณสมบัติของแพ็กเกจ BUSINESS</span></li>
+          <li><i class="fa-solid fa-check" aria-hidden="true"></i><span>เอกสารประกอบ TOR<small>รายละเอียดคุณสมบัติระบบ หนังสือรับรอง คู่มือการใช้งาน</small></span></li>
+          <li><i class="fa-solid fa-check" aria-hidden="true"></i><span>ทีมงานติดตั้งให้และตรวจสอบการเข้าถึงเบื้องต้น พร้อมรายงานข้อเสนอแนะ</span></li>
+          <li><i class="fa-solid fa-check" aria-hidden="true"></i><span>ใบเสนอราคาและเอกสารสำหรับจัดซื้อจัดจ้าง</span></li>
+          <li><i class="fa-solid fa-check" aria-hidden="true"></i><span>ซัพพอร์ตแบบมีระยะเวลาตอบกลับ (SLA) ภายใน 1 วันทำการ</span></li>
+        </ul>
+        <a class="btn btn-outline btn-block" href="#contact" data-plan="03 GOVERNMENT">สนใจแพ็กเกจ GOVERNMENT</a>
+      </article>
+    </div>
+
+    <!-- Comparison table -->
+    <div class="compare-wrap">
+      <h3>ตารางเปรียบเทียบแพ็กเกจ</h3>
+      <p class="table-hint"><i class="fa-solid fa-arrows-left-right" aria-hidden="true"></i> เลื่อนตารางไปทางซ้าย–ขวาเพื่อดูทุกแพ็กเกจ</p>
+      <div class="table-scroll" role="region" aria-label="ตารางเปรียบเทียบแพ็กเกจ AOACCESS" tabindex="0">
+        <table class="compare">
+          <colgroup><col class="c-label"><col class="c-plan"><col class="c-plan"><col class="c-plan"></colgroup>
+          <thead>
+            <tr>
+              <th scope="col">รายละเอียด</th>
+              <th scope="col">01 STARTER</th>
+              <th scope="col" class="is-featured">02 BUSINESS<small>แนะนำ</small></th>
+              <th scope="col">03 GOVERNMENT</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row" class="group" colspan="4">ขอบเขตการใช้งาน</th></tr>
+            <tr>
+              <th scope="row">จำนวนโดเมน</th>
+              <td>1 โดเมน</td>
+              <td class="is-featured">1 โดเมน</td>
+              <td>โดเมนหลัก + Subdomain</td>
+            </tr>
+            <tr>
+              <th scope="row">Pageview ต่อเดือน</th>
+              <td>ไม่จำกัด</td>
+              <td class="is-featured">ไม่จำกัด</td>
+              <td>ไม่จำกัด</td>
+            </tr>
+            <tr><th scope="row" class="group" colspan="4">เครื่องมือช่วยการเข้าถึง</th></tr>
+            <tr>
+              <th scope="row">เครื่องมือครบ 12 รายการ<br><span class="muted" style="font-size:.85rem;font-weight:400">การมองเห็น · การอ่าน · การนำทาง/มอเตอร์</span></th>
+              <td><i class="fa-solid fa-check yes" aria-hidden="true"></i><span class="sr-only">มี</span></td>
+              <td class="is-featured"><i class="fa-solid fa-check yes" aria-hidden="true"></i><span class="sr-only">มี</span></td>
+              <td><i class="fa-solid fa-check yes" aria-hidden="true"></i><span class="sr-only">มี</span></td>
+            </tr>
+            <tr>
+              <th scope="row">อ่านออกเสียง (Text to Speech) ไทย / อังกฤษ</th>
+              <td><i class="fa-solid fa-check yes" aria-hidden="true"></i><span class="sr-only">มี</span></td>
+              <td class="is-featured"><i class="fa-solid fa-check yes" aria-hidden="true"></i><span class="sr-only">มี</span></td>
+              <td><i class="fa-solid fa-check yes" aria-hidden="true"></i><span class="sr-only">มี</span></td>
+            </tr>
+            <tr>
+              <th scope="row">จดจำการตั้งค่าในเครื่องผู้ใช้ ไม่ส่งข้อมูลออก</th>
+              <td><i class="fa-solid fa-check yes" aria-hidden="true"></i><span class="sr-only">มี</span></td>
+              <td class="is-featured"><i class="fa-solid fa-check yes" aria-hidden="true"></i><span class="sr-only">มี</span></td>
+              <td><i class="fa-solid fa-check yes" aria-hidden="true"></i><span class="sr-only">มี</span></td>
+            </tr>
+            <tr>
+              <th scope="row">เมนูภาษาไทย / อังกฤษ</th>
+              <td><i class="fa-solid fa-check yes" aria-hidden="true"></i><span class="sr-only">มี</span></td>
+              <td class="is-featured"><i class="fa-solid fa-check yes" aria-hidden="true"></i><span class="sr-only">มี</span></td>
+              <td><i class="fa-solid fa-check yes" aria-hidden="true"></i><span class="sr-only">มี</span></td>
+            </tr>
+            <tr>
+              <th scope="row">ปรับสี ตำแหน่ง ภาษาเริ่มต้นของไอคอนตามแบรนด์</th>
+              <td><i class="fa-solid fa-minus dash" aria-hidden="true"></i><span class="sr-only">ไม่มี</span></td>
+              <td class="is-featured"><i class="fa-solid fa-check yes" aria-hidden="true"></i><span class="sr-only">มี</span></td>
+              <td><i class="fa-solid fa-check yes" aria-hidden="true"></i><span class="sr-only">มี</span></td>
+            </tr>
+            <tr>
+              <th scope="row">ไม่แสดง "Powered by"</th>
+              <td><i class="fa-solid fa-minus dash" aria-hidden="true"></i><span class="sr-only">ไม่มี</span></td>
+              <td class="is-featured"><i class="fa-solid fa-check yes" aria-hidden="true"></i><span class="sr-only">มี</span></td>
+              <td><i class="fa-solid fa-check yes" aria-hidden="true"></i><span class="sr-only">มี</span></td>
+            </tr>
+            <tr><th scope="row" class="group" colspan="4">เอกสารและบริการ</th></tr>
+            <tr>
+              <th scope="row">หน้า Accessibility Statement</th>
+              <td><i class="fa-solid fa-minus dash" aria-hidden="true"></i><span class="sr-only">ไม่มี</span></td>
+              <td class="is-featured"><i class="fa-solid fa-check yes" aria-hidden="true"></i><span class="sr-only">มี</span></td>
+              <td><i class="fa-solid fa-check yes" aria-hidden="true"></i><span class="sr-only">มี</span></td>
+            </tr>
+            <tr>
+              <th scope="row">เอกสารประกอบ TOR และการตรวจรับ<br><span class="muted" style="font-size:.85rem;font-weight:400">คุณสมบัติระบบ หนังสือรับรอง คู่มือ</span></th>
+              <td><i class="fa-solid fa-minus dash" aria-hidden="true"></i><span class="sr-only">ไม่มี</span></td>
+              <td class="is-featured"><i class="fa-solid fa-minus dash" aria-hidden="true"></i><span class="sr-only">ไม่มี</span></td>
+              <td><i class="fa-solid fa-check yes" aria-hidden="true"></i><span class="sr-only">มี</span></td>
+            </tr>
+            <tr>
+              <th scope="row">ติดตั้งโดยทีมงาน + ตรวจการเข้าถึงเบื้องต้น</th>
+              <td class="muted">ติดตั้งเอง (มีคู่มือ)</td>
+              <td class="is-featured muted">ติดตั้งเอง (มีคู่มือ)</td>
+              <td><i class="fa-solid fa-check yes" aria-hidden="true"></i><span class="sr-only">มี</span></td>
+            </tr>
+            <tr>
+              <th scope="row">ช่องทางซัพพอร์ต</th>
+              <td>อีเมล</td>
+              <td class="is-featured">อีเมล / โทรศัพท์</td>
+              <td>อีเมล / โทรศัพท์ / SLA 1 วันทำการ</td>
+            </tr>
+            <tr><th scope="row" class="group" colspan="4">ค่าบริการ</th></tr>
+            <tr>
+              <th scope="row">ค่าติดตั้ง</th>
+              <td class="yes" data-price="starter.setup">ฟรี</td>
+              <td class="is-featured yes" data-price="business.setup">ฟรี</td>
+              <td><span data-price="gov.setup">3,000 บาท</span><br><span class="muted" style="font-size:.85rem">ชำระครั้งแรก</span></td>
+            </tr>
+            <tr>
+              <th scope="row">ค่าบริการรายปี</th>
+              <td><span data-price="starter.annual">2,500</span> บาท / ปี</td>
+              <td class="is-featured"><span data-price="business.annual">4,500</span> บาท / ปี</td>
+              <td><span data-price="gov.annual">7,500</span> บาท / ปี</td>
+            </tr>
+            <tr class="total">
+              <th scope="row">ยอดชำระปีแรก</th>
+              <td><span data-price="starter.firstYear">2,500</span> บาท</td>
+              <td class="is-featured"><span data-price="business.firstYear">4,500</span> บาท</td>
+              <td><span data-price="gov.firstYear">10,500</span> บาท</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <ul class="notes">
+        <li>ชำระค่าบริการรายปีก่อนเริ่มดำเนินการติดตั้ง</li>
+        <li>ราคาข้างต้นยังไม่รวมภาษีมูลค่าเพิ่ม 7%</li>
+        <li>หลายเว็บไซต์ในหลายโดเมน หรือบริษัทรับพัฒนาเว็บไซต์ที่ต้องการติดตั้งให้ลูกค้าหลายราย ติดต่อรับราคาพิเศษ</li>
+      </ul>
+
+      <div class="gov-note">
+        <i class="fa-solid fa-landmark" aria-hidden="true"></i>
+        <div>
+          <h4>หน่วยงานราชการที่ต้องจัดซื้อแบบซื้อขาด</h4>
+          <p>สำหรับหน่วยงานที่ระเบียบจัดซื้อจัดจ้างกำหนดให้เป็นการซื้อขาดพร้อมบำรุงรักษารายปี (MA) ทีมงานสามารถจัดทำใบเสนอราคาและเอกสารตามรูปแบบที่หน่วยงานต้องการได้ <a href="#contact">ติดต่อขอใบเสนอราคา</a></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ STEPS ============ -->
+<section class="section" id="process">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">ขั้นตอนการติดตั้ง</span>
+      <h2>เริ่มใช้งานได้ใน 4 ขั้นตอน ไม่ต้องแก้โครงสร้างเว็บไซต์</h2>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <span class="step-num" aria-hidden="true">1</span>
+        <h3>เลือกแพ็กเกจและแจ้งโดเมน</h3>
+        <p>แจ้งชื่อโดเมนของเว็บไซต์และแพ็กเกจที่ต้องการผ่าน LINE อีเมล หรือโทรศัพท์</p>
+      </div>
+      <div class="step">
+        <span class="step-num" aria-hidden="true">2</span>
+        <h3>ชำระค่าบริการ</h3>
+        <p>ทีมงานส่งใบเสนอราคาและใบแจ้งหนี้ ชำระค่าบริการรายปีก่อนเริ่มติดตั้ง</p>
+      </div>
+      <div class="step">
+        <span class="step-num" aria-hidden="true">3</span>
+        <h3>รับสคริปต์และติดตั้ง</h3>
+        <p>รับสคริปต์ 1 บรรทัดที่ผูกกับโดเมนของท่าน วางก่อนปิดแท็ก body หรือให้ทีมงานติดตั้งให้</p>
+      </div>
+      <div class="step">
+        <span class="step-num" aria-hidden="true">4</span>
+        <h3>ตรวจสอบและรับเอกสาร</h3>
+        <p>ตรวจสอบการแสดงผลร่วมกัน รับคู่มือและเอกสารประกอบตามแพ็กเกจ พร้อมใช้งานทันที</p>
+      </div>
+    </div>
+
+    <pre class="code-block" aria-label="ตัวอย่างโค้ดติดตั้ง AOACCESS"><span class="c">&lt;!-- AOACCESS : วางก่อนปิดแท็ก &lt;/body&gt; ของทุกหน้า --&gt;</span>
+&lt;<span class="k">script</span> <span class="k">src</span>=<span class="s">"https://access.aosoft.co.th/widget.js"</span> <span class="k">data-key</span>=<span class="s">"YOUR-SITE-KEY"</span> <span class="k">defer</span>&gt;&lt;/<span class="k">script</span>&gt;</pre>
+    <p class="code-caption">ตัวอย่างสคริปต์ติดตั้ง — ใช้ได้กับ WordPress, Joomla, Drupal, เว็บไซต์ PHP / .NET / Java และระบบที่พัฒนาเอง</p>
+  </div>
+</section>
+
+<!-- ============ VERSUS ============ -->
+<section class="section section--soft" id="versus">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">เปรียบเทียบ</span>
+      <h2>ทำไมหน่วยงานไทยจึงเลือก AOACCESS แทนบริการจากต่างประเทศ</h2>
+      <p>บริการ Accessibility Widget จากต่างประเทศมีเครื่องมือหลากหลาย แต่มักคิดค่าบริการเป็นดอลลาร์รายเดือน ไม่มีเอกสารภาษาไทย และไม่รองรับกระบวนการจัดซื้อของหน่วยงานรัฐ</p>
+    </div>
+    <div class="versus">
+      <table class="vs">
+        <thead>
+          <tr><th scope="col">หัวข้อ</th><th scope="col">บริการจากต่างประเทศทั่วไป</th><th scope="col">AOACCESS</th></tr>
+        </thead>
+        <tbody>
+          <tr><th scope="row">ค่าบริการ</th><td>คิดเป็นดอลลาร์รายเดือน ผูกบัตรเครดิต</td><td><i class="fa-solid fa-check yes" aria-hidden="true"></i>ราคาบาท รายปี ออกใบกำกับภาษี / หัก ณ ที่จ่ายได้</td></tr>
+          <tr><th scope="row">ภาษาไทย</th><td>เมนูแปลอัตโนมัติ อ่านออกเสียงภาษาไทยไม่ครบถ้วน</td><td><i class="fa-solid fa-check yes" aria-hidden="true"></i>เมนูภาษาไทยที่ถูกต้อง อ่านออกเสียงภาษาไทยได้</td></tr>
+          <tr><th scope="row">เอกสารประกอบ TOR</th><td><i class="fa-solid fa-minus no" aria-hidden="true"></i>ไม่มี</td><td><i class="fa-solid fa-check yes" aria-hidden="true"></i>หนังสือรับรอง คุณสมบัติระบบ คู่มือ ใบเสนอราคาตามแบบราชการ</td></tr>
+          <tr><th scope="row">การซัพพอร์ต</th><td>ระบบตั๋วภาษาอังกฤษ ต่างเขตเวลา</td><td><i class="fa-solid fa-check yes" aria-hidden="true"></i>ทีมงานไทย โทรศัพท์ / LINE / อีเมล ในเวลาทำการ</td></tr>
+          <tr><th scope="row">ข้อมูลผู้ใช้</th><td>ส่งข้อมูลการใช้งานไปเซิร์ฟเวอร์ต่างประเทศ</td><td><i class="fa-solid fa-check yes" aria-hidden="true"></i>บันทึกค่าในเครื่องผู้ใช้ ไม่ส่งข้อมูลออกภายนอก สคริปต์อยู่บนเซิร์ฟเวอร์ในไทย</td></tr>
+          <tr><th scope="row">จำนวนเครื่องมือ</th><td>มากกว่า 20 รายการ (หลายรายการซ้ำซ้อน ผู้ใช้สับสน)</td><td>12 รายการที่ใช้งานจริง จัดเป็น 3 หมวดชัดเจน ตอบข้อกำหนดทั่วไปใน TOR</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FAQ ============ -->
+<section class="section" id="faq">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">คำถามที่พบบ่อย</span>
+      <h2>คำถามเกี่ยวกับบริการ AOACCESS</h2>
+    </div>
+    <div class="faq">
+      <details>
+        <summary>Web Accessibility Widget หรือไอคอนช่วยเหลือผู้พิการคืออะไร <i class="fa-solid fa-chevron-down" aria-hidden="true"></i></summary>
+        <div class="answer">คือเครื่องมือที่ติดตั้งบนเว็บไซต์ในรูปแบบไอคอนลอย เมื่อผู้ใช้กดจะเปิดเมนูสำหรับปรับการแสดงผลให้เหมาะกับตนเอง เช่น ขยายตัวอักษร เพิ่มความคมชัดของสี เพิ่มระยะห่างระหว่างบรรทัด เน้นลิงก์ หยุดภาพเคลื่อนไหว หรืออ่านออกเสียงข้อความ เพื่อช่วยให้ผู้พิการทางสายตา ผู้สูงอายุ และผู้ที่มีข้อจำกัดในการใช้งานเข้าถึงเนื้อหาได้สะดวกขึ้น</div>
+      </details>
+      <details>
+        <summary>เว็บไซต์หน่วยงานราชการจำเป็นต้องมีเครื่องมือนี้หรือไม่ <i class="fa-solid fa-chevron-down" aria-hidden="true"></i></summary>
+        <div class="answer">มาตรฐานเว็บไซต์ภาครัฐกำหนดให้เว็บไซต์ของหน่วยงานรัฐต้องคำนึงถึงการเข้าถึงของคนพิการและผู้สูงอายุตามแนวทาง TWCAG / WCAG และขอบเขตงาน (TOR) ในการจ้างพัฒนาหรือปรับปรุงเว็บไซต์ของหลายหน่วยงานระบุให้มีเครื่องมือช่วยการเข้าถึงสำหรับผู้พิการเป็นคุณสมบัติหนึ่งของระบบ AOACCESS ออกแบบมาเพื่อตอบข้อกำหนดในส่วนนี้ พร้อมเอกสารประกอบสำหรับการตรวจรับงาน</div>
+      </details>
+      <details>
+        <summary>ติดตั้ง AOACCESS บนเว็บไซต์ต้องแก้โค้ดเดิมมากหรือไม่ <i class="fa-solid fa-chevron-down" aria-hidden="true"></i></summary>
+        <div class="answer">ไม่จำเป็นต้องปรับโครงสร้างเว็บไซต์เดิม เพียงเพิ่มสคริปต์ 1 บรรทัดก่อนปิดแท็ก body ของทุกหน้า หรือใส่ผ่านระบบจัดการเว็บไซต์ที่ใช้อยู่ เช่น WordPress, Joomla หรือระบบที่พัฒนาเอง ทีมงานสามารถติดตั้งให้ได้เมื่อได้รับสิทธิ์เข้าถึงเว็บไซต์</div>
+      </details>
+      <details>
+        <summary>ติดตั้ง AOACCESS แล้วเว็บไซต์จะผ่านมาตรฐาน WCAG ทันทีหรือไม่ <i class="fa-solid fa-chevron-down" aria-hidden="true"></i></summary>
+        <div class="answer">AOACCESS เป็นเครื่องมือช่วยให้ผู้ใช้ปรับการแสดงผลตามความต้องการ และช่วยตอบข้อกำหนดเรื่องเครื่องมือช่วยการเข้าถึงในหลายกรณี แต่การผ่านเกณฑ์ WCAG อย่างสมบูรณ์ยังขึ้นอยู่กับโครงสร้างและเนื้อหาของเว็บไซต์เอง เช่น ข้อความอธิบายรูปภาพ (alt) และลำดับหัวข้อ สำหรับแพ็กเกจ GOVERNMENT ทีมงานจะตรวจสอบเบื้องต้นและแนะนำจุดที่ควรปรับปรุงให้</div>
+      </details>
+      <details>
+        <summary>มีเงื่อนไขการชำระค่าบริการอย่างไร <i class="fa-solid fa-chevron-down" aria-hidden="true"></i></summary>
+        <div class="answer">ชำระค่าบริการรายปีก่อนเริ่มดำเนินการติดตั้ง แพ็กเกจ GOVERNMENT มีค่าติดตั้งและจัดทำเอกสาร 3,000 บาท ชำระครั้งแรกพร้อมค่าบริการปีแรก ราคาทั้งหมดยังไม่รวมภาษีมูลค่าเพิ่ม 7% หน่วยงานที่ต้องการจัดซื้อแบบซื้อขาดพร้อมบำรุงรักษารายปี สามารถติดต่อขอใบเสนอราคาได้</div>
+      </details>
+      <details>
+        <summary>ใช้ได้กับหลายเว็บไซต์หรือหลาย Subdomain หรือไม่ <i class="fa-solid fa-chevron-down" aria-hidden="true"></i></summary>
+        <div class="answer">แพ็กเกจ STARTER และ BUSINESS ใช้ได้ 1 โดเมน (เครื่องมือครบ 12 รายการเท่ากันทุกแพ็กเกจ) แพ็กเกจ GOVERNMENT ครอบคลุมโดเมนหลักและ Subdomain ในสังกัดเดียวกัน หากมีหลายเว็บไซต์ในหลายโดเมน กรุณาติดต่อฝ่ายขายเพื่อรับราคาพิเศษ</div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CONTACT ============ -->
+<section class="contact" id="contact">
+  <div class="container">
+    <div>
+      <span class="eyebrow" style="color:#7DD3C4">ติดต่อสอบถาม</span>
+      <h2>สนใจบริการ AOACCESS สำหรับเว็บไซต์ของท่าน</h2>
+      <p class="lead">
+        ติดต่อฝ่ายขาย บริษัท เอโอซอฟต์ จำกัด เพื่อสอบถามรายละเอียด ขอใบเสนอราคา
+        หรือให้ทีมงานช่วยตรวจสอบข้อกำหนดใน TOR ของหน่วยงานท่านว่าแพ็กเกจใดเหมาะสม
+      </p>
+      <div class="hero-actions">
+        <a class="btn btn-light" href="https://lin.ee/t9I6WNA" target="_blank" rel="noopener"><i class="fa-brands fa-line" aria-hidden="true"></i> ติดต่อผ่าน LINE</a>
+        <a class="btn btn-outline-light" id="mail-cta" href="mailto:info@aosoft.co.th?subject=%E0%B8%AA%E0%B8%AD%E0%B8%9A%E0%B8%96%E0%B8%B2%E0%B8%A1%E0%B8%9A%E0%B8%A3%E0%B8%B4%E0%B8%81%E0%B8%B2%E0%B8%A3%20AOACCESS">
+          <i class="fa-solid fa-envelope" aria-hidden="true"></i> ส่งอีเมล
+        </a>
+      </div>
+    </div>
+
+    <div class="contact-list">
+      <a class="contact-item" href="tel:029578755">
+        <i class="fa-solid fa-phone" aria-hidden="true"></i>
+        <div><span>โทรศัพท์</span><strong>02-957-8755</strong></div>
+      </a>
+      <a class="contact-item" href="mailto:info@aosoft.co.th">
+        <i class="fa-solid fa-envelope" aria-hidden="true"></i>
+        <div><span>อีเมล</span><strong>info@aosoft.co.th</strong></div>
+      </a>
+      <a class="contact-item" href="https://lin.ee/t9I6WNA" target="_blank" rel="noopener">
+        <i class="fa-brands fa-line" aria-hidden="true"></i>
+        <div><span>LINE ID</span><strong>@aosoft</strong></div>
+      </a>
+      <div class="contact-item">
+        <i class="fa-regular fa-clock" aria-hidden="true"></i>
+        <div><span>เวลาทำการ</span><strong>จันทร์–ศุกร์</strong><strong>09:00–17:30 น.</strong></div>
+      </div>
+      <div class="contact-item contact-item--wide">
+        <i class="fa-solid fa-location-dot" aria-hidden="true"></i>
+        <div><span>บริษัท เอโอซอฟต์ จำกัด (AOSOFT CO., LTD.)</span><strong>91/940 หมู่ 3 ตำบลบึงยี่โถ อำเภอธัญบุรี จังหวัดปทุมธานี 12130</strong></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ============ FOOTER ============ -->
+<footer class="site-footer aoa-scope">
+  <div class="container">
+    <div>&copy; <span id="year">2026</span> บริษัท เอโอซอฟต์ จำกัด (AOSOFT CO., LTD.) สงวนลิขสิทธิ์</div>
+    <div class="footer-links">
+      <a href="https://www.aosoft.co.th" target="_blank" rel="noopener"><i class="fa-solid fa-globe" aria-hidden="true"></i> www.aosoft.co.th</a>
+      <a href="https://www.facebook.com/aosoft.co.th" target="_blank" rel="noopener" aria-label="Facebook AOSOFT"><i class="fa-brands fa-facebook-f" aria-hidden="true"></i> Facebook</a>
+    </div>
+  </div>
+</footer>
+
+<!-- ============ AOACCESS LIVE WIDGET (demo) ============ -->
+<button type="button" class="aoa-fab" id="aoa-fab" aria-controls="aoa-panel" aria-expanded="false" aria-label="เปิดเมนูการเข้าถึง">
+  <i class="fa-solid fa-universal-access" aria-hidden="true"></i>
+  <span class="lbl" aria-hidden="true">การเข้าถึง</span>
+</button>
+<div class="aoa-panel" id="aoa-panel" role="dialog" aria-labelledby="aoa-title" aria-modal="false">
+  <div class="aoa-head">
+    <h2 id="aoa-title" data-i18n="title">การเข้าถึง</h2>
+    <div class="aoa-lang" role="group" aria-label="ภาษาของเมนู">
+      <button type="button" data-lang="th" aria-pressed="true">ไทย</button>
+      <button type="button" data-lang="en" aria-pressed="false">EN</button>
+    </div>
+    <button type="button" class="aoa-x" id="aoa-close" aria-label="ปิดเมนู"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+  </div>
+  <div class="aoa-body">
+    <h3 class="aoa-sec" data-i18n="sec1">การมองเห็น</h3>
+    <div class="aoa-row">
+      <span data-i18n="fs">ขนาดตัวอักษร</span>
+      <span class="stp">
+        <button type="button" data-aoa="fs-" aria-label="ลดขนาดตัวอักษร">−</button>
+        <output id="aoa-fs-out" aria-live="polite">100%</output>
+        <button type="button" data-aoa="fs+" aria-label="เพิ่มขนาดตัวอักษร">+</button>
+      </span>
+    </div>
+    <div class="aoa-themes" role="radiogroup" aria-label="โหมดสี">
+      <button type="button" class="aoa-th" data-theme="" role="radio" aria-checked="true"><span class="sw" style="background:#fff;border:2px solid var(--brand)"></span><em data-i18n="t0">ปกติ</em></button>
+      <button type="button" class="aoa-th" data-theme="contrast" role="radio" aria-checked="false"><span class="sw" style="background:linear-gradient(90deg,#000 50%,#FFE600 50%)"></span><em data-i18n="t1">คอนทราสต์</em></button>
+      <button type="button" class="aoa-th" data-theme="dark" role="radio" aria-checked="false"><span class="sw" style="background:#111"></span><em data-i18n="t2">โหมดมืด</em></button>
+      <button type="button" class="aoa-th" data-theme="invert" role="radio" aria-checked="false"><span class="sw" style="background:linear-gradient(90deg,#fff 50%,#111 50%);border:1px solid #999"></span><em data-i18n="t3">กลับสี</em></button>
+      <button type="button" class="aoa-th" data-theme="gray" role="radio" aria-checked="false"><span class="sw" style="background:#9a9a9a"></span><em data-i18n="t4">ขาวดำ</em></button>
+    </div>
+
+    <h3 class="aoa-sec" data-i18n="sec2">การอ่าน</h3>
+    <div class="aoa-row">
+      <span data-i18n="lh">ระยะห่างบรรทัด</span>
+      <span class="stp">
+        <button type="button" data-aoa="lh-" aria-label="ลดระยะห่างบรรทัด">−</button>
+        <output id="aoa-lh-out" aria-live="polite" data-i18n="normal">ปกติ</output>
+        <button type="button" data-aoa="lh+" aria-label="เพิ่มระยะห่างบรรทัด">+</button>
+      </span>
+    </div>
+    <div class="aoa-row">
+      <span data-i18n="ls">ระยะตัวอักษร/คำ</span>
+      <span class="stp">
+        <button type="button" data-aoa="ls-" aria-label="ลดระยะตัวอักษร">−</button>
+        <output id="aoa-ls-out" aria-live="polite" data-i18n="normal">ปกติ</output>
+        <button type="button" data-aoa="ls+" aria-label="เพิ่มระยะตัวอักษร">+</button>
+      </span>
+    </div>
+    <button type="button" class="aoa-tg" data-aoa="font" aria-pressed="false"><span data-i18n="font">ฟอนต์อ่านง่าย</span><i class="sw"></i></button>
+    <button type="button" class="aoa-tg" data-aoa="dyslexia" aria-pressed="false"><span data-i18n="dyslexia">ฟอนต์ Dyslexia-friendly</span><i class="sw"></i></button>
+    <button type="button" class="aoa-tg" data-aoa="left" aria-pressed="false"><span data-i18n="left">จัดข้อความชิดซ้าย</span><i class="sw"></i></button>
+    <button type="button" class="aoa-tg" data-aoa="links" aria-pressed="false"><span data-i18n="links">ไฮไลต์ลิงก์</span><i class="sw"></i></button>
+    <button type="button" class="aoa-tg" data-aoa="headings" aria-pressed="false"><span data-i18n="headings">ไฮไลต์หัวข้อ</span><i class="sw"></i></button>
+
+    <h3 class="aoa-sec" data-i18n="sec3">การนำทาง / มอเตอร์</h3>
+    <button type="button" class="aoa-tg" data-aoa="cursor" aria-pressed="false"><span data-i18n="cursor">เคอร์เซอร์ใหญ่</span><i class="sw"></i></button>
+    <button type="button" class="aoa-tg" data-aoa="pause" aria-pressed="false"><span data-i18n="pause">หยุดภาพเคลื่อนไหว</span><i class="sw"></i></button>
+    <button type="button" class="aoa-tg" data-aoa="tts" aria-pressed="false"><span data-i18n="tts">อ่านออกเสียง</span><i class="sw"></i></button>
+  </div>
+  <div class="aoa-foot">
+    <span data-i18n="note">บันทึกค่าอัตโนมัติในเครื่องของคุณ — ไม่ส่งข้อมูลออกภายนอก</span>
+    <button type="button" data-aoa="reset" data-i18n="reset">รีเซ็ต</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  // Mobile navigation
+  var toggle = document.querySelector('.nav-toggle');
+  var nav = document.getElementById('site-nav');
+  if (toggle && nav) {
+    toggle.addEventListener('click', function () {
+      var open = nav.classList.toggle('is-open');
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      toggle.innerHTML = open
+        ? '<i class="fa-solid fa-xmark" aria-hidden="true"></i>'
+        : '<i class="fa-solid fa-bars" aria-hidden="true"></i>';
+    });
+    nav.querySelectorAll('a').forEach(function (a) {
+      a.addEventListener('click', function () {
+        nav.classList.remove('is-open');
+        toggle.setAttribute('aria-expanded', 'false');
+        toggle.innerHTML = '<i class="fa-solid fa-bars" aria-hidden="true"></i>';
+      });
+    });
+  }
+
+  // Pre-fill email subject with the selected package
+  document.querySelectorAll('[data-plan]').forEach(function (a) {
+    a.addEventListener('click', function () {
+      var mail = document.getElementById('mail-cta');
+      if (mail) {
+        mail.href = 'mailto:info@aosoft.co.th?subject=' +
+          encodeURIComponent('สอบถามบริการ AOACCESS - ' + a.getAttribute('data-plan'));
+      }
+    });
+  });
+
+  var y = document.getElementById('year');
+  if (y) y.textContent = new Date().getFullYear();
+
+  /* =====================================================================
+     ราคาแพ็กเกจ — แก้ตัวเลขที่นี่ที่เดียว ตัวเลขในการ์ด ตาราง และ Hero จะเปลี่ยนตาม
+     (แนะนำแก้ meta description / JSON-LD ด้านบนให้ตรงกันด้วยเพื่อ SEO)
+     ===================================================================== */
+  var PLANS = {
+    starter:  { annual: 2500, setup: 0 },
+    business: { annual: 4500, setup: 0 },
+    gov:      { annual: 7500, setup: 3000 }
+  };
+  function fmt(n) { return n.toLocaleString('th-TH'); }
+  Object.keys(PLANS).forEach(function (k) {
+    var p = PLANS[k];
+    var map = {
+      annual: fmt(p.annual),
+      monthly: fmt(Math.round(p.annual / 12)),
+      setup: p.setup ? fmt(p.setup) + ' บาท' : 'ฟรี',
+      firstYear: fmt(p.annual + p.setup)
+    };
+    Object.keys(map).forEach(function (f) {
+      document.querySelectorAll('[data-price="' + k + '.' + f + '"]').forEach(function (el) {
+        el.textContent = map[f];
+        if (f === 'setup') el.classList.toggle('free', !p.setup);
+      });
+    });
+  });
+  var minPrice = Math.min.apply(null, Object.keys(PLANS).map(function (k) { return PLANS[k].annual; }));
+  var fact = document.getElementById('fact-price');
+  if (fact) fact.textContent = fmt(minPrice) + ' บาท/ปี';
+
+  /* =====================================================================
+     AOACCESS live widget (demo on this page) — mirrors the real product UI
+     ===================================================================== */
+  var body = document.body;
+  var fab = document.getElementById('aoa-fab');
+  var panel = document.getElementById('aoa-panel');
+  var closeBtn = document.getElementById('aoa-close');
+  var scopes = document.querySelectorAll('.aoa-scope');
+  var heroTry = document.getElementById('hero-try');
+  var STORE = 'aoaccess-demo';
+  var state = { fs: 1, lh: 0, ls: 0, theme: '', on: [], lang: 'th' };
+  var TOGGLES = ['font', 'dyslexia', 'left', 'links', 'headings', 'cursor', 'pause'];
+
+  var I18N = {
+    th: { title: 'การเข้าถึง', sec1: 'การมองเห็น', sec2: 'การอ่าน', sec3: 'การนำทาง / มอเตอร์', fs: 'ขนาดตัวอักษร', lh: 'ระยะห่างบรรทัด', ls: 'ระยะตัวอักษร/คำ', normal: 'ปกติ',
+          t0: 'ปกติ', t1: 'คอนทราสต์', t2: 'โหมดมืด', t3: 'กลับสี', t4: 'ขาวดำ', font: 'ฟอนต์อ่านง่าย', dyslexia: 'ฟอนต์ Dyslexia-friendly', left: 'จัดข้อความชิดซ้าย',
+          links: 'ไฮไลต์ลิงก์', headings: 'ไฮไลต์หัวข้อ', cursor: 'เคอร์เซอร์ใหญ่', pause: 'หยุดภาพเคลื่อนไหว', tts: 'อ่านออกเสียง', reset: 'รีเซ็ต',
+          note: 'บันทึกค่าอัตโนมัติในเครื่องของคุณ — ไม่ส่งข้อมูลออกภายนอก', open: 'เปิดเมนูการเข้าถึง', close: 'ปิดเมนู' },
+    en: { title: 'Accessibility', sec1: 'Vision', sec2: 'Reading', sec3: 'Navigation / Motor', fs: 'Text size', lh: 'Line spacing', ls: 'Letter / word spacing', normal: 'Normal',
+          t0: 'Default', t1: 'Contrast', t2: 'Dark', t3: 'Invert', t4: 'Grayscale', font: 'Readable font', dyslexia: 'Dyslexia-friendly font', left: 'Align text left',
+          links: 'Highlight links', headings: 'Highlight headings', cursor: 'Big cursor', pause: 'Pause animations', tts: 'Read aloud', reset: 'Reset',
+          note: 'Saved automatically on your device — nothing is sent anywhere', open: 'Open accessibility menu', close: 'Close menu' }
+  };
+  var LVL = { th: ['ปกติ', '+1', '+2', '+3'], en: ['Normal', '+1', '+2', '+3'] };
+
+  function openPanel(open) {
+    panel.classList.toggle('is-open', open);
+    fab.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) closeBtn.focus(); else fab.focus();
+  }
+  fab.addEventListener('click', function () { openPanel(!panel.classList.contains('is-open')); });
+  closeBtn.addEventListener('click', function () { openPanel(false); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && panel.classList.contains('is-open')) openPanel(false); });
+  if (heroTry) heroTry.addEventListener('click', function () { openPanel(true); });
+
+  function render() {
+    scopes.forEach(function (s) {
+      s.style.setProperty('--aoa-fs', state.fs);
+      s.style.setProperty('--aoa-lh', state.lh);
+      s.style.setProperty('--aoa-ls', state.ls);
+    });
+    document.getElementById('aoa-fs-out').textContent = Math.round(state.fs * 100) + '%';
+    document.getElementById('aoa-lh-out').textContent = LVL[state.lang][state.lh];
+    document.getElementById('aoa-ls-out').textContent = LVL[state.lang][state.ls];
+    if (state.theme) body.setAttribute('data-aoa-theme', state.theme); else body.removeAttribute('data-aoa-theme');
+    panel.querySelectorAll('.aoa-th').forEach(function (b) { b.setAttribute('aria-checked', b.dataset.theme === state.theme ? 'true' : 'false'); });
+    TOGGLES.forEach(function (k) {
+      var on = state.on.indexOf(k) > -1;
+      body.classList.toggle('aoa-' + k, on);
+      panel.querySelector('[data-aoa="' + k + '"]').setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    var t = I18N[state.lang];
+    panel.querySelectorAll('[data-i18n]').forEach(function (el) { var k = el.dataset.i18n; if (t[k] && k !== 'normal') el.textContent = t[k]; });
+    panel.querySelectorAll('[data-lang]').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.lang === state.lang ? 'true' : 'false'); });
+    fab.setAttribute('aria-label', t.open); fab.querySelector('.lbl').textContent = t.title;
+    closeBtn.setAttribute('aria-label', t.close);
+    try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {}
+  }
+
+  // Text to speech (Web Speech API) — reads the selection, or the main content
+  var speaking = false;
+  function setTtsBtn(on) { panel.querySelector('[data-aoa="tts"]').setAttribute('aria-pressed', on ? 'true' : 'false'); speaking = on; }
+  function stopTts() { if (window.speechSynthesis) window.speechSynthesis.cancel(); setTtsBtn(false); }
+  function startTts() {
+    if (!window.speechSynthesis) { alert('เบราว์เซอร์นี้ไม่รองรับการอ่านออกเสียง'); return; }
+    var sel = window.getSelection ? String(window.getSelection()) : '';
+    var text = sel.trim() || document.querySelector('main').innerText.slice(0, 4000);
+    var u = new SpeechSynthesisUtterance(text);
+    u.lang = /[\u0E00-\u0E7F]/.test(text) ? 'th-TH' : 'en-US';
+    var v = window.speechSynthesis.getVoices().filter(function (x) { return x.lang && x.lang.toLowerCase().indexOf(u.lang.slice(0, 2).toLowerCase()) === 0; })[0];
+    if (v) u.voice = v;
+    u.rate = 0.95;
+    u.onend = u.onerror = function () { setTtsBtn(false); };
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(u);
+    setTtsBtn(true);
+  }
+
+  panel.addEventListener('click', function (e) {
+    var lb = e.target.closest('[data-lang]');
+    if (lb) { state.lang = lb.dataset.lang; render(); return; }
+    var th = e.target.closest('.aoa-th');
+    if (th) { state.theme = th.dataset.theme; render(); return; }
+    var b = e.target.closest('[data-aoa]');
+    if (!b) return;
+    var k = b.dataset.aoa;
+    if (k === 'fs+') state.fs = Math.min(2, +(state.fs + 0.1).toFixed(1));
+    else if (k === 'fs-') state.fs = Math.max(0.8, +(state.fs - 0.1).toFixed(1));
+    else if (k === 'lh+') state.lh = Math.min(3, state.lh + 1);
+    else if (k === 'lh-') state.lh = Math.max(0, state.lh - 1);
+    else if (k === 'ls+') state.ls = Math.min(3, state.ls + 1);
+    else if (k === 'ls-') state.ls = Math.max(0, state.ls - 1);
+    else if (k === 'tts') { speaking ? stopTts() : startTts(); return; }
+    else if (k === 'reset') { var lang = state.lang; state = { fs: 1, lh: 0, ls: 0, theme: '', on: [], lang: lang }; stopTts(); try { localStorage.removeItem(STORE); } catch (e2) {} render(); return; }
+    else { var i = state.on.indexOf(k); if (i > -1) state.on.splice(i, 1); else state.on.push(k); }
+    render();
+  });
+
+  // Restore saved preferences from this device
+  try { var saved = JSON.parse(localStorage.getItem(STORE) || 'null'); if (saved && typeof saved === 'object') { Object.keys(state).forEach(function (k) { if (saved[k] !== undefined) state[k] = saved[k]; }); } } catch (e) {}
+  render();
+})();
+</script>
+</body>
+</html>
