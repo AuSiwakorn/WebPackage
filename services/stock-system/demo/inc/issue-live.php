@@ -5,6 +5,8 @@
    ปุ่มใช้ hx-post บน <button> ตรง ๆ เพราะทั้งหน้าอยู่ในฟอร์มบันทึกอยู่แล้ว
    ========================================================== */
 
+require_once dirname(__FILE__) . '/../include/function.php';
+
 $list  = sale_products($code, $q, $cat);
 $lines = idraft_lines($code);
 $sum   = idraft_count();

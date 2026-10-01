@@ -2,11 +2,10 @@
 /* ==========================================================
    AOSTOCK DEMO — รับคืนสินค้า
    ค้นบิลเก่า → เลือกรายการที่คืน → เหตุผล → ยืนยันยอดเงินคืน (เงินสดจากลิ้นชักวันนี้)
-   กติกาอยู่ใน inc/return.php
+   กติกาอยู่ใน include/function.php หมวด "รับคืนสินค้า"
    ========================================================== */
 
-require_once dirname(__FILE__) . '/inc/auth.php';
-require_once dirname(__FILE__) . '/inc/return.php';
+require_once dirname(__FILE__) . '/include/function.php';
 
 $user = require_login();
 $code = work_branch($user);          // ผู้ดูแลเลือกสาขาได้จากแถบบน

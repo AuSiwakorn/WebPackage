@@ -44,7 +44,7 @@ $checks[] = [
 
 /* 5. ไฟล์ที่ต้องมี */
 $need = [
-    'inc/config.php', 'inc/auth.php', 'inc/data.php',
+    'inc/config.php', 'include/function.php',
     'inc/header.php', 'inc/footer.php',
     'assets/app.css', 'login.php', 'dashboard.php', 'logout.php',
 ];
@@ -60,8 +60,7 @@ foreach ($need as $f) {
 /* 6. ลองโหลดไฟล์จริง */
 $loadError = null;
 try {
-    require_once __DIR__ . '/inc/config.php';
-    require_once __DIR__ . '/inc/data.php';
+    require_once __DIR__ . '/include/function.php';
     $sum = stock_summary('ALL');
     $loadMsg = 'โหลดสำเร็จ · สินค้า ' . $sum['items'] . ' รายการ · มูลค่า ' . number_format($sum['value']) . ' บาท';
     $loadOk  = true;
@@ -69,7 +68,7 @@ try {
     $loadOk  = false;
     $loadMsg = get_class($ex) . ': ' . $ex->getMessage() . ' (' . basename($ex->getFile()) . ' บรรทัด ' . $ex->getLine() . ')';
 }
-$checks[] = ['name' => 'โหลด config + data', 'ok' => $loadOk, 'msg' => $loadMsg];
+$checks[] = ['name' => 'โหลด config + function', 'ok' => $loadOk, 'msg' => $loadMsg];
 
 $allOk = true;
 foreach ($checks as $c) {

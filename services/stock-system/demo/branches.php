@@ -16,10 +16,7 @@
    ระบบจริง: INSERT / UPDATE ao_stock_branch · ปิดใช้งาน = is_active = 0
    ========================================================== */
 
-require_once dirname(__FILE__) . '/inc/auth.php';
-require_once dirname(__FILE__) . '/inc/data.php';
-require_once dirname(__FILE__) . '/inc/store.php';
-require_once dirname(__FILE__) . '/inc/billno.php';
+require_once dirname(__FILE__) . '/include/function.php';
 
 $user = require_login();
 if ($user['role'] !== 'admin') {
@@ -45,91 +42,7 @@ $info = array(
     'address' => array('label' => 'ที่อยู่',    'max' => 255, 'ph' => 'พิมพ์บนใบเสร็จ', 'req' => false),
 );
 
-/* ---------- ตัวช่วย ---------- */
-
-/** สาขานี้มีข้อมูลแล้วหรือยัง — คืนเหตุผล (ว่าง = ยังไม่มี ลบได้) */
-function branch_data_reason($code)
-{
-    $b = demo_branches_all();
-    if (isset($b[$code]) && empty($b[$code]['added'])) {
-        return 'มีข้อมูลการขายและสต๊อกย้อนหลังแล้ว';
-    }
-    foreach (demo_users_all() as $u) {
-        if ($u['branch'] === $code) {
-            return 'มีพนักงานประจำอยู่';
-        }
-        if (!empty($u['history'])) {
-            foreach ($u['history'] as $h) {
-                if ($h['branch'] === $code) {
-                    return 'เคยมีพนักงานประจำ (ยอดขายเก่าผูกกับสาขานี้)';
-                }
-            }
-        }
-    }
-    foreach (array('sale' => 'บิลขาย', 'recv' => 'ใบรับเข้า', 'issue' => 'ใบเบิก', 'adj' => 'ใบตรวจนับ',
-                   'ret' => 'ใบรับคืน', 'store' => 'การเปิดร้าน') as $k => $lb) {
-        if (!empty($_SESSION[$k])) {
-            foreach ($_SESSION[$k] as $key => $rows) {
-                if (strpos($key, $code . '|') === 0 && !empty($rows)) {
-                    return 'มี' . $lb . 'แล้ว';
-                }
-            }
-        }
-    }
-    if (!empty($_SESSION['stock_adj'][$code])) {
-        return 'มีการเคลื่อนไหวสต๊อกแล้ว';
-    }
-    return '';
-}
-
-/** รหัสเลขที่บิลนี้ถูกใช้แล้วหรือยัง (ทุกสาขา ทุกชุด) */
-function prefix_in_use($p)
-{
-    foreach (array_keys(demo_branches_all()) as $c) {
-        if (acct_setting($c, 'prefix_vat') === $p || acct_setting($c, 'prefix_novat') === $p) {
-            return true;
-        }
-    }
-    return false;
-}
-
-/** อ่านค่าตั้ง 4 ค่าจากฟอร์ม — คืน array(ค่า, ข้อผิดพลาด) */
-function read_settings($fields)
-{
-    $rules = branch_setting_rules();
-    $out   = array();
-    foreach ($fields as $k => $f) {
-        $raw = isset($_POST[$k]) ? trim($_POST[$k]) : '';
-        if ($raw === '' || !preg_match('/^\d+$/', $raw)) {
-            return array($out, $f['label'] . ' ต้องเป็นตัวเลข');
-        }
-        $v = (int) $raw;
-        if ($v < $rules[$k][0] || $v > $rules[$k][1]) {
-            return array($out, $f['label'] . ' ต้องอยู่ระหว่าง ' . number_format($rules[$k][0]) . '–' . number_format($rules[$k][1]));
-        }
-        $out[$k] = $v;
-    }
-    return array($out, '');
-}
-
-function read_info($info)
-{
-    $out = array();
-    foreach ($info as $k => $f) {
-        $v = isset($_POST[$k]) ? trim(preg_replace('/\s+/u', ' ', $_POST[$k])) : '';
-        if ($f['req'] && $v === '') {
-            return array($out, 'กรุณากรอก' . $f['label']);
-        }
-        if (function_exists('mb_strlen') ? mb_strlen($v, 'UTF-8') > $f['max'] : strlen($v) > $f['max'] * 3) {
-            return array($out, $f['label'] . 'ยาวเกินไป');
-        }
-        $out[$k] = $v;
-    }
-    if ($out['short'] === '') {
-        $out['short'] = $out['name'];
-    }
-    return array($out, '');
-}
+/* ตัวช่วยของหน้านี้ (branch_data_reason, read_info ฯลฯ) อยู่ที่ include/function.php หมวด "หน้าจัดการสาขา" */
 
 /* ---------- บันทึก ---------- */
 $err   = '';
@@ -281,16 +194,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $list = demo_branches_all();
 uasort($list, 'branch_list_cmp');
-function branch_list_cmp($a, $b)
-{
-    return (int) empty($a['active']) - (int) empty($b['active']);   // เปิดใช้งานก่อน แล้วค่อยที่ปิดแล้ว
-}
 $nOn = count(demo_branches());
 
 $branch     = work_branch($user);
 $PAGE_TITLE = 'จัดการสาขา';
 $PAGE_SUB   = 'เปิดใช้งาน ' . $nOn . ' สาขา' . (count($list) > $nOn ? ' · ปิดใช้งาน ' . (count($list) - $nOn) . ' สาขา' : '');
 $NAV_ACTIVE = 'branches.php';
+$NO_BRANCH_PICK = true;
 require dirname(__FILE__) . '/inc/header.php';
 
 $v = function ($bc, $k, $def) use ($old) {

@@ -1,5 +1,5 @@
 <?php
-require_once dirname(__FILE__) . '/inc/auth.php';
+require_once dirname(__FILE__) . '/include/function.php';
 
 if (is_logged_in()) {
     header('Location: ' . url(home_page(current_user())));

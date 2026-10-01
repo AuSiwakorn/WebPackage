@@ -9,9 +9,7 @@
    ถ้าเบราว์เซอร์ปิด JavaScript ฟอร์มทุกอันยังส่งแบบปกติได้ (PRG)
    ========================================================== */
 
-require_once dirname(__FILE__) . '/inc/auth.php';
-require_once dirname(__FILE__) . '/inc/store.php';
-require_once dirname(__FILE__) . '/inc/sale.php';
+require_once dirname(__FILE__) . '/include/function.php';
 
 $user = require_login();
 $code = work_branch($user);          // ผู้ดูแลเลือกสาขาได้จากแถบบน
@@ -119,75 +117,6 @@ if ($voided === null && (isset($_GET['voided']) || isset($_GET['edited']))) {
     if ($b !== null && !empty($b['void'])) {
         $voided = $b;
     }
-}
-
-/* ---------- ข้อความแจ้งผล (ส่งกลับแบบ out-of-band ให้ htmx ด้วย) ---------- */
-function sale_flash($err, $done, $voided, $oob)
-{
-    echo '<div id="sale-flash"' . ($oob ? ' hx-swap-oob="true"' : '') . '>';
-
-    if ($err !== '') {
-        echo '<div class="alert alert-error" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span>'
-           . e($err) . '</span></div>';
-
-    } elseif ($voided !== null) {
-        $isEdit = (isset($voided['void_mode']) && $voided['void_mode'] === 'edit');
-        echo '<div class="alert ' . ($isEdit ? 'alert-info' : 'alert-warn') . '" role="status">'
-           . '<svg class="ico"><use href="#' . ($isEdit ? 'i-arrow' : 'i-ban') . '"/></svg><span>';
-        if ($isEdit) {
-            echo 'ยกเลิกบิล <b>' . e($voided['no']) . '</b> และดึง ' . (int) $voided['items']
-               . ' รายการกลับเข้าตะกร้าให้แล้ว — แก้จำนวนที่ผิดแล้วกดรับเงินใหม่ได้เลย '
-               . 'ระบบจะออกเลขบิลใหม่ให้อัตโนมัติ';
-        } else {
-            echo 'ยกเลิกบิล <b>' . e($voided['no']) . '</b> แล้ว · คืนสต๊อก '
-               . (int) $voided['qty'] . ' ชิ้น · เหตุผล: ' . e($voided['void_reason']);
-        }
-        echo '</span></div>';
-
-    } elseif ($done !== null && empty($done['void'])) {
-        echo '<div class="alert alert-ok" role="status"><svg class="ico"><use href="#i-check"/></svg><span>'
-           . 'บันทึกบิล <b>' . e($done['no']) . '</b> แล้ว · ยอด <b class="num">' . money2($done['total']) . '</b> บาท · '
-           . (!empty($done['discount']) ? 'ส่วนลด <b class="num">' . money2($done['discount']) . '</b> บาท · ' : '');
-        if ($done['method'] === 'cash') {
-            echo 'รับเงิน <span class="num">' . money2($done['received']) . '</span> บาท · '
-               . 'เงินทอน <b class="num">' . money2($done['change']) . '</b> บาท';
-        } else {
-            echo 'ชำระโดยการโอน / พร้อมเพย์';
-        }
-        echo '</span>';
-
-        /* กดผิดก็แก้ได้ทันทีจากตรงนี้ — ทั้งสองทางต้องกรอกหมายเหตุก่อน */
-        $atts = ' data-bill="' . e($done['no']) . '" data-total="' . money2($done['total']) . '"'
-              . ' data-qty="' . (int) $done['qty'] . '" data-items="' . (int) $done['items'] . '"'
-              . ' hx-post="sale.php" hx-target="#sale-live" hx-swap="outerHTML"';
-
-        echo '<div class="alert-act">';
-
-        echo '<form method="post" action="sale.php" data-confirm="edit" hx-confirm="แก้ไขบิล"' . $atts . '>'
-           . '<input type="hidden" name="csrf" value="' . e(csrf_token()) . '">'
-           . '<input type="hidden" name="act" value="edit">'
-           . '<input type="hidden" name="no" value="' . e($done['no']) . '">'
-           . '<input class="reason-fb" type="text" name="reason" value=""'
-           . ' placeholder="หมายเหตุ (จำเป็น)" aria-label="หมายเหตุการแก้ไขบิล">'
-           . '<button class="btn btn-ghost btn-sm" type="submit">'
-           . '<svg class="ico"><use href="#i-arrow"/></svg> แก้ไขบิลนี้</button>'
-           . '</form>';
-
-        echo '<form method="post" action="sale.php" data-confirm="void" hx-confirm="ยกเลิกบิล"' . $atts . '>'
-           . '<input type="hidden" name="csrf" value="' . e(csrf_token()) . '">'
-           . '<input type="hidden" name="act" value="void">'
-           . '<input type="hidden" name="no" value="' . e($done['no']) . '">'
-           . '<input class="reason-fb" type="text" name="reason" value=""'
-           . ' placeholder="หมายเหตุ (จำเป็น)" aria-label="หมายเหตุการยกเลิกบิล">'
-           . '<button class="btn btn-ghost btn-sm" type="submit">'
-           . '<svg class="ico"><use href="#i-ban"/></svg> ยกเลิกบิลนี้</button>'
-           . '</form>';
-
-        echo '</div>';
-
-        echo '</div>';
-    }
-    echo '</div>';
 }
 
 /* ---------- คำขอจาก htmx: ส่งกลับเฉพาะส่วนที่เปลี่ยน ---------- */

@@ -9,14 +9,13 @@
      $NAV_ACTIVE  ชื่อไฟล์ของเมนูที่กำลังเปิด
    ========================================================== */
 
-require_once dirname(__FILE__) . '/store.php';
-require_once dirname(__FILE__) . '/sale.php';
+require_once dirname(__FILE__) . '/../include/function.php';
 
 $PAGE_TITLE = isset($PAGE_TITLE) ? $PAGE_TITLE : 'ภาพรวม';
 $PAGE_SUB   = isset($PAGE_SUB) ? $PAGE_SUB : '';
 $NAV_ACTIVE = isset($NAV_ACTIVE) ? $NAV_ACTIVE : 'dashboard.php';
 
-/* เมนูทั้งหมด — แสดงเฉพาะที่เปิดใช้ใน active_menus() (inc/config.php) */
+/* เมนูทั้งหมด — แสดงเฉพาะที่เปิดใช้ใน active_menus() (include/function.php) */
 $NAV_ALL = array(
     'ใช้งานประจำวัน' => array(
         array('file' => 'dashboard.php',  'label' => ($user['role'] === 'admin') ? 'ภาพรวม' : 'ภาพรวมของฉัน', 'icon' => 'i-home'),
@@ -24,10 +23,10 @@ $NAV_ALL = array(
         array('file' => 'sale.php',       'label' => 'ขายสินค้า',         'icon' => 'i-cart',      'perm' => 'sale'),
         array('file' => 'products.php',   'label' => 'สินค้าในสต๊อก',     'icon' => 'i-boxes'),
         array('file' => 'receive.php',    'label' => 'นำเข้าสินค้า',      'icon' => 'i-in',        'perm' => 'receive'),
-        array('file' => 'history.php',    'label' => 'ประวัติการทำรายการ', 'icon' => 'i-history',   'perm' => 'history'),
-        array('file' => 'return.php',     'label' => 'รับคืนสินค้า',       'icon' => 'i-receipt', 'perm' => 'refund'),
         array('file' => 'issue.php',      'label' => 'เบิก / ตัดออก',     'icon' => 'i-out',       'perm' => 'issue'),
         array('file' => 'stocktake.php',  'label' => 'ตรวจนับ / ปรับยอด',  'icon' => 'i-clipboard', 'perm' => 'stocktake'),
+        array('file' => 'return.php',     'label' => 'รับคืนสินค้า',       'icon' => 'i-receipt', 'perm' => 'refund'),
+        array('file' => 'history.php',    'label' => 'ประวัติการทำรายการ', 'icon' => 'i-history',   'perm' => 'history'),
         array('file' => 'movements.php',  'label' => 'ประวัติเคลื่อนไหว', 'icon' => 'i-activity'),
     ),
     'รายงาน' => array(
@@ -214,9 +213,12 @@ $branches = visible_branches($user);
       <div class="top-tools">
         <?php /* พนักงานผูกกับสาขาเดียวตั้งแต่ตอนสร้างรหัส จึงไม่ต้องมีตัวเลือกสาขา
                  ช่องนี้จะโผล่เฉพาะสิทธิ์ที่เห็นได้หลายสาขาเท่านั้น */ ?>
-        <?php if (($user['role'] === 'admin' && strpos($NAV_ACTIVE, 'account') !== 0) || (feature_enabled('branch_pick') && count($branches) > 1)): ?>
+        <?php if (empty($NO_BRANCH_PICK) && (($user['role'] === 'admin' && strpos($NAV_ACTIVE, 'account') !== 0) || (feature_enabled('branch_pick') && count($branches) > 1))): ?>
         <?php /* ผู้ดูแล: เลือกสาขาที่จะทำงาน — "ทุกสาขา" มีเฉพาะหน้าภาพรวม */ ?>
         <form class="branch-pick" method="get" action="<?= e($NAV_ACTIVE) ?>">
+          <?php if (!empty($PICK_HIDDEN)) { foreach ($PICK_HIDDEN as $hk => $hv): ?>
+            <input type="hidden" name="<?= e($hk) ?>" value="<?= e($hv) ?>">
+          <?php endforeach; } ?>
           <label class="sr-only" for="branch">สาขาที่กำลังดู</label>
           <select class="select" name="branch" id="branch" onchange="this.form.submit()">
             <?php foreach ($branches as $bcode => $b): ?>

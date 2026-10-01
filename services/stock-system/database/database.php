@@ -59,10 +59,15 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_branch` (
 ";
 
 /* 2) ผู้ใช้ระบบ — พนักงาน (PIN 4 หลัก + เลือกชื่อ) และผู้ดูแล (username/password) อยู่ตารางเดียวกัน
-      role: staff=พนักงาน (ขาย+งานคลัง เฉพาะสาขาตนเอง) · admin=ผู้ดูแล (ทุกสาขา)
+      role: staff=พนักงาน (เมนูตามที่ติ๊กใน perms เฉพาะสาขาตนเอง) · admin=ผู้ดูแล (ทุกสาขา ไม่ขาย)
       ไม่มีบทบาทหัวหน้าคลัง — ใช้สิทธิ์เสริม perms ติ๊กให้พนักงานรายคนแทน
-      perms (คั่นด้วย ,): void_others แก้/ยกเลิกเอกสารคนอื่นในสาขา · backdate แก้ย้อนหลัง
-                           · refund รับคืนสินค้าบิลวันก่อน · report_branch รายงานยอดขายทั้งสาขา
+      ผู้ดูแลเพิ่ม / แก้ / พักงาน / ลบ พนักงานได้ที่หน้า "จัดการพนักงาน" (ลบได้เฉพาะคนที่ยังไม่เคยทำรายการ)
+      perms (คั่นด้วย ,) แบ่ง 2 กลุ่ม
+        เมนูที่ใช้ได้: sale ขาย + เปิด/ปิดร้าน · receive นำเข้าสินค้า · issue เบิก/ตัดออก
+                      · stocktake ตรวจนับ/ปรับยอด · history ประวัติการทำรายการของสาขา · refund รับคืนสินค้า
+        สิทธิ์เสริม:   void_others แก้/ยกเลิกเอกสารคนอื่นในสาขา · backdate แก้ย้อนหลัง
+                      · report_branch รายงานยอดขายทั้งสาขา
+      admin ได้ทุกสิทธิ์ ยกเว้น sale (ผู้ดูแลไม่ขาย / ไม่เปิด-ปิดร้าน)
       branch_id = สาขาปัจจุบัน (admin ใส่สาขาหลักได้ แต่สลับดูทุกสาขา)
       fail_count / locked_until = กรอกผิด 5 ครั้งล็อก 1 นาที */
 $sqlArray[_DBPREFIX_ . 'stock_staff'] = "
@@ -73,7 +78,7 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_staff` (
 	`name`          varchar(60)  NOT NULL COMMENT 'ชื่อที่แสดงบนรายการ/เอกสาร',
 	`initials`      varchar(6)   NOT NULL DEFAULT '' COMMENT 'อักษรย่อบนปุ่มเลือกชื่อ',
 	`role`          enum('staff','admin','account') NOT NULL DEFAULT 'staff' COMMENT 'account = ฝ่ายบัญชี: ดูบิล/เงินเข้าทุกสาขา + ตั้งเลขที่บิล',
-	`perms`         varchar(255) NOT NULL DEFAULT '' COMMENT 'สิทธิ์เสริม คั่นด้วย , (admin ได้ทุกสิทธิ์)',
+	`perms`         varchar(255) NOT NULL DEFAULT '' COMMENT 'เมนู + สิทธิ์เสริม คั่นด้วย , (admin ได้ทุกสิทธิ์ ยกเว้น sale)',
 	`pin_hash`      varchar(255) NOT NULL DEFAULT '' COMMENT 'password_hash ของ PIN 4 หลัก',
 	`password_hash` varchar(255) NOT NULL DEFAULT '' COMMENT 'เฉพาะผู้ดูแล',
 	`fail_count`    tinyint UNSIGNED NOT NULL DEFAULT 0,
@@ -386,7 +391,9 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_cash_move` (
 /* 14) บิลขาย — ชำระ 1 ช่องทางต่อบิล (เงินสด / โอน-พร้อมเพย์)
        พนักงานเลือกตอนขายว่า VAT หรือไม่ · เลขที่แยกชุดตามสาขา + ชุด:
        {prefix}{YYYY}-{MM}-{เลขรัน 4 หลัก} เช่น BP2026-01-0001 นับใหม่ทุกเดือน (ดู stock_doc_seq)
-       ราคาขายรวม VAT แล้ว → base_amount + vat_amount = total */
+       ราคาขายรวม VAT แล้ว → base_amount + vat_amount = total
+       ส่วนลดท้ายบิล: คนขายแก้ "ยอดที่ต้องชำระ" ได้เอง (ลูกค้าต่อราคา) → discount = subtotal − total
+       เช่น ราคาเต็ม 520 ลูกค้าต่อเหลือ 500 → subtotal 520 · discount 20 · total 500 (total ต้อง > 0 และไม่เกิน subtotal) */
 $sqlArray[_DBPREFIX_ . 'stock_sale'] = "
 CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_sale` (
 	`sale_id`       int UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -400,7 +407,9 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_sale` (
 	`vat_amount`    decimal(12,2) NOT NULL DEFAULT 0 COMMENT 'VAT 7% (บิล VAT)',
 	`item_count`    int NOT NULL DEFAULT 0,
 	`total_qty`     int NOT NULL DEFAULT 0,
-	`total`         decimal(12,2) NOT NULL DEFAULT 0,
+	`subtotal`      decimal(12,2) NOT NULL DEFAULT 0 COMMENT 'ราคาเต็มรวมทุกรายการ ก่อนส่วนลด',
+	`discount`      decimal(12,2) NOT NULL DEFAULT 0 COMMENT 'ส่วนลดท้ายบิล = subtotal - total',
+	`total`         decimal(12,2) NOT NULL DEFAULT 0 COMMENT 'ยอดที่ลูกค้าจ่ายจริง (หลังส่วนลด)',
 	`total_cost`    decimal(12,2) NOT NULL DEFAULT 0 COMMENT 'ไว้คิดกำไรขั้นต้น',
 	`received`      decimal(12,2) NOT NULL DEFAULT 0,
 	`change_amount` decimal(12,2) NOT NULL DEFAULT 0,

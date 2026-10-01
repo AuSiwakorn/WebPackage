@@ -6,9 +6,7 @@
    ยอดคงเหลือรวมของที่ขายออก / คืนกลับ ระหว่างวันแล้ว (อยู่ใน session)
    ========================================================== */
 
-require_once dirname(__FILE__) . '/inc/auth.php';
-require_once dirname(__FILE__) . '/inc/store.php';
-require_once dirname(__FILE__) . '/inc/stock.php';
+require_once dirname(__FILE__) . '/include/function.php';
 
 $user = require_login();
 $code = work_branch($user);          // ผู้ดูแลเลือกสาขาได้จากแถบบน

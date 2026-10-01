@@ -8,9 +8,7 @@
    งานคลัง ไม่ต้องเปิดร้านก่อน
    ========================================================== */
 
-require_once dirname(__FILE__) . '/inc/auth.php';
-require_once dirname(__FILE__) . '/inc/store.php';
-require_once dirname(__FILE__) . '/inc/adjust.php';
+require_once dirname(__FILE__) . '/include/function.php';
 
 $user = require_login();
 $code = work_branch($user);          // ผู้ดูแลเลือกสาขาได้จากแถบบน

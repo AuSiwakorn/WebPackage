@@ -18,9 +18,7 @@
    เขียนให้รองรับ PHP 5.4 ขึ้นไป
    ========================================================== */
 
-require_once dirname(__FILE__) . '/inc/auth.php';
-require_once dirname(__FILE__) . '/inc/data.php';
-require_once dirname(__FILE__) . '/inc/store.php';
+require_once dirname(__FILE__) . '/include/function.php';
 
 $user = require_login();
 if ($user['role'] !== 'admin') {
@@ -33,94 +31,6 @@ $err   = '';
 $errAt = '';                                  // 'new' หรือ username ที่มีข้อผิดพลาด
 $sel   = isset($_GET['u']) ? trim($_GET['u']) : '';
 $old   = array();
-
-/** พนักงานทั้งหมด (รวมที่พักงาน ไม่รวมผู้ดูแล / บัญชี) */
-function staff_all()
-{
-    $out = array();
-    foreach (demo_users_all() as $k => $u) {
-        if ($u['role'] === 'staff') {
-            $out[$k] = $u;
-        }
-    }
-    return $out;
-}
-
-function perm_names($keys)
-{
-    $pl  = perm_list();
-    $out = array();
-    foreach ($keys as $k) {
-        if (isset($pl[$k])) {
-            $out[] = $pl[$k]['short'];
-        }
-    }
-    return $out ? implode(' · ', $out) : 'ไม่มี';
-}
-
-/** อักษรย่อจากชื่อ — ตัวแรกของชื่อและนามสกุล (ข้ามสระ/วรรณยุกต์ที่วางบน-ล่าง) */
-function auto_initials($name)
-{
-    $parts = preg_split('/\s+/u', trim($name));
-    $out   = '';
-    foreach (array_slice($parts, 0, 2) as $p) {
-        if (preg_match('/[\p{L}\p{N}]/u', $p, $m)) {
-            $out .= $m[0];
-        }
-    }
-    return $out !== '' ? $out : '-';
-}
-
-/** เคยทำรายการแล้วหรือยัง — คืนเหตุผล (ว่าง = ยังไม่เคย ลบได้) */
-function staff_data_reason($k)
-{
-    if (array_key_exists($k, demo_users_base())) {
-        return 'มียอดขายและประวัติการทำงานแล้ว';
-    }
-    foreach (array('sale' => 'บิลขาย', 'recv' => 'ใบรับเข้า', 'issue' => 'ใบเบิก', 'adj' => 'ใบตรวจนับ', 'ret' => 'ใบรับคืน') as $s => $lb) {
-        if (!empty($_SESSION[$s])) {
-            foreach ($_SESSION[$s] as $rows) {
-                foreach ($rows as $r) {
-                    if ((isset($r['by_user']) && $r['by_user'] === $k)) {
-                        return 'มี' . $lb . 'ที่เคยทำแล้ว';
-                    }
-                }
-            }
-        }
-    }
-    if (!empty($_SESSION['store'])) {
-        foreach ($_SESSION['store'] as $st) {
-            if (isset($st['opened_user']) && $st['opened_user'] === $k) {
-                return 'เคยเปิดร้านแล้ว';
-            }
-        }
-    }
-    return '';
-}
-
-/** อ่านสิทธิ์จากฟอร์ม (เรียงตามลำดับใน perm_list) */
-function read_perms()
-{
-    $in  = (isset($_POST['perms']) && is_array($_POST['perms'])) ? $_POST['perms'] : array();
-    $out = array();
-    foreach (array_keys(perm_list()) as $p) {
-        if (in_array($p, $in, true)) {
-            $out[] = $p;
-        }
-    }
-    return $out;
-}
-
-/** PIN ซ้ำกับใครในสาขา (ว่าง = ไม่ซ้ำ) */
-function pin_owner($branch, $pin, $except)
-{
-    foreach (branch_staff($branch) as $k => $o) {
-        if ($k !== $except && $o['pin'] === $pin) {
-            return $o['name'];
-        }
-    }
-    return '';
-}
 
 /* ---------- บันทึก ---------- */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -309,32 +219,9 @@ $branch     = work_branch($user);
 $PAGE_TITLE = 'จัดการพนักงาน';
 $PAGE_SUB   = 'ใช้งาน ' . $nActive . ' คน' . (count($staff) > $nActive ? ' · พักงาน ' . (count($staff) - $nActive) . ' คน' : '');
 $NAV_ACTIVE = 'users.php';
+$NO_BRANCH_PICK = true;                   // หน้านี้แบ่งกลุ่มตามสาขาให้แล้ว
 require dirname(__FILE__) . '/inc/header.php';
 
-/** ช่องติ๊กสิทธิ์ แยกกลุ่ม "เมนูที่ใช้ได้" / "สิทธิ์เสริม" */
-function perm_boxes($checked, $branch)
-{
-    $pl = perm_list();
-    foreach (array('menu' => 'เมนูที่ใช้ได้', 'extra' => 'สิทธิ์เสริม (ให้เฉพาะคนที่ไว้ใจ)') as $g => $title) {
-        echo '<h4 class="perm-h">' . e($title) . '</h4><div class="perm-grid">';
-        foreach ($pl as $k => $p) {
-            if ($p['group'] !== $g) {
-                continue;
-            }
-            echo '<label class="perm-o"><input type="checkbox" name="perms[]" value="' . e($k) . '"'
-               . (in_array($k, $checked, true) ? ' checked' : '') . '><span><svg class="ico"><use href="#i-check"/></svg><b>'
-               . e($p['label']) . '</b>';
-            if ($k === 'backdate' || $k === 'refund') {
-                echo '<small>ย้อนหลังได้ ' . (int) backdate_days($branch) . ' วัน (ตั้งที่หน้าจัดการสาขา)</small>';
-            }
-            if ($k === 'sale') {
-                echo '<small>ไม่ติ๊ก = พนักงานคลังอย่างเดียว ไม่ต้องเปิดร้านก่อนใช้งาน</small>';
-            }
-            echo '</span></label>';
-        }
-        echo '</div>';
-    }
-}
 ?>
 
 <?php if ($err !== '' && $errAt === ''): ?>

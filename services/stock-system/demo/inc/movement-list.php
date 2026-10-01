@@ -3,6 +3,8 @@
    AOSTOCK DEMO — รายการสินค้าทางซ้ายของหน้าประวัติเคลื่อนไหว (htmx สลับได้)
    ต้องกำหนดก่อน include: $code $list $q $cat $sku $period
    ========================================================== */
+
+require_once dirname(__FILE__) . '/../include/function.php';
 ?>
 <ul class="mv-list" id="mv-list">
   <?php if (!$list): ?>

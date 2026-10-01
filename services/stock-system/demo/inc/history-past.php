@@ -6,6 +6,8 @@
    ตัวแปรจาก history.php: $user, $code, $pastTs, $pastDay
    ========================================================== */
 
+require_once dirname(__FILE__) . '/../include/function.php';
+
 $docs  = past_docs($code, $pastTs);
 $bills = past_bills($code, $pastTs);
 $types = past_types();
@@ -67,7 +69,7 @@ $age   = (int) round((strtotime(date('Y-m-d')) - $pastTs) / 86400);
                     array('edit', 'past_edit', 'แก้ไขใบนี้',  'i-arrow'),
                     array('void', 'past_void', 'ยกเลิกใบนี้', 'i-ban'),
                 ) as $b): ?>
-                  <form method="post" action="history.php?d=<?= e($pastDay) ?>" data-confirm="<?= e($b[0]) ?>"<?= $dat ?>>
+                  <form method="post" action="<?= e(hist_url('d=' . $pastDay)) ?>" data-confirm="<?= e($b[0]) ?>"<?= $dat ?>>
                     <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
                     <input type="hidden" name="act" value="<?= e($b[1]) ?>">
                     <input type="hidden" name="no" value="<?= e($d['no']) ?>">

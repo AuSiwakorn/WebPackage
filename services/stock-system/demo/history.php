@@ -2,18 +2,21 @@
 /* ==========================================================
    AOSTOCK DEMO — ประวัติการทำรายการ
    อ่านจาก $_SESSION['log'][ สาขา|วันที่ ] ทั้งหมด
+   ผู้ดูแล: เปิดมาเจอภาพรวมทุกสาขา (inc/history-all.php)
+            กด "ดู" ที่รายการ → ?view=branch&branch=XX ดู/แก้ของสาขาเดียวแบบเดิม
    ========================================================== */
 
-require_once dirname(__FILE__) . '/inc/auth.php';
-require_once dirname(__FILE__) . '/inc/store.php';
-require_once dirname(__FILE__) . '/inc/sale.php';
-require_once dirname(__FILE__) . '/inc/stock.php';
-require_once dirname(__FILE__) . '/inc/activity.php';
-require_once dirname(__FILE__) . '/inc/issue.php';
-require_once dirname(__FILE__) . '/inc/adjust.php';
-require_once dirname(__FILE__) . '/inc/backdate.php';
+require_once dirname(__FILE__) . '/include/function.php';
 
-$user = require_login();
+$user    = require_login();
+$isAdmin = ($user['role'] === 'admin');
+
+/* ผู้ดูแล: หน้าแรกเป็นประวัติรวมทุกสาขา */
+if ($isAdmin && $_SERVER['REQUEST_METHOD'] !== 'POST' && (!isset($_GET['view']) || $_GET['view'] !== 'branch')) {
+    require dirname(__FILE__) . '/inc/history-all.php';
+    exit;
+}
+
 $code = work_branch($user);          // ผู้ดูแลเลือกสาขาได้จากแถบบน
 
 /* ยังไม่เปิดร้านก็เข้าหน้านี้ได้ — ดูอย่างเดียว ไม่ได้เปลี่ยนสต๊อกหรือเงินสด
@@ -47,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['act'])
         if (isset($r['error'])) {
             $err = $r['error'];
         } else {
-            header('Location: ' . url($redo ? $r['page'] : 'history.php?d=' . rawurlencode($pastDay)));
+            header('Location: ' . url($redo ? $r['page'] : hist_url('d=' . rawurlencode($pastDay))));
             exit;
         }
     }
@@ -85,7 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $err === '' && !$pastTs) {
         }
     }
     if ($err === '') {
-        header('Location: ' . url('history.php' . (isset($_GET['t']) ? '?t=' . rawurlencode($_GET['t']) : '')));
+        header('Location: ' . url(hist_url(isset($_GET['t']) ? 't=' . rawurlencode($_GET['t']) : '')));
         exit;
     }
 }
@@ -108,15 +111,27 @@ $branch     = $code;
 $PAGE_TITLE = 'ประวัติการทำรายการ';
 $PAGE_SUB   = branch_name($code) . ' · ' . thai_date_full($pastTs ? $pastTs : time()) . ($pastTs ? ' (ย้อนหลัง)' : '');
 $NAV_ACTIVE = 'history.php';
+if ($isAdmin) {
+    $PICK_HIDDEN = array('view' => 'branch');   // เปลี่ยนสาขาจากแถบบนแล้วยังอยู่หน้าสาขาเดียว
+}
 require dirname(__FILE__) . '/inc/header.php';
 ?>
+
+<?php if ($isAdmin): ?>
+  <p class="hist-back">
+    <a class="btn btn-ghost btn-sm" href="history.php?mode=day&amp;d=<?= e(date('Y-m-d', $pastTs ? $pastTs : time())) ?>">‹ กลับไปประวัติรวมทุกสาขา</a>
+    <span>กำลังดูเฉพาะ<?= e(branch_name($code)) ?> — แก้ / ยกเลิกเอกสารได้จากหน้านี้</span>
+  </p>
+<?php endif; ?>
 
 <?php if ($notOpened): ?>
   <div class="alert alert-info" role="status">
     <svg class="ico"><use href="#i-info"/></svg>
     <span>ยังไม่ได้เปิดร้านวันนี้ — ดูประวัติได้ตามปกติ งานคลัง (รับเข้า / ตัดออก / ตรวจนับ) ทำได้เลย ส่วนการขายต้องเปิดร้านก่อน</span>
     <div class="alert-act">
+      <?php if (can($user, 'sale')): ?>
       <a class="btn btn-ghost btn-sm" href="store.php"><svg class="ico"><use href="#i-store"/></svg> ไปเปิดร้าน</a>
+      <?php endif; ?>
       <a class="btn btn-ghost btn-sm" href="report-sales.php"><svg class="ico"><use href="#i-chart"/></svg> ดูยอดขายย้อนหลัง</a>
     </div>
   </div>
@@ -131,9 +146,9 @@ require dirname(__FILE__) . '/inc/header.php';
 <?php if ($pastLimit > 0): ?>
   <!-- เลือกวัน — เห็นเฉพาะคนที่มีสิทธิ์แก้ย้อนหลัง (ผู้ดูแลย้อนได้ทุกวันที่มีข้อมูล) -->
   <nav class="cats day-pick" aria-label="เลือกวันที่">
-    <a class="cat<?= $pastTs ? '' : ' on' ?>" href="history.php">วันนี้</a>
+    <a class="cat<?= $pastTs ? '' : ' on' ?>" href="<?= e(hist_url()) ?>">วันนี้</a>
     <?php for ($i = 1; $i <= $pastLimit; $i++): $dts = strtotime('-' . $i . ' day', strtotime(date('Y-m-d'))); ?>
-      <a class="cat<?= ($pastTs && date('Ymd', $dts) === $pastDay) ? ' on' : '' ?>" href="history.php?d=<?= date('Ymd', $dts) ?>"><?= e(thai_day_month($dts)) ?></a>
+      <a class="cat<?= ($pastTs && date('Ymd', $dts) === $pastDay) ? ' on' : '' ?>" href="<?= e(hist_url('d=' . date('Ymd', $dts))) ?>"><?= e(thai_day_month($dts)) ?></a>
     <?php endfor; ?>
   </nav>
 <?php endif; ?>
@@ -158,10 +173,10 @@ require dirname(__FILE__) . '/inc/header.php';
   </div>
 
   <div class="cats">
-    <a class="cat<?= $t === '' ? ' on' : '' ?>" href="history.php">ทั้งหมด <i><?= count($all) ?></i></a>
+    <a class="cat<?= $t === '' ? ' on' : '' ?>" href="<?= e(hist_url()) ?>">ทั้งหมด <i><?= count($all) ?></i></a>
     <?php foreach (log_types() as $k => $meta): ?>
       <?php if ($counts[$k] === 0) { continue; } ?>
-      <a class="cat<?= $t === $k ? ' on' : '' ?>" href="history.php?t=<?= e($k) ?>">
+      <a class="cat<?= $t === $k ? ' on' : '' ?>" href="<?= e(hist_url('t=' . rawurlencode($k))) ?>">
         <?= e($meta['label']) ?> <i><?= $counts[$k] ?></i>
       </a>
     <?php endforeach; ?>
@@ -287,7 +302,7 @@ require dirname(__FILE__) . '/inc/header.php';
             <?php endif; ?>
             <?php if ($bill !== null && empty($bill['void']) && can_void_doc($user, $bill) && !bill_returned_any($bill['no'])): ?>
               <?php
-              $act = 'history.php' . ($t !== '' ? '?t=' . rawurlencode($t) : '');
+              $act = hist_url($t !== '' ? 't=' . rawurlencode($t) : '');
               $dat = ' data-bill="' . e($bill['no']) . '" data-total="' . e(money2($bill['total']))
                    . '" data-qty="' . (int) $bill['qty'] . '" data-items="' . (int) $bill['items'] . '"';
               ?>

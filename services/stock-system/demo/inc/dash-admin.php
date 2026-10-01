@@ -11,14 +11,7 @@
    ระบบจริง: SELECT จาก store_day, sale, stock_log, return ของวันนี้
    ========================================================== */
 
-require_once dirname(__FILE__) . '/issue.php';
-require_once dirname(__FILE__) . '/activity.php';
-
-/** เรียงรายการที่ต้องตรวจ ใหม่สุดขึ้นก่อน */
-function dash_review_cmp($a, $b)
-{
-    return $b['ts'] - $a['ts'];
-}
+require_once dirname(__FILE__) . '/../include/function.php';
 
 $__codes = ($branch === 'ALL') ? array_keys(demo_branches()) : array($branch);
 
@@ -171,7 +164,7 @@ $__tones = array('ยกเลิกเอกสาร' => 'bdg-out', 'แก้
                   <?php if ($r['amount'] !== null): ?><small>คืนเงินสด <?= e(money2($r['amount'])) ?> บาท</small><?php endif; ?>
                 </td>
                 <td data-label="ผู้ทำ"><?= e($r['by']) ?></td>
-                <td class="r"><a class="btn btn-ghost btn-sm" href="history.php?branch=<?= e(rawurlencode($r['code'])) ?>">ดูประวัติ</a></td>
+                <td class="r"><a class="btn btn-ghost btn-sm" href="history.php?b=<?= e(rawurlencode($r['code'])) ?>">ดูประวัติ</a></td>
               </tr>
             <?php endforeach; ?>
           </tbody>

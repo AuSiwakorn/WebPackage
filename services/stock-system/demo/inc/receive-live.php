@@ -7,6 +7,8 @@
    เพราะทั้งหน้าอยู่ในฟอร์มบันทึกอยู่แล้ว ฟอร์มซ้อนฟอร์มไม่ได้
    ========================================================== */
 
+require_once dirname(__FILE__) . '/../include/function.php';
+
 $list  = sale_products($code, $q, $cat);
 $lines = rdraft_lines($code);
 $sum   = rdraft_count();

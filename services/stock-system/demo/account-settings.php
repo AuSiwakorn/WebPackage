@@ -11,8 +11,7 @@
    ระบบจริง: เลขที่ถูกเก็บตอนออกบิล เปลี่ยนรหัสมีผลกับบิลใบถัดไปเท่านั้น
    ========================================================== */
 
-require_once dirname(__FILE__) . '/inc/auth.php';
-require_once dirname(__FILE__) . '/inc/acct.php';
+require_once dirname(__FILE__) . '/include/function.php';
 
 $user = require_login();
 if (!in_array($user['role'], array('account', 'admin'), true)) {

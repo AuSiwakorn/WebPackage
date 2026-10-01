@@ -4,6 +4,8 @@
    ต้องกำหนดก่อน include: $user $code $q $cat $st $sort
    ========================================================== */
 
+require_once dirname(__FILE__) . '/../include/function.php';
+
 $rows = stock_rows($code, $q, $cat, $st, $sort);      // ที่แสดงในตารางจริง ๆ
 $view = stock_view_sum($rows);
 

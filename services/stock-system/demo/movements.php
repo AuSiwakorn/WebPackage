@@ -7,9 +7,7 @@
    ต่างจาก "ประวัติการทำรายการ" ที่ดูทั้งสาขาตามเวลา — หน้านี้ดูทีละสินค้า
    ========================================================== */
 
-require_once dirname(__FILE__) . '/inc/auth.php';
-require_once dirname(__FILE__) . '/inc/store.php';
-require_once dirname(__FILE__) . '/inc/movement.php';
+require_once dirname(__FILE__) . '/include/function.php';
 
 $user = require_login();
 $code = work_branch($user);          // ผู้ดูแลเลือกสาขาได้จากแถบบน

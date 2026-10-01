@@ -8,8 +8,7 @@
    - สรุปทั้งเดือน + ดาวน์โหลด CSV (เปิดด้วย Excel ได้) ไว้ทำรายงานภาษีขาย / ส่งสำนักงานบัญชี
    ========================================================== */
 
-require_once dirname(__FILE__) . '/inc/auth.php';
-require_once dirname(__FILE__) . '/inc/acct.php';
+require_once dirname(__FILE__) . '/include/function.php';
 
 $user = require_login();
 if (!in_array($user['role'], array('account', 'admin'), true)) {
@@ -82,16 +81,6 @@ foreach ($codes as $c) {
     }
 }
 usort($rows, 'acct_row_cmp');
-function acct_row_cmp($a, $b)
-{
-    $c = strcmp($a['branch'], $b['branch']);
-    if ($c !== 0) {
-        return $c;
-    }
-    $c = strcmp($a['vat'] ? '1' : '0', $b['vat'] ? '1' : '0');
-    return $c !== 0 ? $c : strcmp($a['no'], $b['no']);
-}
-
 /* ---------- สรุปทั้งเดือน ---------- */
 $month = array();
 foreach ($codes as $c) {

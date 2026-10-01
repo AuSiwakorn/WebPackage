@@ -4,6 +4,8 @@
    ต้องกำหนดก่อน include: $user $code $q $cat
    ========================================================== */
 
+require_once dirname(__FILE__) . '/../include/function.php';
+
 $tabs  = count_tabs();
 $tab   = (isset($tab) && isset($tabs[$tab])) ? $tab : 'todo';
 $round = count_round($code);

@@ -1,3 +1,4 @@
+<?php require_once dirname(__FILE__) . '/../include/function.php'; ?>
     </main><!-- /.page -->
   </div><!-- /.main -->
 </div><!-- /.app -->

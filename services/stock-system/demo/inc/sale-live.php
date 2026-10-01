@@ -9,6 +9,8 @@
      2) ตอบกลับคำขอของ htmx เพื่อสลับเฉพาะ #sale-live
    ========================================================== */
 
+require_once dirname(__FILE__) . '/../include/function.php';
+
 $list = sale_products($code, $q, $cat);
 $cart = cart_lines();
 $tot  = cart_total();
