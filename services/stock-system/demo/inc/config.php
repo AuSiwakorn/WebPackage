@@ -60,17 +60,58 @@ function menu_enabled($file)
     return in_array($file, active_menus(), true);
 }
 
-/* ---------- สาขา ---------- */
-function demo_branches()
+/* ---------- สาขา ----------
+   ผู้ดูแลเพิ่ม / แก้ไข / ปิดใช้งาน / ลบ ได้ที่หน้า "จัดการสาขา" (branches.php)
+   เดโมเก็บสิ่งที่แก้ไว้ใน $_SESSION['cfg']['branches'][ รหัส ] = array(
+       'name', 'short', 'address', 'phone',   ข้อมูลที่แก้ / สาขาที่เพิ่มใหม่
+       'active'  => false,                    ปิดใช้งาน (ประวัติยังอยู่ครบ)
+       'deleted' => true,                     ลบแล้ว (ได้เฉพาะสาขาที่ยังไม่มีข้อมูล)
+       'added'   => true )                    สาขาที่ผู้ดูแลเพิ่มเอง
+   ระบบจริง: ตาราง ao_stock_branch (is_active) */
+function demo_branches_base()
 {
     return array(
-        'HQ' => array('name' => 'สำนักงานใหญ่', 'short' => 'สนญ.'),
-        'RS' => array('name' => 'สาขารังสิต',   'short' => 'รังสิต'),
-        'BN' => array('name' => 'สาขาบางนา',    'short' => 'บางนา'),
+        'HQ' => array('name' => 'สำนักงานใหญ่', 'short' => 'สนญ.',  'address' => '99/9 ถ.พหลโยธิน ต.คลองหนึ่ง อ.คลองหลวง จ.ปทุมธานี', 'phone' => '02-957-8755'),
+        'RS' => array('name' => 'สาขารังสิต',   'short' => 'รังสิต', 'address' => 'ฟิวเจอร์พาร์ค รังสิต ชั้น 2 จ.ปทุมธานี',            'phone' => '02-111-2222'),
+        'BN' => array('name' => 'สาขาบางนา',    'short' => 'บางนา',  'address' => 'เซ็นทรัล บางนา ชั้น 3 กรุงเทพฯ',                    'phone' => '02-333-4444'),
     );
 }
 
-/* ---------- ค่าตั้งของสาขา (ผู้ดูแลแก้ได้ที่หน้า "ตั้งค่าสาขา") ----------
+/** ทุกสาขา รวมที่ปิดใช้งาน (ไม่รวมที่ลบแล้ว) — ใช้ตอนต้องแสดงประวัติ / ชื่อสาขาเก่า */
+function demo_branches_all()
+{
+    $out = array();
+    foreach (demo_branches_base() as $c => $b) {
+        $b['active'] = true;
+        $b['added']  = false;
+        $out[$c] = $b;
+    }
+    if (!empty($_SESSION['cfg']['branches'])) {
+        foreach ($_SESSION['cfg']['branches'] as $c => $o) {
+            if (!empty($o['deleted'])) {
+                unset($out[$c]);
+                continue;
+            }
+            $base    = isset($out[$c]) ? $out[$c] : array('name' => $c, 'short' => $c, 'address' => '', 'phone' => '', 'active' => true, 'added' => true);
+            $out[$c] = array_merge($base, $o);
+        }
+    }
+    return $out;
+}
+
+/** สาขาที่เปิดใช้งาน — ใช้ทั่วไป (ตัวเลือกสาขา ย้ายพนักงาน ภาพรวม) */
+function demo_branches()
+{
+    $out = array();
+    foreach (demo_branches_all() as $c => $b) {
+        if (!empty($b['active'])) {
+            $out[$c] = $b;
+        }
+    }
+    return $out;
+}
+
+/* ---------- ค่าตั้งของสาขา (ผู้ดูแลแก้ได้ที่หน้า "จัดการสาขา") ----------
    count_day        รอบตรวจนับเริ่มทุกวันที่เท่าไรของเดือน (1–28) รอบละ 1 เดือน
    backdate_days    แก้เอกสาร / รับคืนสินค้าย้อนหลังได้กี่วัน
    count_open_limit ระหว่างร้านเปิด นับได้ครั้งละกี่รายการ (0 = ไม่จำกัด)
@@ -100,7 +141,8 @@ function branch_setting_rules()
 function branch_setting($code, $key)
 {
     $def = branch_setting_defaults();
-    $v   = isset($def[$code][$key]) ? $def[$code][$key] : 0;
+    $new = array('count_day' => 1, 'backdate_days' => 7, 'count_open_limit' => 1, 'default_float' => 2000);  // สาขาที่เพิ่มใหม่
+    $v   = isset($def[$code][$key]) ? $def[$code][$key] : (isset($new[$key]) ? $new[$key] : 0);
     if (isset($_SESSION['cfg']['branch'][$code][$key])) {
         $v = $_SESSION['cfg']['branch'][$code][$key];
     }
@@ -159,11 +201,31 @@ function demo_roles()
 function perm_list()
 {
     return array(
-        'void_others'   => array('label' => 'แก้/ยกเลิกเอกสารของคนอื่นในสาขา', 'short' => 'แก้งานคนอื่น'),
-        'backdate'      => array('label' => 'แก้/ยกเลิกเอกสารย้อนหลัง',       'short' => 'แก้ย้อนหลัง'),
-        'refund'        => array('label' => 'รับคืนสินค้า / คืนเงินสดให้ลูกค้า', 'short' => 'รับคืนสินค้า'),
-        'report_branch' => array('label' => 'ดูรายงานยอดขายทั้งสาขา',        'short' => 'รายงานทั้งสาขา'),
+        /* group menu = เข้าเมนูนั้นได้ · group extra = สิทธิ์เสริมที่ต้องไว้ใจ */
+        'sale'          => array('group' => 'menu',  'label' => 'ขายสินค้า และเปิด / ปิดร้าน',       'short' => 'ขายสินค้า'),
+        'receive'       => array('group' => 'menu',  'label' => 'นำเข้าสินค้า (รับเข้าสต๊อก)',        'short' => 'นำเข้าสินค้า'),
+        'issue'         => array('group' => 'menu',  'label' => 'เบิก / ตัดออกสินค้า',              'short' => 'เบิก / ตัดออก'),
+        'stocktake'     => array('group' => 'menu',  'label' => 'ตรวจนับ / ปรับยอด',               'short' => 'ตรวจนับ'),
+        'history'       => array('group' => 'menu',  'label' => 'ประวัติการทำรายการของสาขา',       'short' => 'ประวัติรายการ'),
+        'refund'        => array('group' => 'menu',  'label' => 'รับคืนสินค้า / คืนเงินสดให้ลูกค้า', 'short' => 'รับคืนสินค้า'),
+        'void_others'   => array('group' => 'extra', 'label' => 'แก้/ยกเลิกเอกสารของคนอื่นในสาขา',  'short' => 'แก้งานคนอื่น'),
+        'backdate'      => array('group' => 'extra', 'label' => 'แก้/ยกเลิกเอกสารย้อนหลัง',        'short' => 'แก้ย้อนหลัง'),
+        'report_branch' => array('group' => 'extra', 'label' => 'ดูรายงานยอดขายทั้งสาขา',         'short' => 'รายงานทั้งสาขา'),
     );
+}
+
+/** สิทธิ์เริ่มต้นของพนักงานที่เพิ่มใหม่ */
+function perm_default()
+{
+    return array('sale', 'receive', 'issue', 'stocktake', 'history');
+}
+
+/** ชื่อสิทธิ์ที่ต้องมีเพื่อเปิดหน้านั้น */
+function page_perm($file)
+{
+    $map = array('sale.php' => 'sale', 'store.php' => 'sale', 'receive.php' => 'receive', 'issue.php' => 'issue',
+                 'stocktake.php' => 'stocktake', 'history.php' => 'history', 'return.php' => 'refund');
+    return isset($map[$file]) ? $map[$file] : '';
 }
 
 /** ย้อนหลังได้ไม่เกินกี่วัน (สิทธิ์ backdate / refund) — ผู้ดูแลตั้งรายสาขา
@@ -180,7 +242,11 @@ function user_perms($user)
         return array();
     }
     if (isset($user['role']) && $user['role'] === 'admin') {
-        return array_keys(perm_list());        // ผู้ดูแลได้ทุกสิทธิ์
+        /* ผู้ดูแลได้ทุกสิทธิ์ ยกเว้นขายสินค้า / เปิด–ปิดร้าน (เป็นหน้าที่ของพนักงานหน้าร้าน) */
+        return array_values(array_diff(array_keys(perm_list()), array('sale')));
+    }
+    if (isset($user['role']) && $user['role'] !== 'staff') {
+        return array();
     }
     /* อ่านจากทะเบียนพนักงานทุกครั้ง — ผู้ดูแลเปิด/ปิดสิทธิ์แล้วมีผลทันทีไม่ต้องเข้าระบบใหม่ */
     $all = demo_users_all();
@@ -232,10 +298,11 @@ function demo_users_base()
             'pin' => '2222', 'password' => '1234',
             'name' => 'นิภา วงศ์ทอง',   'role' => 'staff',   'branch' => 'RS', 'initials' => 'นภ',
             /* พนักงานที่เจ้าของไว้ใจ — ได้สิทธิ์เสริมครบ (แทนตำแหน่งหัวหน้าคลัง) */
-            'perms' => array('void_others', 'backdate', 'refund', 'report_branch'),
+            'perms' => array('sale', 'receive', 'issue', 'stocktake', 'history', 'refund', 'void_others', 'backdate', 'report_branch'),
         ),
         'anan' => array(
             'pin' => '3333', 'password' => '1234',
+            'perms' => array('sale', 'receive', 'issue', 'stocktake', 'history'),
             'name' => 'อนันต์ ศรีสุข',  'role' => 'staff',   'branch' => 'BN', 'initials' => 'อน',
             'since' => '2026-09-01',
             /* เคยอยู่สาขาไหนมาก่อน — ยอดขายเก่ายังผูกกับสาขาเดิมเสมอ */
@@ -245,16 +312,19 @@ function demo_users_base()
         ),
         'kan' => array(
             'pin' => '4444', 'password' => '1234',
+            'perms' => array('sale', 'receive', 'issue', 'stocktake', 'history'),
             'name' => 'กานต์ พรมมา',    'role' => 'staff',   'branch' => 'HQ', 'initials' => 'กต',
             'since' => '2026-06-01', 'history' => array(),
         ),
         'mint' => array(
             'pin' => '5555', 'password' => '1234',
+            'perms' => array('sale', 'receive', 'issue', 'stocktake', 'history'),
             'name' => 'มิ้นท์ สุขใจ',    'role' => 'staff',   'branch' => 'BN', 'initials' => 'มท',
             'since' => '2026-06-01', 'history' => array(),
         ),
         'bee' => array(
             'pin' => '6666', 'password' => '1234',
+            'perms' => array('sale', 'receive', 'issue', 'stocktake', 'history'),
             'name' => 'เบียร์ ทองดี',    'role' => 'staff',   'branch' => 'RS', 'initials' => 'บย',
             'since' => '2026-07-15', 'history' => array(
                 array('branch' => 'HQ', 'from' => '2026-06-01', 'to' => '2026-07-14'),
@@ -275,12 +345,27 @@ function demo_users_base()
 function demo_users_all()
 {
     $all = demo_users_base();
+    /* พนักงานที่ผู้ดูแลเพิ่มเองที่หน้า "จัดการพนักงาน" */
+    if (!empty($_SESSION['cfg']['newuser'])) {
+        foreach ($_SESSION['cfg']['newuser'] as $k => $u) {
+            $all[$k] = $u;
+        }
+    }
     if (empty($_SESSION['cfg']['user'])) {
         return $all;
     }
     foreach ($_SESSION['cfg']['user'] as $k => $o) {
         if (!isset($all[$k])) {
             continue;
+        }
+        if (!empty($o['deleted'])) {
+            unset($all[$k]);
+            continue;
+        }
+        foreach (array('name', 'initials', 'active') as $f) {
+            if (isset($o[$f])) {
+                $all[$k][$f] = $o[$f];
+            }
         }
         if (isset($o['perms'])) {
             $all[$k]['perms'] = $o['perms'];
@@ -320,8 +405,14 @@ function work_branch($user)
     if (isset($_GET['branch']) && is_string($_GET['branch']) && isset($b[$_GET['branch']])) {
         $_SESSION['admin_branch'] = $_GET['branch'];
     }
-    return (isset($_SESSION['admin_branch']) && isset($b[$_SESSION['admin_branch']]))
-         ? $_SESSION['admin_branch'] : $user['branch'];
+    if (isset($_SESSION['admin_branch']) && isset($b[$_SESSION['admin_branch']])) {
+        return $_SESSION['admin_branch'];
+    }
+    if (isset($b[$user['branch']])) {
+        return $user['branch'];
+    }
+    $keys = array_keys($b);                    // สาขาประจำถูกปิด → ใช้สาขาแรกที่ยังเปิด
+    return $keys[0];
 }
 
 /** พนักงาน (ไม่รวมผู้ดูแล) ที่ประจำสาขานี้ตอนนี้ */
@@ -329,7 +420,7 @@ function branch_staff($code)
 {
     $out = array();
     foreach (demo_users_all() as $k => $u) {
-        if ($u['role'] === 'staff' && $u['branch'] === $code) {
+        if ($u['role'] === 'staff' && $u['branch'] === $code && user_active($u)) {
             $out[$k] = $u;
         }
     }
@@ -337,11 +428,17 @@ function branch_staff($code)
 }
 
 /** รายชื่อที่ใช้งานได้จริงตามสิทธิ์ที่เปิดอยู่ */
+/** บัญชีนี้ยังใช้งานอยู่ไหม (พนักงานที่พักงาน / ลาออก = ไม่ใช้งาน แต่ประวัติยังอยู่) */
+function user_active($u)
+{
+    return !isset($u['active']) || $u['active'];
+}
+
 function demo_users()
 {
     $out = array();
     foreach (demo_users_all() as $k => $u) {
-        if (role_enabled($u['role'])) {
+        if (role_enabled($u['role']) && user_active($u)) {
             $out[$k] = $u;
         }
     }
@@ -395,7 +492,7 @@ function e($v)
 
 function branch_name($code)
 {
-    $b = demo_branches();
+    $b = demo_branches_all();                  // รวมสาขาที่ปิดแล้ว ประวัติเก่าจะได้ยังเห็นชื่อ
     return isset($b[$code]) ? $b[$code]['name'] : $code;
 }
 

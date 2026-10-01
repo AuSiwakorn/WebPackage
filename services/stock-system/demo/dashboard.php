@@ -5,8 +5,26 @@ require_once dirname(__FILE__) . '/inc/store.php';
 
 $user   = require_login();                // ฝ่ายบัญชีถูกพาไปหน้า account.php เอง
 
+/* ผู้ดูแล: เปิดร้านใหม่หลังปิด (ทำจากภาพรวม — ผู้ดูแลไม่เข้าหน้าเปิด/ปิดร้านแล้ว) */
+if ($user['role'] === 'admin' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['act']) && $_POST['act'] === 'reopen') {
+    $rb = isset($_POST['b']) ? $_POST['b'] : '';
+    $rr = isset($_POST['reason']) ? trim($_POST['reason']) : '';
+    $bb = demo_branches();
+    if (!csrf_check(isset($_POST['csrf']) ? $_POST['csrf'] : null) || !isset($bb[$rb])) {
+        $_SESSION['flash'] = 'เซสชันหมดอายุ หรือไม่พบสาขา';
+    } elseif ($rr === '') {
+        $_SESSION['flash'] = 'การเปิดร้านใหม่หลังปิดต้องระบุเหตุผล';
+    } elseif (store_reopen($rb, $user, $rr) === null) {
+        $_SESSION['flash'] = branch_name($rb) . ' ยังไม่ได้ปิดร้าน';
+    } else {
+        $_SESSION['flash'] = 'เปิดร้าน' . branch_name($rb) . 'ใหม่แล้ว — พนักงานขายต่อได้ และต้องปิดร้านอีกครั้ง';
+    }
+    header('Location: ' . url('dashboard.php?branch=ALL'));
+    exit;
+}
+
 /* พนักงานหน้างานต้องเปิดร้านก่อนใช้งานในแต่ละวัน */
-if ($user['role'] !== 'admin' && store_state($user['branch']) === null) {
+if ($user['role'] !== 'admin' && can($user, 'sale') && store_state($user['branch']) === null) {
     header('Location: ' . url('store.php'));
     exit;
 }
@@ -77,7 +95,7 @@ if ($user['role'] === 'admin') {
       <?php if ($myPerms): $pl = perm_list(); ?>
         <div class="hm-perms" aria-label="สิทธิ์เสริมของฉัน">
           <span class="hm-perms-lb">สิทธิ์เสริม</span>
-          <?php foreach ($myPerms as $pk): if (!isset($pl[$pk])) { continue; } ?>
+          <?php foreach ($myPerms as $pk): if (!isset($pl[$pk]) || $pl[$pk]['group'] !== 'extra') { continue; } ?>
             <span class="hm-perm" title="<?= e($pl[$pk]['label']) ?>"><svg class="ico"><use href="#i-check"/></svg><?= e($pl[$pk]['short']) ?></span>
           <?php endforeach; ?>
         </div>

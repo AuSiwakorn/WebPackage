@@ -73,7 +73,7 @@ function ret_product($sku)
 }
 
 /**
- * บิลของวันก่อน (ข้อมูลสมมติที่คงที่) — ใช้จำนวนบิลจากข้อมูลรายงาน แต่จำกัดคนละไม่เกิน 5 ใบต่อวัน
+ * บิลของวันก่อน (ข้อมูลสมมติที่คงที่) — ใช้จำนวนบิลจากข้อมูลรายงาน แต่จำกัดคนละไม่เกิน 3 ใบต่อวัน
  * ผูกสาขาตาม "สาขา ณ วันนั้น" ของพนักงาน เหมือนรายงานยอดขาย
  */
 /** บิลของวันก่อนพร้อมเลขที่ — เลขรันต่อจากบิลก่อนหน้าในเดือนเดียวกัน แยกชุด VAT / ไม่ VAT */
@@ -111,7 +111,7 @@ function past_bills_gen($code, $ts)
         if ($r === null || $r['branch'] !== $code) {
             continue;
         }
-        $n = min(5, (int) $r['bills']);
+        $n = min(3, (int) $r['bills']);
         for ($i = 0; $i < $n; $i++) {
             $s     = abs(crc32($un . '|bill|' . $day . '|' . $i));
             $lines = array();
@@ -180,7 +180,7 @@ function bills_of_day($code, $ts)
 }
 
 /** ค้นบิลย้อนหลัง — เลขบิล ชื่อสินค้า หรือ SKU · ใหม่สุดขึ้นก่อน */
-function return_find_bills($code, $q, $limit = 40)
+function return_find_bills($code, $q, $limit = 100)
 {
     $q     = trim($q);
     $today = strtotime(date('Y-m-d'));
@@ -256,7 +256,13 @@ function return_lines($bill)
 {
     $done = returned_of_bill($bill['no']);
     $out  = array();
+    /* บิลที่มีส่วนลดท้ายบิล → คืนเงินตามราคาที่ลูกค้าจ่ายจริง (เฉลี่ยส่วนลดตามสัดส่วน) */
+    $f = (!empty($bill['discount']) && !empty($bill['subtotal'])) ? $bill['total'] / $bill['subtotal'] : 1;
     foreach ($bill['lines'] as $l) {
+        if ($f != 1) {
+            $l['list_price'] = $l['price'];
+            $l['price']      = round($l['price'] * $f, 2);
+        }
         $back = isset($done[$l['sku']]) ? (int) $done[$l['sku']] : 0;
         $l['back']   = $back;
         $l['remain'] = max(0, (int) $l['qty'] - $back);

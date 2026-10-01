@@ -20,14 +20,14 @@ $NAV_ACTIVE = isset($NAV_ACTIVE) ? $NAV_ACTIVE : 'dashboard.php';
 $NAV_ALL = array(
     'ใช้งานประจำวัน' => array(
         array('file' => 'dashboard.php',  'label' => ($user['role'] === 'admin') ? 'ภาพรวม' : 'ภาพรวมของฉัน', 'icon' => 'i-home'),
-        array('file' => 'store.php',      'label' => 'เปิด / ปิดร้าน',    'icon' => 'i-store'),
-        array('file' => 'sale.php',       'label' => 'ขายสินค้า',         'icon' => 'i-cart'),
+        array('file' => 'store.php',      'label' => 'เปิด / ปิดร้าน',    'icon' => 'i-store',     'perm' => 'sale'),
+        array('file' => 'sale.php',       'label' => 'ขายสินค้า',         'icon' => 'i-cart',      'perm' => 'sale'),
         array('file' => 'products.php',   'label' => 'สินค้าในสต๊อก',     'icon' => 'i-boxes'),
-        array('file' => 'receive.php',    'label' => 'นำเข้าสินค้า',      'icon' => 'i-in'),
-        array('file' => 'history.php',    'label' => 'ประวัติการทำรายการ', 'icon' => 'i-history'),
+        array('file' => 'receive.php',    'label' => 'นำเข้าสินค้า',      'icon' => 'i-in',        'perm' => 'receive'),
+        array('file' => 'history.php',    'label' => 'ประวัติการทำรายการ', 'icon' => 'i-history',   'perm' => 'history'),
         array('file' => 'return.php',     'label' => 'รับคืนสินค้า',       'icon' => 'i-receipt', 'perm' => 'refund'),
-        array('file' => 'issue.php',      'label' => 'เบิก / ตัดออก',     'icon' => 'i-out'),
-        array('file' => 'stocktake.php',  'label' => 'ตรวจนับ / ปรับยอด',  'icon' => 'i-clipboard'),
+        array('file' => 'issue.php',      'label' => 'เบิก / ตัดออก',     'icon' => 'i-out',       'perm' => 'issue'),
+        array('file' => 'stocktake.php',  'label' => 'ตรวจนับ / ปรับยอด',  'icon' => 'i-clipboard', 'perm' => 'stocktake'),
         array('file' => 'movements.php',  'label' => 'ประวัติเคลื่อนไหว', 'icon' => 'i-activity'),
     ),
     'รายงาน' => array(
@@ -40,8 +40,8 @@ $NAV_ALL = array(
         array('file' => 'account-settings.php', 'label' => 'ตั้งค่าเลขที่บิล',   'icon' => 'i-settings', 'roles' => array('account', 'admin')),
     ),
     'ตั้งค่า' => array(
-        array('file' => 'branches.php', 'label' => 'ตั้งค่าสาขา',     'icon' => 'i-building', 'admin' => true),
-        array('file' => 'users.php',    'label' => 'ผู้ใช้และสิทธิ์', 'icon' => 'i-users',    'admin' => true),
+        array('file' => 'branches.php', 'label' => 'จัดการสาขา',      'icon' => 'i-building', 'admin' => true),
+        array('file' => 'users.php',    'label' => 'จัดการพนักงาน',   'icon' => 'i-users',    'admin' => true),
         array('file' => 'settings.php', 'label' => 'ตั้งค่าทั่วไป',   'icon' => 'i-settings'),
     ),
 );
@@ -194,7 +194,7 @@ $branches = visible_branches($user);
       $__shut  = store_is_closed($__code);
       $__state = store_state($__code);
       ?>
-      <?php if ($user['role'] !== 'account'): ?>
+      <?php if (can($user, 'sale')): ?>
       <a class="store-chip <?= $__open ? 'is-open' : ($__shut ? 'is-shut' : 'is-wait') ?>" href="store.php">
         <span class="dot"></span>
         <span class="sc-t">
@@ -246,7 +246,7 @@ $branches = visible_branches($user);
           </a>
         </div>
 
-        <?php if (menu_enabled('sale.php') && $user['role'] !== 'account'): ?>
+        <?php if (menu_enabled('sale.php') && can($user, 'sale')): ?>
           <?php $__cart = cart_count(); ?>
           <a class="btn-sale<?= $__open ? '' : ' is-lock' ?>"
              href="<?= $__open ? 'sale.php' : 'store.php' ?>"

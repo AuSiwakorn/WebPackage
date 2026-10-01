@@ -149,13 +149,16 @@ function bill_next_no($code, $vat = false)
  * บันทึกบิล: ตัดสต๊อกของสาขา แล้วเก็บบิลไว้ใน session
  * คืนค่าเป็นบิลที่บันทึกแล้ว หรือ null ถ้าตะกร้าว่าง
  */
-function bill_save($code, $user, $method, $received, $vat = false)
+function bill_save($code, $user, $method, $received, $vat = false, $net = null)
 {
     $lines = cart_lines();
     if (!$lines) {
         return null;
     }
-    $total = cart_total();
+    $subtotal = cart_total();
+    /* ผู้ขายลดราคาได้ด้วยการแก้ยอดที่ต้องชำระ → ส่วนต่างลงเป็นส่วนลดท้ายบิล (เพิ่มเกินราคาเต็มไม่ได้) */
+    $total = ($net !== null && $net > 0 && $net <= $subtotal) ? round($net, 2) : $subtotal;
+    $discount = round($subtotal - $total, 2);
     $recv  = ($method === 'cash') ? (int) $received : $total;
     if ($recv < $total) {
         $recv = $total;
@@ -172,6 +175,8 @@ function bill_save($code, $user, $method, $received, $vat = false)
         'lines'    => $lines,
         'items'    => count($lines),
         'qty'      => cart_count(),
+        'subtotal' => $subtotal,
+        'discount' => $discount,
         'total'    => $total,
         'received' => $recv,
         'change'   => $recv - $total,
@@ -197,7 +202,8 @@ function bill_save($code, $user, $method, $received, $vat = false)
     $detail = array(
         'จำนวน'    => $bill['items'] . ' รายการ · ' . $bill['qty'] . ' ชิ้น',
         'รายการ'   => implode(' · ', $names),
-        'ยอดรวม'   => number_format($total, 2) . ' บาท',
+        'ยอดรวม'   => number_format($total, 2) . ' บาท'
+                      . ($discount > 0 ? ' (ราคาเต็ม ' . number_format($subtotal, 2) . ' ส่วนลด ' . number_format($discount, 2) . ')' : ''),
         'ประเภทบิล' => $vat ? 'VAT (ก่อน VAT ' . number_format($vs[0], 2) . ' + VAT ' . number_format($vs[1], 2) . ')' : 'ไม่ VAT',
         'ชำระโดย'  => ($bill['method'] === 'cash') ? 'เงินสด' : 'โอน / พร้อมเพย์',
     );

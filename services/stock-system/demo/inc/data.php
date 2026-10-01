@@ -184,7 +184,8 @@ function product_qty($p, $branch)
 {
     if ($branch === 'ALL') {
         $sum = 0;
-        foreach ($p['stock'] as $code => $n) {
+        foreach (array_keys(demo_branches()) as $code) {     // รวมสาขาที่เพิ่มใหม่ด้วย
+            $n    = isset($p['stock'][$code]) ? $p['stock'][$code] : 0;
             $sum += (int) $n + stock_adj_get($code, $p['sku']);
         }
         return $sum;

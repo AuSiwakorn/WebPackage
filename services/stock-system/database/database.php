@@ -40,7 +40,10 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_branch` (
 	`short_name`       varchar(40)  NOT NULL DEFAULT '' COMMENT 'ชื่อย่อบนแถบ/การ์ด',
 	`address`          varchar(255) NOT NULL DEFAULT '',
 	`phone`            varchar(30)  NOT NULL DEFAULT '',
-	`tax_id`           varchar(20)  NOT NULL DEFAULT '' COMMENT 'เลขผู้เสียภาษี (ออกบิล VAT)',
+	`tax_id`           varchar(20)  NOT NULL DEFAULT '' COMMENT 'เลขผู้เสียภาษี 13 หลัก (บัญชีตั้ง)',
+	`tax_branch`       varchar(5)   NOT NULL DEFAULT '00000' COMMENT 'เลขที่สาขาตามที่จด VAT (00000 = สำนักงานใหญ่)',
+	`prefix_vat`       varchar(6)   NOT NULL DEFAULT '' COMMENT 'รหัสนำหน้าเลขที่บิล VAT เช่น BPV (บัญชีตั้ง)',
+	`prefix_novat`     varchar(6)   NOT NULL DEFAULT '' COMMENT 'รหัสนำหน้าเลขที่บิลไม่ VAT เช่น BP (บัญชีตั้ง)',
 	`receipt_footer`   varchar(255) NOT NULL DEFAULT '',
 	`count_day`        tinyint UNSIGNED NOT NULL DEFAULT 1 COMMENT 'รอบตรวจนับเริ่มวันที่เท่าไรของเดือน (1-28) ผู้ดูแลตั้ง',
 	`count_open_limit` smallint UNSIGNED NOT NULL DEFAULT 1 COMMENT 'ระหว่างร้านเปิดนับได้ครั้งละกี่รายการ (0=ไม่จำกัด)',
@@ -69,7 +72,7 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_staff` (
 	`username`      varchar(40)  NOT NULL COMMENT 'ใช้ภายใน/ผู้ดูแลใช้ login',
 	`name`          varchar(60)  NOT NULL COMMENT 'ชื่อที่แสดงบนรายการ/เอกสาร',
 	`initials`      varchar(6)   NOT NULL DEFAULT '' COMMENT 'อักษรย่อบนปุ่มเลือกชื่อ',
-	`role`          enum('staff','admin') NOT NULL DEFAULT 'staff',
+	`role`          enum('staff','admin','account') NOT NULL DEFAULT 'staff' COMMENT 'account = ฝ่ายบัญชี: ดูบิล/เงินเข้าทุกสาขา + ตั้งเลขที่บิล',
 	`perms`         varchar(255) NOT NULL DEFAULT '' COMMENT 'สิทธิ์เสริม คั่นด้วย , (admin ได้ทุกสิทธิ์)',
 	`pin_hash`      varchar(255) NOT NULL DEFAULT '' COMMENT 'password_hash ของ PIN 4 หลัก',
 	`password_hash` varchar(255) NOT NULL DEFAULT '' COMMENT 'เฉพาะผู้ดูแล',
@@ -380,7 +383,10 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_cash_move` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='AOSTOCK POS เงินเข้าออกลิ้นชัก';
 ";
 
-/* 14) บิลขาย (SL-) — ชำระ 1 ช่องทางต่อบิล (เงินสด / โอน-พร้อมเพย์) ตามเดโม */
+/* 14) บิลขาย — ชำระ 1 ช่องทางต่อบิล (เงินสด / โอน-พร้อมเพย์)
+       พนักงานเลือกตอนขายว่า VAT หรือไม่ · เลขที่แยกชุดตามสาขา + ชุด:
+       {prefix}{YYYY}-{MM}-{เลขรัน 4 หลัก} เช่น BP2026-01-0001 นับใหม่ทุกเดือน (ดู stock_doc_seq)
+       ราคาขายรวม VAT แล้ว → base_amount + vat_amount = total */
 $sqlArray[_DBPREFIX_ . 'stock_sale'] = "
 CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_sale` (
 	`sale_id`       int UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -389,6 +395,9 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_sale` (
 	`day_id`        int UNSIGNED NOT NULL COMMENT 'stock_store_day ที่บิลนี้อยู่',
 	`sale_date`     date NOT NULL,
 	`pay_method`    enum('cash','transfer') NOT NULL DEFAULT 'cash',
+	`is_vat`        tinyint(1) NOT NULL DEFAULT 0 COMMENT '1 = บิล VAT (ใช้เลขชุด prefix_vat)',
+	`base_amount`   decimal(12,2) NOT NULL DEFAULT 0 COMMENT 'มูลค่าก่อน VAT (บิล VAT)',
+	`vat_amount`    decimal(12,2) NOT NULL DEFAULT 0 COMMENT 'VAT 7% (บิล VAT)',
 	`item_count`    int NOT NULL DEFAULT 0,
 	`total_qty`     int NOT NULL DEFAULT 0,
 	`total`         decimal(12,2) NOT NULL DEFAULT 0,
@@ -474,6 +483,20 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_return_item` (
 ";
 
 
+/* 18) ตัวนับเลขที่บิลรายเดือน — กันเลขซ้ำ/ข้ามเมื่อขายพร้อมกันหลายเครื่อง
+       ออกบิล: SELECT ... FOR UPDATE แถว (branch, series, ym) → last_no + 1 → UPDATE ในทรานแซกชันเดียวกับ INSERT บิล
+       series: vat / novat · ym: 202601 */
+$sqlArray[_DBPREFIX_ . 'stock_doc_seq'] = "
+CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_doc_seq` (
+	`branch_id` int UNSIGNED NOT NULL,
+	`series`    varchar(10)  NOT NULL,
+	`ym`        char(6)      NOT NULL,
+	`last_no`   int UNSIGNED NOT NULL DEFAULT 0,
+	PRIMARY KEY (`branch_id`, `series`, `ym`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='AOSTOCK POS ตัวนับเลขที่บิลรายเดือน';
+";
+
+
 /* ==========================================================
    ใส่ใน modules/stock/aModuleConfig.php
    ----------------------------------------------------------
@@ -499,5 +522,6 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_return_item` (
    	_DBPREFIX_ . 'stock_sale_item',
    	_DBPREFIX_ . 'stock_return',
    	_DBPREFIX_ . 'stock_return_item',
+   	_DBPREFIX_ . 'stock_doc_seq',
    );
    ========================================================== */

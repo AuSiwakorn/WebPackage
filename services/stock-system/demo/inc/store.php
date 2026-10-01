@@ -19,7 +19,7 @@ require_once dirname(__FILE__) . '/sale.php';        // sale_summary() — ย�
 /** เงินทอนมาตรฐานของสาขา (ฟิลด์ default_float) */
 function branch_default_float($code)
 {
-    return branch_setting($code, 'default_float');      // ผู้ดูแลตั้งที่หน้า "ตั้งค่าสาขา"
+    return branch_setting($code, 'default_float');      // ผู้ดูแลตั้งที่หน้า "จัดการสาขา"
 }
 
 /** เงินทอนที่แยกไว้ตอนปิดร้านเมื่อวาน (เดโมสร้างจากรหัสสาขา + วันที่) */

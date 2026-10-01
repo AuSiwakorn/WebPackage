@@ -47,7 +47,7 @@ $valT  = ($sum['value'] < 0 ? '−' : ($sum['value'] > 0 ? '+' : '')) . money2(a
       </div>
     </div>
 
-    <?php /* รอบการนับของสาขา — วันเริ่มรอบผู้ดูแลตั้งที่หน้า ตั้งค่าสาขา */ ?>
+    <?php /* รอบการนับของสาขา — วันเริ่มรอบผู้ดูแลตั้งที่หน้า จัดการสาขา */ ?>
     <div class="round<?= $nDone >= $nAll ? ' is-done' : ($round['left'] <= 3 ? ' is-due' : '') ?>">
       <div class="round-t">
         <b>รอบนี้นับแล้ว <span class="num"><?= number_format($nDone) ?></span> / <span class="num"><?= number_format($nAll) ?></span> รายการ</b>

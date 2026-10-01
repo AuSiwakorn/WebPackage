@@ -81,9 +81,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $method = (isset($_POST['method']) && $_POST['method'] === 'transfer') ? 'transfer' : 'cash';
             $recv   = isset($_POST['received']) ? (int) preg_replace('/\D/', '', $_POST['received']) : 0;
             $vat    = (isset($_POST['vat']) && $_POST['vat'] === '1');
-            $done   = bill_save($code, $user, $method, $recv, $vat);
-            if ($done === null) {
-                $err = 'ยังไม่มีสินค้าในตะกร้า';
+            $netIn  = isset($_POST['net']) ? preg_replace('/[^0-9.]/', '', $_POST['net']) : '';
+            $net    = ($netIn === '' || !is_numeric($netIn)) ? null : (float) $netIn;
+            if ($net !== null && ($net <= 0 || $net > cart_total() + 0.001)) {
+                $err = 'ยอดที่ต้องชำระต้องมากกว่า 0 และไม่เกินราคาเต็ม ' . money2(cart_total()) . ' บาท';
+            } else {
+                $done = bill_save($code, $user, $method, $recv, $vat, $net);
+                if ($done === null) {
+                    $err = 'ยังไม่มีสินค้าในตะกร้า';
+                }
             }
         }
     }
@@ -140,7 +146,8 @@ function sale_flash($err, $done, $voided, $oob)
 
     } elseif ($done !== null && empty($done['void'])) {
         echo '<div class="alert alert-ok" role="status"><svg class="ico"><use href="#i-check"/></svg><span>'
-           . 'บันทึกบิล <b>' . e($done['no']) . '</b> แล้ว · ยอด <b class="num">' . money2($done['total']) . '</b> บาท · ';
+           . 'บันทึกบิล <b>' . e($done['no']) . '</b> แล้ว · ยอด <b class="num">' . money2($done['total']) . '</b> บาท · '
+           . (!empty($done['discount']) ? 'ส่วนลด <b class="num">' . money2($done['discount']) . '</b> บาท · ' : '');
         if ($done['method'] === 'cash') {
             echo 'รับเงิน <span class="num">' . money2($done['received']) . '</span> บาท · '
                . 'เงินทอน <b class="num">' . money2($done['change']) . '</b> บาท';

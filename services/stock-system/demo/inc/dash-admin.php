@@ -120,6 +120,13 @@ $__tones = array('ยกเลิกเอกสาร' => 'bdg-out', 'แก้
                   <span class="bdg bdg-ok">เปิดอยู่</span><small>เปิด <?= e($st['opened_at']) ?> น. · <?= e($st['opened_by']) ?><?= !empty($st['reopens']) ? ' · เปิดใหม่ ' . count($st['reopens']) . ' ครั้ง' : '' ?></small>
                 <?php else: ?>
                   <span class="bdg bdg-adj">ปิดแล้ว</span><small><?= e($st['opened_at']) ?>–<?= e($st['closed_at']) ?> น. · ปิดโดย <?= e($st['closed_by']) ?></small>
+                  <form class="dash-reopen" method="post" action="dashboard.php">
+                    <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+                    <input type="hidden" name="act" value="reopen">
+                    <input type="hidden" name="b" value="<?= e($r['code']) ?>">
+                    <input class="input" type="text" name="reason" required placeholder="เหตุผลเปิดใหม่" aria-label="เหตุผลเปิดร้านใหม่">
+                    <button class="btn btn-ghost btn-sm" type="submit"><svg class="ico"><use href="#i-store"/></svg> เปิดใหม่</button>
+                  </form>
                 <?php endif; ?>
               </td>
               <td class="r" data-label="ยอดขาย"><?= e(money2($s['total'])) ?><small><?= number_format($s['bills']) ?> บิล</small></td>

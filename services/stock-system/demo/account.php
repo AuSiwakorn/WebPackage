@@ -18,7 +18,7 @@ if (!in_array($user['role'], array('account', 'admin'), true)) {
 }
 
 $today = strtotime(date('Y-m-d'));
-$br    = demo_branches();
+$br    = demo_branches_all();             // รวมสาขาที่ปิดใช้งานแล้ว — บิลเก่ายังต้องตรวจได้
 
 /* ---------- ตัวกรอง ---------- */
 $dIn = isset($_GET['d']) ? preg_replace('/[^0-9-]/', '', $_GET['d']) : '';
@@ -38,7 +38,7 @@ if (isset($_GET['export'])) {
     $out = fopen('php://output', 'w');
     fwrite($out, "\xEF\xBB\xBF");                       // BOM ให้ Excel อ่านภาษาไทยถูก
     fputcsv($out, array('วันที่', 'เวลา', 'สาขา', 'เลขผู้เสียภาษี', 'สาขาที่', 'เลขที่บิล', 'ประเภท',
-                        'ชำระโดย', 'มูลค่าก่อน VAT', 'VAT', 'รวม', 'สถานะ', 'พนักงาน'));
+                        'ชำระโดย', 'ราคาเต็ม', 'ส่วนลด', 'มูลค่าก่อน VAT', 'VAT', 'รวม', 'สถานะ', 'พนักงาน'));
     $end = min(strtotime(date('Y-m-t', $ts)), $today);
     for ($d = strtotime(date('Y-m-01', $ts)); $d <= $end; $d = strtotime('+1 day', $d)) {
         foreach ($codes as $c) {
@@ -51,6 +51,8 @@ if (isset($_GET['export'])) {
                 fputcsv($out, array(date('Y-m-d', $d), $b['time'], branch_name($c), acct_setting($c, 'tax_id'),
                     acct_setting($c, 'tax_branch'), $b['no'], bill_type_label($b['vat']),
                     $b['method'] === 'cash' ? 'เงินสด' : 'โอน/พร้อมเพย์',
+                    $void ? '0.00' : number_format(isset($b['subtotal']) ? $b['subtotal'] : $b['total'], 2, '.', ''),
+                    $void ? '0.00' : number_format(isset($b['discount']) ? $b['discount'] : 0, 2, '.', ''),
                     $void ? '0.00' : number_format($b['base'], 2, '.', ''),
                     $void ? '0.00' : number_format($b['vatamt'], 2, '.', ''),
                     $void ? '0.00' : number_format($b['total'], 2, '.', ''),
@@ -128,7 +130,7 @@ require dirname(__FILE__) . '/inc/header.php';
     <select class="input acct-branch" id="b" name="b" onchange="this.form.submit()">
       <option value="ALL">ทุกสาขา</option>
       <?php foreach ($br as $c => $x): ?>
-        <option value="<?= e($c) ?>" <?= $bSel === $c ? 'selected' : '' ?>><?= e($x['name']) ?></option>
+        <option value="<?= e($c) ?>" <?= $bSel === $c ? 'selected' : '' ?>><?= e($x['name']) ?><?= empty($x['active']) ? ' (ปิดใช้งาน)' : '' ?></option>
       <?php endforeach; ?>
     </select>
     <input type="hidden" name="t" value="<?= e($tSel) ?>">
@@ -203,7 +205,8 @@ require dirname(__FILE__) . '/inc/header.php';
                 <td data-label="ชำระ"><?= $b['method'] === 'cash' ? 'เงินสด' : 'โอน / พร้อมเพย์' ?></td>
                 <td class="r" data-label="ก่อน VAT"><?= $b['vat'] ? e(money2($b['base'])) : '—' ?></td>
                 <td class="r" data-label="VAT"><?= $b['vat'] ? e(money2($b['vatamt'])) : '—' ?></td>
-                <td class="r" data-label="รวม"><?= $void ? '<s>' . e(money2($b['total'])) . '</s>' : e(money2($b['total'])) ?></td>
+                <td class="r" data-label="รวม"><?= $void ? '<s>' . e(money2($b['total'])) . '</s>' : e(money2($b['total'])) ?>
+                  <?php if (!empty($b['discount'])): ?><small>ส่วนลด <?= e(money2($b['discount'])) ?></small><?php endif; ?></td>
               </tr>
             <?php endforeach; ?>
           </tbody>

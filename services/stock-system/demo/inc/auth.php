@@ -149,8 +149,25 @@ function require_login()
     }
     $u = current_user();
     /* ฝ่ายบัญชีเข้าได้เฉพาะหน้าของบัญชี — ไม่เห็นงานขาย/งานคลัง */
-    if ($u['role'] === 'account' && !in_array(basename($_SERVER['SCRIPT_NAME']), account_pages(), true)) {
+    $page = basename($_SERVER['SCRIPT_NAME']);
+    if ($u['role'] === 'account' && !in_array($page, account_pages(), true)) {
         header('Location: ' . url('account.php'));
+        exit;
+    }
+    /* พนักงานที่ถูกปิดใช้งานระหว่างที่ยังเข้าระบบอยู่ → ออกจากระบบ */
+    $all = demo_users_all();
+    if (!isset($all[$u['username']]) || !user_active($all[$u['username']])) {
+        logout_user();
+        header('Location: ' . url('login.php'));
+        exit;
+    }
+    /* หน้าที่ต้องมีสิทธิ์เฉพาะ (ขาย / นำเข้า / เบิก / ตรวจนับ / ประวัติ / รับคืน) */
+    $need = page_perm($page);
+    if ($need !== '' && !can($u, $need)) {
+        $pl = perm_list();
+        $_SESSION['flash'] = 'ไม่มีสิทธิ์เข้าหน้า “' . $pl[$need]['short'] . '”'
+                           . ($u['role'] === 'admin' ? ' — การขายและเปิด/ปิดร้านเป็นหน้าที่ของพนักงานหน้าร้าน' : ' — ติดต่อผู้ดูแลเพื่อเปิดสิทธิ์');
+        header('Location: ' . url('dashboard.php'));
         exit;
     }
     return $u;

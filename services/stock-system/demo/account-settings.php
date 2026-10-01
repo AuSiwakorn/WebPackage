@@ -20,7 +20,7 @@ if (!in_array($user['role'], array('account', 'admin'), true)) {
     exit;
 }
 
-$br  = demo_branches();
+$br  = demo_branches_all();               // รวมสาขาที่ปิดใช้งาน (เลขที่บิลเดิมยังอ้างอิงอยู่)
 $err = '';
 $okB = isset($_GET['ok']) ? $_GET['ok'] : '';
 $old = array();

@@ -1952,6 +1952,7 @@ table.sr-only{display:block}
 .adm-unit span{font-size:.88rem;color:var(--ink-2)}
 .adm-ok{margin:14px 22px 0}
 .tbl tr.on td{background:#F1F8F5}
+.perm-h{font-size:.85rem;font-weight:700;color:var(--ink-2);margin:6px 0 8px}
 .perm-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px}
 .perm-o{position:relative;cursor:pointer}
 .perm-o input{position:absolute;opacity:0;pointer-events:none}
@@ -1979,3 +1980,32 @@ table.sr-only{display:block}
 .acct-eg{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.85rem;color:var(--ink-2);background:var(--bg-soft);padding:6px 10px;border-radius:8px}
 .pay-vat{margin-top:14px}
 @media (max-width:640px){.acct-dl{margin-left:0}}
+
+/* ===== จัดการสาขา ===== */
+.br-add summary{list-style:none;cursor:pointer}
+.br-add summary::-webkit-details-marker{display:none}
+.br-add:not([open]) summary{border-bottom:0}
+.br-add[open] summary .btn{display:none}
+.br-wide{grid-column:1 / -1}
+.br-sub{font-size:.95rem;font-weight:700;color:var(--deep-900);margin:4px 0 12px}
+.br-danger{border-top:1px solid var(--line-2)}
+.br-danger .adm-sec{border-top:0}
+.br-sure{display:flex;align-items:center;gap:8px;font-size:.88rem;margin:0 0 10px}
+.br-del{color:var(--down);border-color:#F0C7C3}
+.br-off{opacity:.78}
+.br-off .card-head h2{color:var(--ink-3)}
+
+/* ===== ส่วนลด: แก้ยอดที่ต้องชำระ ===== */
+.pay-net{align-items:center}
+.pay-net label{display:flex;flex-direction:column;font-size:.9rem;color:rgba(255,255,255,.78);line-height:1.3}
+.pay-net label small{font-size:.72rem;color:rgba(255,255,255,.55)}
+.pay-net input{width:9ch;min-width:0;flex:1;max-width:190px;text-align:right;font:inherit;font-size:1.6rem;font-weight:700;color:#fff;
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.22);border-radius:10px;padding:6px 10px}
+.pay-net input:focus{outline:none;border-color:#9FE0C7;background:rgba(255,255,255,.14)}
+.pay-disc{margin-top:8px;padding:8px 14px;border-radius:10px;background:var(--warn-bg);font-size:.88rem}
+.pay-disc div{display:flex;justify-content:space-between}
+.pay-disc .d b{color:var(--warn)}
+.pay-err{margin-top:8px;font-size:.82rem;color:var(--down)}
+.btn-pay:disabled{opacity:.5;cursor:not-allowed}
+.dash-reopen{display:flex;gap:6px;margin-top:8px}
+.dash-reopen .input{min-height:36px;padding:4px 10px;font-size:.85rem;max-width:180px}

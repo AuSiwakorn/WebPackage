@@ -156,10 +156,19 @@ $base = 'sale.php' . ($qs !== '' ? '?' . $qs : '');
           <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
           <input type="hidden" name="act" value="pay">
 
-          <div class="pay-tot">
-            <span>ยอดที่ต้องชำระ</span>
-            <b class="num" id="total" data-v="<?= (int) $tot ?>"><?= money2($tot) ?></b>
+          <?php /* ยอดที่ต้องชำระแก้ได้ — ลดราคาให้ลูกค้า ระบบลงเป็น "ส่วนลด" ในบิลให้เอง (เพิ่มเกินราคาจริงไม่ได้) */ ?>
+          <div class="pay-tot pay-net">
+            <label for="net">ยอดที่ต้องชำระ<small>แก้ได้ถ้าลดราคาให้ลูกค้า</small></label>
+            <input class="num" type="text" inputmode="decimal" id="net" name="net" autocomplete="off"
+                   value="<?= e(rtrim(rtrim(number_format($tot, 2, '.', ''), '0'), '.')) ?>" data-full="<?= e($tot) ?>"
+                   aria-label="ยอดที่ต้องชำระ">
+            <b class="num" id="total" data-v="<?= (int) $tot ?>" hidden><?= money2($tot) ?></b>
           </div>
+          <div class="pay-disc" id="pay-disc" hidden>
+            <div><span>ราคาเต็ม</span><b class="num"><?= money2($tot) ?></b></div>
+            <div class="d"><span>ส่วนลด</span><b class="num" id="disc">−0.00</b></div>
+          </div>
+          <p class="pay-err" id="net-err" hidden>ยอดชำระต้องมากกว่า 0 และไม่เกินราคาเต็ม <?= money2($tot) ?> บาท</p>
 
           <?php /* บิล VAT กับไม่ VAT ใช้เลขที่คนละชุด — พนักงานเลือกตามที่ลูกค้าต้องการ */ ?>
           <div class="pay-how pay-vat">
@@ -225,9 +234,41 @@ $base = 'sale.php' . ($qs !== '' ? '?' . $qs : '');
   (function () {
     var totEl = document.getElementById('total');
     if (!totEl) { return; }
-    var tot = Number(totEl.getAttribute('data-v')) || 0;
-    var rec = document.getElementById('received');
-    var chg = document.getElementById('change');
+    var full = Number(totEl.getAttribute('data-v')) || 0;
+    var tot  = full;
+    var rec  = document.getElementById('received');
+    var chg  = document.getElementById('change');
+    var net  = document.getElementById('net');
+    var dbox = document.getElementById('pay-disc');
+    var disc = document.getElementById('disc');
+    var nerr = document.getElementById('net-err');
+    var fmt2 = function (n) { return n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
+
+    /* ยอดที่ต้องชำระเปลี่ยน → คำนวณส่วนลด และตั้งเงินที่รับมาให้เท่ายอดใหม่ */
+    function netSync() {
+      if (!net) { return; }
+      var raw = String(net.value).replace(/[^0-9.]/g, '');
+      var v   = raw === '' ? 0 : Number(raw);
+      var ok  = v > 0 && v <= full + 0.001;
+      tot = ok ? v : full;
+      var d = Math.max(0, full - tot);
+      dbox.hidden = !(ok && d >= 0.01);
+      nerr.hidden = ok;
+      disc.textContent = '−' + fmt2(d);
+      totEl.setAttribute('data-v', String(tot));
+      totEl.textContent = fmt2(tot);
+      var pay = document.querySelector('.btn-pay');
+      if (pay) { pay.disabled = !ok; }
+      if (rec && !rec.getAttribute('data-touched')) { rec.value = String(Math.ceil(tot)); }
+      var q0 = document.querySelector('#recv-quick button');
+      if (q0) { q0.setAttribute('data-set', String(Math.ceil(tot))); }
+      paint();
+    }
+    if (net) {
+      net.addEventListener('input', netSync);
+      net.addEventListener('focus', function () { this.select(); });
+    }
+    if (rec) { rec.addEventListener('input', function () { this.setAttribute('data-touched', '1'); }); }
 
     function paint() {
       if (!rec || !chg) { return; }

@@ -188,7 +188,13 @@
       var chg    = document.getElementById('change');
 
       h += '<div class="cf-sum">'
-         + '<div class="cf-r"><span>ยอดรวม</span><b class="num">' + (tot ? tot.textContent : '') + ' บาท</b></div>'
+         + (function () {
+             var dbx = document.getElementById('pay-disc');
+             if (!dbx || dbx.hidden) { return ''; }
+             return '<div class="cf-r"><span>ราคาเต็ม</span><b class="num">' + dbx.querySelector('b').textContent + ' บาท</b></div>'
+                  + '<div class="cf-r cf-warn"><span>ส่วนลด</span><b class="num">' + document.getElementById('disc').textContent + ' บาท</b></div>';
+           })()
+         + '<div class="cf-r"><span>ยอดชำระ</span><b class="num">' + (tot ? tot.textContent : '') + ' บาท</b></div>'
          + '<div class="cf-r"><span>ชำระโดย</span><b>' + (isCash ? 'เงินสด' : 'โอน / พร้อมเพย์') + '</b></div>';
       var vatOn = form.querySelector('input[name="vat"][value="1"]');
       h += '<div class="cf-r"><span>ประเภทบิล</span><b>' + (vatOn && vatOn.checked ? 'บิล VAT' : 'บิลธรรมดา (ไม่ VAT)') + '</b></div>';
