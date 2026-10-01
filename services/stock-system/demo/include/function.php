@@ -4997,8 +4997,98 @@ function past_bill_seed_return($bill, $i)
         'calc'        => $calc,
         'refund'      => $calc - $cut,
         'refund_note' => $cut > 0 ? 'หักค่าสภาพสินค้า ' . money2($cut) . ' บาท (ลูกค้ายินยอม)' : '',
+        'photos'      => return_sample_photos($why, $l['sku'], $h),
         'seed'        => true,
     );
+}
+
+/** รูปตัวอย่างของใบรับคืนสมมติ (assets/returns/) — เลือกตามเหตุผลและชนิดสินค้า */
+function return_sample_photos($why, $sku, $h)
+{
+    $dir = 'assets/returns/';
+    if ($why === 'wrong') {
+        return array($dir . 'wrong-model.jpg', $dir . 'receipt.jpg');
+    }
+    if ($why === 'other') {
+        return array($dir . 'box-dent.jpg');
+    }
+    $pre = substr($sku, 0, 2);
+    $map = array('CB' => 'cable-broken', 'LN' => 'lens-scratch', 'CS' => 'case-crack', 'TC' => 'case-crack',
+                 'HG' => 'film-bubble', 'FT' => 'glass-crack', 'FM' => ($h % 2 ? 'glass-crack' : 'film-bubble'));
+    $img = isset($map[$pre]) ? $map[$pre] : 'case-crack';
+    $out = array($dir . $img . '.jpg');
+    if (($h >> 3) % 2 === 0) {
+        $out[] = $dir . 'receipt.jpg';
+    }
+    return $out;
+}
+
+/* ==========================================================
+   รูปถ่ายแนบใบรับคืน (พนักงานถ่าย / เลือกรูปตอนรับคืน)
+   เก็บไฟล์ที่ uploads/returns/{เลขที่ใบ}-{ลำดับ}.{jpg|png|webp} · ไม่เกิน 3 รูป · รูปละไม่เกิน 5 MB
+   ระบบจริง: ตาราง ao_stock_return_photo (return_id, path) หรือคอลัมน์ JSON ในใบรับคืน
+   ========================================================== */
+
+/** ตรวจรูปที่อัปโหลดมา — คืน array('files' => รายการไฟล์ที่ผ่าน) หรือ array('error' => ข้อความ) */
+function return_photos_check($field)
+{
+    if (empty($_FILES[$field]) || !is_array($_FILES[$field]['name'])) {
+        return array('files' => array());
+    }
+    $f   = $_FILES[$field];
+    $out = array();
+    foreach ($f['name'] as $i => $name) {
+        if ($f['error'][$i] === UPLOAD_ERR_NO_FILE || $name === '') {
+            continue;
+        }
+        if ($f['error'][$i] !== UPLOAD_ERR_OK) {
+            return array('error' => 'อัปโหลดรูป “' . $name . '” ไม่สำเร็จ (ไฟล์อาจใหญ่เกินที่เซิร์ฟเวอร์รับได้)');
+        }
+        if ($f['size'][$i] > 5 * 1024 * 1024) {
+            return array('error' => 'รูป “' . $name . '” ใหญ่เกิน 5 MB');
+        }
+        $info = @getimagesize($f['tmp_name'][$i]);
+        $ext  = array(IMAGETYPE_JPEG => 'jpg', IMAGETYPE_PNG => 'png');
+        if (defined('IMAGETYPE_WEBP')) {
+            $ext[IMAGETYPE_WEBP] = 'webp';
+        }
+        if ($info === false || !isset($ext[$info[2]])) {
+            return array('error' => 'ไฟล์ “' . $name . '” ไม่ใช่รูป JPG / PNG / WEBP');
+        }
+        $out[] = array('tmp' => $f['tmp_name'][$i], 'ext' => $ext[$info[2]]);
+    }
+    if (count($out) > 3) {
+        return array('error' => 'แนบรูปได้ไม่เกิน 3 รูป');
+    }
+    return array('files' => $out);
+}
+
+/** ย้ายรูปที่ตรวจแล้วไปเก็บ แล้วผูกกับใบรับคืนใน session — คืน path ที่บันทึกได้ */
+function return_photos_store($code, $no, $files)
+{
+    if (!$files) {
+        return array();
+    }
+    $dir = dirname(__FILE__) . '/../uploads/returns';
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0775, true);
+    }
+    $paths = array();
+    foreach ($files as $i => $f) {
+        $fn = preg_replace('/[^A-Za-z0-9-]/', '', $no) . '-' . ($i + 1) . '.' . $f['ext'];
+        if (@move_uploaded_file($f['tmp'], $dir . '/' . $fn)) {
+            $paths[] = 'uploads/returns/' . $fn;
+        }
+    }
+    $k = ret_key($code);
+    if (!empty($_SESSION['ret'][$k])) {
+        foreach ($_SESSION['ret'][$k] as $j => $d) {
+            if ($d['no'] === $no) {
+                $_SESSION['ret'][$k][$j]['photos'] = $paths;
+            }
+        }
+    }
+    return $paths;
 }
 
 /** ใบรับคืนสมมติที่ออก "ในวันนั้น" ของสาขา (เรียงตามเวลา มีเลขที่ RT-ปปดดวว-NNNN) */

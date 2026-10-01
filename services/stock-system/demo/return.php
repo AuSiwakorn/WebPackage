@@ -41,14 +41,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $allowed) {
             'qty'         => $qtys,
         );
 
+        $pics = return_photos_check('photos');               // รูปถ่ายแนบ (ไม่บังคับ · ไม่เกิน 3 รูป)
         if ($bill === null) {
             $err = 'ไม่พบบิลนี้ในสาขา';
+        } elseif (isset($pics['error'])) {
+            $err = $pics['error'];
         } else {
             $refund = preg_replace('/[^0-9.]/', '', $old['refund']);
             $r = return_save($code, $user, $bill, $qtys, $old['why'], $old['note'], $refund, $old['refund_note']);
             if (isset($r['error'])) {
                 $err = $r['error'];
             } else {
+                return_photos_store($code, $r['doc']['no'], $pics['files']);
                 header('Location: ' . url('return.php?done=' . rawurlencode($r['doc']['no'])));
                 exit;
             }
@@ -187,7 +191,7 @@ require dirname(__FILE__) . '/inc/header.php';
   </section>
 
   <?php if ($st['ok']): ?>
-  <form method="post" action="return.php?bill=<?= e(rawurlencode($bill['no'])) ?>" id="ret-form">
+  <form method="post" action="return.php?bill=<?= e(rawurlencode($bill['no'])) ?>" id="ret-form" enctype="multipart/form-data">
     <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
     <input type="hidden" name="bill" value="<?= e($bill['no']) ?>">
 
@@ -242,6 +246,13 @@ require dirname(__FILE__) . '/inc/header.php';
           <label for="note">รายละเอียด <i class="req" id="note-req" hidden>จำเป็นสำหรับเหตุผลนี้</i></label>
           <input class="input" type="text" id="note" name="note" value="<?= e($old['note']) ?>" autocomplete="off"
                  placeholder="เช่น ลูกค้าซื้อเคสผิดรุ่น ต้องการ iPhone 15 แทน 15 Pro">
+        </div>
+
+        <div class="field">
+          <label for="photos">รูปถ่ายสินค้าที่คืน <small class="adm-none">(ไม่บังคับ · ไม่เกิน 3 รูป · รูปละไม่เกิน 5 MB)</small></label>
+          <input class="input ret-photos" type="file" id="photos" name="photos[]" accept="image/jpeg,image/png,image/webp" capture="environment" multiple>
+          <small class="adm-hint">ถ่ายจุดที่ชำรุด / สภาพกล่อง / ใบเสร็จ — ผู้ดูแลใช้ตรวจสอบภายหลัง</small>
+          <div class="ret-thumbs" id="ret-thumbs"></div>
         </div>
 
         <div class="field">
@@ -304,6 +315,22 @@ require dirname(__FILE__) . '/inc/header.php';
 <?php endif; ?>
 
 <script>
+(function () {
+  /* แสดงตัวอย่างรูปที่เลือก + จำกัด 3 รูป */
+  var pin = document.getElementById('photos'), box = document.getElementById('ret-thumbs');
+  if (pin && box) {
+    pin.addEventListener('change', function () {
+      box.innerHTML = '';
+      if (this.files.length > 3) { this.value = ''; box.innerHTML = '<small class="hist-void">แนบรูปได้ไม่เกิน 3 รูป — เลือกใหม่อีกครั้ง</small>'; return; }
+      for (var i = 0; i < this.files.length; i++) {
+        var img = document.createElement('img');
+        img.src = URL.createObjectURL(this.files[i]);
+        img.alt = this.files[i].name;
+        box.appendChild(img);
+      }
+    });
+  }
+})();
 (function () {
   var form = document.getElementById('ret-form');
   if (!form) { return; }

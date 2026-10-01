@@ -11,7 +11,7 @@
      st   = '' | low | out  (สินค้าที่มีอย่างน้อย 1 สาขาใกล้หมด / หมด)
      b    = รหัสสาขาที่ใช้กรองสถานะและเรียงจำนวน ('' = ดูทุกสาขารวมกัน)
      sort = urgent | name | qty | value | sold | cover · dir = desc | asc
-   ตัวเลขประกอบ (30 วันล่าสุด): ขายได้ · พอขายอีกกี่วัน (คงเหลือ ÷ ขายเฉลี่ยต่อวัน) · รับเข้าล่าสุด
+   ตัวเลขประกอบ (30 วันล่าสุด): รับเข้าล่าสุด · ยอดขายรวมบนกล่องสรุป
    ========================================================== */
 
 require_once dirname(__FILE__) . '/include/function.php';
@@ -211,7 +211,7 @@ require dirname(__FILE__) . '/inc/header.php';
   <div class="card-head">
     <div>
       <h2>ยอดคงเหลือรายสินค้า</h2>
-      <span class="sub"><?= $fB !== '' ? 'สถานะและการเรียงจำนวนใช้ของ' . e($br[$fB]['name']) : 'สถานะ = สาขาที่แย่ที่สุด' ?> · ช่องสีแดง = หมด · สีเหลือง = ต่ำกว่าจุดสั่งซื้อ · ขาย / รับเข้า นับย้อนหลัง <?= $flowDays ?> วัน</span>
+      <span class="sub"><?= $fB !== '' ? 'สถานะและการเรียงจำนวนใช้ของ' . e($br[$fB]['name']) : 'สถานะ = สาขาที่แย่ที่สุด' ?> · ช่องสีแดง = หมด · สีเหลือง = ต่ำกว่าจุดสั่งซื้อ · รับเข้าล่าสุดนับย้อนหลัง <?= $flowDays ?> วัน</span>
     </div>
     <div class="segs head-tabs">
       <a class="seg<?= $fSt === '' ? ' on' : '' ?>" href="<?= e($pq(array('st' => ''))) ?>">ทั้งหมด</a>
@@ -229,9 +229,6 @@ require dirname(__FILE__) . '/inc/header.php';
             <?= $th('name', 'สินค้า') ?>
             <?php foreach ($br as $c => $x): ?><th class="r<?= $fB === $c ? ' is-focus' : '' ?>"><?= e($x['short']) ?></th><?php endforeach; ?>
             <?= $th('qty', $fB !== '' ? 'จำนวน (' . $br[$fB]['short'] . ')' : 'รวม', 'r') ?>
-            <th class="r">จุดสั่งซื้อ</th>
-            <?= $th('sold', 'ขาย ' . $flowDays . ' วัน', 'r') ?>
-            <?= $th('cover', 'พอขายอีก', 'r') ?>
             <th>รับเข้าล่าสุด</th>
             <?= $th('value', 'มูลค่า (ทุน)', 'r') ?>
             <?= $th('urgent', 'สถานะ') ?>
@@ -248,10 +245,6 @@ require dirname(__FILE__) . '/inc/header.php';
                 <td data-label="<?= e($br[$c]['short']) ?>" class="r num nowrap"><span class="stk stk-<?= e($x['st']) ?>"><?= number_format($x['qty']) ?></span></td>
               <?php endforeach; ?>
               <td data-label="รวม" class="r num nowrap"><b><?= number_format($r['sortqty']) ?></b> <small><?= e($p['unit']) ?></small></td>
-              <td data-label="จุดสั่งซื้อ" class="r num"><?= number_format($p['reorder']) ?></td>
-              <td data-label="ขาย <?= $flowDays ?> วัน" class="r num"><?= $r['sold'] ? number_format($r['sold']) : '—' ?></td>
-              <td data-label="พอขายอีก" class="r num nowrap"><?php if ($r['cover'] === null): ?><small>ไม่มีขาย</small><?php else: $cv = (int) floor($r['cover']); ?>
-                <span class="cover<?= $cv < 7 ? ' cover-bad' : ($cv < 14 ? ' cover-warn' : '') ?>"><?= $cv > 365 ? '> 1 ปี' : number_format($cv) . ' วัน' ?></span><?php endif; ?></td>
               <td data-label="รับเข้าล่าสุด" class="nowrap"><?= $r['last'] !== '' ? e(thai_day_month(strtotime($r['last']))) . ' <small>(' . (int) round((strtotime(date('Y-m-d')) - strtotime($r['last'])) / 86400) . ' วันก่อน)</small>' : '<small>เกิน ' . $flowDays . ' วัน</small>' ?></td>
               <td data-label="มูลค่า (ทุน)" class="r num nowrap"><?= e(money2($r['value'])) ?></td>
               <td data-label="สถานะ"><span class="bdg <?= $r['focus'] === 'out' ? 'bdg-out' : ($r['focus'] === 'low' ? 'bdg-adj' : 'bdg-ok') ?>"><?= e(stock_label($r['focus'])) ?></span></td>

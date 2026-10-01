@@ -6,6 +6,7 @@
    - เพิ่มหมวดใหม่ได้ (ชื่อห้ามซ้ำ)
    - ลบได้เฉพาะหมวดที่ยังไม่มีสินค้า — หมวดที่มีสินค้าต้องย้ายสินค้าออกก่อน
    - หมวดใช้ร่วมกันทุกสาขา · ทุกการเพิ่ม / ลบ ลงประวัติของสาขาที่ทำ
+   - กดจำนวนสินค้า → popup รายชื่อสินค้าในหมวด พร้อมราคาและคงเหลือของสาขาตัวเอง
    ผู้ดูแลดูอย่างเดียวที่ adm-categories.php
    ========================================================== */
 
@@ -88,7 +89,11 @@ require dirname(__FILE__) . '/inc/header.php';
         <?php foreach ($cats as $c => $x): ?>
           <tr>
             <td data-label="หมวด"><b><?= e($c) ?></b></td>
-            <td data-label="สินค้า" class="r num"><?= $x['count'] ? number_format($x['count']) . ' รายการ' : '<span class="adm-none">ยังไม่มีสินค้า</span>' ?></td>
+            <td data-label="สินค้า" class="r num">
+              <?php if ($x['count']): ?>
+                <button type="button" class="cell-link" data-cat-list="cl-<?= e(substr(md5($c), 0, 8)) ?>" title="ดูรายชื่อสินค้าในหมวดนี้"><?= number_format($x['count']) ?> รายการ</button>
+              <?php else: ?><span class="adm-none">ยังไม่มีสินค้า</span><?php endif; ?>
+            </td>
             <td data-label="ที่มา"><?= $x['added'] ? '<small>เพิ่มโดย ' . e($x['by']) . ' · ' . e($x['at']) . '</small>' : '<small>หมวดตั้งต้น</small>' ?></td>
             <td data-label="" class="r">
               <?php if ($x['count'] === 0): ?>
@@ -108,5 +113,49 @@ require dirname(__FILE__) . '/inc/header.php';
     </table>
   </div>
 </section>
+
+<!-- ==================== รายชื่อสินค้าในแต่ละหมวด (แสดงใน popup เมื่อกดจำนวน) ==================== -->
+<?php foreach ($cats as $c => $x): if (!$x['count']) { continue; } ?>
+  <template id="cl-<?= e(substr(md5($c), 0, 8)) ?>">
+    <div class="ds-head">
+      <h2><?= e($c) ?></h2>
+      <p class="sub"><?= number_format($x['count']) ?> รายการ · คงเหลือของ<?= e(branch_name($code)) ?></p>
+    </div>
+    <div class="ds-pane">
+      <table class="ds-lines">
+        <thead><tr><th>สินค้า</th><th class="r">ราคาขาย</th><th class="r">คงเหลือ</th></tr></thead>
+        <tbody>
+          <?php foreach (cat_products($c) as $p): $st = branch_status($p, $code); ?>
+            <tr><td><?= e($p['name']) ?> <small><?= e($p['sku']) ?></small></td>
+                <td class="r num"><?= e(money2($p['price'])) ?></td>
+                <td class="r num"><span class="stk stk-<?= e($st) ?>"><?= number_format(product_qty($p, $code)) ?></span> <small><?= e($p['unit']) ?></small></td></tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </template>
+<?php endforeach; ?>
+
+<dialog class="ds-modal" id="cl-modal" aria-label="สินค้าในหมวด">
+  <button type="button" class="icon-btn ds-close" data-cl-close aria-label="ปิด"><svg class="ico"><use href="#i-x"/></svg></button>
+  <div class="ds-body" id="cl-body"></div>
+</dialog>
+<script>
+(function () {
+  var dlg = document.getElementById('cl-modal'), body = document.getElementById('cl-body');
+  if (!dlg || !dlg.showModal) { return; }
+  document.addEventListener('click', function (ev) {
+    var t = ev.target.closest ? ev.target.closest('[data-cat-list]') : null;
+    if (t) {
+      var tpl = document.getElementById(t.getAttribute('data-cat-list'));
+      body.innerHTML = '';
+      if (tpl) { body.appendChild(tpl.content.cloneNode(true)); }
+      dlg.showModal();
+      return;
+    }
+    if ((ev.target.closest && ev.target.closest('[data-cl-close]')) || ev.target === dlg) { dlg.close(); }
+  });
+})();
+</script>
 
 <?php require dirname(__FILE__) . '/inc/footer.php'; ?>

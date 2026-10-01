@@ -144,6 +144,19 @@ require dirname(__FILE__) . '/inc/header.php';
       <div><dt>สต๊อก</dt><dd><?= e($rs['hint']) ?></dd></div>
     </dl>
 
+    <div class="ret-gallery">
+      <h3>รูปถ่ายแนบ <small><?= !empty($v['photos']) ? count($v['photos']) . ' รูป · กดเพื่อดูภาพใหญ่' : '' ?></small></h3>
+      <?php if (empty($v['photos'])): ?>
+        <p class="adm-none">ไม่ได้แนบรูป</p>
+      <?php else: ?>
+        <div class="ret-pics">
+          <?php foreach ($v['photos'] as $i => $ph): ?>
+            <button type="button" class="ret-pic" data-pic="<?= e($ph) ?>" aria-label="ดูรูปที่ <?= $i + 1 ?>"><img src="<?= e($ph) ?>" alt="รูปแนบที่ <?= $i + 1 ?> ของ <?= e($v['no']) ?>" loading="lazy"></button>
+          <?php endforeach; ?>
+        </div>
+      <?php endif; ?>
+    </div>
+
     <div class="tbl-wrap">
       <table class="tbl">
         <thead><tr><th>สินค้า</th><th class="r">จำนวน</th><th class="r">ราคาที่ลูกค้าจ่าย / ชิ้น</th><th class="r">รวม</th></tr></thead>
@@ -167,6 +180,21 @@ require dirname(__FILE__) . '/inc/header.php';
       </table>
     </div>
   </section>
+  <dialog class="pic-modal" id="pic-modal" aria-label="รูปแนบ">
+    <button type="button" class="icon-btn ds-close" data-pic-close aria-label="ปิด"><svg class="ico"><use href="#i-x"/></svg></button>
+    <img id="pic-big" src="" alt="รูปแนบขนาดใหญ่">
+  </dialog>
+  <script>
+  (function () {
+    var dlg = document.getElementById('pic-modal'), big = document.getElementById('pic-big');
+    if (!dlg || !dlg.showModal) { return; }
+    document.addEventListener('click', function (ev) {
+      var t = ev.target.closest ? ev.target.closest('[data-pic]') : null;
+      if (t) { big.src = t.getAttribute('data-pic'); dlg.showModal(); return; }
+      if ((ev.target.closest && ev.target.closest('[data-pic-close]')) || ev.target === dlg || ev.target === big) { dlg.close(); }
+    });
+  })();
+  </script>
   <?php require dirname(__FILE__) . '/inc/footer.php'; exit; ?>
 <?php endif; ?>
 
@@ -265,6 +293,7 @@ require dirname(__FILE__) . '/inc/header.php';
             <th>สาขา</th>
             <th>ใบรับคืน / บิลเดิม</th>
             <th>เหตุผล</th>
+            <th>รูป</th>
             <th>รับคืนโดย</th>
             <th class="r">จำนวน</th>
             <th class="r">คืนเงิน</th>
@@ -279,6 +308,13 @@ require dirname(__FILE__) . '/inc/header.php';
               <td data-label="ใบรับคืน" class="nowrap"><b class="hist-t"><?= e($r['no']) ?></b><small class="hist-n">บิล <?= e($r['bill_no']) ?> · ซื้อ <?= e(thai_day_month(strtotime($r['bill_date']))) ?></small></td>
               <td data-label="เหตุผล">
                 <span class="bdg <?= $r['restock'] ? 'bdg-ok' : 'bdg-out' ?>"><?= e($reasons[$r['reason']]['label']) ?></span>
+              </td>
+              <td data-label="รูป">
+                <?php if (!empty($r['photos'])): ?>
+                  <a class="ret-mini" href="adm-return.php?no=<?= e(rawurlencode($r['no'])) ?>&amp;b=<?= e(rawurlencode($r['branch'])) ?>" title="ดูรูปแนบ">
+                    <img src="<?= e($r['photos'][0]) ?>" alt="" loading="lazy"><?php if (count($r['photos']) > 1): ?><i>+<?= count($r['photos']) - 1 ?></i><?php endif; ?>
+                  </a>
+                <?php else: ?><span class="adm-none">—</span><?php endif; ?>
               </td>
               <td data-label="รับคืนโดย" class="nowrap"><?= e($r['by']) ?></td>
               <td data-label="จำนวน" class="r num nowrap"><?= number_format($r['qty']) ?> ชิ้น</td>
