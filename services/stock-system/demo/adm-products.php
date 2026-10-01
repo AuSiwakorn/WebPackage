@@ -10,7 +10,8 @@
      q    = ค้นชื่อสินค้า / SKU · cat = หมวด
      st   = '' | low | out  (สินค้าที่มีอย่างน้อย 1 สาขาใกล้หมด / หมด)
      b    = รหัสสาขาที่ใช้กรองสถานะและเรียงจำนวน ('' = ดูทุกสาขารวมกัน)
-     sort = urgent | name | qty | value · dir = desc | asc
+     sort = urgent | name | qty | value | sold | cover · dir = desc | asc
+   ตัวเลขประกอบ (30 วันล่าสุด): ขายได้ · พอขายอีกกี่วัน (คงเหลือ ÷ ขายเฉลี่ยต่อวัน) · รับเข้าล่าสุด
    ========================================================== */
 
 require_once dirname(__FILE__) . '/include/function.php';
@@ -24,7 +25,7 @@ $cats  = product_cats();
 $fCat  = in_array($g('cat'), $cats, true) ? $g('cat') : '';
 $fSt   = in_array($g('st'), array('low', 'out'), true) ? $g('st') : '';
 $fB    = isset($br[$g('b')]) ? $g('b') : '';
-$fSort = in_array($g('sort'), array('urgent', 'name', 'qty', 'value'), true) ? $g('sort') : 'urgent';
+$fSort = in_array($g('sort'), array('urgent', 'name', 'qty', 'value', 'sold', 'cover'), true) ? $g('sort') : 'urgent';
 $fDir  = $g('dir') === 'asc' ? 'asc' : 'desc';
 
 $pq = function ($chg) use ($fQ, $fCat, $fSt, $fB, $fSort, $fDir) {
@@ -37,10 +38,14 @@ $pq = function ($chg) use ($fQ, $fCat, $fSt, $fB, $fSort, $fDir) {
     return 'adm-products.php' . ($q ? '?' . http_build_query($q) : '');
 };
 
+/* ---------- ตัวเลขประกอบ 30 วันล่าสุด ---------- */
+$flowDays = 30;
+$flow     = product_flow_stats(array_keys($br), $flowDays);
+
 /* ---------- สร้างแถว ---------- */
 $rank = array('out' => 0, 'low' => 1, 'ok' => 2);
 $rows = array();
-$sum  = array('skus' => 0, 'qty' => 0, 'value' => 0, 'sale' => 0, 'low' => 0, 'out' => 0);
+$sum  = array('skus' => 0, 'qty' => 0, 'value' => 0, 'sale' => 0, 'low' => 0, 'out' => 0, 'sold' => 0);
 $perB = array();
 foreach (array_keys($br) as $c) {
     $perB[$c] = array('qty' => 0, 'value' => 0, 'low' => 0, 'out' => 0);
@@ -82,9 +87,24 @@ foreach (demo_products() as $p) {
     if ($worst !== 'ok') {
         $sum[$worst]++;
     }
+    /* ขายได้ / รับเข้าล่าสุด ของสาขาที่เลือก หรือรวมทุกสาขา */
+    $sold = 0;
+    $last = '';
+    foreach (array_keys($br) as $c) {
+        if ($fB !== '' && $c !== $fB) {
+            continue;
+        }
+        $sold += isset($flow['sold'][$p['sku']][$c]) ? $flow['sold'][$p['sku']][$c] : 0;
+        if (isset($flow['recv'][$p['sku']][$c]) && $flow['recv'][$p['sku']][$c] > $last) {
+            $last = $flow['recv'][$p['sku']][$c];
+        }
+    }
+    $qtyNow = $fB !== '' ? $cells[$fB]['qty'] : $tot;
+    $cover  = $sold > 0 ? $qtyNow / ($sold / $flowDays) : null;    // null = ไม่มีขายในช่วงนี้
+    $sum['sold'] += $sold;
     $rows[] = array('p' => $p, 'cells' => $cells, 'tot' => $tot, 'worst' => $worst, 'focus' => $focus,
-                    'sortqty' => $fB !== '' ? $cells[$fB]['qty'] : $tot,
-                    'value' => ($fB !== '' ? $cells[$fB]['qty'] : $tot) * $p['cost']);
+                    'sortqty' => $qtyNow, 'value' => $qtyNow * $p['cost'],
+                    'sold' => $sold, 'cover' => $cover, 'last' => $last);
 }
 
 $dir = $fDir === 'asc' ? 1 : -1;
@@ -97,6 +117,16 @@ usort($rows, function ($a, $b) use ($fSort, $dir, $rank) {
     }
     if ($fSort === 'value' && $a['value'] != $b['value']) {
         return ($a['value'] < $b['value'] ? -1 : 1) * $dir;
+    }
+    if ($fSort === 'sold' && $a['sold'] !== $b['sold']) {
+        return ($a['sold'] < $b['sold'] ? -1 : 1) * $dir;
+    }
+    if ($fSort === 'cover') {                                         // ไม่มีขาย = ขายได้อีกนานมาก
+        $ca = $a['cover'] === null ? 99999 : $a['cover'];
+        $cb = $b['cover'] === null ? 99999 : $b['cover'];
+        if ($ca != $cb) {
+            return ($ca < $cb ? -1 : 1) * $dir;
+        }
     }
     if ($rank[$a['focus']] !== $rank[$b['focus']]) {                     // urgent: หมด → ใกล้หมด → พอใช้
         return $rank[$a['focus']] - $rank[$b['focus']];
@@ -148,7 +178,7 @@ require dirname(__FILE__) . '/inc/header.php';
 <!-- ==================== สรุป ==================== -->
 <section class="mini num adm-kpi" aria-label="สรุปสต๊อก">
   <div class="m"><div class="lb">สินค้า</div><div class="nm"><?= number_format($sum['skus']) ?></div>
-    <div class="sb">รวม <?= number_format($sum['qty']) ?> ชิ้น ทุกสาขา</div></div>
+    <div class="sb">คงเหลือ <?= number_format($sum['qty']) ?> ชิ้น · ขายไป <?= number_format($sum['sold']) ?> ชิ้นใน <?= $flowDays ?> วัน</div></div>
   <div class="m"><div class="lb">มูลค่าสต๊อก (ทุน)</div><div class="nm"><?= e(money2($sum['value'])) ?></div>
     <div class="sb">ตามราคาขาย <?= e(money2($sum['sale'])) ?> บาท</div></div>
   <div class="m"><div class="lb">ต้องเติมของ</div><div class="nm"><?= number_format($sum['out']) ?> / <?= number_format($sum['low']) ?></div>
@@ -181,7 +211,7 @@ require dirname(__FILE__) . '/inc/header.php';
   <div class="card-head">
     <div>
       <h2>ยอดคงเหลือรายสินค้า</h2>
-      <span class="sub"><?= $fB !== '' ? 'สถานะและการเรียงจำนวนใช้ของ' . e($br[$fB]['name']) : 'สถานะ = สาขาที่แย่ที่สุด' ?> · ช่องสีแดง = หมด · สีเหลือง = ต่ำกว่าจุดสั่งซื้อ</span>
+      <span class="sub"><?= $fB !== '' ? 'สถานะและการเรียงจำนวนใช้ของ' . e($br[$fB]['name']) : 'สถานะ = สาขาที่แย่ที่สุด' ?> · ช่องสีแดง = หมด · สีเหลือง = ต่ำกว่าจุดสั่งซื้อ · ขาย / รับเข้า นับย้อนหลัง <?= $flowDays ?> วัน</span>
     </div>
   </div>
   <div class="cats">
@@ -200,6 +230,9 @@ require dirname(__FILE__) . '/inc/header.php';
             <?php foreach ($br as $c => $x): ?><th class="r<?= $fB === $c ? ' is-focus' : '' ?>"><?= e($x['short']) ?></th><?php endforeach; ?>
             <?= $th('qty', $fB !== '' ? 'จำนวน (' . $br[$fB]['short'] . ')' : 'รวม', 'r') ?>
             <th class="r">จุดสั่งซื้อ</th>
+            <?= $th('sold', 'ขาย ' . $flowDays . ' วัน', 'r') ?>
+            <?= $th('cover', 'พอขายอีก', 'r') ?>
+            <th>รับเข้าล่าสุด</th>
             <?= $th('value', 'มูลค่า (ทุน)', 'r') ?>
             <?= $th('urgent', 'สถานะ') ?>
           </tr>
@@ -209,13 +242,17 @@ require dirname(__FILE__) . '/inc/header.php';
             <tr>
               <td data-label="สินค้า">
                 <b class="hist-t"><?= e($p['name']) ?></b>
-                <small class="hist-n"><?= e($p['sku']) ?> · <?= e($p['cat']) ?> · ทุน <?= e(money2($p['cost'])) ?> / ขาย <?= e(money2($p['price'])) ?></small>
+                <small class="hist-n"><?= e($p['sku']) ?> · <?= e($p['cat']) ?></small>
               </td>
               <?php foreach ($r['cells'] as $c => $x): ?>
                 <td data-label="<?= e($br[$c]['short']) ?>" class="r num nowrap"><span class="stk stk-<?= e($x['st']) ?>"><?= number_format($x['qty']) ?></span></td>
               <?php endforeach; ?>
               <td data-label="รวม" class="r num nowrap"><b><?= number_format($r['sortqty']) ?></b> <small><?= e($p['unit']) ?></small></td>
               <td data-label="จุดสั่งซื้อ" class="r num"><?= number_format($p['reorder']) ?></td>
+              <td data-label="ขาย <?= $flowDays ?> วัน" class="r num"><?= $r['sold'] ? number_format($r['sold']) : '—' ?></td>
+              <td data-label="พอขายอีก" class="r num nowrap"><?php if ($r['cover'] === null): ?><small>ไม่มีขาย</small><?php else: $cv = (int) floor($r['cover']); ?>
+                <span class="cover<?= $cv < 7 ? ' cover-bad' : ($cv < 14 ? ' cover-warn' : '') ?>"><?= $cv > 365 ? '> 1 ปี' : number_format($cv) . ' วัน' ?></span><?php endif; ?></td>
+              <td data-label="รับเข้าล่าสุด" class="nowrap"><?= $r['last'] !== '' ? e(thai_day_month(strtotime($r['last']))) . ' <small>(' . (int) round((strtotime(date('Y-m-d')) - strtotime($r['last'])) / 86400) . ' วันก่อน)</small>' : '<small>เกิน ' . $flowDays . ' วัน</small>' ?></td>
               <td data-label="มูลค่า (ทุน)" class="r num nowrap"><?= e(money2($r['value'])) ?></td>
               <td data-label="สถานะ"><span class="bdg <?= $r['focus'] === 'out' ? 'bdg-out' : ($r['focus'] === 'low' ? 'bdg-adj' : 'bdg-ok') ?>"><?= e(stock_label($r['focus'])) ?></span></td>
             </tr>

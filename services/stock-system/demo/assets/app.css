@@ -2064,3 +2064,7 @@ table.sr-only{display:block}
   .hist-all td .hist-n,.adm-stock td .hist-n{flex-basis:100%}
   .hist-all td:first-child .hist-n,.adm-stock td:first-child .hist-n{text-align:left}
 }
+.cover{font-weight:600;color:var(--ink-2)}
+.cover-warn{color:#9A6400}
+.cover-bad{color:var(--down)}
+@media (min-width:761px){.adm-stock td:first-child{min-width:230px}.adm-stock td,.adm-stock th{padding-left:10px;padding-right:10px}}

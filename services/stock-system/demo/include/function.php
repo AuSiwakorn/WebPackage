@@ -774,19 +774,39 @@ function stock_adj_add($code, $sku, $delta)
     $_SESSION['stock_adj'][$code][$sku] = stock_adj_get($code, $sku) + (int) $delta;
 }
 
+/**
+ * ยอดตั้งต้นของสินค้าในสาขา (ก่อนรวมส่วนต่างใน session)
+ * สาขาที่ผู้ดูแลเพิ่มเองในเดโมไม่มีตัวเลขในข้อมูลตัวอย่าง → สร้างตัวเลขตัวอย่างให้ (คงที่ทุกครั้ง)
+ * ราว 40–90% ของสำนักงานใหญ่ · บางตัวหมด บางตัวใกล้หมด จะได้เห็นสถานะครบ
+ * ระบบจริง: สาขาใหม่เริ่มที่ 0 แล้วยอดมาจากการรับเข้า — ไม่ต้องมีส่วนนี้
+ */
+function product_base_qty($p, $code)
+{
+    if (isset($p['stock'][$code])) {
+        return (int) $p['stock'][$code];
+    }
+    $h   = abs(crc32($p['sku'] . '|seed|' . $code));
+    $ref = isset($p['stock']['HQ']) ? (int) $p['stock']['HQ'] : (int) $p['reorder'] * 2;
+    if ($h % 12 === 0) {
+        return 0;                                            // หมด
+    }
+    if ($h % 7 === 0) {
+        return max(1, (int) floor($p['reorder'] * 0.6));     // ต่ำกว่าจุดสั่งซื้อ
+    }
+    return max(1, (int) round($ref * (40 + ($h >> 4) % 51) / 100));
+}
+
 /** ยอดคงเหลือจริงตอนนี้ = ยอดตั้งต้น + ส่วนต่างใน session */
 function product_qty($p, $branch)
 {
     if ($branch === 'ALL') {
         $sum = 0;
         foreach (array_keys(demo_branches()) as $code) {     // รวมสาขาที่เพิ่มใหม่ด้วย
-            $n    = isset($p['stock'][$code]) ? $p['stock'][$code] : 0;
-            $sum += (int) $n + stock_adj_get($code, $p['sku']);
+            $sum += product_base_qty($p, $code) + stock_adj_get($code, $p['sku']);
         }
         return $sum;
     }
-    $base = isset($p['stock'][$branch]) ? (int) $p['stock'][$branch] : 0;
-    return $base + stock_adj_get($branch, $p['sku']);
+    return product_base_qty($p, $branch) + stock_adj_get($branch, $p['sku']);
 }
 
 /** ราคาขายต่อหน่วย (เดโมคิดจากต้นทุน + กำไร แล้วปัดให้ลงตัว 5 บาท) */
@@ -850,7 +870,7 @@ function worst_branch($p)
     $best      = null;
     $bestRatio = INF;
     foreach (array_keys(demo_branches()) as $code) {
-        $qty   = isset($p['stock'][$code]) ? $p['stock'][$code] : 0;
+        $qty   = product_qty($p, $code);
         $ratio = $p['reorder'] > 0 ? $qty / $p['reorder'] : 0;
         if ($ratio < $bestRatio) {
             $bestRatio = $ratio;
@@ -895,7 +915,7 @@ function low_stock_products($branch, $limit = 6)
             continue;
         }
         $code    = $branch === 'ALL' ? worst_branch($p) : $branch;
-        $qty     = isset($p['stock'][$code]) ? (int) $p['stock'][$code] : 0;
+        $qty     = product_qty($p, $code);
         $reorder = $p['reorder'];
         $rows[]  = array(
             'product' => $p,
@@ -3158,6 +3178,42 @@ function adm_range($mode, $dayTs, $monTs, $year)
     }
     $from = strtotime('-29 day', $today);
     return array($from, $today, '30 วันล่าสุด (' . thai_day_month($from) . ' – ' . thai_day_month($today) . ')');
+}
+
+/**
+ * ตัวเลขประกอบหน้าสินค้าในสต๊อกของผู้ดูแล (adm-products.php) ย้อนหลัง $days วัน รวมวันนี้
+ * คืน array(
+ *   'sold' => array( SKU => array( สาขา => จำนวนที่ขาย ) )      ไม่นับบิลที่ยกเลิก
+ *   'recv' => array( SKU => array( สาขา => วันที่รับเข้าล่าสุด Ymd ) ) ไม่นับใบที่ยกเลิก
+ * )
+ */
+function product_flow_stats($codes, $days = 30)
+{
+    $sold  = array();
+    $recv  = array();
+    $today = strtotime(date('Y-m-d'));
+    for ($i = $days - 1; $i >= 0; $i--) {
+        $ts = strtotime('-' . $i . ' day', $today);
+        foreach ($codes as $c) {
+            foreach (acct_bills($c, $ts) as $b) {
+                if (!empty($b['void'])) {
+                    continue;
+                }
+                foreach ($b['lines'] as $l) {
+                    $sold[$l['sku']][$c] = (isset($sold[$l['sku']][$c]) ? $sold[$l['sku']][$c] : 0) + (int) $l['qty'];
+                }
+            }
+            foreach (receive_docs_of_day($c, $ts) as $d) {
+                if ($d['void']) {
+                    continue;
+                }
+                foreach ($d['lines'] as $l) {
+                    $recv[$l['sku']][$c] = $d['date'];       // เดินจากเก่าไปใหม่ → ค่าสุดท้ายคือล่าสุด
+                }
+            }
+        }
+    }
+    return array('sold' => $sold, 'recv' => $recv);
 }
 
 /* ##########################################################
