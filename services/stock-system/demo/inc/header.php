@@ -31,6 +31,7 @@ if ($user['role'] === 'admin') {
         ),
         'รายงาน' => array(
             array('file' => 'adm-report.php',        'label' => 'ภาพรวมยอดขาย',        'icon' => 'i-chart'),
+            array('file' => 'adm-report-daily.php',  'label' => 'สรุปยอดขายรายวัน',    'icon' => 'i-history'),
             array('file' => 'adm-report-branch.php', 'label' => 'ยอดขายแยกสาขา',      'icon' => 'i-building'),
             array('file' => 'adm-report-staff.php',  'label' => 'ยอดขายตามพนักงาน',    'icon' => 'i-users'),
             array('file' => 'adm-report-products.php', 'label' => 'สินค้าขายดี 100 อันดับ', 'icon' => 'i-boxes'),
@@ -42,6 +43,7 @@ if ($user['role'] === 'admin') {
         'ตั้งค่า' => array(
             array('file' => 'adm-branches.php', 'label' => 'จัดการสาขา',    'icon' => 'i-building'),
             array('file' => 'adm-users.php',    'label' => 'จัดการพนักงาน', 'icon' => 'i-users'),
+            array('file' => 'adm-notify.php',   'label' => 'ตั้งค่าการแจ้งเตือน', 'icon' => 'i-bell'),
         ),
     );
 } else {
@@ -150,6 +152,8 @@ $branches = visible_branches($user);
     <symbol id="i-cable" viewBox="0 0 24 24"><path d="M8 3v4M12 3v4M6.5 7h7v4a3.5 3.5 0 0 1-7 0z"/><path d="M10 14.5V17a4 4 0 0 0 8 0V9"/><path d="M16 5h4v4h-4z"/></symbol>
     <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.4 8.2-8 9-4.6-.8-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></symbol>
     <symbol id="i-cart" viewBox="0 0 24 24"><path d="M2.5 4h2.2l2.3 11.2a1.5 1.5 0 0 0 1.5 1.2h8.6a1.5 1.5 0 0 0 1.5-1.2L20 8H6"/><circle cx="9.5" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/></symbol>
+    <symbol id="i-print" viewBox="0 0 24 24"><path d="M7 9V3h10v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 1 1 12 0v5l2 2H4z"/><path d="M10 21h4"/></symbol>
     <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M5 3h14v18l-2.3-1.6-2.4 1.6-2.3-1.6L9.7 21l-2.4-1.6L5 21z"/><path d="M9 8h6M9 12h6"/></symbol>
     <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 7V4.8h4V7M6 7l1 13a1 1 0 0 0 1 .9h8a1 1 0 0 0 1-.9l1-13"/><path d="M10 11v6M14 11v6"/></symbol>
     <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>

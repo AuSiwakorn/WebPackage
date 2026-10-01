@@ -208,12 +208,19 @@ $v = function ($bc, $k, $def) use ($old) {
   <div class="alert alert-error" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span><?= e($err) ?></span></div>
 <?php endif; ?>
 
-<!-- ==================== เพิ่มสาขา ==================== -->
-<details class="card br-add"<?= $errB === 'new' ? ' open' : '' ?>>
-  <summary class="card-head">
+<!-- ==================== เพิ่มสาขา (ปุ่ม → popup) ==================== -->
+<section class="card br-add">
+  <div class="card-head">
     <div><h2>เพิ่มสาขาใหม่</h2><span class="sub">รหัสสาขาตั้งครั้งเดียว เปลี่ยนภายหลังไม่ได้</span></div>
-    <span class="btn btn-primary btn-sm"><svg class="ico"><use href="#i-plus"/></svg> เพิ่มสาขา</span>
-  </summary>
+    <button type="button" class="btn btn-primary btn-sm" data-fm-open="br-add-modal"><svg class="ico"><use href="#i-plus"/></svg> เพิ่มสาขา</button>
+  </div>
+</section>
+
+<dialog class="fm-modal" id="br-add-modal" aria-labelledby="br-add-t"<?= $errB === 'new' ? ' data-fm-auto' : '' ?>>
+  <div class="fm-head">
+    <div><h2 id="br-add-t">เพิ่มสาขาใหม่</h2><span class="sub">รหัสสาขาตั้งครั้งเดียว เปลี่ยนภายหลังไม่ได้</span></div>
+    <button type="button" class="icon-btn" data-fm-close aria-label="ปิด"><svg class="ico"><use href="#i-x"/></svg></button>
+  </div>
   <?php if ($errB === 'new'): ?>
     <div class="alert alert-error adm-ok" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span><?= e($err) ?></span></div>
   <?php endif; ?>
@@ -249,9 +256,12 @@ $v = function ($bc, $k, $def) use ($old) {
         </div>
       <?php endforeach; ?>
     </div>
-    <button class="btn btn-primary" type="submit"><svg class="ico"><use href="#i-plus"/></svg> เพิ่มสาขา</button>
+    <div class="fm-foot">
+      <button class="btn btn-ghost" type="button" data-fm-close>ยกเลิก</button>
+      <button class="btn btn-primary" type="submit"><svg class="ico"><use href="#i-plus"/></svg> เพิ่มสาขา</button>
+    </div>
   </form>
-</details>
+</dialog>
 
 <!-- ==================== รายชื่อสาขา (แอคคอร์เดียน) ==================== -->
 <?php
@@ -360,6 +370,21 @@ $openB = ($okB !== '' && isset($list[$okB])) ? $okB : (($errB !== '' && isset($l
 <?php endforeach; ?>
 
 <script>
+/* popup ฟอร์มเพิ่มสาขา · บันทึกไม่ผ่าน → เปิด popup ค้างไว้พร้อมข้อความผิดพลาดและค่าที่กรอก */
+(function () {
+  var dlg = document.getElementById('br-add-modal');
+  if (!dlg || !dlg.showModal) { return; }
+  document.addEventListener('click', function (ev) {
+    if (ev.target.closest('[data-fm-open="br-add-modal"]')) {
+      dlg.showModal();
+      var f = document.getElementById('new-b');
+      if (f) { f.focus(); }
+      return;
+    }
+    if ((ev.target.closest('[data-fm-close]') && dlg.contains(ev.target)) || ev.target === dlg) { dlg.close(); }
+  });
+  if (dlg.hasAttribute('data-fm-auto')) { dlg.showModal(); }
+})();
 (function () {
   var c = document.getElementById('new-b'), eg = document.getElementById('new-eg');
   if (!c) { return; }

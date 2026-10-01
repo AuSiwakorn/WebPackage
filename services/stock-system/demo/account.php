@@ -5,6 +5,8 @@
    - เลือกวัน สาขา และประเภทบิล (ทั้งหมด / VAT / ไม่ VAT)
    - สรุปต่อสาขา: จำนวนบิล VAT / ไม่ VAT · ยอดขาย · VAT · เงินสด · โอน · คืนเงิน · เงินเข้าสุทธิ
    - รายการบิลเรียงตามเลขที่ รวมบิลที่ยกเลิก (เลขที่ต้องครบ ห้ามหาย)
+   - ทุกบิลกด "ดู / พิมพ์" ได้ → popup แสดงบิล (bill-print.php) เลือก 80 มม. / A4 แล้วสั่งพิมพ์
+     บิล VAT = ใบเสร็จรับเงิน / ใบกำกับภาษีอย่างย่อ · บิลไม่ VAT = บิลเงินสด (ใช้ชุดเลขที่แยกกัน)
    - สรุปทั้งเดือน + ดาวน์โหลด CSV (เปิดด้วย Excel ได้) ไว้ทำรายงานภาษีขาย / ส่งสำนักงานบัญชี
    ========================================================== */
 
@@ -177,14 +179,14 @@ require dirname(__FILE__) . '/inc/header.php';
 <!-- ==================== รายการบิล ==================== -->
 <section class="card">
   <div class="card-head"><div><h3>รายการบิล <?= $tSel === 'all' ? '' : '(' . ($tSel === 'vat' ? 'VAT' : 'ไม่ VAT') . ')' ?></h3>
-    <p><?= count($rows) ?> ใบ · เรียงตามสาขาและเลขที่ · ยอดขายเป็นราคารวม VAT แล้ว</p></div></div>
+    <p><?= count($rows) ?> ใบ · เรียงตามสาขาและเลขที่ · ยอดขายเป็นราคารวม VAT แล้ว · กด “ดู / พิมพ์” เพื่อเปิดบิลและสั่งพิมพ์ (บิล VAT พิมพ์เป็นใบกำกับภาษีอย่างย่อ)</p></div></div>
   <?php if (!$rows): ?>
     <p class="empty"><svg class="ico"><use href="#i-receipt"/></svg>ไม่มีบิลในวันนี้</p>
   <?php else: ?>
     <div class="card-body card-body--flush">
       <div class="tbl-wrap">
         <table class="tbl num">
-          <thead><tr><th>เลขที่บิล</th><th>ประเภท</th><th>ชำระ</th><th class="r">ก่อน VAT</th><th class="r">VAT</th><th class="r">รวม</th></tr></thead>
+          <thead><tr><th>เลขที่บิล</th><th>ประเภท</th><th>ชำระ</th><th class="r">ก่อน VAT</th><th class="r">VAT</th><th class="r">รวม</th><th class="r"><span class="sr-only">บิล</span></th></tr></thead>
           <tbody>
             <?php foreach ($rows as $b): $void = !empty($b['void']); ?>
               <tr class="<?= $void ? 'off' : '' ?>">
@@ -196,6 +198,10 @@ require dirname(__FILE__) . '/inc/header.php';
                 <td class="r" data-label="VAT"><?= $b['vat'] ? e(money2($b['vatamt'])) : '—' ?></td>
                 <td class="r" data-label="รวม"><?= $void ? '<s>' . e(money2($b['total'])) . '</s>' : e(money2($b['total'])) ?>
                   <?php if (!empty($b['discount'])): ?><small>ส่วนลด <?= e(money2($b['discount'])) ?></small><?php endif; ?></td>
+                <td class="r" data-label="">
+                  <button type="button" class="btn btn-ghost btn-sm bill-pr" data-bill-print="<?= e(bill_print_url($b['branch'], $ts, $b['no'])) ?>"
+                          data-bill-no="<?= e($b['no']) ?>" title="เปิดดูและพิมพ์บิล"><svg class="ico"><use href="#i-print"/></svg> ดู / พิมพ์</button>
+                </td>
               </tr>
             <?php endforeach; ?>
           </tbody>

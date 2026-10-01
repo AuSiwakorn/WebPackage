@@ -36,6 +36,8 @@
    19. หน้าจัดการพนักงาน (adm-users.php)
    20. หน้าขายสินค้า (sale.php)
    21. ภาพรวมของผู้ดูแล (adm-dashboard.php)
+   22. รายงานสรุปยอดขายรายวัน (adm-report-daily.php)
+   23. การแจ้งเตือน Telegram / อีเมลสรุปยอดรายวัน (adm-notify.php)
 
    เขียนให้รองรับ PHP 5.4 ขึ้นไป
    ========================================================== */
@@ -1510,7 +1512,7 @@ function require_login()
 /** หน้าที่ฝ่ายบัญชีเข้าได้ */
 function account_pages()
 {
-    return array('account.php', 'account-settings.php', 'logout.php');
+    return array('account.php', 'account-settings.php', 'bill-print.php', 'logout.php');
 }
 
 /** หน้าแรกหลังเข้าระบบของแต่ละบทบาท */
@@ -1544,7 +1546,7 @@ function admin_page_map()
 /** หน้าที่ผู้ดูแลใช้ร่วมกับบทบาทอื่น (ไม่ต้องมีชุด adm-) */
 function admin_shared_pages()
 {
-    return array('account.php', 'account-settings.php', 'logout.php', 'login.php', 'index.php');
+    return array('account.php', 'account-settings.php', 'bill-print.php', 'logout.php', 'login.php', 'index.php');
 }
 
 /* ##########################################################
@@ -1581,7 +1583,179 @@ function acct_setting($code, $key)
         return $_SESSION['cfg']['acct'][$code][$key];
     }
     $d = acct_setting_defaults();
-    return isset($d[$code][$key]) ? $d[$code][$key] : '';
+    if (isset($d[$code][$key])) {
+        return $d[$code][$key];
+    }
+    $g = bill_head_defaults($code);
+    return isset($g[$key]) ? $g[$key] : '';
+}
+
+/**
+ * ค่าตั้งต้นของสิ่งที่พิมพ์บนบิล (ใช้ได้ทุกสาขา รวมสาขาที่ผู้ดูแลเพิ่มเอง)
+ *   company      ชื่อผู้ประกอบการ / ชื่อร้าน (หัวบิล)
+ *   bill_address ที่อยู่บนบิล — ว่าง = ใช้ที่อยู่สาขาจากหน้า "จัดการสาขา"
+ *   bill_phone   เบอร์โทรบนบิล — ว่าง = ใช้เบอร์สาขา
+ *   bill_extra   บรรทัดเสริมใต้ที่อยู่ เช่น LINE / เว็บไซต์ (ไม่บังคับ)
+ *   title_vat    หัวกระดาษของบิล VAT
+ *   title_novat  หัวกระดาษของบิลไม่ VAT
+ *   footer       ข้อความท้ายบิล (ขึ้นบรรทัดใหม่ได้)
+ *   paper        ขนาดกระดาษเริ่มต้น: 80 = เครื่องพิมพ์ใบเสร็จ 80 มม. · a4 = A4
+ *   novat_tax    พิมพ์เลขผู้เสียภาษีบนบิลไม่ VAT ด้วยหรือไม่ (1 / 0)
+ */
+function bill_head_defaults($code)
+{
+    return array(
+        'company'      => 'บริษัท ตัวอย่างการค้า จำกัด',
+        'bill_address' => '',
+        'bill_phone'   => '',
+        'bill_extra'   => 'LINE: @aostock-demo',
+        'title_vat'    => 'ใบเสร็จรับเงิน / ใบกำกับภาษีอย่างย่อ',
+        'title_novat'  => 'บิลเงินสด / ใบเสร็จรับเงิน',
+        'footer'       => "ขอบคุณที่ใช้บริการ\nเปลี่ยน / คืนสินค้าได้ภายใน 7 วัน พร้อมบิลนี้",
+        'paper'        => '80',
+        'novat_tax'    => '0',
+    );
+}
+
+/** ข้อมูลหัวบิลที่จะพิมพ์จริงของสาขา (ที่อยู่ / เบอร์ว่าง → ใช้ของสาขา) */
+function bill_head($code)
+{
+    $br = demo_branches_all();
+    $b  = isset($br[$code]) ? $br[$code] : array('name' => $code, 'address' => '', 'phone' => '');
+    $h  = array();
+    foreach (array_keys(bill_head_defaults($code)) as $k) {
+        $h[$k] = acct_setting($code, $k);
+    }
+    $h['branch_name'] = $b['name'];
+    if (trim($h['bill_address']) === '') {
+        $h['bill_address'] = isset($b['address']) ? $b['address'] : '';
+    }
+    if (trim($h['bill_phone']) === '') {
+        $h['bill_phone'] = isset($b['phone']) ? $b['phone'] : '';
+    }
+    $h['tax_id']     = acct_setting($code, 'tax_id');
+    $h['tax_branch'] = acct_setting($code, 'tax_branch');
+    return $h;
+}
+
+/** เลขผู้เสียภาษีแบบอ่านง่าย 0-1055-66012-34-5 */
+function tax_id_format($id)
+{
+    $id = preg_replace('/\D/', '', (string) $id);
+    if (strlen($id) !== 13) {
+        return $id;
+    }
+    return substr($id, 0, 1) . '-' . substr($id, 1, 4) . '-' . substr($id, 5, 5) . '-' . substr($id, 10, 2) . '-' . substr($id, 12, 1);
+}
+
+/** ข้อความสาขาตามแบบกรมสรรพากร: 00000 = สำนักงานใหญ่ */
+function tax_branch_label($no)
+{
+    return $no === '00000' ? 'สำนักงานใหญ่' : 'สาขาที่ ' . $no;
+}
+
+/** หาบิลจากเลขที่ของวันหนึ่ง (ทั้งบิลวันนี้และบิลสมมติย้อนหลัง) */
+function bill_find($code, $ts, $no)
+{
+    foreach (acct_bills($code, $ts) as $b) {
+        if ($b['no'] === $no) {
+            $b['branch'] = $code;
+            return bill_print_fill($b);
+        }
+    }
+    return null;
+}
+
+/** เติมค่าที่บิลสมมติไม่มี (ราคาเต็ม / ส่วนลด / รับเงิน / เงินทอน) ให้พิมพ์ได้ครบ */
+function bill_print_fill($b)
+{
+    if (!isset($b['subtotal'])) {
+        $b['subtotal'] = $b['total'];
+    }
+    if (!isset($b['discount'])) {
+        $b['discount'] = 0;
+    }
+    if (!isset($b['received'])) {
+        /* บิลสมมติ: ลูกค้าเงินสดจ่ายเป็นแบงก์ร้อยปัดขึ้น */
+        $b['received'] = $b['method'] === 'cash' ? ceil($b['total'] / 100) * 100 : $b['total'];
+    }
+    $b['change'] = $b['received'] - $b['total'];
+    return $b;
+}
+
+/** บิลตัวอย่างสำหรับดูหน้าตาจากหน้าตั้งค่า (ไม่ใช่บิลจริง ไม่มีเลขรัน) */
+function bill_sample($code, $vat)
+{
+    $prods = demo_products();
+    $lines = array();
+    foreach (array(0 => 1, 7 => 2, 13 => 1) as $i => $q) {
+        $p = $prods[$i % count($prods)];
+        $price = product_price($p);
+        $lines[] = array('sku' => $p['sku'], 'name' => $p['name'], 'unit' => $p['unit'], 'qty' => $q, 'price' => $price, 'sum' => $price * $q);
+    }
+    $sub = 0;
+    $qty = 0;
+    foreach ($lines as $l) {
+        $sub += $l['sum'];
+        $qty += $l['qty'];
+    }
+    return bill_print_fill(array(
+        'no' => bill_no_format(bill_prefix($code, $vat), time(), 1), 'vat' => (bool) $vat, 'date' => date('Ymd'),
+        'time' => date('H:i'), 'branch' => $code, 'by' => 'พนักงานตัวอย่าง', 'method' => 'cash',
+        'lines' => $lines, 'items' => count($lines), 'qty' => $qty,
+        'subtotal' => $sub, 'discount' => 20, 'total' => $sub - 20, 'sample' => true,
+    ));
+}
+
+/** จำนวนเงินเป็นตัวอักษรไทย เช่น 1,250.50 → หนึ่งพันสองร้อยห้าสิบบาทห้าสิบสตางค์ */
+function thai_baht_text($amount)
+{
+    $amount = round((float) $amount, 2);
+    $baht   = (int) floor($amount);
+    $satang = (int) round(($amount - $baht) * 100);
+    $out = ($baht > 0 ? thai_number_text($baht) . 'บาท' : ($satang > 0 ? '' : 'ศูนย์บาท'));
+    return $out . ($satang > 0 ? thai_number_text($satang) . 'สตางค์' : 'ถ้วน');
+}
+
+/** ตัวเลขจำนวนเต็มเป็นคำอ่านไทย (รองรับหลักล้านซ้อน) */
+function thai_number_text($n)
+{
+    $n = (int) $n;
+    if ($n === 0) {
+        return 'ศูนย์';
+    }
+    if ($n >= 1000000) {
+        $rest = $n % 1000000;
+        return thai_number_text((int) floor($n / 1000000)) . 'ล้าน' . ($rest === 1 ? 'เอ็ด' : ($rest ? thai_number_text($rest) : ''));
+    }
+    $digit = array('', 'หนึ่ง', 'สอง', 'สาม', 'สี่', 'ห้า', 'หก', 'เจ็ด', 'แปด', 'เก้า');
+    $place = array('', 'สิบ', 'ร้อย', 'พัน', 'หมื่น', 'แสน');
+    $s   = (string) $n;
+    $len = strlen($s);
+    $out = '';
+    for ($i = 0; $i < $len; $i++) {
+        $d   = (int) $s[$i];
+        $pos = $len - $i - 1;
+        if ($d === 0) {
+            continue;
+        }
+        if ($pos === 1 && $d === 1) {
+            $out .= 'สิบ';
+        } elseif ($pos === 1 && $d === 2) {
+            $out .= 'ยี่สิบ';
+        } elseif ($pos === 0 && $d === 1 && $len > 1) {
+            $out .= 'เอ็ด';
+        } else {
+            $out .= $digit[$d] . $place[$pos];
+        }
+    }
+    return $out;
+}
+
+/** ลิงก์หน้าพิมพ์บิล */
+function bill_print_url($code, $ts, $no, $more = array())
+{
+    return 'bill-print.php?' . http_build_query(array_merge(array('b' => $code, 'd' => date('Ymd', $ts), 'no' => $no), $more));
 }
 
 function acct_setting_set($code, $key, $val)
@@ -3351,7 +3525,7 @@ function past_store_events($code, $ts)
         array('ts' => $base + $closeM * 60, 'time' => $hm($closeM), 'type' => 'close', 'by' => $closer,
               'title' => 'ปิดร้าน · ยอดขาย ' . money2($cash + $xfer) . ' บาท'
                        . ($diff === 0 ? '' : ' · เงิน' . ($diff < 0 ? 'ขาด ' : 'เกิน ') . money2(abs($diff)) . ' บาท'),
-              'amount' => $cash + $xfer,
+              'amount' => $cash + $xfer, 'diff' => $diff, 'expect' => $expect, 'counted' => $counted,
               'detail' => array('บิล' => count($bills) . ' ใบ', 'เงินสด' => money2($cash) . ' บาท', 'โอน' => money2($xfer) . ' บาท',
                                 'ควรมีในลิ้นชัก' => money2($expect) . ' บาท', 'นับได้' => money2($counted) . ' บาท',
                                 'เก็บเป็นเงินทอนพรุ่งนี้' => money2($keep) . ' บาท', 'นำส่ง' => money2($counted - $keep) . ' บาท')),
@@ -3397,6 +3571,103 @@ function sales_scan($codes, $from, $to)
         }
     }
     return array('day' => $day, 'staff' => $staff);
+}
+
+/* ##########################################################
+   หมวด: รายงานสรุปยอดขายรายวัน (adm-report-daily.php)
+   ########################################################## */
+
+/** ชื่อวันแบบย่อ อา. จ. อ. … */
+function thai_dow_short($ts)
+{
+    $d = array('อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.');
+    return $d[(int) date('w', $ts)];
+}
+
+/**
+ * สาขาจำลองสำหรับดูหน้าตารางตอนมีหลายสาขา (เฉพาะโหมด "ดูตัวอย่าง 10 สาขา")
+ * ไม่ใช่สาขาจริง ไม่บันทึกที่ไหน — คืน array(รหัส => array(name, short, active, sim))
+ */
+function daily_sim_branches($want)
+{
+    $names = array('เมกาบางนา', 'เซ็นทรัลเวสต์เกต', 'ซีคอนสแควร์', 'เดอะมอลล์งามวงศ์วาน', 'เซ็นทรัลพระราม 2',
+                   'แฟชั่นไอส์แลนด์', 'เซ็นทรัลลาดพร้าว', 'โรบินสันศรีราชา', 'เซ็นทรัลเชียงใหม่');
+    $out = array();
+    for ($i = 0; $i < $want && $i < count($names); $i++) {
+        $out['SIM' . ($i + 1)] = array('name' => 'สาขา' . $names[$i] . ' (จำลอง)', 'short' => $names[$i], 'active' => true, 'sim' => true);
+    }
+    return $out;
+}
+
+/** ยอดขายจำลองของสาขาจำลองในวันหนึ่ง — คงที่ทุกครั้งที่เรียก · วันอาทิตย์ร้านปิด */
+function daily_sim_sales($code, $ts)
+{
+    if ((int) date('w', $ts) === 0 || $ts > time() || date('Ymd', $ts) < date('Ymd', strtotime(DEMO_DATA_START))) {
+        return array('total' => 0, 'bills' => 0, 'qty' => 0);
+    }
+    $s     = abs(crc32($code . '|sim|' . date('Ymd', $ts)));
+    $bills = 2 + ($s % 9) + ((int) date('w', $ts) === 6 ? 3 : 0);
+    $qty   = $bills + (($s >> 4) % ($bills + 1));
+    $total = $bills * (180 + (($s >> 8) % 40) * 10);
+    return array('total' => $total, 'bills' => $bills, 'qty' => $qty);
+}
+
+/**
+ * ตารางยอดขายรายวันของเดือน: แถว = ทุกวันของเดือน (1 → สิ้นเดือน) · คอลัมน์ = สาขา
+ * $branches = array(รหัส => ข้อมูลสาขา) · $v = total | bills | qty
+ * คืน array(
+ *   rows  => array(ปปปปดดวว => array(ts, future, cells => array(สาขา => ค่า), sum)),
+ *   col   => array(สาขา => รวมทั้งเดือน), open => array(สาขา => จำนวนวันที่มียอด),
+ *   best  => array(สาขา => array(ค่า, ปปปปดดวว)), grand, cellMax, bestDay => array(ค่า, ปปปปดดวว) )
+ */
+function daily_matrix($branches, $monTs, $v)
+{
+    $today = strtotime(date('Y-m-d'));
+    $first = strtotime(date('Y-m-01', $monTs));
+    $last  = strtotime(date('Y-m-t', $monTs));
+    $real  = array();
+    foreach ($branches as $c => $b) {
+        if (empty($b['sim'])) {
+            $real[] = $c;
+        }
+    }
+    $scan = $real ? sales_scan($real, $first, min($last, $today)) : array('day' => array());
+
+    $out = array('rows' => array(), 'col' => array(), 'open' => array(), 'best' => array(),
+                 'grand' => 0, 'cellMax' => 0, 'bestDay' => array(0, ''));
+    foreach ($branches as $c => $b) {
+        $out['col'][$c]  = 0;
+        $out['open'][$c] = 0;
+        $out['best'][$c] = array(0, '');
+    }
+    for ($d = $first; $d <= $last; $d = strtotime('+1 day', $d)) {
+        $k   = date('Ymd', $d);
+        $row = array('ts' => $d, 'future' => $d > $today, 'cells' => array(), 'sum' => 0);
+        foreach ($branches as $c => $b) {
+            if (!empty($b['sim'])) {
+                $x = daily_sim_sales($c, $d);
+            } else {
+                $x = isset($scan['day'][$k][$c]) ? $scan['day'][$k][$c] : array('total' => 0, 'bills' => 0, 'qty' => 0);
+            }
+            $val = $x[$v];
+            $row['cells'][$c] = $val;
+            $row['sum']      += $val;
+            $out['col'][$c]  += $val;
+            if ($val > 0) {
+                $out['open'][$c]++;
+            }
+            if ($val > $out['best'][$c][0]) {
+                $out['best'][$c] = array($val, $k);
+            }
+            $out['cellMax'] = max($out['cellMax'], $val);
+        }
+        $out['grand'] += $row['sum'];
+        if ($row['sum'] > $out['bestDay'][0]) {
+            $out['bestDay'] = array($row['sum'], $k);
+        }
+        $out['rows'][$k] = $row;
+    }
+    return $out;
 }
 
 /**
@@ -5886,3 +6157,613 @@ function dash_review_cmp($a, $b)
 {
     return $b['ts'] - $a['ts'];
 }
+
+
+/* ##########################################################
+   หมวด: การแจ้งเตือน Telegram / อีเมลสรุปยอดรายวัน (adm-notify.php)
+   ----------------------------------------------------------
+   เดโมเก็บค่าใน $_SESSION['cfg']['notify'] · ประวัติการส่งทดสอบใน $_SESSION['notify_log']
+   ระบบจริง: ตาราง ao_stock_notify_setting (ค่า) + ao_stock_notify_log (ประวัติการส่ง)
+             token / รหัสผ่าน SMTP เก็บแบบเข้ารหัส · อีเมลรายวันส่งด้วย cron ทุก 5 นาที
+             (cron เช็กว่าเลยเวลาที่ตั้งและวันนั้นยังไม่ได้ส่ง → ส่งแล้วลง log)
+   ########################################################## */
+
+/** ค่าเริ่มต้นของการแจ้งเตือน */
+function notify_defaults()
+{
+    return array(
+        'tg_on'         => '0',
+        'tg_token'      => '',
+        'tg_chats'      => '',
+        'tg_events'     => array('close', 'cash_diff', 'void', 'refund', 'reopen', 'lost'),
+        'tg_branches'   => array(),             // ว่าง = ทุกสาขา
+        'tg_silent'     => '0',                 // 1 = ส่งแบบไม่มีเสียง
+        'mail_on'       => '0',
+        'mail_to'       => '',
+        'mail_time'     => '21:00',
+        'mail_days'     => 'open',              // open = เฉพาะวันที่มียอดขาย · all = ทุกวัน
+        'mail_branches' => array(),
+        'mail_parts'    => array('pay', 'vat', 'refund', 'cash', 'top', 'month'),
+        'smtp_host'     => '',
+        'smtp_port'     => '587',
+        'smtp_secure'   => 'tls',               // tls | ssl | none
+        'smtp_user'     => '',
+        'smtp_pass'     => '',
+        'from_name'     => 'AOSTOCK รายงานยอดขาย',
+        'from_email'    => '',
+    );
+}
+
+function notify_get($k)
+{
+    if (isset($_SESSION['cfg']['notify'][$k])) {
+        return $_SESSION['cfg']['notify'][$k];
+    }
+    $d = notify_defaults();
+    return isset($d[$k]) ? $d[$k] : '';
+}
+
+function notify_set($k, $v)
+{
+    $_SESSION['cfg']['notify'][$k] = $v;
+}
+
+/** เหตุการณ์ที่เลือกส่งเข้า Telegram ได้: key => array(ชื่อ, คำอธิบาย) */
+function notify_tg_events()
+{
+    return array(
+        'close'     => array('ปิดร้าน · สรุปยอดของสาขา', 'ยอดขาย จำนวนบิล เงินสด / โอน ทันทีที่สาขาปิดร้าน'),
+        'cash_diff' => array('เงินในลิ้นชักขาด / เกิน', 'ตอนปิดร้านนับเงินได้ไม่ตรงกับที่ควรมี'),
+        'void'      => array('ยกเลิกบิล / แก้เอกสาร', 'พร้อมเหตุผลและชื่อคนยกเลิก'),
+        'refund'    => array('รับคืนสินค้า · คืนเงินสด', 'เลขที่บิลเดิม ยอดเงินคืน และเหตุผล'),
+        'reopen'    => array('เปิดร้านใหม่หลังปิด', 'ผู้ดูแลเปิดร้านอีกครั้งหลังปิดไปแล้ว'),
+        'lost'      => array('ตัดออกเพราะสูญหาย / ชำรุด', 'ใบเบิก/ตัดออกที่เหตุผลเป็นของหายหรือเสียหาย'),
+        'open'      => array('เปิดร้าน', 'เวลาเปิดร้านและเงินทอนเริ่มวันของแต่ละสาขา'),
+        'low'       => array('สินค้าใกล้หมด / หมด', 'สรุปวันละครั้งตอนเช้า เฉพาะสินค้าที่ถึงจุดสั่งซื้อ'),
+        'backdate'  => array('ยกเลิกเอกสารย้อนหลัง', 'ใบรับเข้า / เบิก / ตรวจนับของวันก่อนถูกยกเลิก'),
+    );
+}
+
+/** ส่วนที่เลือกใส่ในอีเมลสรุปรายวันได้ (ยอดขายแยกสาขามีเสมอ) */
+function notify_mail_parts()
+{
+    return array(
+        'pay'    => array('เงินสด / โอน แยกช่องทาง', ''),
+        'vat'    => array('บิล VAT / ไม่ VAT และยอด VAT', ''),
+        'refund' => array('รับคืนสินค้า · เงินคืน', ''),
+        'cash'   => array('เงินขาด / เกินตอนปิดร้าน', ''),
+        'top'    => array('สินค้าขายดี 5 อันดับของวัน', ''),
+        'month'  => array('ยอดสะสมตั้งแต่ต้นเดือน', ''),
+        'low'    => array('สินค้าใกล้หมด / หมด', ''),
+    );
+}
+
+/** ซ่อนค่าลับ เหลือ 4 ตัวท้าย */
+function mask_secret($v)
+{
+    $v = (string) $v;
+    if ($v === '') {
+        return '';
+    }
+    return str_repeat('•', 8) . substr($v, -4);
+}
+
+/** ตรวจรูปแบบ Bot token ของ Telegram เช่น 123456789:AA… */
+function tg_token_valid($t)
+{
+    return (bool) preg_match('/^\d{6,12}:[A-Za-z0-9_-]{30,50}$/', $t);
+}
+
+/** แยก Chat ID หลายค่า (คั่นด้วยบรรทัด / จุลภาค / ช่องว่าง) คืน array(ids, ค่าที่ผิด) */
+function tg_chats_parse($s)
+{
+    $ok  = array();
+    $bad = array();
+    foreach (preg_split('/[\s,]+/', trim((string) $s)) as $c) {
+        if ($c === '') {
+            continue;
+        }
+        if (preg_match('/^(-?\d{4,20}|@[A-Za-z][A-Za-z0-9_]{4,31})$/', $c)) {
+            $ok[$c] = $c;
+        } else {
+            $bad[] = $c;
+        }
+    }
+    return array(array_values($ok), $bad);
+}
+
+/** แยกอีเมลหลายรายการ คืน array(อีเมล, ค่าที่ผิด) */
+function mail_list_parse($s)
+{
+    $ok  = array();
+    $bad = array();
+    foreach (preg_split('/[\s,;]+/', trim((string) $s)) as $m) {
+        if ($m === '') {
+            continue;
+        }
+        if (filter_var($m, FILTER_VALIDATE_EMAIL)) {
+            $ok[strtolower($m)] = $m;
+        } else {
+            $bad[] = $m;
+        }
+    }
+    return array(array_values($ok), $bad);
+}
+
+/** เรียก Telegram Bot API · คืน array(ok, ข้อมูล | ข้อความผิดพลาด) */
+function tg_api($token, $method, $params = array())
+{
+    $url  = 'https://api.telegram.org/bot' . $token . '/' . $method;
+    $body = http_build_query($params);
+    $raw  = false;
+    $err  = '';
+    if (function_exists('curl_init')) {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, array(CURLOPT_POST => true, CURLOPT_POSTFIELDS => $body, CURLOPT_RETURNTRANSFER => true,
+                                     CURLOPT_CONNECTTIMEOUT => 6, CURLOPT_TIMEOUT => 10));
+        $raw = curl_exec($ch);
+        if ($raw === false) {
+            $err = curl_error($ch);
+        }
+        curl_close($ch);
+    } else {
+        $ctx = stream_context_create(array('http' => array('method' => 'POST', 'timeout' => 10, 'ignore_errors' => true,
+                                     'header' => "Content-Type: application/x-www-form-urlencoded\r\n", 'content' => $body)));
+        $raw = @file_get_contents($url, false, $ctx);
+        if ($raw === false) {
+            $err = 'เชื่อมต่อ api.telegram.org ไม่ได้';
+        }
+    }
+    if ($raw === false) {
+        return array(false, 'ส่งไม่สำเร็จ: ' . ($err !== '' ? $err : 'เชื่อมต่อไม่ได้') . ' — ตรวจว่าเซิร์ฟเวอร์ออกอินเทอร์เน็ตได้');
+    }
+    $j = json_decode($raw, true);
+    if (!is_array($j)) {
+        return array(false, 'Telegram ตอบกลับผิดรูปแบบ');
+    }
+    if (empty($j['ok'])) {
+        $d = isset($j['description']) ? $j['description'] : 'ไม่ทราบสาเหตุ';
+        if (stripos($d, 'unauthorized') !== false) {
+            $d = 'Bot token ไม่ถูกต้อง (Unauthorized)';
+        } elseif (stripos($d, 'chat not found') !== false) {
+            $d = 'ไม่พบ Chat ID นี้ — ต้องทักบอทก่อน หรือเพิ่มบอทเข้ากลุ่มก่อน';
+        } elseif (stripos($d, 'bot was blocked') !== false) {
+            $d = 'ผู้ใช้บล็อกบอทนี้อยู่';
+        }
+        return array(false, $d);
+    }
+    return array(true, isset($j['result']) ? $j['result'] : array());
+}
+
+/** หา Chat ID จากข้อความล่าสุดที่คนทักบอท (getUpdates) คืน array(ok, array(id => ชื่อ) | ข้อความผิดพลาด) */
+function tg_find_chats($token)
+{
+    $r = tg_api($token, 'getUpdates', array('limit' => 50));
+    if (!$r[0]) {
+        return $r;
+    }
+    $out = array();
+    foreach ($r[1] as $u) {
+        foreach (array('message', 'channel_post', 'my_chat_member', 'edited_message') as $k) {
+            if (!empty($u[$k]['chat']['id'])) {
+                $c = $u[$k]['chat'];
+                $nm = isset($c['title']) ? $c['title'] : trim((isset($c['first_name']) ? $c['first_name'] : '') . ' ' . (isset($c['last_name']) ? $c['last_name'] : ''));
+                $out[(string) $c['id']] = ($nm !== '' ? $nm : (isset($c['username']) ? '@' . $c['username'] : 'แชต'))
+                                         . ' · ' . ($c['type'] === 'private' ? 'แชตส่วนตัว' : ($c['type'] === 'channel' ? 'ช่อง' : 'กลุ่ม'));
+            }
+        }
+    }
+    return array(true, $out);
+}
+
+/** วันล่าสุดก่อนวันนี้ที่มียอดขาย (ไว้ทำตัวอย่าง) */
+function notify_last_sales_day($codes)
+{
+    for ($i = 1; $i <= 10; $i++) {
+        $d = strtotime('-' . $i . ' day', strtotime(date('Y-m-d')));
+        foreach ($codes as $c) {
+            if (past_bills($c, $d)) {
+                return $d;
+            }
+        }
+    }
+    return strtotime('-1 day', strtotime(date('Y-m-d')));
+}
+
+/** ข้อความตัวอย่างของแต่ละเหตุการณ์ (HTML แบบที่ Telegram รองรับ: b, i) — ใช้ข้อมูลตัวอย่างจริงของสาขา */
+function notify_tg_sample($event, $code = '')
+{
+    $br = demo_branches();
+    if ($code === '' || !isset($br[$code])) {
+        $code = key($br);
+    }
+    $bn  = $br[$code]['name'];
+    $ts  = notify_last_sales_day(array($code));
+    $day = thai_date_full($ts);
+    $esc = function ($v) { return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8'); };
+    $close = null;
+    foreach (past_store_events($code, $ts) as $ev) {
+        if ($ev['type'] === 'close') {
+            $close = $ev;
+        }
+    }
+    $bills = past_bills($code, $ts);
+    $b0    = $bills ? $bills[0] : null;
+    switch ($event) {
+        case 'close':
+            $s = acct_day($code, $ts);
+            return "🏪 <b>ปิดร้าน · " . $esc($bn) . "</b>\n📅 " . $esc($day) . ($close ? ' · ' . $close['time'] . ' น. · ปิดโดย ' . $esc($close['by']) : '')
+                 . "\n\n💰 ยอดขาย <b>" . money2($s['total']) . " บาท</b> (" . number_format($s['bills'] - $s['void']) . " บิล)"
+                 . "\n   เงินสด " . money2($s['cash']) . " · โอน " . money2($s['transfer'])
+                 . ($close ? "\n🧾 ลิ้นชัก ควรมี " . money2($close['expect']) . " · นับได้ " . money2($close['counted'])
+                    . ($close['diff'] == 0 ? " ✅ ตรง" : "\n⚠️ เงิน" . ($close['diff'] < 0 ? 'ขาด ' : 'เกิน ') . money2(abs($close['diff'])) . " บาท") : '');
+        case 'cash_diff':
+            return "⚠️ <b>เงินขาด 50.00 บาท · " . $esc($bn) . "</b>\n📅 " . $esc($day) . ($close ? ' · ปิดโดย ' . $esc($close['by']) : '')
+                 . "\nควรมีในลิ้นชัก " . money2($close ? $close['expect'] : 3500) . " · นับได้ " . money2(($close ? $close['expect'] : 3500) - 50);
+        case 'void':
+            return "🚫 <b>ยกเลิกบิล " . $esc($b0 ? $b0['no'] : 'HQ2026-09-0001') . "</b>\n" . $esc($bn) . " · " . $esc($b0 ? $b0['by'] : 'พนักงาน')
+                 . "\nยอด " . money2($b0 ? $b0['total'] : 590) . " บาท\nเหตุผล: <i>คิดเงินผิด</i>";
+        case 'refund':
+            return "↩️ <b>รับคืนสินค้า · คืนเงินสด 390.00 บาท</b>\n" . $esc($bn) . " · บิลเดิม " . $esc($b0 ? $b0['no'] : '-')
+                 . "\nสินค้า: " . $esc($b0 ? $b0['lines'][0]['name'] : 'ฟิล์มกระจก') . " ×1\nเหตุผล: <i>ชำรุด</i> · ไม่เข้าสต๊อก";
+        case 'reopen':
+            return "🔓 <b>เปิดร้านใหม่หลังปิด · " . $esc($bn) . "</b>\nโดย สมชาย ใจดี (ผู้ดูแล) · 20:45 น.\nเหตุผล: <i>ลูกค้ามารับของที่จองไว้</i>";
+        case 'lost':
+            return "📦 <b>ตัดออก · สูญหาย</b>\n" . $esc($bn) . " · IS-" . date('ymd', $ts) . "-0003\nสายชาร์จ USB-C 1 ม. ×2 · มูลค่าทุน 180.00 บาท\nโดย " . $esc($b0 ? $b0['by'] : 'พนักงาน');
+        case 'open':
+            return "🟢 <b>เปิดร้าน · " . $esc($bn) . "</b>\n" . ($close ? '08:42 น. · ' : '') . "เงินทอนเริ่มวัน " . money2(branch_default_float($code)) . " บาท";
+        case 'low':
+            $t = "📉 <b>สินค้าใกล้หมด · " . $esc($bn) . "</b>";
+            foreach (low_stock_products($code, 4) as $r) {
+                $t .= "\n• " . $esc($r['product']['name']) . " เหลือ " . number_format($r['qty']) . ($r['qty'] <= 0 ? ' (หมด)' : '');
+            }
+            return $t;
+        case 'backdate':
+            return "⏪ <b>ยกเลิกเอกสารย้อนหลัง</b>\n" . $esc($bn) . " · RC-" . date('ymd', $ts) . "-0001\nเหตุผล: <i>รับเข้าซ้ำ</i> · โดย สมชาย ใจดี";
+        case 'test':
+            return "✅ <b>ทดสอบการแจ้งเตือนจาก " . APP_NAME . "</b>\nตั้งค่าเรียบร้อย ข้อความแจ้งเตือนจะส่งมาที่แชตนี้\n" . date('d/m/') . (date('Y') + 543) . ' ' . date('H:i') . ' น.';
+    }
+    return '';
+}
+
+/**
+ * ข้อมูลสรุปยอดขายของวันหนึ่ง สำหรับอีเมลรายวัน
+ * คืน array(rows => สาขา => สรุป, sum => รวม, prev => ยอดวันขายก่อนหน้า, month => ยอดสะสมเดือน, top, low)
+ */
+function daily_summary_data($ts, $codes)
+{
+    $br   = demo_branches_all();
+    $rows = array();
+    $sum  = array('bills' => 0, 'void' => 0, 'v' => 0, 'n' => 0, 'total' => 0, 'vat' => 0, 'cash' => 0, 'transfer' => 0,
+                  'ret' => 0, 'refund' => 0, 'net' => 0, 'diff' => 0, 'closed' => 0);
+    foreach ($codes as $c) {
+        $s = acct_day($c, $ts);
+        $r = array('name' => isset($br[$c]) ? $br[$c]['name'] : $c, 'bills' => $s['bills'] - $s['void'], 'void' => $s['void'],
+                   'v' => $s['v'], 'n' => $s['n'], 'total' => $s['total'], 'vat' => $s['vat'], 'cash' => $s['cash'],
+                   'transfer' => $s['transfer'], 'ret' => 0, 'refund' => 0, 'diff' => null, 'close_by' => '', 'close_time' => '');
+        foreach (returns_of_day($c, $ts) as $rt) {
+            if (empty($rt['void'])) {
+                $r['ret']++;
+                $r['refund'] += $rt['refund'];
+            }
+        }
+        foreach (past_store_events($c, $ts) as $ev) {
+            if ($ev['type'] === 'close') {
+                $r['diff'] = $ev['diff'];
+                $r['close_by'] = $ev['by'];
+                $r['close_time'] = $ev['time'];
+            }
+        }
+        $r['net'] = $r['total'] - $r['refund'];
+        $rows[$c] = $r;
+        foreach (array('bills', 'void', 'v', 'n', 'total', 'vat', 'cash', 'transfer', 'ret', 'refund', 'net') as $k) {
+            $sum[$k] += $r[$k];
+        }
+        if ($r['diff'] !== null) {
+            $sum['diff'] += $r['diff'];
+            $sum['closed']++;
+        }
+    }
+    /* วันขายก่อนหน้า (ข้ามวันที่ไม่มียอด) ไว้เทียบ */
+    $prev = array('ts' => 0, 'total' => 0);
+    for ($i = 1; $i <= 7; $i++) {
+        $d = strtotime('-' . $i . ' day', $ts);
+        $t = 0;
+        foreach ($codes as $c) {
+            $s = acct_day($c, $d);
+            $t += $s['total'];
+        }
+        if ($t > 0) {
+            $prev = array('ts' => $d, 'total' => $t);
+            break;
+        }
+    }
+    $scan  = sales_scan($codes, strtotime(date('Y-m-01', $ts)), $ts);
+    $month = 0;
+    foreach ($scan['day'] as $per) {
+        foreach ($per as $v) {
+            $month += $v['total'];
+        }
+    }
+    $top = product_sales($codes, $ts, $ts);
+    uasort($top, function ($a, $b) { return $a['qty'] == $b['qty'] ? ($a['total'] < $b['total'] ? 1 : -1) : ($a['qty'] < $b['qty'] ? 1 : -1); });
+    $low = array();
+    foreach ($codes as $c) {
+        foreach (low_stock_products($c, 3) as $l) {
+            $low[] = array('branch' => isset($br[$c]) ? $br[$c]['short'] : $c, 'name' => $l['product']['name'], 'qty' => $l['qty'], 'unit' => $l['product']['unit']);
+        }
+    }
+    return array('rows' => $rows, 'sum' => $sum, 'prev' => $prev, 'month' => $month, 'top' => array_slice($top, 0, 5, true), 'low' => $low);
+}
+
+/** หัวเรื่องอีเมลสรุปรายวัน */
+function daily_summary_subject($ts, $data)
+{
+    return 'สรุปยอดขาย ' . thai_date_full($ts) . ' · ' . money2($data['sum']['total']) . ' บาท · ' . count($data['rows']) . ' สาขา';
+}
+
+/** เนื้อหาอีเมลสรุปยอดขายรายวัน (HTML แบบ inline style ให้เปิดได้ทุกโปรแกรมอีเมล) */
+function daily_summary_email_html($ts, $data, $parts)
+{
+    $e   = function ($v) { return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8'); };
+    $has = function ($k) use ($parts) { return in_array($k, $parts, true); };
+    $td  = 'padding:8px 10px;border-bottom:1px solid #e6ebe9;font-size:13px;';
+    $th  = 'padding:8px 10px;background:#f1f5f3;color:#4a5a55;font-size:12px;font-weight:600;text-align:right;border-bottom:1px solid #d9e2de;';
+    $s   = $data['sum'];
+    $chg = $data['prev']['total'] > 0 ? ($s['total'] - $data['prev']['total']) / $data['prev']['total'] * 100 : null;
+
+    $h  = '<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+        . '<title>' . $e(daily_summary_subject($ts, $data)) . '</title></head>'
+        . '<body style="margin:0;padding:0;background:#eef2f0;font-family:Tahoma,\'Segoe UI\',sans-serif;color:#13201c">'
+        . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef2f0;padding:20px 10px"><tr><td align="center">'
+        . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:680px;background:#fff;border-radius:12px;overflow:hidden">';
+    $h .= '<tr><td style="background:#07211b;color:#fff;padding:20px 24px">'
+        . '<div style="font-size:12px;letter-spacing:.08em;color:#c9a86a">' . $e(APP_NAME) . ' · รายงานประจำวัน</div>'
+        . '<div style="font-size:20px;font-weight:700;margin-top:4px">สรุปยอดขาย ' . $e(thai_date_full($ts)) . '</div>'
+        . '<div style="font-size:13px;color:#b9cdc6;margin-top:2px">' . count($data['rows']) . ' สาขา · ไม่นับบิลที่ยกเลิก</div></td></tr>';
+
+    /* ตัวเลขหลัก */
+    $kpi = array(array('ยอดขายรวม', money2($s['total']) . ' ฿',
+                       $chg === null ? '' : ($chg >= 0 ? '▲ ' : '▼ ') . number_format(abs($chg), 1) . '% จาก ' . thai_day_month($data['prev']['ts'])),
+                 array('จำนวนบิล', number_format($s['bills']), $s['void'] ? 'ยกเลิก ' . $s['void'] . ' ใบ' : ''),
+                 array('เงินเข้าสุทธิ', money2($s['net']) . ' ฿', $s['refund'] ? 'หักเงินคืน ' . money2($s['refund']) : 'ไม่มีเงินคืน'));
+    if ($has('month')) {
+        $kpi[] = array('สะสมเดือนนี้', money2($data['month']) . ' ฿', thai_month_full($ts));
+    }
+    $h .= '<tr><td style="padding:18px 16px 4px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>';
+    foreach ($kpi as $k) {
+        $h .= '<td style="padding:4px" valign="top"><div style="border:1px solid #e1e8e5;border-radius:10px;padding:10px 12px">'
+            . '<div style="font-size:11px;color:#6b7a75">' . $e($k[0]) . '</div>'
+            . '<div style="font-size:17px;font-weight:700;margin-top:2px;white-space:nowrap">' . $e($k[1]) . '</div>'
+            . '<div style="font-size:11px;color:' . (strpos($k[2], '▼') === 0 ? '#c0392b' : (strpos($k[2], '▲') === 0 ? '#0e7a5f' : '#6b7a75')) . '">' . $e($k[2]) . '&nbsp;</div></div></td>';
+    }
+    $h .= '</tr></table></td></tr>';
+
+    /* ตารางแยกสาขา */
+    $cols = array(array('บิล', 'bills', 'n'), array('ยอดขาย', 'total', 'm'));
+    if ($has('pay')) {
+        $cols[] = array('เงินสด', 'cash', 'm');
+        $cols[] = array('โอน', 'transfer', 'm');
+    }
+    if ($has('vat')) {
+        $cols[] = array('VAT / ไม่ VAT', 'vn', 's');
+        $cols[] = array('VAT', 'vat', 'm');
+    }
+    if ($has('refund')) {
+        $cols[] = array('คืนเงิน', 'refund', 'm');
+    }
+    if ($has('cash')) {
+        $cols[] = array('เงินขาด/เกิน', 'diff', 'd');
+    }
+    $cell = function ($r, $c) use ($e) {
+        $v = $c[1] === 'vn' ? $r['v'] . ' / ' . $r['n'] : (isset($r[$c[1]]) ? $r[$c[1]] : 0);
+        if ($c[2] === 'm') {
+            return $c[1] === 'refund' && $v > 0 ? '−' . money2($v) : ($v ? money2($v) : '—');
+        }
+        if ($c[2] === 'd') {
+            if ($v === null) {
+                return '<span style="color:#8a9692">ยังไม่ปิด</span>';
+            }
+            return $v == 0 ? '<span style="color:#0e7a5f">ตรง</span>' : '<b style="color:' . ($v < 0 ? '#c0392b' : '#b7791f') . '">' . ($v < 0 ? 'ขาด ' : 'เกิน ') . money2(abs($v)) . '</b>';
+        }
+        return $e(is_numeric($v) ? number_format($v) : $v);
+    };
+    $h .= '<tr><td style="padding:14px 20px 4px"><div style="font-size:15px;font-weight:700">ยอดขายแยกสาขา</div></td></tr>'
+        . '<tr><td style="padding:6px 20px 0"><div style="overflow-x:auto"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;min-width:520px">'
+        . '<tr><th style="' . $th . 'text-align:left">สาขา</th>';
+    foreach ($cols as $c) {
+        $h .= '<th style="' . $th . '">' . $e($c[0]) . '</th>';
+    }
+    $h .= '</tr>';
+    foreach ($data['rows'] as $r) {
+        $h .= '<tr><td style="' . $td . '"><b>' . $e($r['name']) . '</b>'
+            . ($r['close_by'] !== '' ? '<div style="font-size:11px;color:#8a9692">ปิด ' . $e($r['close_time']) . ' น. · ' . $e($r['close_by']) . '</div>' : '') . '</td>';
+        foreach ($cols as $c) {
+            $h .= '<td style="' . $td . 'text-align:right;white-space:nowrap">' . $cell($r, $c) . '</td>';
+        }
+        $h .= '</tr>';
+    }
+    $tot = $s;
+    $tot['diff'] = $s['closed'] ? $s['diff'] : null;
+    $h .= '<tr><td style="' . $td . 'background:#f7faf8;border-top:2px solid #07211b"><b>รวม</b></td>';
+    foreach ($cols as $c) {
+        $h .= '<td style="' . $td . 'background:#f7faf8;border-top:2px solid #07211b;text-align:right;white-space:nowrap"><b>' . $cell($tot, $c) . '</b></td>';
+    }
+    $h .= '</tr></table></div></td></tr>';
+
+    /* สินค้าขายดี */
+    if ($has('top') && $data['top']) {
+        $h .= '<tr><td style="padding:18px 20px 4px"><div style="font-size:15px;font-weight:700">สินค้าขายดีของวัน</div></td></tr><tr><td style="padding:6px 20px 0">'
+            . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">';
+        $i = 0;
+        foreach ($data['top'] as $p) {
+            $i++;
+            $h .= '<tr><td style="' . $td . 'width:24px;color:#8a9692">' . $i . '</td><td style="' . $td . '">' . $e($p['name']) . '</td>'
+                . '<td style="' . $td . 'text-align:right;white-space:nowrap">' . number_format($p['qty']) . ' ' . $e($p['unit']) . '</td>'
+                . '<td style="' . $td . 'text-align:right;white-space:nowrap">' . money2($p['total']) . '</td></tr>';
+        }
+        $h .= '</table></td></tr>';
+    }
+    /* สินค้าใกล้หมด */
+    if ($has('low') && $data['low']) {
+        $h .= '<tr><td style="padding:18px 20px 4px"><div style="font-size:15px;font-weight:700">สินค้าใกล้หมด / หมด</div></td></tr><tr><td style="padding:6px 20px 0">'
+            . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">';
+        foreach ($data['low'] as $l) {
+            $h .= '<tr><td style="' . $td . 'color:#6b7a75;width:70px">' . $e($l['branch']) . '</td><td style="' . $td . '">' . $e($l['name']) . '</td>'
+                . '<td style="' . $td . 'text-align:right;white-space:nowrap;color:' . ($l['qty'] <= 0 ? '#c0392b' : '#b7791f') . '">'
+                . ($l['qty'] <= 0 ? 'หมด' : 'เหลือ ' . number_format($l['qty']) . ' ' . $e($l['unit'])) . '</td></tr>';
+        }
+        $h .= '</table></td></tr>';
+    }
+    if ($has('refund') && $s['ret']) {
+        $h .= '<tr><td style="padding:12px 20px 0;font-size:12px;color:#4a5a55">รับคืนสินค้า ' . number_format($s['ret']) . ' ใบ · คืนเงินสดรวม ' . money2($s['refund']) . ' บาท</td></tr>';
+    }
+    $h .= '<tr><td style="padding:22px 20px 20px;font-size:11px;color:#8a9692;border-top:1px solid #e6ebe9;margin-top:16px">'
+        . 'อีเมลนี้ส่งอัตโนมัติจากระบบ ' . $e(APP_NAME) . ' ตามเวลาที่ตั้งไว้ · ดูรายละเอียดเพิ่มเติมได้ที่เมนู "สรุปยอดขายรายวัน" และ "บิลขายและเงินเข้า"'
+        . '<br>เปลี่ยนผู้รับหรือหยุดส่ง: เมนู ตั้งค่า → ตั้งค่าการแจ้งเตือน</td></tr>';
+    $h .= '</table></td></tr></table></body></html>';
+    return $h;
+}
+
+/**
+ * ส่งอีเมล HTML ผ่าน SMTP (รองรับ TLS / SSL / ไม่เข้ารหัส + AUTH LOGIN) · ไม่ตั้ง smtp_host = ใช้ mail() ของ PHP
+ * $c = ค่าตั้ง (smtp_host, smtp_port, smtp_secure, smtp_user, smtp_pass, from_name, from_email)
+ * คืน array(ok, ข้อความ)
+ */
+function smtp_send($c, $to, $subject, $html)
+{
+    $enc  = function ($v) {
+        if (function_exists('mb_encode_mimeheader')) {
+            return mb_encode_mimeheader($v, 'UTF-8', 'B', "\r\n");     // ตัดเป็นช่วงสั้นตามมาตรฐาน (ไม่เกิน 75 ตัว)
+        }
+        return '=?UTF-8?B?' . base64_encode($v) . '?=';
+    };
+    $from = $c['from_email'] !== '' ? $c['from_email'] : $c['smtp_user'];
+    if (!filter_var($from, FILTER_VALIDATE_EMAIL)) {
+        return array(false, 'ยังไม่ได้ตั้งอีเมลผู้ส่ง');
+    }
+    $host = preg_replace('/[^A-Za-z0-9.-]/', '', $c['smtp_host']);
+    $head = 'From: ' . $enc($c['from_name']) . ' <' . $from . ">\r\n"
+          . "MIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n"
+          . 'Date: ' . date('r') . "\r\n" . 'Message-ID: <' . md5(uniqid('', true)) . '@' . ($host !== '' ? $host : 'aostock.local') . ">\r\n";
+    $body = chunk_split(base64_encode($html));
+
+    if ($host === '') {
+        $ok = @mail(implode(', ', $to), $enc($subject), $body, $head);
+        return $ok ? array(true, 'ส่งด้วย mail() ของเซิร์ฟเวอร์แล้ว') : array(false, 'mail() ของเซิร์ฟเวอร์ส่งไม่สำเร็จ — แนะนำให้ตั้งค่า SMTP');
+    }
+    $port   = (int) $c['smtp_port'];
+    $secure = $c['smtp_secure'];
+    $fp = @stream_socket_client(($secure === 'ssl' ? 'ssl://' : 'tcp://') . $host . ':' . $port, $errno, $errstr, 10);
+    if (!$fp) {
+        return array(false, 'เชื่อมต่อ ' . $host . ':' . $port . ' ไม่ได้' . ($errstr !== '' ? ' (' . $errstr . ')' : ''));
+    }
+    stream_set_timeout($fp, 12);
+    $read = function () use ($fp) {
+        $data = '';
+        while (($line = fgets($fp, 515)) !== false) {
+            $data .= $line;
+            if (strlen($line) < 4 || $line[3] === ' ') {
+                break;
+            }
+        }
+        return $data;
+    };
+    $step = function ($cmd, $want) use ($fp, $read) {
+        if ($cmd !== null) {
+            fwrite($fp, $cmd . "\r\n");
+        }
+        $r = $read();
+        return in_array((int) substr($r, 0, 3), (array) $want, true) ? '' : (trim($r) !== '' ? trim($r) : 'เซิร์ฟเวอร์ไม่ตอบ');
+    };
+    $me  = isset($_SERVER['SERVER_NAME']) ? preg_replace('/[^A-Za-z0-9.-]/', '', $_SERVER['SERVER_NAME']) : 'localhost';
+    $err = $step(null, 220);
+    if ($err === '') {
+        $err = $step('EHLO ' . $me, 250);
+    }
+    if ($err === '' && $secure === 'tls') {
+        $err = $step('STARTTLS', 220);
+        if ($err === '' && !@stream_socket_enable_crypto($fp, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) {
+            $err = 'เปิด TLS ไม่สำเร็จ — ลองเปลี่ยนเป็น SSL พอร์ต 465';
+        }
+        if ($err === '') {
+            $err = $step('EHLO ' . $me, 250);
+        }
+    }
+    if ($err === '' && $c['smtp_user'] !== '') {
+        $err = $step('AUTH LOGIN', 334);
+        if ($err === '') {
+            $err = $step(base64_encode($c['smtp_user']), 334);
+        }
+        if ($err === '') {
+            $err = $step(base64_encode($c['smtp_pass']), 235);
+            if ($err !== '') {
+                $err = 'ชื่อผู้ใช้หรือรหัสผ่าน SMTP ไม่ถูกต้อง (' . $err . ')';
+            }
+        }
+    }
+    if ($err === '') {
+        $err = $step('MAIL FROM:<' . $from . '>', 250);
+    }
+    foreach ($to as $t) {
+        if ($err === '') {
+            $err = $step('RCPT TO:<' . $t . '>', array(250, 251));
+        }
+    }
+    if ($err === '') {
+        $err = $step('DATA', 354);
+    }
+    if ($err === '') {
+        $msg = $head . 'To: ' . implode(', ', $to) . "\r\n" . 'Subject: ' . $enc($subject) . "\r\n\r\n" . $body;
+        $msg = preg_replace('/^\./m', '..', $msg);
+        $err = $step($msg . "\r\n.", 250);
+    }
+    @fwrite($fp, "QUIT\r\n");
+    fclose($fp);
+    return $err === '' ? array(true, 'ส่งแล้วถึง ' . implode(', ', $to)) : array(false, 'ส่งไม่สำเร็จ: ' . $err);
+}
+
+/** บันทึกประวัติการส่ง (เดโม: session · ระบบจริง: ao_stock_notify_log) */
+function notify_log_add($channel, $event, $to, $ok, $msg)
+{
+    if (!isset($_SESSION['notify_log'])) {
+        $_SESSION['notify_log'] = array();
+    }
+    array_unshift($_SESSION['notify_log'], array('ts' => time(), 'channel' => $channel, 'event' => $event, 'to' => $to, 'ok' => $ok, 'msg' => $msg));
+    $_SESSION['notify_log'] = array_slice($_SESSION['notify_log'], 0, 30);
+}
+
+/** ประวัติการส่งล่าสุด: ที่ทดสอบในเดโม + ตัวอย่างย้อนหลัง (เฉพาะช่องทางที่เปิดอยู่) */
+function notify_log_rows()
+{
+    $rows = isset($_SESSION['notify_log']) ? $_SESSION['notify_log'] : array();
+    $ev   = notify_tg_events();
+    $br   = demo_branches();
+    $mail = notify_get('mail_on') === '1';
+    $tg   = notify_get('tg_on') === '1';
+    for ($i = 1; $i <= 4 && ($mail || $tg); $i++) {
+        $d = strtotime('-' . $i . ' day', strtotime(date('Y-m-d')));
+        if ((int) date('w', $d) === 0) {
+            continue;
+        }
+        if ($mail) {
+            list($hh, $mm) = explode(':', notify_get('mail_time'));
+            $to = mail_list_parse(notify_get('mail_to'));
+            $rows[] = array('ts' => $d + (int) $hh * 3600 + (int) $mm * 60, 'channel' => 'mail', 'event' => 'daily',
+                            'to' => implode(', ', $to[0]), 'ok' => true, 'msg' => 'สรุปยอดขาย ' . thai_date_full($d), 'sample' => true);
+        }
+        if ($tg) {
+            foreach ($br as $c => $b) {
+                foreach (past_store_events($c, $d) as $e2) {
+                    if ($e2['type'] === 'close') {
+                        $rows[] = array('ts' => $e2['ts'], 'channel' => 'tg', 'event' => 'close', 'to' => 'Telegram',
+                                        'ok' => true, 'msg' => $ev['close'][0] . ' · ' . $b['name'], 'sample' => true);
+                    }
+                }
+            }
+        }
+    }
+    usort($rows, function ($a, $b) { return $b['ts'] - $a['ts']; });
+    return array_slice($rows, 0, 15);
+}
+

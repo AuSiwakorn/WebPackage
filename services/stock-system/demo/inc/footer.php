@@ -28,6 +28,67 @@
 </div>
 <?php endif; ?>
 
+<!-- ===== ดู / พิมพ์บิล — ปุ่มที่มี data-bill-print="bill-print.php?…" ทุกหน้า (รวมเนื้อหาที่โหลดเข้า popup ภายหลัง) ===== -->
+<dialog class="bill-modal" id="bill-modal" aria-label="ดูบิล">
+  <div class="bill-bar">
+    <b id="bill-no">บิล</b>
+    <div class="segs" role="group" aria-label="ขนาดกระดาษ">
+      <button type="button" class="seg" data-bill-size="80">80 มม.</button>
+      <button type="button" class="seg" data-bill-size="a4">A4</button>
+    </div>
+    <span class="bill-sp"></span>
+    <a class="btn btn-ghost btn-sm" id="bill-tab" href="#" target="_blank" rel="noopener">เปิดแท็บใหม่</a>
+    <button type="button" class="btn btn-primary btn-sm" id="bill-go"><svg class="ico"><use href="#i-print"/></svg> พิมพ์</button>
+    <button type="button" class="icon-btn" data-bill-close aria-label="ปิด"><svg class="ico"><use href="#i-x"/></svg></button>
+  </div>
+  <iframe id="bill-frame" title="บิล" src="about:blank"></iframe>
+</dialog>
+<script>
+(function () {
+  var dlg = document.getElementById('bill-modal');
+  if (!dlg || !dlg.showModal) { return; }
+  var fr = document.getElementById('bill-frame'), no = document.getElementById('bill-no'),
+      tab = document.getElementById('bill-tab'), base = '', size = '';
+  function load() {
+    var u = base + (size ? '&size=' + size : '');
+    fr.src = u + '&embed=1';
+    tab.href = u + '&print=1';
+    var b = dlg.querySelectorAll('[data-bill-size]');
+    for (var i = 0; i < b.length; i++) { b[i].classList.toggle('on', b[i].getAttribute('data-bill-size') === size); }
+  }
+  /* ขนาดจริงที่หน้าเลือกให้ (ตามค่าตั้งของสาขา) — อ่านจากเนื้อหาที่โหลดมา */
+  fr.addEventListener('load', function () {
+    try {
+      if (!size) {
+        size = fr.contentDocument.querySelector('.sa4') ? 'a4' : '80';
+        var b = dlg.querySelectorAll('[data-bill-size]');
+        for (var i = 0; i < b.length; i++) { b[i].classList.toggle('on', b[i].getAttribute('data-bill-size') === size); }
+      }
+      dlg.classList.toggle('is-a4', size === 'a4');
+    } catch (e) {}
+  });
+  document.addEventListener('click', function (ev) {
+    var t = ev.target.closest ? ev.target.closest('[data-bill-print]') : null;
+    if (t) {
+      ev.preventDefault();
+      base = t.getAttribute('data-bill-print');
+      size = '';
+      no.textContent = t.getAttribute('data-bill-no') || 'บิล';
+      load();
+      dlg.showModal();
+      return;
+    }
+    var s = ev.target.closest ? ev.target.closest('[data-bill-size]') : null;
+    if (s && dlg.contains(s)) { size = s.getAttribute('data-bill-size'); load(); return; }
+    if ((ev.target.closest && ev.target.closest('[data-bill-close]')) || ev.target === dlg) { dlg.close(); }
+  });
+  dlg.addEventListener('close', function () { fr.src = 'about:blank'; });
+  document.getElementById('bill-go').addEventListener('click', function () {
+    try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch (e) { window.open(tab.href, '_blank'); }
+  });
+})();
+</script>
+
 <!-- htmx: สลับเฉพาะส่วนที่เปลี่ยน ไม่ต้องโหลดหน้าใหม่ (เก็บไฟล์ไว้ในเครื่อง ไม่พึ่ง CDN) -->
 <script src="assets/htmx.min.js"></script>
 <script>

@@ -44,7 +44,15 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_branch` (
 	`tax_branch`       varchar(5)   NOT NULL DEFAULT '00000' COMMENT 'เลขที่สาขาตามที่จด VAT (00000 = สำนักงานใหญ่)',
 	`prefix_vat`       varchar(6)   NOT NULL DEFAULT '' COMMENT 'รหัสนำหน้าเลขที่บิล VAT เช่น BPV (บัญชีตั้ง)',
 	`prefix_novat`     varchar(6)   NOT NULL DEFAULT '' COMMENT 'รหัสนำหน้าเลขที่บิลไม่ VAT เช่น BP (บัญชีตั้ง)',
-	`receipt_footer`   varchar(255) NOT NULL DEFAULT '',
+	`bill_company`     varchar(120) NOT NULL DEFAULT '' COMMENT 'ชื่อร้าน / บริษัทบนหัวบิล',
+	`bill_address`     varchar(255) NOT NULL DEFAULT '' COMMENT 'ที่อยู่บนบิล (ว่าง = ใช้ address ของสาขา)',
+	`bill_phone`       varchar(40)  NOT NULL DEFAULT '' COMMENT 'เบอร์บนบิล (ว่าง = ใช้ phone ของสาขา)',
+	`bill_extra`       varchar(120) NOT NULL DEFAULT '' COMMENT 'บรรทัดเสริมใต้ที่อยู่ เช่น LINE / เว็บไซต์',
+	`bill_title_vat`   varchar(60)  NOT NULL DEFAULT 'ใบเสร็จรับเงิน / ใบกำกับภาษีอย่างย่อ' COMMENT 'หัวกระดาษบิล VAT',
+	`bill_title_novat` varchar(60)  NOT NULL DEFAULT 'บิลเงินสด / ใบเสร็จรับเงิน' COMMENT 'หัวกระดาษบิลไม่ VAT',
+	`bill_paper`       enum('80','a4') NOT NULL DEFAULT '80' COMMENT 'ขนาดกระดาษเริ่มต้นตอนพิมพ์บิล',
+	`bill_novat_tax`   tinyint(1)   NOT NULL DEFAULT 0 COMMENT '1 = พิมพ์เลขผู้เสียภาษีบนบิลไม่ VAT ด้วย',
+	`receipt_footer`   varchar(300) NOT NULL DEFAULT '' COMMENT 'ข้อความท้ายบิล ขึ้นบรรทัดใหม่ได้ (หน้าตั้งค่าเลขที่บิล)',
 	`count_day`        tinyint UNSIGNED NOT NULL DEFAULT 1 COMMENT 'รอบตรวจนับเริ่มวันที่เท่าไรของเดือน (1-28) ผู้ดูแลตั้ง',
 	`count_open_limit` smallint UNSIGNED NOT NULL DEFAULT 1 COMMENT 'ระหว่างร้านเปิดนับได้ครั้งละกี่รายการ (0=ไม่จำกัด)',
 	`default_float`    decimal(12,2) NOT NULL DEFAULT 0 COMMENT 'เงินทอนมาตรฐาน (โมดูล POS)',
@@ -468,6 +476,7 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_return` (
 	`calc_amount` decimal(12,2) NOT NULL DEFAULT 0 COMMENT 'ตามราคาที่ขาย',
 	`refund`      decimal(12,2) NOT NULL DEFAULT 0 COMMENT 'เงินสดที่คืนจริง',
 	`refund_note` varchar(255) NOT NULL DEFAULT '',
+	`photos`      varchar(600) NOT NULL DEFAULT '' COMMENT 'รูปแนบ JSON array ของพาธ (สูงสุด 3 รูป · uploads/returns/)',
 	`created_by`  int UNSIGNED NOT NULL COMMENT 'ผู้รับคืน',
 	`add_date`    datetime DEFAULT CURRENT_TIMESTAMP,
 	UNIQUE KEY `uq_doc` (`branch_id`, `doc_no`),
@@ -507,6 +516,45 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_doc_seq` (
 ";
 
 
+/* 19) ค่าตั้งของระบบแบบ key / value (ใช้ร่วมทุกสาขา) — ตอนนี้ใช้กับการแจ้งเตือน (หน้า "ตั้งค่าการแจ้งเตือน")
+       key ที่ใช้: tg_on, tg_token*, tg_chats, tg_events (JSON), tg_branches (JSON, ว่าง = ทุกสาขา), tg_silent,
+                   mail_on, mail_to, mail_time (HH:MM), mail_days (open/all), mail_branches (JSON), mail_parts (JSON),
+                   mail_last_sent (Y-m-d ที่ส่งไปแล้ว — กันส่งซ้ำ),
+                   smtp_host, smtp_port, smtp_secure (tls/ssl/none), smtp_user, smtp_pass*, from_name, from_email
+       * = ค่าลับ เก็บแบบเข้ารหัส (is_secret = 1) ไม่ส่งกลับไปแสดงบนหน้าเว็บ
+       อีเมลรายวัน: cron ทุก 5 นาที → ถ้า mail_on = 1 และเวลาเลย mail_time และ mail_last_sent ≠ วันนี้ → ส่งแล้วบันทึก log */
+$sqlArray[_DBPREFIX_ . 'stock_setting'] = "
+CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_setting` (
+	`skey`       varchar(40)  NOT NULL PRIMARY KEY,
+	`svalue`     text NOT NULL,
+	`is_secret`  tinyint(1) NOT NULL DEFAULT 0 COMMENT '1 = เข้ารหัสไว้ (token / รหัสผ่าน)',
+	`updated_by` int UNSIGNED NOT NULL DEFAULT 0,
+	`updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='AOSTOCK ค่าตั้งของระบบ (การแจ้งเตือน ฯลฯ)';
+";
+
+
+/* 20) ประวัติการส่งแจ้งเตือน — ทั้งที่สำเร็จและไม่สำเร็จ (ใช้แสดง "ประวัติการส่งล่าสุด" และไล่ปัญหา)
+       channel: tg / mail · event: close, cash_diff, void, refund, reopen, lost, open, low, backdate, daily, test */
+$sqlArray[_DBPREFIX_ . 'stock_notify_log'] = "
+CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_notify_log` (
+	`log_id`     int UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+	`channel`    enum('tg','mail') NOT NULL,
+	`event`      varchar(20)  NOT NULL,
+	`branch_id`  int UNSIGNED NOT NULL DEFAULT 0 COMMENT '0 = ทุกสาขา / ไม่ผูกสาขา',
+	`ref_no`     varchar(24)  NOT NULL DEFAULT '' COMMENT 'เลขที่เอกสารที่เกี่ยวข้อง',
+	`send_to`    varchar(500) NOT NULL DEFAULT '' COMMENT 'chat id / อีเมลผู้รับ',
+	`subject`    varchar(255) NOT NULL DEFAULT '',
+	`is_ok`      tinyint(1) NOT NULL DEFAULT 0,
+	`error`      varchar(255) NOT NULL DEFAULT '',
+	`created_by` int UNSIGNED NOT NULL DEFAULT 0 COMMENT '0 = ระบบ (cron)',
+	`add_date`   datetime DEFAULT CURRENT_TIMESTAMP,
+	KEY `idx_date` (`add_date`),
+	KEY `idx_event` (`channel`, `event`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='AOSTOCK ประวัติการส่งแจ้งเตือน Telegram / อีเมล';
+";
+
+
 /* ==========================================================
    ใส่ใน modules/stock/aModuleConfig.php
    ----------------------------------------------------------
@@ -533,5 +581,8 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_doc_seq` (
    	_DBPREFIX_ . 'stock_return',
    	_DBPREFIX_ . 'stock_return_item',
    	_DBPREFIX_ . 'stock_doc_seq',
+   	// การแจ้งเตือน
+   	_DBPREFIX_ . 'stock_setting',
+   	_DBPREFIX_ . 'stock_notify_log',
    );
    ========================================================== */

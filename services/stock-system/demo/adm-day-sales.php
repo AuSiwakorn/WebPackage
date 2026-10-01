@@ -89,6 +89,8 @@ $where = $b === 'ALL' ? 'ทุกสาขา' : $brAll[$b]['name'];
               <?php endif; ?>
               <tr class="ds-tot"><td colspan="2" class="r">รวม</td><td class="r num"><b><?= e(money2($bl['total'])) ?></b></td></tr>
             </table>
+            <p class="ds-pr"><button type="button" class="btn btn-ghost btn-sm" data-bill-print="<?= e(bill_print_url($bl['branch'], $ts, $bl['no'])) ?>"
+               data-bill-no="<?= e($bl['no']) ?>"><svg class="ico"><use href="#i-print"/></svg> ดู / พิมพ์บิล</button></p>
           </details>
         </li>
       <?php endforeach; ?>
