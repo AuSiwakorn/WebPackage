@@ -79,6 +79,7 @@ for ($d = $from; $d <= $to; $d = strtotime('+1 day', $d)) {
 }
 
 $sum = array('docs' => 0, 'qty' => 0, 'refund' => 0, 'cut' => 0, 'in' => 0, 'out' => 0, 'why' => array());
+$tabN = array('' => 0, 'in' => 0, 'out' => 0);                  // จำนวนใบบนแท็บ (ตามเหตุผลที่เลือก)
 foreach ($rows as $r) {
     $sum['docs']++;
     $sum['qty']    += $r['qty'];
@@ -88,6 +89,12 @@ foreach ($rows as $r) {
     $sum['why'][$r['reason']] = (isset($sum['why'][$r['reason']]) ? $sum['why'][$r['reason']] : 0) + 1;
 }
 
+foreach ($rows as $r) {
+    if ($fWhy === '' || $r['reason'] === $fWhy) {
+        $tabN['']++;
+        $tabN[$r['restock'] ? 'in' : 'out']++;
+    }
+}
 $rows = array_values(array_filter($rows, function ($r) use ($fWhy, $fStock) {
     return ($fWhy === '' || $r['reason'] === $fWhy)
         && ($fStock === '' || ($fStock === 'in') === (bool) $r['restock']);
@@ -237,10 +244,10 @@ require dirname(__FILE__) . '/inc/header.php';
       <span class="sub">การรับคืนทำโดยพนักงานที่ได้รับสิทธิ์ “รับคืนสินค้า” · กดดูเพื่อตรวจรายละเอียดแต่ละใบ</span>
     </div>
   </div>
-  <div class="cats">
-    <a class="cat<?= $fStock === '' ? ' on' : '' ?>" href="<?= e($rq(array('stock' => ''))) ?>">ทั้งหมด</a>
-    <a class="cat<?= $fStock === 'in' ? ' on' : '' ?>" href="<?= e($rq(array('stock' => 'in'))) ?>">กลับเข้าสต๊อก</a>
-    <a class="cat<?= $fStock === 'out' ? ' on' : '' ?>" href="<?= e($rq(array('stock' => 'out'))) ?>">ไม่เข้าสต๊อก</a>
+  <div class="cats tabbar" role="tablist">
+    <a class="cat<?= $fStock === '' ? ' on' : '' ?>" href="<?= e($rq(array('stock' => ''))) ?>">ทั้งหมด <i><?= number_format($tabN['']) ?></i></a>
+    <a class="cat<?= $fStock === 'in' ? ' on' : '' ?>" href="<?= e($rq(array('stock' => 'in'))) ?>">กลับเข้าสต๊อก <i><?= number_format($tabN['in']) ?></i></a>
+    <a class="cat<?= $fStock === 'out' ? ' on' : '' ?>" href="<?= e($rq(array('stock' => 'out'))) ?>">ไม่เข้าสต๊อก <i><?= number_format($tabN['out']) ?></i></a>
   </div>
 
   <?php if (!$show): ?>
@@ -254,7 +261,7 @@ require dirname(__FILE__) . '/inc/header.php';
       <table class="tbl hist-all">
         <thead>
           <tr>
-            <th><?= $fMode === 'month' ? 'วันที่ · เวลา' : 'เวลา' ?></th>
+            <th><?= $fMode !== 'day' ? 'วันที่ · เวลา' : 'เวลา' ?></th>
             <th>สาขา</th>
             <th>ใบรับคืน / บิลเดิม</th>
             <th>เหตุผล</th>
@@ -267,7 +274,7 @@ require dirname(__FILE__) . '/inc/header.php';
         <tbody>
           <?php foreach ($show as $r): ?>
             <tr>
-              <td data-label="เวลา" class="num nowrap"><?php if ($fMode === 'month'): ?><?= e(thai_day_month(strtotime($r['date']))) ?> · <?php endif; ?><?= e($r['time']) ?></td>
+              <td data-label="เวลา" class="num nowrap"><?php if ($fMode !== 'day'): ?><?= e(thai_day_month(strtotime($r['date']))) ?> · <?php endif; ?><?= e($r['time']) ?></td>
               <td data-label="สาขา"><span class="hist-br"><?= e($brAll[$r['branch']]['short']) ?></span></td>
               <td data-label="ใบรับคืน" class="nowrap"><b class="hist-t"><?= e($r['no']) ?></b><small class="hist-n">บิล <?= e($r['bill_no']) ?> · ซื้อ <?= e(thai_day_month(strtotime($r['bill_date']))) ?></small></td>
               <td data-label="เหตุผล">

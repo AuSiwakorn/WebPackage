@@ -6,7 +6,7 @@
    ไม่นับบิลที่ยกเลิก · ยอดขาย = ยอดที่ลูกค้าจ่ายจริง (หลังส่วนลด) · ยอดรายสินค้าเฉลี่ยส่วนลดตามสัดส่วน
 
    ตัวกรอง (GET): b = ALL | รหัสสาขา (รวมสาขาที่ปิดใช้งาน)
-                  mode = day | month | year · d = Y-m-d · m = Y-m · y = Y
+                  mode = recent (30 วันล่าสุด — ค่าเริ่มต้น) | day | month | year · d = Y-m-d · m = Y-m · y = Y
    ========================================================== */
 
 require_once dirname(__FILE__) . '/include/function.php';
@@ -19,7 +19,7 @@ $yearMin = 2026;
 $g       = function ($k, $def = '') { return (isset($_GET[$k]) && is_string($_GET[$k])) ? trim($_GET[$k]) : $def; };
 
 $fB    = isset($brAll[$g('b')]) ? $g('b') : 'ALL';
-$fMode = in_array($g('mode'), array('day', 'month', 'year'), true) ? $g('mode') : 'month';
+$fMode = in_array($g('mode'), array('day', 'month', 'year'), true) ? $g('mode') : 'recent';
 $dayTs = $today;
 if ($g('d') !== '' && ($x = strtotime($g('d'))) !== false) {
     $dayTs = min(strtotime(date('Y-m-d', $x)), $today);
@@ -32,13 +32,7 @@ $year = (int) date('Y', $dayTs);
 if (preg_match('/^\d{4}$/', $g('y'))) {
     $year = max($yearMin, min((int) date('Y'), (int) $g('y')));
 }
-if ($fMode === 'day') {
-    $from = $dayTs; $to = $dayTs; $rangeTxt = thai_date_full($dayTs);
-} elseif ($fMode === 'month') {
-    $from = $monTs; $to = min(strtotime(date('Y-m-t', $monTs)), $today); $rangeTxt = thai_month_full($monTs);
-} else {
-    $from = strtotime($year . '-01-01'); $to = min(strtotime($year . '-12-31'), $today); $rangeTxt = 'ปี ' . ($year + 543);
-}
+list($from, $to, $rangeTxt) = adm_range($fMode, $dayTs, $monTs, $year);
 
 $rq = function ($chg) use ($fB, $fMode, $dayTs, $monTs, $year) {
     $q = array_merge(array('b' => $fB, 'mode' => $fMode, 'd' => date('Y-m-d', $dayTs), 'm' => date('Y-m', $monTs), 'y' => $year), $chg);
@@ -47,7 +41,7 @@ $rq = function ($chg) use ($fB, $fMode, $dayTs, $monTs, $year) {
             unset($q[$k]);
         }
     }
-    foreach (array('b' => 'ALL', 'mode' => 'month') as $k => $def) {
+    foreach (array('b' => 'ALL', 'mode' => 'recent') as $k => $def) {
         if ((string) $q[$k] === $def) {
             unset($q[$k]);
         }
@@ -120,9 +114,20 @@ foreach ($perB as $x) {
     $maxB = max($maxB, $x['total']);
 }
 
+/* ---------- CSV: ยอดขายตามช่วงเวลา (รายวัน / รายเดือนถ้าเลือกรายปี) ---------- */
+if ($g('export') === 'csv') {
+    $csv = array();
+    foreach ($trend as $tk => $t) {
+        $csv[] = array($tk, $t['bills'], csv_money($t['total']));
+    }
+    $csv[] = array('รวม', $sum['bills'], csv_money($sum['total']));
+    csv_send('aostock-sales-' . date('Ymd', $from) . '-' . date('Ymd', $to) . ($fB !== 'ALL' ? '-' . $fB : '') . '.csv',
+             array($fMode === 'year' ? 'เดือน' : 'วันที่', 'บิล', 'ยอดขาย (บาท)'), $csv);
+}
+
 $branch         = 'ALL';
 $NO_BRANCH_PICK = true;
-$PAGE_TITLE     = 'รายงานยอดขาย';
+$PAGE_TITLE     = 'ภาพรวมยอดขาย';
 $PAGE_SUB       = ($fB === 'ALL' ? 'ทุกสาขา' : $brAll[$fB]['name']) . ' · ' . $rangeTxt;
 $NAV_ACTIVE     = 'adm-report.php';
 require dirname(__FILE__) . '/inc/header.php';
@@ -132,7 +137,7 @@ require dirname(__FILE__) . '/inc/header.php';
 <section class="card acct-filter hist-filter">
   <form method="get" action="adm-report.php" class="acct-row">
     <div class="segs">
-      <?php foreach (array('day' => 'รายวัน', 'month' => 'รายเดือน', 'year' => 'รายปี') as $md => $lb): ?>
+      <?php foreach (array('recent' => '30 วัน', 'day' => 'รายวัน', 'month' => 'รายเดือน', 'year' => 'รายปี') as $md => $lb): ?>
         <a class="seg<?= $fMode === $md ? ' on' : '' ?>" href="<?= e($rq(array('mode' => $md))) ?>"><?= e($lb) ?></a>
       <?php endforeach; ?>
     </div>
@@ -147,7 +152,7 @@ require dirname(__FILE__) . '/inc/header.php';
       <label class="sr-only" for="rm">เดือน</label>
       <input class="input acct-date" type="month" id="rm" name="m" value="<?= e(date('Y-m', $monTs)) ?>" max="<?= e(date('Y-m')) ?>" onchange="this.form.submit()">
       <?php if ($monTs < strtotime(date('Y-m-01'))): ?><a class="btn btn-ghost btn-sm" href="<?= e($rq(array('m' => date('Y-m', strtotime('+1 month', $monTs))))) ?>" aria-label="เดือนถัดไป">›</a><?php endif; ?>
-    <?php else: ?>
+    <?php elseif ($fMode === 'year'): ?>
       <label class="sr-only" for="ry">ปี</label>
       <select class="input acct-date" id="ry" name="y" onchange="this.form.submit()">
         <?php for ($y = (int) date('Y'); $y >= $yearMin; $y--): ?>
@@ -162,6 +167,7 @@ require dirname(__FILE__) . '/inc/header.php';
         <option value="<?= e($c) ?>" <?= $fB === $c ? 'selected' : '' ?>><?= e($x['name']) ?><?= empty($x['active']) ? ' (ปิดใช้งาน)' : '' ?></option>
       <?php endforeach; ?>
     </select>
+      <a class="btn btn-ghost btn-sm rep-csv" href="<?= e($rq(array('export' => 'csv'))) ?>"><svg class="ico"><use href="#i-in"/></svg> ดาวน์โหลด CSV</a>
   </form>
 </section>
 
@@ -191,55 +197,20 @@ require dirname(__FILE__) . '/inc/header.php';
 </section>
 <?php endif; ?>
 
-<div class="grid-2">
-  <!-- ==================== แยกสาขา ==================== -->
-  <section class="card">
-    <div class="card-head"><div><h2>แยกตามสาขา</h2></div></div>
-    <div class="tbl-wrap">
-      <table class="tbl num">
-        <thead><tr><th>สาขา</th><th class="r">บิล</th><th class="r">ชิ้น</th><th class="r">ยอดขาย</th></tr></thead>
-        <tbody>
-          <?php foreach ($perB as $c => $x): ?>
-            <tr>
-              <td data-label="สาขา"><a href="<?= e($rq(array('b' => $c))) ?>"><?= e($brAll[$c]['name']) ?></a>
-                <span class="rep-share"><i style="width:<?= (int) round($x['total'] / $maxB * 100) ?>%"></i></span></td>
-              <td data-label="บิล" class="r"><?= number_format($x['bills']) ?></td>
-              <td data-label="ชิ้น" class="r"><?= number_format($x['qty']) ?></td>
-              <td data-label="ยอดขาย" class="r"><b><?= e(money2($x['total'])) ?></b><small class="hist-n"><?= $sum['total'] > 0 ? number_format($x['total'] / $sum['total'] * 100, 1) : '0.0' ?>%</small></td>
-            </tr>
-          <?php endforeach; ?>
-        </tbody>
-      </table>
-    </div>
-  </section>
-
-  <!-- ==================== พนักงาน ==================== -->
-  <section class="card">
-    <div class="card-head"><div><h2>ยอดขายรายพนักงาน</h2><span class="sub">เรียงจากยอดขายมากไปน้อย</span></div></div>
-    <?php if (!$staff): ?>
-      <p class="empty">ไม่มียอดขายในช่วงนี้</p>
-    <?php else: ?>
-      <div class="tbl-wrap">
-        <table class="tbl num">
-          <thead><tr><th>พนักงาน</th><th class="r">บิล</th><th class="r">ยอดขาย</th></tr></thead>
-          <tbody>
-            <?php $i = 0; foreach ($staff as $s): $i++; ?>
-              <tr>
-                <td><span class="rep-rank"><?= $i ?></span><?= e($s['name']) ?><small class="hist-n"><?= e($brAll[$s['branch']]['short']) ?></small></td>
-                <td data-label="บิล" class="r"><?= number_format($s['bills']) ?></td>
-                <td data-label="ยอดขาย" class="r"><b><?= e(money2($s['total'])) ?></b></td>
-              </tr>
-            <?php endforeach; ?>
-          </tbody>
-        </table>
-      </div>
-    <?php endif; ?>
-  </section>
-</div>
+<!-- แยกสาขา / รายพนักงาน ย้ายไปหน้าเฉพาะแล้ว -->
+<section class="card rep-links">
+  <a class="rep-link" href="adm-report-branch.php"><svg class="ico"><use href="#i-building"/></svg>
+    <span><b>ยอดขายแยกสาขา</b><small>ตารางเปรียบเทียบแต่ละสาขา ต่อวัน / ต่อเดือน / ต่อปี</small></span></a>
+  <a class="rep-link" href="adm-report-staff.php"><svg class="ico"><use href="#i-users"/></svg>
+    <span><b>ยอดขายตามพนักงาน</b><small>จัดอันดับพนักงานที่ขายได้มากที่สุด</small></span></a>
+  <a class="rep-link" href="adm-report-products.php"><svg class="ico"><use href="#i-boxes"/></svg>
+    <span><b>สินค้าขายดี 100 อันดับ</b><small>เรียงตามจำนวนที่ขายหรือยอดขาย</small></span></a>
+</section>
 
 <!-- ==================== สินค้าขายดี ==================== -->
 <section class="card">
-  <div class="card-head"><div><h2>สินค้าขายดี 10 อันดับ</h2><span class="sub">ตามยอดขาย (หักส่วนลดท้ายบิลตามสัดส่วนแล้ว)</span></div></div>
+  <div class="card-head"><div><h2>สินค้าขายดี 10 อันดับ</h2><span class="sub">ตามยอดขาย (หักส่วนลดท้ายบิลตามสัดส่วนแล้ว)</span></div>
+    <a class="btn btn-ghost btn-sm" href="adm-report-products.php">ดูทั้ง 100 อันดับ ›</a></div>
   <?php if (!$prods): ?>
     <p class="empty">ไม่มียอดขายในช่วงนี้</p>
   <?php else: ?>

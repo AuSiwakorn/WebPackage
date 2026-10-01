@@ -66,7 +66,7 @@ function active_menus()
                  'history.php', 'return.php', 'report-sales.php',
                  'account.php', 'account-settings.php',
                  'adm-dashboard.php', 'adm-products.php', 'adm-categories.php', 'adm-receive.php', 'adm-issue.php', 'adm-return.php', 'adm-history.php',
-                 'adm-movements.php', 'adm-report.php', 'adm-users.php', 'adm-user-add.php', 'adm-branches.php');
+                 'adm-movements.php', 'adm-report.php', 'adm-report-branch.php', 'adm-report-staff.php', 'adm-report-products.php', 'adm-users.php', 'adm-user-add.php', 'adm-branches.php');
 }
 
 /** ส่วนประกอบที่ยังไม่ได้ใช้ เปิดทีหลังโดยเติมชื่อลงใน array นี้
@@ -3358,6 +3358,106 @@ function past_store_events($code, $ts)
     );
 }
 
+/**
+ * รวมยอดขายจากบิล (ไม่นับบิลยกเลิก) ช่วง $from–$to ของสาขาใน $codes
+ * ใช้กับหน้ารายงานของผู้ดูแล (adm-report-branch.php / adm-report-staff.php)
+ * คืน array(
+ *   'day'   => array( Ymd => array( สาขา => array(total, bills, qty) ) ),
+ *   'staff' => array( username => array(name, branch, bills, qty, total, disc, days => array(Ymd => true)) ),
+ * )
+ */
+function sales_scan($codes, $from, $to)
+{
+    $day   = array();
+    $staff = array();
+    for ($d = $from; $d <= $to; $d = strtotime('+1 day', $d)) {
+        $k = date('Ymd', $d);
+        foreach ($codes as $c) {
+            $row = array('total' => 0, 'bills' => 0, 'qty' => 0);
+            foreach (acct_bills($c, $d) as $b) {
+                if (!empty($b['void'])) {
+                    continue;
+                }
+                $row['total'] += $b['total'];
+                $row['bills']++;
+                $row['qty']   += $b['qty'];
+                $u = $b['by_user'];
+                if (!isset($staff[$u])) {
+                    $staff[$u] = array('name' => $b['by'], 'branch' => $c, 'bills' => 0, 'qty' => 0,
+                                       'total' => 0, 'disc' => 0, 'days' => array());
+                }
+                $staff[$u]['bills']++;
+                $staff[$u]['qty']   += $b['qty'];
+                $staff[$u]['total'] += $b['total'];
+                $staff[$u]['disc']  += !empty($b['discount']) ? $b['discount'] : 0;
+                $staff[$u]['days'][$k] = true;
+                $staff[$u]['branch']   = $c;                 // สาขาล่าสุดที่ขาย (ย้ายสาขาได้)
+            }
+            $day[$k][$c] = $row;
+        }
+    }
+    return array('day' => $day, 'staff' => $staff);
+}
+
+/**
+ * ส่งไฟล์ CSV ให้ดาวน์โหลดแล้วจบการทำงาน — ใส่ BOM ให้ Excel อ่านภาษาไทยถูก
+ * $head = array หัวคอลัมน์ · $rows = array ของ array (ค่าตัวเลขส่งเป็นตัวเลขดิบ ไม่ใส่ comma)
+ */
+function csv_send($filename, $head, $rows)
+{
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    header('Cache-Control: no-store');
+    $out = fopen('php://output', 'w');
+    fwrite($out, "\xEF\xBB\xBF");
+    fputcsv($out, $head);
+    foreach ($rows as $r) {
+        fputcsv($out, $r);
+    }
+    fclose($out);
+    exit;
+}
+
+/** ตัวเลขเงินสำหรับ CSV (ทศนิยม 2 ตำแหน่ง ไม่มี comma) */
+function csv_money($n)
+{
+    return number_format((float) $n, 2, '.', '');
+}
+
+/**
+ * ยอดขายรายสินค้า (ไม่นับบิลยกเลิก) ช่วง $from–$to ของสาขาใน $codes
+ * ยอดเงินรายสินค้าหักส่วนลดท้ายบิลตามสัดส่วนแล้ว
+ * คืน array( SKU => array(sku, name, cat, unit, qty, total, bills, branches => array(สาขา => จำนวน)) )
+ */
+function product_sales($codes, $from, $to)
+{
+    $out = array();
+    for ($d = $from; $d <= $to; $d = strtotime('+1 day', $d)) {
+        foreach ($codes as $c) {
+            foreach (acct_bills($c, $d) as $b) {
+                if (!empty($b['void'])) {
+                    continue;
+                }
+                $sub = !empty($b['subtotal']) ? $b['subtotal'] : $b['total'];
+                $fac = $sub > 0 ? $b['total'] / $sub : 1;
+                foreach ($b['lines'] as $l) {
+                    $k = $l['sku'];
+                    if (!isset($out[$k])) {
+                        $p = product_by_sku($k);
+                        $out[$k] = array('sku' => $k, 'name' => $l['name'], 'cat' => $p ? $p['cat'] : '', 'unit' => $l['unit'],
+                                         'qty' => 0, 'total' => 0, 'bills' => 0, 'branches' => array());
+                    }
+                    $out[$k]['qty']   += (int) $l['qty'];
+                    $out[$k]['total'] += $l['sum'] * $fac;
+                    $out[$k]['bills']++;
+                    $out[$k]['branches'][$c] = (isset($out[$k]['branches'][$c]) ? $out[$k]['branches'][$c] : 0) + (int) $l['qty'];
+                }
+            }
+        }
+    }
+    return $out;
+}
+
 /* ##########################################################
    หมวด: ตรวจนับ / ปรับยอด (แบบเบา)
    ########################################################## */
@@ -4496,6 +4596,10 @@ function past_bills_gen($code, $ts)
         return $cache[$ck];
     }
 
+    if ($day < date('Ymd', strtotime(DEMO_DATA_START))) {
+        $cache[$ck] = array();                       // ก่อนวันเริ่มข้อมูลตัวอย่าง = ยังไม่มีการขาย
+        return $cache[$ck];
+    }
     $prods = demo_products();
     $np    = count($prods);
     $rows  = array();
@@ -5024,6 +5128,10 @@ function past_docs($code, $ts)
         return past_apply_void($code, $cache[$ck]);
     }
     $out = array();
+    if ($day < date('Ymd', strtotime(DEMO_DATA_START))) {
+        $cache[$ck] = $out;
+        return $out;
+    }
     if ((int) date('N', $ts) === 7) {                   // อาทิตย์ปิดร้าน
         $cache[$ck] = $out;
         return $out;

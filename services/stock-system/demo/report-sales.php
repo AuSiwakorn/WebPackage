@@ -26,6 +26,17 @@ $ref = isset($_GET['ref']) ? trim($_GET['ref']) : '';
 
 $rep    = sales_report(array_merge($user, array('branch' => $code)), $scope, $mode, $ref);
 $sum    = $rep['sum'];
+
+/* ---------- CSV: ยอดขายรายวันของช่วงที่เลือก ---------- */
+if (isset($_GET['export']) && $_GET['export'] === 'csv') {
+    $csv = array();
+    foreach ($rep['days'] as $d) {
+        $csv[] = array(date('Y-m-d', $d['ts']), $d['bills'], $d['qty'], csv_money($d['total']));
+    }
+    $csv[] = array('รวม', $sum['bills'], $sum['qty'], csv_money($sum['total']));
+    csv_send('aostock-my-sales-' . date('Ymd', $rep['from']) . '-' . date('Ymd', $rep['to']) . '.csv',
+             array('วันที่', 'บิล', 'ชิ้น', 'ยอดขาย (บาท)'), $csv);
+}
 $avg    = $sum['bills'] > 0 ? $sum['total'] / $sum['bills'] : 0;
 $perDay = $sum['days']  > 0 ? $sum['total'] / $sum['days']  : 0;
 
@@ -144,6 +155,8 @@ require dirname(__FILE__) . '/inc/header.php';
           <h2>ยอดขาย<?= $byMonth ? 'รายเดือน' : 'รายวัน' ?></h2>
           <span class="sub"><?= e($rep['label']) ?> · <?= count($bars) ?> <?= $byMonth ? 'เดือน' : 'วัน' ?></span>
         </div>
+        <?php $__q = $_GET; $__q['export'] = 'csv'; ?>
+        <a class="btn btn-ghost btn-sm" href="report-sales.php?<?= e(http_build_query($__q)) ?>"><svg class="ico"><use href="#i-in"/></svg> ดาวน์โหลด CSV</a>
       </div>
       <div class="card-body">
         <?php if ($sum['total'] <= 0): ?>

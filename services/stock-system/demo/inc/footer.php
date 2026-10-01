@@ -429,5 +429,40 @@
   }
 })();
 </script>
+<?php if (strpos($NAV_ACTIVE, 'adm-report') === 0): ?>
+<!-- ===== popup รายละเอียดยอดขายของวัน — ปุ่มที่มี data-day-sales="สาขา|ปปปปดดวว" ===== -->
+<dialog class="ds-modal" id="ds-modal" aria-label="รายละเอียดยอดขาย">
+  <button type="button" class="icon-btn ds-close" data-ds-close aria-label="ปิด"><svg class="ico"><use href="#i-x"/></svg></button>
+  <div class="ds-body" id="ds-body"></div>
+</dialog>
+<script>
+(function () {
+  var dlg = document.getElementById('ds-modal'), body = document.getElementById('ds-body');
+  if (!dlg || !dlg.showModal) { return; }
+  document.addEventListener('click', function (ev) {
+    var t = ev.target.closest ? ev.target.closest('[data-day-sales]') : null;
+    if (t) {
+      var p = t.getAttribute('data-day-sales').split('|');
+      body.innerHTML = '<p class="empty">กำลังโหลด…</p>';
+      dlg.showModal();
+      fetch('adm-day-sales.php?b=' + encodeURIComponent(p[0]) + '&d=' + encodeURIComponent(p[1]), { credentials: 'same-origin' })
+        .then(function (r) { return r.text(); })
+        .then(function (h) { body.innerHTML = h; })
+        .catch(function () { body.innerHTML = '<p class="empty">โหลดไม่สำเร็จ ลองใหม่อีกครั้ง</p>'; });
+      return;
+    }
+    var tab = ev.target.closest ? ev.target.closest('[data-ds-tab]') : null;
+    if (tab) {
+      var k = tab.getAttribute('data-ds-tab');
+      body.querySelectorAll('[data-ds-tab]').forEach(function (b) { b.classList.toggle('on', b === tab); b.setAttribute('aria-selected', b === tab); });
+      body.querySelectorAll('[data-ds-pane]').forEach(function (p) { p.hidden = p.getAttribute('data-ds-pane') !== k; });
+      return;
+    }
+    if (ev.target.closest && ev.target.closest('[data-ds-close]')) { dlg.close(); }
+    if (ev.target === dlg) { dlg.close(); }              // กดพื้นหลังเพื่อปิด
+  });
+})();
+</script>
+<?php endif; ?>
 </body>
 </html>

@@ -2114,3 +2114,69 @@ table.sr-only{display:block}
 .cat-add{display:flex;flex-wrap:wrap;gap:10px;padding:16px 22px 20px}
 .cat-add .input{flex:1 1 260px;width:auto}
 .cat-del{display:inline}
+.card-head .head-tabs{margin-left:auto;flex:0 0 auto}
+@media (max-width:760px){.card-head .head-tabs{margin-left:0;width:100%;overflow-x:auto}.card-head .head-tabs .seg{white-space:nowrap}}
+.rep-links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:14px}
+.rep-link{display:flex;align-items:center;gap:12px;padding:14px 16px;border:1px solid var(--line);border-radius:12px;text-decoration:none;color:var(--deep-900);background:#fff}
+.rep-link:hover{border-color:var(--brand)}
+.rep-link .ico{width:22px;height:22px;color:var(--brand);flex:0 0 auto}
+.rep-link b{display:block}
+.rep-link small{display:block;color:var(--ink-3);font-size:.78rem}
+.cmp-top{display:inline-block;padding:2px 8px;border-radius:8px;background:#E9F6F0;color:var(--up);font-weight:700}
+.rep-rank.r1{background:#F6E7B8;color:#7A5A00}.rep-rank.r2{background:#E6E9EE;color:#4A5563}.rep-rank.r3{background:#F3DCC8;color:#7A4A1E}
+@media (max-width:760px){.rep-links{grid-template-columns:1fr}}
+
+/* ===== แท็บกรองชนิดรายการ (หน้าผู้ดูแล) — แทนชิปชิดซ้าย ===== */
+.cats.tabbar{flex-wrap:nowrap;justify-content:center;gap:2px;margin:0;padding:0 16px;
+  border-bottom:1px solid var(--line-2);overflow-x:auto;scrollbar-width:thin}
+.tabbar .cat{min-height:46px;padding:0 16px;border:0;border-bottom:2px solid transparent;border-radius:0;background:none;color:var(--ink-3)}
+.tabbar .cat:hover{color:var(--brand);border-color:transparent;border-bottom-color:var(--brand-300)}
+.tabbar .cat.on{background:none;color:var(--brand);border-bottom-color:var(--brand)}
+.tabbar .cat.on i{background:var(--brand);color:#fff}
+@media (max-width:760px){.cats.tabbar{justify-content:flex-start;padding:0 8px}.tabbar .cat{padding:0 12px}}
+
+/* ===== ตัวกรองหน้าผู้ดูแลบนจอแคบ: ไม่ล้นขอบ ===== */
+@media (max-width:760px){
+  .hist-filter .acct-row{min-width:0}
+  .hist-filter .segs{flex:1 1 100%;min-width:0;overflow-x:auto}
+  .hist-filter .segs .seg{flex:1 0 auto;padding:0 10px}
+  .rep-cmp td,.rep-cmp th{white-space:nowrap}
+  .adm-kpi .m{min-width:0}
+  .adm-kpi .lb,.adm-kpi .nm,.adm-kpi .sb{overflow-wrap:anywhere}
+  .card-head > div{min-width:0}
+}
+.rep-csv{margin-left:auto}
+.rep-chip{display:inline-block;margin:0 6px 4px 0;padding:1px 8px;border-radius:8px;background:var(--bg-soft);font-size:.76rem;color:var(--ink-2)}
+.rep-chip b{color:var(--deep-900)}
+.rep-links{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:760px){.rep-csv{margin-left:0;width:100%;justify-content:center}}
+
+/* ===== popup ยอดขายของวัน ===== */
+.cell-link{font:inherit;color:inherit;background:none;border:0;padding:2px 6px;margin:-2px -6px;border-radius:8px;cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}
+.cell-link:hover{background:var(--bg-soft);color:var(--brand)}
+.cell-link.cmp-top{padding:2px 8px;margin:0;background:#E9F6F0;color:var(--up)}
+.ds-modal{width:min(760px,calc(100vw - 32px));max-height:min(86vh,900px);padding:0;border:0;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.25);overflow:auto}
+.ds-modal::backdrop{background:rgba(7,33,27,.45)}
+.ds-close{position:sticky;top:10px;float:right;margin:10px 10px 0 0;z-index:2;background:#fff}
+.ds-head{padding:20px 22px 10px}
+.ds-head h2{margin:0 0 4px;font-size:1.1rem}
+.ds-head .sub{margin:0;font-size:.84rem;color:var(--ink-3)}
+.ds-tabs{position:sticky;top:0;background:#fff;z-index:1}
+.ds-pane{padding:12px 16px 20px}
+.ds-bills{list-style:none;margin:0;padding:0}
+.ds-bills li{border:1px solid var(--line);border-radius:12px;margin-bottom:8px;background:#fff}
+.ds-bills summary{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 14px;cursor:pointer;list-style:none}
+.ds-bills summary::-webkit-details-marker{display:none}
+.ds-bills summary:hover{background:var(--bg-soft);border-radius:12px}
+.ds-t{color:var(--ink-3);font-size:.84rem}
+.ds-no small{display:block;color:var(--ink-3);font-size:.76rem}
+.ds-amt{text-align:right;font-size:.86rem;white-space:nowrap}
+.ds-bills .is-void .ds-no b,.ds-bills .is-void .ds-amt b{text-decoration:line-through;color:var(--ink-3)}
+.ds-lines{width:100%;border-collapse:collapse;font-size:.86rem}
+.ds-bills .ds-lines{border-top:1px solid var(--line-2)}
+.ds-lines td,.ds-lines th{padding:7px 14px;border-bottom:1px solid var(--line-2);text-align:left}
+.ds-lines th{font-size:.76rem;color:var(--ink-3);font-weight:600}
+.ds-lines .r{text-align:right}
+.ds-lines small{color:var(--ink-3);font-size:.74rem}
+.ds-lines .ds-tot td{border-bottom:0}
+@media (max-width:760px){.ds-bills summary{grid-template-columns:minmax(0,1fr) auto}.ds-t{display:none}.ds-lines td,.ds-lines th{padding:6px 10px}}

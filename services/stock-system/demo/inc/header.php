@@ -30,7 +30,10 @@ if ($user['role'] === 'admin') {
             array('file' => 'adm-movements.php', 'label' => 'ประวัติเคลื่อนไหว',     'icon' => 'i-activity'),
         ),
         'รายงาน' => array(
-            array('file' => 'adm-report.php',    'label' => 'รายงานยอดขาย',        'icon' => 'i-chart'),
+            array('file' => 'adm-report.php',        'label' => 'ภาพรวมยอดขาย',        'icon' => 'i-chart'),
+            array('file' => 'adm-report-branch.php', 'label' => 'ยอดขายแยกสาขา',      'icon' => 'i-building'),
+            array('file' => 'adm-report-staff.php',  'label' => 'ยอดขายตามพนักงาน',    'icon' => 'i-users'),
+            array('file' => 'adm-report-products.php', 'label' => 'สินค้าขายดี 100 อันดับ', 'icon' => 'i-boxes'),
         ),
         'บัญชี' => array(
             array('file' => 'account.php',          'label' => 'บิลขายและเงินเข้า', 'icon' => 'i-receipt'),

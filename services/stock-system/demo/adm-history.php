@@ -279,7 +279,7 @@ require dirname(__FILE__) . '/inc/header.php';
     </div>
   </div>
 
-  <div class="cats">
+  <div class="cats tabbar" role="tablist">
     <a class="cat<?= $fT === '' ? ' on' : '' ?>" href="<?= e($hq(array('t' => ''))) ?>">ทั้งหมด <i><?= number_format($sum['all']) ?></i></a>
     <?php foreach (log_types() as $k => $meta): ?>
       <?php if ($counts[$k] === 0 && $fT !== $k) { continue; } ?>

@@ -37,7 +37,7 @@ $fB    = isset($brAll[$g('b')]) ? $g('b') : 'ALL';
 $fMode = in_array($g('mode'), array('day', 'month', 'year'), true) ? $g('mode') : 'recent';
 $fWhy  = isset($reasons[$g('why')]) ? $g('why') : '';
 $fVoid = $g('void') === '1';
-$fQ    = substr($g('q'), 0, 120);
+$fQ    = (string) substr($g('q'), 0, 120);
 $fSort = in_array($g('sort'), array('time', 'price', 'value', 'qty'), true) ? $g('sort') : 'time';
 $fDir  = $g('dir') === 'asc' ? 'asc' : 'desc';
 
@@ -246,7 +246,7 @@ require dirname(__FILE__) . '/inc/header.php';
     <a class="btn btn-ghost btn-sm" href="<?= e($aq(array('void' => $fVoid ? '' : '1'))) ?>"><?= $fVoid ? 'ซ่อนใบที่ยกเลิก' : 'แสดงใบที่ยกเลิกด้วย' ?></a>
   </div>
 
-  <div class="cats">
+  <div class="cats tabbar" role="tablist">
     <a class="cat<?= $fWhy === '' ? ' on' : '' ?>" href="<?= e($aq(array('why' => ''))) ?>">ทุกเหตุผล <i><?= number_format($allCount) ?></i></a>
     <?php foreach ($reasons as $k => $x): ?>
       <?php if (empty($byWhy[$k]) && $fWhy !== $k) { continue; } ?>

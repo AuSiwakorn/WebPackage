@@ -11,7 +11,7 @@ require_once dirname(__FILE__) . '/include/function.php';
 
 $user = require_login();                 // หน้า adm- : เฉพาะผู้ดูแล
 
-$q     = isset($_GET['q']) && is_string($_GET['q']) ? substr(trim($_GET['q']), 0, 120) : '';
+$q     = isset($_GET['q']) && is_string($_GET['q']) ? (string) substr(trim($_GET['q']), 0, 120) : '';
 $br    = demo_branches();
 $cats  = cat_registry();
 $sum   = array('cats' => count($cats), 'items' => 0, 'empty' => 0, 'added' => 0);

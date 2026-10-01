@@ -19,6 +19,9 @@ $__script = isset($_SERVER['SCRIPT_NAME']) ? $_SERVER['SCRIPT_NAME'] : '/';
 define('APP_BASE', rtrim(str_replace('\\', '/', dirname($__script)), '/'));
 unset($__script);
 
+/* ---------- ข้อมูลตัวอย่าง ---------- */
+define('DEMO_DATA_START', '2026-06-01');   // วันแรกที่มีบิล / เอกสารตัวอย่าง (ก่อนหน้านี้ถือว่ายังไม่เปิดใช้ระบบ)
+
 /* ---------- บิลและ VAT ---------- */
 define('VAT_RATE', 7);
 define('BILL_RUN_DIGITS', 4);

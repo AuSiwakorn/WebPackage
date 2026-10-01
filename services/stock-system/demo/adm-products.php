@@ -20,7 +20,7 @@ $user = require_login();                 // หน้า adm- : เฉพาะ�
 
 $br    = demo_branches();
 $g     = function ($k, $def = '') { return (isset($_GET[$k]) && is_string($_GET[$k])) ? trim($_GET[$k]) : $def; };
-$fQ    = substr($g('q'), 0, 120);
+$fQ    = (string) substr($g('q'), 0, 120);
 $cats  = product_cats();
 $fCat  = in_array($g('cat'), $cats, true) ? $g('cat') : '';
 $fSt   = in_array($g('st'), array('low', 'out'), true) ? $g('st') : '';
@@ -213,11 +213,11 @@ require dirname(__FILE__) . '/inc/header.php';
       <h2>ยอดคงเหลือรายสินค้า</h2>
       <span class="sub"><?= $fB !== '' ? 'สถานะและการเรียงจำนวนใช้ของ' . e($br[$fB]['name']) : 'สถานะ = สาขาที่แย่ที่สุด' ?> · ช่องสีแดง = หมด · สีเหลือง = ต่ำกว่าจุดสั่งซื้อ · ขาย / รับเข้า นับย้อนหลัง <?= $flowDays ?> วัน</span>
     </div>
-  </div>
-  <div class="cats">
-    <a class="cat<?= $fSt === '' ? ' on' : '' ?>" href="<?= e($pq(array('st' => ''))) ?>">ทั้งหมด</a>
-    <a class="cat<?= $fSt === 'low' ? ' on' : '' ?>" href="<?= e($pq(array('st' => 'low'))) ?>">ต้องเติม (ใกล้หมด + หมด)</a>
-    <a class="cat<?= $fSt === 'out' ? ' on' : '' ?>" href="<?= e($pq(array('st' => 'out'))) ?>">หมดแล้ว</a>
+    <div class="segs head-tabs">
+      <a class="seg<?= $fSt === '' ? ' on' : '' ?>" href="<?= e($pq(array('st' => ''))) ?>">ทั้งหมด</a>
+      <a class="seg<?= $fSt === 'low' ? ' on' : '' ?>" href="<?= e($pq(array('st' => 'low'))) ?>">ต้องเติม (ใกล้หมด + หมด)</a>
+      <a class="seg<?= $fSt === 'out' ? ' on' : '' ?>" href="<?= e($pq(array('st' => 'out'))) ?>">หมดแล้ว</a>
+    </div>
   </div>
   <?php if (!$rows): ?>
     <p class="empty"><svg class="ico"><use href="#i-boxes"/></svg>ไม่พบสินค้าตามตัวกรอง</p>

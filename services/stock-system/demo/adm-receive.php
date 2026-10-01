@@ -35,7 +35,7 @@ if ($g('no') !== '' && isset($brAll[$g('b')])) {
 /* ---------- ตัวกรอง ---------- */
 $fB    = isset($brAll[$g('b')]) ? $g('b') : 'ALL';
 $fMode = in_array($g('mode'), array('day', 'month', 'year'), true) ? $g('mode') : 'recent';
-$fQ    = substr($g('q'), 0, 120);
+$fQ    = (string) substr($g('q'), 0, 120);
 $fVoid = $g('void') === '1';
 $fSort = in_array($g('sort'), array('time', 'value', 'qty', 'items'), true) ? $g('sort') : 'time';
 $fDir  = $g('dir') === 'asc' ? 'asc' : 'desc';
