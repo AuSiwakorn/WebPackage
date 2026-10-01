@@ -243,7 +243,7 @@ require dirname(__FILE__) . '/inc/header.php';
               </p>
             <?php endif; ?>
 
-            <?php if ($idoc !== null && empty($idoc['void']) && can_void_doc($user, $idoc)): ?>
+            <?php if ($idoc !== null && empty($idoc['void']) && can_void_doc($user, $idoc) && !$isAdmin): ?>
               <?php $dat = ' data-bill="' . e($idoc['no']) . '" data-qty="' . (int) $idoc['qty']
                          . '" data-items="' . (int) $idoc['items'] . '"'; ?>
               <div class="tl-act">
@@ -272,7 +272,7 @@ require dirname(__FILE__) . '/inc/header.php';
               </p>
             <?php endif; ?>
 
-            <?php if ($rdoc !== null && empty($rdoc['void']) && can_void_doc($user, $rdoc)): ?>
+            <?php if ($rdoc !== null && empty($rdoc['void']) && can_void_doc($user, $rdoc) && can($user, 'receive')): ?>
               <?php $dat = ' data-bill="' . e($rdoc['no']) . '" data-qty="' . (int) $rdoc['qty']
                          . '" data-items="' . (int) $rdoc['items'] . '"'; ?>
               <div class="tl-act">

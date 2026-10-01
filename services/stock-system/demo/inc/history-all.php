@@ -101,7 +101,7 @@ for ($d = $from; $d <= $to; $d = strtotime('+1 day', $d)) {
         foreach (past_bills($c, $d) as $b) {
             $note = $b['vat'] ? 'บิล VAT' : 'ไม่ VAT';
             $note .= ' · ' . ($b['method'] === 'cash' ? 'เงินสด' : 'โอน');
-            if (!empty($_SESSION['ret_by_bill'][$b['no']])) {
+            if (bill_has_returns($b['no'], $b)) {
                 $note .= ' · มีรับคืน';
             }
             $rows[] = array('ts' => strtotime(date('Y-m-d', $d) . ' ' . $b['time']), 'seq' => $seq++,
@@ -109,6 +109,15 @@ for ($d = $from; $d <= $to; $d = strtotime('+1 day', $d)) {
                             'title' => 'บิลขาย ' . $b['no'] . ' · ' . (int) $b['items'] . ' รายการ',
                             'amount' => $b['total'], 'kind' => 'money', 'by' => $b['by'],
                             'void' => !empty($b['void']), 'note' => $note, 'link' => $link);
+        }
+        /* วันก่อน — ใบรับคืน */
+        foreach (past_returns($c, $d) as $rt) {
+            $rows[] = array('ts' => strtotime(date('Y-m-d', $d) . ' ' . $rt['time']), 'seq' => $seq++,
+                            'date' => $ymd, 'time' => $rt['time'], 'branch' => $c, 'type' => 'return',
+                            'title' => 'รับคืน ' . $rt['no'] . ' · บิล ' . $rt['bill_no'],
+                            'amount' => $rt['refund'], 'kind' => 'money', 'by' => $rt['by'], 'void' => false,
+                            'note' => return_reason_label($rt['reason']) . ' · ' . ($rt['restock'] ? 'กลับเข้าสต๊อก' : 'ไม่เข้าสต๊อก'),
+                            'link' => 'return.php?no=' . rawurlencode($rt['no']) . '&b=' . rawurlencode($c));
         }
         /* วันก่อน — เอกสารคลัง */
         foreach (past_docs($c, $d) as $doc) {
@@ -245,7 +254,7 @@ require dirname(__FILE__) . '/header.php';
     <div>
       <h2><?= $fB === 'ALL' ? 'ทุกสาขา' : e($brAll[$fB]['name']) ?> · <?= e($rangeTxt) ?></h2>
       <span class="sub">เรียงตามเวลา<?= $fSort === 'asc' ? 'จากเก่าไปใหม่' : 'จากใหม่ไปเก่า' ?>
-        · วันก่อนแสดงบิลขายและเอกสารคลัง ส่วนวันนี้แสดงครบทุกชนิด (เปิด/ปิดร้าน รับคืน ตั้งค่า ฯลฯ)</span>
+        · วันก่อนแสดงบิลขาย รับคืน และเอกสารคลัง ส่วนวันนี้แสดงครบทุกชนิด (เปิด/ปิดร้าน รับคืน ตั้งค่า ฯลฯ)</span>
     </div>
   </div>
 

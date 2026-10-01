@@ -1,0 +1,280 @@
+<?php
+/* ==========================================================
+   AOSTOCK DEMO — ตรวจสอบการรับคืนสินค้า (เฉพาะผู้ดูแล)
+   ----------------------------------------------------------
+   ส่วนหนึ่งของ return.php — ผู้ดูแลไม่ได้ทำรับคืนเอง (เป็นหน้าที่ของพนักงานที่ได้รับสิทธิ์ refund)
+   หน้านี้แสดงใบรับคืนทั้งหมดของทุกสาขา ไว้ตรวจสอบ และเปิดดูรายละเอียดทีละใบ
+
+   ตัวกรอง (GET): b = ALL | รหัสสาขา · mode = month | day · m = Y-m · d = Y-m-d
+                  why = เหตุผล · stock = in (กลับเข้าสต๊อก) | out (ไม่เข้าสต๊อก) · sort = desc | asc
+   ดูรายละเอียด: ?no=RT-ปปดดวว-NNNN&b=รหัสสาขา
+
+   ที่มาของข้อมูลในเดโม: วันนี้ = ใบที่พนักงานทำจริงใน session · วันก่อน = ข้อมูลสมมติที่คงที่ (past_returns)
+   ระบบจริง: SELECT จาก ao_stock_return JOIN branch/staff ตามช่วงวันที่
+   ตัวแปรจาก return.php: $user
+   ========================================================== */
+
+require_once dirname(__FILE__) . '/../include/function.php';
+
+$brAll   = demo_branches_all();
+$today   = strtotime(date('Y-m-d'));
+$reasons = return_reasons();
+
+/* ---------- เปิดดูใบเดียว ---------- */
+$view = null;
+if (isset($_GET['no']) && is_string($_GET['no']) && isset($_GET['b']) && is_string($_GET['b']) && isset($brAll[$_GET['b']])) {
+    $view = return_doc_find($_GET['b'], trim($_GET['no']));
+}
+
+/* ---------- ตัวกรอง ---------- */
+$fB     = (isset($_GET['b']) && is_string($_GET['b']) && isset($brAll[$_GET['b']])) ? $_GET['b'] : 'ALL';
+$fMode  = (isset($_GET['mode']) && $_GET['mode'] === 'day') ? 'day' : 'month';
+$fSort  = (isset($_GET['sort']) && $_GET['sort'] === 'asc') ? 'asc' : 'desc';
+$fWhy   = (isset($_GET['why']) && is_string($_GET['why']) && isset($reasons[$_GET['why']])) ? $_GET['why'] : '';
+$fStock = (isset($_GET['stock']) && in_array($_GET['stock'], array('in', 'out'), true)) ? $_GET['stock'] : '';
+
+$dayTs = $today;
+if (isset($_GET['d']) && is_string($_GET['d']) && ($x = strtotime($_GET['d'])) !== false) {
+    $dayTs = min(strtotime(date('Y-m-d', $x)), $today);
+}
+$monTs = strtotime(date('Y-m-01', $dayTs));
+if (isset($_GET['m']) && is_string($_GET['m']) && preg_match('/^\d{4}-\d{2}$/', $_GET['m'])
+    && ($x = strtotime($_GET['m'] . '-01')) !== false) {
+    $monTs = min($x, strtotime(date('Y-m-01')));
+}
+$from = $fMode === 'day' ? $dayTs : $monTs;
+$to   = $fMode === 'day' ? $dayTs : min(strtotime(date('Y-m-t', $monTs)), $today);
+
+$rq = function ($chg) use ($fB, $fMode, $fSort, $fWhy, $fStock, $dayTs, $monTs) {
+    $q = array_merge(array('b' => $fB, 'mode' => $fMode, 'd' => date('Y-m-d', $dayTs), 'm' => date('Y-m', $monTs),
+                           'why' => $fWhy, 'stock' => $fStock, 'sort' => $fSort), $chg);
+    unset($q[$q['mode'] === 'day' ? 'm' : 'd']);
+    foreach (array('why' => '', 'stock' => '', 'sort' => 'desc', 'b' => 'ALL', 'mode' => 'month', 'p' => 1) as $k => $def) {
+        if (isset($q[$k]) && (string) $q[$k] === (string) $def) {
+            unset($q[$k]);
+        }
+    }
+    return 'return.php' . ($q ? '?' . http_build_query($q) : '');
+};
+
+/* ---------- รวบรวมใบรับคืน ---------- */
+$rows  = array();
+$codes = $fB === 'ALL' ? array_keys($brAll) : array($fB);
+for ($d = $from; $d <= $to; $d = strtotime('+1 day', $d)) {
+    foreach ($codes as $c) {
+        foreach (returns_of_day($c, $d) as $r) {
+            $r['branch'] = $c;
+            $r['ts']     = strtotime(date('Y-m-d', $d) . ' ' . $r['time']);
+            $rows[]      = $r;
+        }
+    }
+}
+
+$sum = array('docs' => 0, 'qty' => 0, 'refund' => 0, 'cut' => 0, 'in' => 0, 'out' => 0, 'why' => array());
+foreach ($rows as $r) {
+    $sum['docs']++;
+    $sum['qty']    += $r['qty'];
+    $sum['refund'] += $r['refund'];
+    $sum['cut']    += max(0, $r['calc'] - $r['refund']);
+    $sum[$r['restock'] ? 'in' : 'out'] += $r['qty'];
+    $sum['why'][$r['reason']] = (isset($sum['why'][$r['reason']]) ? $sum['why'][$r['reason']] : 0) + 1;
+}
+
+$rows = array_values(array_filter($rows, function ($r) use ($fWhy, $fStock) {
+    return ($fWhy === '' || $r['reason'] === $fWhy)
+        && ($fStock === '' || ($fStock === 'in') === (bool) $r['restock']);
+}));
+$dir = $fSort === 'asc' ? 1 : -1;
+usort($rows, function ($a, $b) use ($dir) {
+    return $a['ts'] === $b['ts'] ? 0 : (($a['ts'] < $b['ts'] ? -1 : 1) * $dir);
+});
+$per   = 100;
+$total = count($rows);
+$pages = max(1, (int) ceil($total / $per));
+$pg    = isset($_GET['p']) ? max(1, min($pages, (int) $_GET['p'])) : 1;
+$show  = array_slice($rows, ($pg - 1) * $per, $per);
+
+$rangeTxt = $fMode === 'day' ? thai_date_full($dayTs) : thai_month_full($monTs);
+
+$branch         = 'ALL';
+$NO_BRANCH_PICK = true;
+$PAGE_TITLE     = $view ? 'ใบรับคืน ' . $view['no'] : 'รับคืนสินค้า';
+$PAGE_SUB       = $view ? branch_name($view['branch']) . ' · ' . thai_date_full(strtotime($view['date']))
+                        : 'ตรวจสอบใบรับคืนของทุกสาขา · ' . $rangeTxt;
+$NAV_ACTIVE     = 'return.php';
+require dirname(__FILE__) . '/header.php';
+?>
+
+<?php if (isset($_GET['no']) && $view === null): ?>
+  <div class="alert alert-error" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span>ไม่พบใบรับคืนนี้</span></div>
+<?php endif; ?>
+
+<?php if ($view !== null): $v = $view; $rs = $reasons[$v['reason']]; $cut = $v['calc'] - $v['refund']; ?>
+  <!-- ==================== รายละเอียดใบรับคืน ==================== -->
+  <p class="hist-back">
+    <a class="btn btn-ghost btn-sm" href="<?= e($rq(array('b' => $fB, 'mode' => 'month', 'm' => date('Y-m', strtotime($v['date']))))) ?>">‹ กลับไปรายการรับคืน</a>
+  </p>
+  <section class="card ret-view">
+    <div class="card-head">
+      <div>
+        <h2><?= e($v['no']) ?></h2>
+        <span class="sub"><?= e(branch_name($v['branch'])) ?> · <?= e(thai_date_full(strtotime($v['date']))) ?> <?= e($v['time']) ?> น. · รับคืนโดย <?= e($v['by']) ?></span>
+      </div>
+      <span class="bdg <?= $v['restock'] ? 'bdg-ok' : 'bdg-out' ?>"><?= $v['restock'] ? 'กลับเข้าสต๊อก' : 'ไม่เข้าสต๊อก · แยกเก็บ' ?></span>
+    </div>
+
+    <dl class="ret-meta">
+      <div><dt>บิลเดิม</dt><dd><b><?= e($v['bill_no']) ?></b> · ซื้อวันที่ <?= e(thai_date_full(strtotime($v['bill_date']))) ?> · ขายโดย <?= e($v['bill_by']) ?></dd></div>
+      <div><dt>คืนหลังซื้อ</dt><dd><?= (int) round((strtotime($v['date']) - strtotime($v['bill_date'])) / 86400) ?> วัน</dd></div>
+      <div><dt>เหตุผล</dt><dd><?= e($rs['label']) ?><?= $v['note'] !== '' ? ' — ' . e($v['note']) : '' ?></dd></div>
+      <div><dt>สต๊อก</dt><dd><?= e($rs['hint']) ?></dd></div>
+    </dl>
+
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>สินค้า</th><th class="r">จำนวน</th><th class="r">ราคาที่ลูกค้าจ่าย / ชิ้น</th><th class="r">รวม</th></tr></thead>
+        <tbody>
+          <?php foreach ($v['lines'] as $l): ?>
+            <tr>
+              <td><b><?= e($l['name']) ?></b><small class="hist-n"><?= e($l['sku']) ?></small></td>
+              <td class="r num"><?= number_format($l['qty']) ?> <?= e($l['unit']) ?></td>
+              <td class="r num"><?= e(money2($l['price'])) ?></td>
+              <td class="r num"><?= e(money2($l['sum'])) ?></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+        <tfoot>
+          <tr><td colspan="3" class="r">ยอดคำนวณ</td><td class="r num"><?= e(money2($v['calc'])) ?></td></tr>
+          <?php if (abs($cut) >= 0.01): ?>
+            <tr><td colspan="3" class="r">ปรับยอด<?= $v['refund_note'] !== '' ? ' — ' . e($v['refund_note']) : '' ?></td><td class="r num">−<?= e(money2($cut)) ?></td></tr>
+          <?php endif; ?>
+          <tr class="ret-total"><td colspan="3" class="r"><b>คืนเงินสด (จากลิ้นชักวันที่คืน)</b></td><td class="r num"><b><?= e(money2($v['refund'])) ?></b></td></tr>
+        </tfoot>
+      </table>
+    </div>
+  </section>
+  <?php require dirname(__FILE__) . '/footer.php'; exit; ?>
+<?php endif; ?>
+
+<!-- ==================== ตัวกรอง ==================== -->
+<section class="card acct-filter hist-filter">
+  <form method="get" action="return.php" class="acct-row">
+    <div class="segs">
+      <a class="seg<?= $fMode === 'day' ? ' on' : '' ?>" href="<?= e($rq(array('mode' => 'day', 'd' => date('Y-m-d', $fMode === 'month' && $monTs < strtotime(date('Y-m-01')) ? strtotime(date('Y-m-t', $monTs)) : $today)))) ?>">รายวัน</a>
+      <a class="seg<?= $fMode === 'month' ? ' on' : '' ?>" href="<?= e($rq(array('mode' => 'month', 'm' => date('Y-m', $dayTs)))) ?>">รายเดือน</a>
+    </div>
+    <input type="hidden" name="mode" value="<?= e($fMode) ?>">
+    <?php if ($fMode === 'day'): ?>
+      <a class="btn btn-ghost btn-sm" href="<?= e($rq(array('d' => date('Y-m-d', strtotime('-1 day', $dayTs))))) ?>" aria-label="วันก่อนหน้า">‹</a>
+      <label class="sr-only" for="rd">วันที่</label>
+      <input class="input acct-date" type="date" id="rd" name="d" value="<?= e(date('Y-m-d', $dayTs)) ?>" max="<?= e(date('Y-m-d')) ?>" onchange="this.form.submit()">
+      <?php if ($dayTs < $today): ?>
+        <a class="btn btn-ghost btn-sm" href="<?= e($rq(array('d' => date('Y-m-d', strtotime('+1 day', $dayTs))))) ?>" aria-label="วันถัดไป">›</a>
+      <?php endif; ?>
+    <?php else: ?>
+      <a class="btn btn-ghost btn-sm" href="<?= e($rq(array('m' => date('Y-m', strtotime('-1 month', $monTs))))) ?>" aria-label="เดือนก่อนหน้า">‹</a>
+      <label class="sr-only" for="rm">เดือน</label>
+      <input class="input acct-date" type="month" id="rm" name="m" value="<?= e(date('Y-m', $monTs)) ?>" max="<?= e(date('Y-m')) ?>" onchange="this.form.submit()">
+      <?php if ($monTs < strtotime(date('Y-m-01'))): ?>
+        <a class="btn btn-ghost btn-sm" href="<?= e($rq(array('m' => date('Y-m', strtotime('+1 month', $monTs))))) ?>" aria-label="เดือนถัดไป">›</a>
+      <?php endif; ?>
+    <?php endif; ?>
+
+    <label class="sr-only" for="rb">สาขา</label>
+    <select class="input acct-branch" id="rb" name="b" onchange="this.form.submit()">
+      <option value="ALL">ทุกสาขา</option>
+      <?php foreach ($brAll as $c => $x): ?>
+        <option value="<?= e($c) ?>" <?= $fB === $c ? 'selected' : '' ?>><?= e($x['name']) ?><?= empty($x['active']) ? ' (ปิดใช้งาน)' : '' ?></option>
+      <?php endforeach; ?>
+    </select>
+    <label class="sr-only" for="rw">เหตุผล</label>
+    <select class="input acct-branch" id="rw" name="why" onchange="this.form.submit()">
+      <option value="">ทุกเหตุผล</option>
+      <?php foreach ($reasons as $k => $x): ?>
+        <option value="<?= e($k) ?>" <?= $fWhy === $k ? 'selected' : '' ?>><?= e($x['label']) ?></option>
+      <?php endforeach; ?>
+    </select>
+    <label class="sr-only" for="rs">เรียงลำดับ</label>
+    <select class="input acct-branch" id="rs" name="sort" onchange="this.form.submit()">
+      <option value="desc" <?= $fSort === 'desc' ? 'selected' : '' ?>>เวลา: ใหม่ → เก่า</option>
+      <option value="asc" <?= $fSort === 'asc' ? 'selected' : '' ?>>เวลา: เก่า → ใหม่</option>
+    </select>
+    <?php if ($fStock !== ''): ?><input type="hidden" name="stock" value="<?= e($fStock) ?>"><?php endif; ?>
+    <noscript><button class="btn btn-ghost btn-sm" type="submit">ดู</button></noscript>
+  </form>
+</section>
+
+<!-- ==================== สรุป ==================== -->
+<section class="mini num adm-kpi" aria-label="สรุปการรับคืน">
+  <div class="m"><div class="lb">ใบรับคืน</div><div class="nm"><?= number_format($sum['docs']) ?></div>
+    <div class="sb"><?= number_format($sum['qty']) ?> ชิ้น</div></div>
+  <div class="m"><div class="lb">คืนเงินสด</div><div class="nm"><?= e(money2($sum['refund'])) ?></div>
+    <div class="sb"><?= $sum['cut'] > 0 ? 'หักไว้จากยอดคำนวณ ' . e(money2($sum['cut'])) . ' บาท' : 'คืนเต็มยอดทุกใบ' ?></div></div>
+  <div class="m"><div class="lb">สินค้าที่รับคืน</div><div class="nm"><?= number_format($sum['in']) ?> / <?= number_format($sum['out']) ?></div>
+    <div class="sb">กลับเข้าสต๊อก / แยกเก็บ (ไม่ขายต่อ)</div></div>
+</section>
+
+<!-- ==================== รายการ ==================== -->
+<section class="card">
+  <div class="card-head">
+    <div>
+      <h2><?= $fB === 'ALL' ? 'ทุกสาขา' : e($brAll[$fB]['name']) ?> · <?= e($rangeTxt) ?></h2>
+      <span class="sub">การรับคืนทำโดยพนักงานที่ได้รับสิทธิ์ “รับคืนสินค้า” · กดดูเพื่อตรวจรายละเอียดแต่ละใบ</span>
+    </div>
+  </div>
+  <div class="cats">
+    <a class="cat<?= $fStock === '' ? ' on' : '' ?>" href="<?= e($rq(array('stock' => ''))) ?>">ทั้งหมด</a>
+    <a class="cat<?= $fStock === 'in' ? ' on' : '' ?>" href="<?= e($rq(array('stock' => 'in'))) ?>">กลับเข้าสต๊อก</a>
+    <a class="cat<?= $fStock === 'out' ? ' on' : '' ?>" href="<?= e($rq(array('stock' => 'out'))) ?>">ไม่เข้าสต๊อก</a>
+  </div>
+
+  <?php if (!$show): ?>
+    <p class="empty"><svg class="ico"><use href="#i-receipt"/></svg>ไม่มีการรับคืนในช่วงที่เลือก
+      <?php if ($fMode === 'month' && $monTs === strtotime(date('Y-m-01'))): ?>
+        <br><a class="btn btn-ghost btn-sm" href="<?= e($rq(array('m' => date('Y-m', strtotime('-1 month', $monTs))))) ?>">ดูเดือนก่อน</a>
+      <?php endif; ?>
+    </p>
+  <?php else: ?>
+    <div class="tbl-wrap">
+      <table class="tbl hist-all">
+        <thead>
+          <tr>
+            <th><?= $fMode === 'month' ? 'วันที่ · เวลา' : 'เวลา' ?></th>
+            <th>สาขา</th>
+            <th>ใบรับคืน / บิลเดิม</th>
+            <th>เหตุผล</th>
+            <th>รับคืนโดย</th>
+            <th class="r">จำนวน</th>
+            <th class="r">คืนเงิน</th>
+            <th class="r"><span class="sr-only">ดู</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php foreach ($show as $r): ?>
+            <tr>
+              <td class="num nowrap"><?php if ($fMode === 'month'): ?><?= e(thai_day_month(strtotime($r['date']))) ?> · <?php endif; ?><?= e($r['time']) ?></td>
+              <td><span class="hist-br"><?= e($brAll[$r['branch']]['short']) ?></span></td>
+              <td class="nowrap"><b class="hist-t"><?= e($r['no']) ?></b><small class="hist-n">บิล <?= e($r['bill_no']) ?> · ซื้อ <?= e(thai_day_month(strtotime($r['bill_date']))) ?></small></td>
+              <td>
+                <span class="bdg <?= $r['restock'] ? 'bdg-ok' : 'bdg-out' ?>"><?= e($reasons[$r['reason']]['label']) ?></span>
+              </td>
+              <td class="nowrap"><?= e($r['by']) ?></td>
+              <td class="r num nowrap"><?= number_format($r['qty']) ?> ชิ้น</td>
+              <td class="r num nowrap"><?= e(money2($r['refund'])) ?> ฿<?php if ($r['calc'] - $r['refund'] >= 0.01): ?><small class="hist-n">จาก <?= e(money2($r['calc'])) ?></small><?php endif; ?></td>
+              <td class="r"><a class="btn btn-ghost btn-sm" href="return.php?no=<?= e(rawurlencode($r['no'])) ?>&amp;b=<?= e(rawurlencode($r['branch'])) ?>">ดู</a></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+    <?php if ($pages > 1): ?>
+      <nav class="hist-pager" aria-label="หน้า">
+        <?php if ($pg > 1): ?><a class="btn btn-ghost btn-sm" href="<?= e($rq(array('p' => $pg - 1))) ?>">‹ ก่อนหน้า</a><?php endif; ?>
+        <span>หน้า <?= $pg ?> / <?= $pages ?> · <?= number_format($total) ?> ใบ</span>
+        <?php if ($pg < $pages): ?><a class="btn btn-ghost btn-sm" href="<?= e($rq(array('p' => $pg + 1))) ?>">ถัดไป ›</a><?php endif; ?>
+      </nav>
+    <?php endif; ?>
+  <?php endif; ?>
+</section>
+
+<?php require dirname(__FILE__) . '/footer.php'; ?>

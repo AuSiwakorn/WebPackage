@@ -1,14 +1,22 @@
 <?php
 /* ==========================================================
    AOSTOCK DEMO — รับคืนสินค้า
-   ค้นบิลเก่า → เลือกรายการที่คืน → เหตุผล → ยืนยันยอดเงินคืน (เงินสดจากลิ้นชักวันนี้)
+   พนักงาน (สิทธิ์ refund): ค้นบิลเก่า → เลือกรายการที่คืน → เหตุผล → ยืนยันยอดเงินคืน (เงินสดจากลิ้นชักวันนี้)
+   ผู้ดูแล: ดูใบรับคืนทั้งหมดของทุกสาขาเพื่อตรวจสอบ (inc/return-all.php) — ไม่ได้ทำรับคืนเอง
    กติกาอยู่ใน include/function.php หมวด "รับคืนสินค้า"
    ========================================================== */
 
 require_once dirname(__FILE__) . '/include/function.php';
 
 $user = require_login();
-$code = work_branch($user);          // ผู้ดูแลเลือกสาขาได้จากแถบบน
+
+/* ผู้ดูแลไม่ทำรับคืนเอง (เป็นหน้าที่ของพนักงานที่ได้รับสิทธิ์) — เห็นเป็นหน้าตรวจสอบใบรับคืนของทุกสาขาแทน */
+if ($user['role'] === 'admin') {
+    require dirname(__FILE__) . '/inc/return-all.php';
+    exit;
+}
+
+$code = work_branch($user);
 
 $allowed = can($user, 'refund');
 $isOpen  = store_is_open($code);
@@ -69,7 +77,7 @@ require dirname(__FILE__) . '/inc/header.php';
 <?php if (!$allowed): ?>
   <div class="alert alert-warn" role="status">
     <svg class="ico"><use href="#i-ban"/></svg>
-    <span>คุณยังไม่มีสิทธิ์รับคืนสินค้า — ให้ผู้ดูแลเปิดสิทธิ์เสริม “รับคืนสินค้า” ให้ก่อน</span>
+    <span>คุณยังไม่มีสิทธิ์รับคืนสินค้า — ให้ผู้ดูแลติ๊กสิทธิ์ “รับคืนสินค้า” ให้ก่อน</span>
   </div>
   <?php require dirname(__FILE__) . '/inc/footer.php'; exit; ?>
 <?php endif; ?>
@@ -144,9 +152,9 @@ require dirname(__FILE__) . '/inc/header.php';
                 <td data-label="รายการ"><span class="ret-names"><?= e(implode(' · ', $names)) ?></span></td>
                 <td class="r" data-label="ยอด"><?= e(money2($b['total'])) ?></td>
                 <td data-label="สถานะ">
-                  <?php $bc = array('ok' => 'bdg-ok', 'late_admin' => 'bdg-warn', 'late' => 'bdg-out', 'done' => 'bdg-adj'); ?>
-                  <span class="bdg <?= $bc[$st['code']] ?>"><?= e($st['code'] === 'late' ? 'เกินกำหนด' : ($st['code'] === 'late_admin' ? 'เกินกำหนด · ผู้ดูแลคืนได้' : $st['msg'])) ?></span>
-                  <?php if (bill_has_returns($b['no'])): ?><small>มีการคืนไปแล้วบางส่วน</small><?php endif; ?>
+                  <?php $bc = array('ok' => 'bdg-ok', 'late' => 'bdg-out', 'done' => 'bdg-adj'); ?>
+                  <span class="bdg <?= $bc[$st['code']] ?>"><?= e($st['code'] === 'late' ? 'เกินกำหนด' : $st['msg']) ?></span>
+                  <?php if (bill_has_returns($b['no'], $b)): ?><small>มีการคืนไปแล้วบางส่วน</small><?php endif; ?>
                 </td>
                 <td class="r">
                   <?php if ($st['ok']): ?>
@@ -159,7 +167,7 @@ require dirname(__FILE__) . '/inc/header.php';
         </table>
       </div>
     <?php endif; ?>
-    <div class="card-foot">บิลที่เก่ากว่า <?= backdate_days($code) ?> วันคืนไม่ได้ ต้องให้ผู้ดูแลทำ · จำนวนวันผู้ดูแลเป็นคนตั้ง</div>
+    <div class="card-foot">บิลที่เก่ากว่า <?= backdate_days($code) ?> วันคืนไม่ได้ · จำนวนวันผู้ดูแลตั้งได้ที่หน้าจัดการสาขา</div>
   </section>
 
 <?php else: ?>
@@ -179,7 +187,7 @@ require dirname(__FILE__) . '/inc/header.php';
       <a class="btn btn-ghost btn-sm" href="return.php"><svg class="ico"><use href="#i-search"/></svg> เลือกบิลอื่น</a>
     </div>
     <div class="ret-status">
-      <span class="bdg <?= $st['code'] === 'ok' ? 'bdg-ok' : ($st['code'] === 'late_admin' ? 'bdg-warn' : 'bdg-out') ?>"><?= e($st['msg']) ?></span>
+      <span class="bdg <?= $st['code'] === 'ok' ? 'bdg-ok' : 'bdg-out' ?>"><?= e($st['msg']) ?></span>
       <small>ผ่านมา <?= bill_age_days($bill) ?> วัน · กำหนดคืน <?= backdate_days($code) ?> วัน</small>
     </div>
   </section>

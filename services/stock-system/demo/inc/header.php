@@ -23,7 +23,7 @@ $NAV_ALL = array(
         array('file' => 'sale.php',       'label' => 'ขายสินค้า',         'icon' => 'i-cart',      'perm' => 'sale'),
         array('file' => 'products.php',   'label' => 'สินค้าในสต๊อก',     'icon' => 'i-boxes'),
         array('file' => 'receive.php',    'label' => 'นำเข้าสินค้า',      'icon' => 'i-in',        'perm' => 'receive'),
-        array('file' => 'issue.php',      'label' => 'เบิก / ตัดออก',     'icon' => 'i-out',       'perm' => 'issue'),
+        array('file' => 'issue.php',      'label' => 'เบิก / ตัดออก',     'icon' => 'i-out',       'perm' => 'issue', 'adm' => 'adm-issue.php'),
         array('file' => 'stocktake.php',  'label' => 'ตรวจนับ / ปรับยอด',  'icon' => 'i-clipboard', 'perm' => 'stocktake'),
         array('file' => 'return.php',     'label' => 'รับคืนสินค้า',       'icon' => 'i-receipt', 'perm' => 'refund'),
         array('file' => 'history.php',    'label' => 'ประวัติการทำรายการ', 'icon' => 'i-history',   'perm' => 'history'),
@@ -54,6 +54,9 @@ foreach ($NAV_ALL as $group => $items) {
         if (menu_enabled($it['file']) && in_array($user['role'], $roles, true)
             && (!isset($it['perm']) || can($user, $it['perm']))
             && (empty($it['admin']) || $user['role'] === 'admin')) {
+            if ($user['role'] === 'admin' && isset($it['adm'])) {
+                $it['file'] = $it['adm'];          // ผู้ดูแลใช้หน้าชุด adm- (ตรวจสอบทุกสาขา) แทนหน้าทำงานของพนักงาน
+            }
             $keep[] = $it;
         }
     }

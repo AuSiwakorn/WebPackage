@@ -12,7 +12,14 @@
 require_once dirname(__FILE__) . '/include/function.php';
 
 $user = require_login();
-$code = work_branch($user);          // ผู้ดูแลเลือกสาขาได้จากแถบบน
+
+/* ผู้ดูแลไม่เบิก / ตัดออกเอง — ใช้หน้าตรวจสอบรายการเบิก / ตัดออกทุกสาขา (adm-issue.php) */
+if ($user['role'] === 'admin') {
+    header('Location: ' . url('adm-issue.php'));
+    exit;
+}
+
+$code = work_branch($user);
 
 /* งานคลังไม่ผูกกับการเปิดร้าน — ของมาส่งเช้าก่อนเปิดร้านก็รับเข้าได้
    มีแค่หน้าขายสินค้าที่ต้องเปิดร้านก่อน (เพราะเกี่ยวกับลิ้นชักเงินสด) */

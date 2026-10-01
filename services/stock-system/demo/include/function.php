@@ -64,7 +64,8 @@ function active_menus()
 {
     return array('dashboard.php', 'store.php', 'sale.php', 'products.php', 'receive.php', 'issue.php', 'stocktake.php', 'movements.php',
                  'history.php', 'return.php', 'report-sales.php', 'users.php', 'branches.php',
-                 'account.php', 'account-settings.php');
+                 'account.php', 'account-settings.php',
+                 'adm-issue.php');
 }
 
 /** ส่วนประกอบที่ยังไม่ได้ใช้ เปิดทีหลังโดยเติมชื่อลงใน array นี้
@@ -272,8 +273,10 @@ function user_perms($user)
         return array();
     }
     if (isset($user['role']) && $user['role'] === 'admin') {
-        /* ผู้ดูแลได้ทุกสิทธิ์ ยกเว้นขายสินค้า / เปิด–ปิดร้าน (เป็นหน้าที่ของพนักงานหน้าร้าน) */
-        return array_values(array_diff(array_keys(perm_list()), array('sale')));
+        /* ผู้ดูแลได้ทุกสิทธิ์ ยกเว้น
+             sale     ขายสินค้า / เปิด–ปิดร้าน (หน้าที่ของพนักงานหน้าร้าน)
+             receive  นำเข้าสินค้า (หน้าที่ของพนักงานที่ได้รับมอบหมาย) */
+        return array_values(array_diff(array_keys(perm_list()), array('sale', 'receive')));
     }
     if (isset($user['role']) && $user['role'] !== 'staff') {
         return array();
@@ -1453,7 +1456,7 @@ function require_login()
     if ($need !== '' && !can($u, $need)) {
         $pl = perm_list();
         $_SESSION['flash'] = 'ไม่มีสิทธิ์เข้าหน้า “' . $pl[$need]['short'] . '”'
-                           . ($u['role'] === 'admin' ? ' — การขายและเปิด/ปิดร้านเป็นหน้าที่ของพนักงานหน้าร้าน' : ' — ติดต่อผู้ดูแลเพื่อเปิดสิทธิ์');
+                           . ($u['role'] === 'admin' ? ' — งานนี้เป็นหน้าที่ของพนักงานที่ได้รับมอบหมาย' : ' — ติดต่อผู้ดูแลเพื่อเปิดสิทธิ์');
         header('Location: ' . url('dashboard.php'));
         exit;
     }
@@ -2980,6 +2983,61 @@ function idraft_from_issue($doc)
     return idraft_count();
 }
 
+/* ==========================================================
+   รายการเบิก / ตัดออกแบบรายสินค้า — ใช้กับหน้าตรวจสอบของผู้ดูแล (inc/issue-all.php)
+   วันนี้อ่านจาก session · วันก่อนเป็นข้อมูลสมมติที่คงที่ (past_docs ชนิด IS)
+   ========================================================== */
+
+/** หนึ่งแถวต่อสินค้าหนึ่งรายการในใบ: ราคาทุน / ราคาขาย / มูลค่าทุน คิดจากข้อมูลสินค้าปัจจุบัน */
+function issue_rows_of_day($code, $ts)
+{
+    $day  = date('Ymd', $ts);
+    $docs = array();
+    if ($day === date('Ymd')) {
+        foreach (issues_today($code) as $d) {
+            $d['date'] = $day;
+            $docs[] = $d;
+        }
+    } elseif ($day < date('Ymd')) {
+        foreach (past_docs($code, $ts) as $d) {
+            if ($d['kind'] === 'IS') {
+                $docs[] = $d;
+            }
+        }
+    }
+    $rows = array();
+    foreach ($docs as $d) {
+        foreach ($d['lines'] as $n => $l) {
+            $p    = product_by_sku($l['sku']);
+            $cost = $p ? (float) $p['cost'] : 0;
+            $rows[] = array(
+                'date'   => $day,
+                'time'   => $d['time'],
+                'ts'     => strtotime(date('Y-m-d', $ts) . ' ' . $d['time']),
+                'seq'    => $n,
+                'branch' => $code,
+                'no'     => $d['no'],
+                'sku'    => $l['sku'],
+                'name'   => $l['name'],
+                'unit'   => $l['unit'],
+                'cat'    => $p ? $p['cat'] : '',
+                'qty'    => (int) $l['qty'],
+                'cost'   => $cost,
+                'price'  => $p ? (float) $p['price'] : 0,
+                'value'  => $cost * (int) $l['qty'],
+                'reason' => $d['reason'],
+                'note'   => isset($d['note']) ? $d['note'] : '',
+                'ref'    => isset($d['ref']) ? $d['ref'] : '',
+                'by'     => $d['by'],
+                'void'   => !empty($d['void']),
+                'void_by'     => isset($d['void_by']) ? $d['void_by'] : '',
+                'void_reason' => isset($d['void_reason']) ? $d['void_reason'] : '',
+            );
+        }
+    }
+    return $rows;
+}
+
 /* ##########################################################
    หมวด: ตรวจนับ / ปรับยอด (แบบเบา)
    ########################################################## */
@@ -4074,6 +4132,7 @@ function past_bills($code, $ts)
         $k = $b['vat'] ? 'v' : 'n';
         $cnt[$k]++;
         $rows[$i]['no'] = bill_no_format(bill_prefix($code, $b['vat']), $ts, $cnt[$k]);
+        $rows[$i]['seed_i'] = $i;                    // ใช้หาใบรับคืนสมมติของบิลนี้
     }
     return $rows;
 }
@@ -4229,21 +4288,27 @@ function bill_age_days($b)
    จำนวนที่คืนไปแล้ว
    ========================================================== */
 
-function returned_of_bill($no)
+function returned_of_bill($no, $bill = null)
 {
-    return (isset($_SESSION['ret_by_bill'][$no]) && is_array($_SESSION['ret_by_bill'][$no]))
+    $out = (isset($_SESSION['ret_by_bill'][$no]) && is_array($_SESSION['ret_by_bill'][$no]))
          ? $_SESSION['ret_by_bill'][$no] : array();
+    if ($bill !== null) {                                 // รวมใบรับคืนสมมติของวันก่อน (เดโม)
+        foreach (seeded_returned_of_bill($bill) as $sku => $q) {
+            $out[$sku] = (isset($out[$sku]) ? $out[$sku] : 0) + $q;
+        }
+    }
+    return $out;
 }
 
-function bill_has_returns($no)
+function bill_has_returns($no, $bill = null)
 {
-    return bill_returned_any($no);            // อยู่ใน sale.php — หน้าขาย/ประวัติใช้กันยกเลิกบิลที่มีการคืนแล้ว
+    return array_sum(returned_of_bill($no, $bill)) > 0;
 }
 
 /** แต่ละรายการในบิล + คืนไปแล้ว + คืนได้อีก */
 function return_lines($bill)
 {
-    $done = returned_of_bill($bill['no']);
+    $done = returned_of_bill($bill['no'], $bill);
     $out  = array();
     /* บิลที่มีส่วนลดท้ายบิล → คืนเงินตามราคาที่ลูกค้าจ่ายจริง (เฉลี่ยส่วนลดตามสัดส่วน) */
     $f = (!empty($bill['discount']) && !empty($bill['subtotal'])) ? $bill['total'] / $bill['subtotal'] : 1;
@@ -4263,8 +4328,8 @@ function return_lines($bill)
 
 /**
  * สถานะของบิลสำหรับการคืน
- * คืน array('ok' => bool, 'code' => ok|late|late_admin|done, 'msg' => ข้อความ, 'left' => วันที่เหลือ)
- * บิลที่เกินกำหนด: พนักงานคืนไม่ได้ · ผู้ดูแลคืนให้ได้ (late_admin)
+ * คืน array('ok' => bool, 'code' => ok|late|done, 'msg' => ข้อความ, 'left' => วันที่เหลือ)
+ * บิลที่เกินกำหนดคืนไม่ได้ (ผู้ดูแลไม่ทำรับคืนเอง — ขยายจำนวนวันของสาขาได้)
  */
 function bill_return_status($bill, $user = null)
 {
@@ -4277,13 +4342,10 @@ function bill_return_status($bill, $user = null)
     if ($rem === 0) {
         return array('ok' => false, 'code' => 'done', 'msg' => 'คืนครบทุกรายการแล้ว', 'left' => 0);
     }
-    if ($age > $limit && $user && $user['role'] === 'admin') {
-        return array('ok' => true, 'code' => 'late_admin',
-                     'msg' => 'เกินกำหนด ' . $limit . ' วัน (ผ่านมา ' . $age . ' วัน) — ผู้ดูแลคืนให้ได้', 'left' => 0);
-    }
     if ($age > $limit) {
         return array('ok' => false, 'code' => 'late',
-                     'msg' => 'เกินกำหนดคืน ' . $limit . ' วัน (ผ่านมา ' . $age . ' วัน) — ต้องให้ผู้ดูแลทำ', 'left' => 0);
+                     'msg' => 'เกินกำหนดคืน ' . $limit . ' วัน (ผ่านมา ' . $age . ' วัน) — คืนไม่ได้'
+                            . ' · ถ้าจำเป็น ผู้ดูแลขยายจำนวนวันได้ที่หน้าจัดการสาขา', 'left' => 0);
     }
     $left = $limit - $age;
     return array('ok' => true, 'code' => 'ok',
@@ -4328,8 +4390,8 @@ function return_by_no($code, $no)
  */
 function return_save($code, $user, $bill, $qtys, $reason, $note, $refund, $refundNote)
 {
-    if (!can($user, 'refund')) {
-        return array('error' => 'ไม่มีสิทธิ์รับคืนสินค้า');
+    if ($user['role'] !== 'staff' || !can($user, 'refund')) {
+        return array('error' => 'ไม่มีสิทธิ์รับคืนสินค้า — การรับคืนเป็นหน้าที่ของพนักงานที่ได้รับมอบหมาย');
     }
     if (!store_is_open($code)) {
         return array('error' => 'ต้องเปิดร้านก่อน เพราะเงินคืนจ่ายจากลิ้นชักของวันนี้');
@@ -4430,6 +4492,129 @@ function return_save($code, $user, $bill, $qtys, $reason, $note, $refund, $refun
     log_add($code, 'return', $user, 'รับคืนสินค้า ' . $doc['no'] . ' (บิล ' . $bill['no'] . ')', $detail, $refund, $doc['no']);
 
     return array('doc' => $doc);
+}
+
+/* ==========================================================
+   ใบรับคืนของวันก่อน (ข้อมูลสมมติที่คงที่) — ให้หน้าตรวจสอบของผู้ดูแลมีข้อมูลให้ดู
+   ----------------------------------------------------------
+   บิลสมมติราว 1 ใน 15 ใบ ถูกคืน 1 ชิ้นภายใน 0–2 วันหลังซื้อ (เฉพาะวันที่ผ่านไปแล้ว)
+   ผูกกับบิลด้วย สาขา|วันที่|ลำดับบิล จึงไม่เปลี่ยนตามรหัสเลขที่บิลที่บัญชีตั้ง
+   ระบบจริง: SELECT จาก ao_stock_return — ไม่ต้องมีส่วนนี้
+   ========================================================== */
+
+/** ใบรับคืนสมมติของบิลนี้ (ไม่มี = null) — $i = ลำดับบิลในวันนั้น */
+function past_bill_seed_return($bill, $i)
+{
+    $h = abs(crc32($bill['branch'] . '|' . $bill['date'] . '|' . $i . '|ret'));
+    if ($h % 15 !== 0 || !$bill['lines']) {
+        return null;
+    }
+    $rts = strtotime('+' . (($h >> 5) % 3) . ' day', strtotime($bill['date']));
+    if (date('Ymd', $rts) >= date('Ymd') || (int) date('N', $rts) === 7) {
+        return null;                                      // ยังไม่ถึง / วันอาทิตย์ร้านปิด
+    }
+    $why  = array('wrong', 'wrong', 'defect', 'defect', 'used', 'other');
+    $why  = $why[($h >> 8) % count($why)];
+    $rs   = return_reasons();
+    $l    = $bill['lines'][($h >> 11) % count($bill['lines'])];
+    $fac  = (!empty($bill['subtotal']) && $bill['subtotal'] > 0) ? $bill['total'] / $bill['subtotal'] : 1;
+    $calc = round($l['price'] * $fac, 2);
+    $cut  = ($why === 'used') ? round($calc * 0.2) : 0;  // ใช้แล้ว → หักค่าเสื่อมบางส่วน
+    $hh   = 10 + (($h >> 14) % 9);
+    if ($rts === strtotime($bill['date']) && sprintf('%02d', $hh) <= substr($bill['time'], 0, 2)) {
+        $hh = min(20, (int) substr($bill['time'], 0, 2) + 1);
+    }
+    return array(
+        'no'          => '',
+        'date'        => date('Ymd', $rts),
+        'time'        => sprintf('%02d:%02d', $hh, ($h >> 18) % 60),
+        'branch'      => $bill['branch'],
+        'by'          => $bill['by'],
+        'by_user'     => $bill['by_user'],
+        'bill_no'     => $bill['no'],
+        'bill_date'   => $bill['date'],
+        'bill_by'     => $bill['by'],
+        'reason'      => $why,
+        'note'        => $why === 'other' ? 'ลูกค้าเปลี่ยนใจ ของยังไม่แกะ แต่กล่องยับ' : ($why === 'defect' ? 'ลูกค้าแจ้งว่าใช้ได้ 1 วันแล้วเสีย' : ''),
+        'restock'     => $rs[$why]['restock'],
+        'lines'       => array(array('sku' => $l['sku'], 'name' => $l['name'], 'unit' => $l['unit'],
+                                     'qty' => 1, 'price' => $calc, 'sum' => $calc)),
+        'items'       => 1,
+        'qty'         => 1,
+        'calc'        => $calc,
+        'refund'      => $calc - $cut,
+        'refund_note' => $cut > 0 ? 'หักค่าสภาพสินค้า ' . money2($cut) . ' บาท (ลูกค้ายินยอม)' : '',
+        'seed'        => true,
+    );
+}
+
+/** ใบรับคืนสมมติที่ออก "ในวันนั้น" ของสาขา (เรียงตามเวลา มีเลขที่ RT-ปปดดวว-NNNN) */
+function past_returns($code, $ts)
+{
+    static $cache = array();
+    $day = date('Ymd', $ts);
+    if (isset($cache[$code . '|' . $day])) {
+        return $cache[$code . '|' . $day];
+    }
+    $out = array();
+    if ($day < date('Ymd')) {
+        for ($k = 0; $k <= 2; $k++) {
+            $bts = strtotime('-' . $k . ' day', strtotime($day));
+            foreach (past_bills($code, $bts) as $i => $b) {
+                $r = past_bill_seed_return($b, $i);
+                if ($r !== null && $r['date'] === $day && empty($b['void'])) {
+                    $out[] = $r;
+                }
+            }
+        }
+        usort($out, 'ret_cmp_time');
+        foreach ($out as $i => $r) {
+            $out[$i]['no'] = 'RT-' . substr($day, 2) . '-' . str_pad($i + 1, 4, '0', STR_PAD_LEFT);
+        }
+    }
+    $cache[$code . '|' . $day] = $out;
+    return $out;
+}
+
+/** จำนวนที่คืนไปแล้วจากใบรับคืนสมมติ: array( SKU => จำนวน ) — นับเฉพาะใบที่ออกก่อนวันนี้ */
+function seeded_returned_of_bill($bill)
+{
+    if (empty($bill['date']) || $bill['date'] >= date('Ymd') || !isset($bill['seed_i'])) {
+        return array();
+    }
+    $r = past_bill_seed_return($bill, $bill['seed_i']);
+    if ($r === null) {
+        return array();
+    }
+    return array($r['lines'][0]['sku'] => 1);
+}
+
+/** ใบรับคืนของวันหนึ่ง — วันนี้อ่านจาก session · วันก่อนเป็นข้อมูลสมมติ */
+function returns_of_day($code, $ts)
+{
+    if (date('Ymd', $ts) === date('Ymd')) {
+        $out = array();
+        foreach (returns_today($code) as $r) {
+            $r['date'] = date('Ymd');
+            $out[] = $r;
+        }
+        return $out;
+    }
+    return past_returns($code, $ts);
+}
+
+/** หาใบรับคืนจากเลขที่ RT-ปปดดวว-NNNN (วันอยู่ในเลขที่) */
+function return_doc_find($code, $no)
+{
+    if (!preg_match('/^RT-(\d{6})-\d{4}$/', $no, $m) || ($ts = strtotime('20' . $m[1])) === false) {
+        return null;
+    }
+    foreach (returns_of_day($code, $ts) as $r) {
+        if ($r['no'] === $no) {
+            return $r;
+        }
+    }
+    return null;
 }
 
 /* ##########################################################

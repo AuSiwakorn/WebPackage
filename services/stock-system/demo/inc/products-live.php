@@ -107,11 +107,13 @@ $words = stock_filter_words($q, $cat, $st);
           <?= $qs !== '' ? ' (จากการกรอง)' : '' ?>
         </span>
       </div>
+      <?php if (can($user, 'receive')): /* ผู้ดูแลไม่นำเข้าสินค้า — ปุ่มนี้มีเฉพาะพนักงานที่มีสิทธิ์ */ ?>
       <div class="head-act">
         <a class="btn btn-in" href="receive.php">
           <svg class="ico"><use href="#i-in"/></svg> นำเข้าสินค้า
         </a>
       </div>
+      <?php endif; ?>
       <div class="sortbox" hx-target="#stock-live" hx-swap="outerHTML" hx-push-url="true">
         <label class="sr-only" for="sort">เรียงตาม</label>
         <select class="select" id="sort" name="sort"
