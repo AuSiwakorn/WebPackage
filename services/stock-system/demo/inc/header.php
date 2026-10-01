@@ -22,6 +22,7 @@ if ($user['role'] === 'admin') {
         'ตรวจสอบ' => array(
             array('file' => 'adm-dashboard.php', 'label' => 'ภาพรวม',              'icon' => 'i-home'),
             array('file' => 'adm-products.php',  'label' => 'สินค้าในสต๊อก',        'icon' => 'i-boxes'),
+            array('file' => 'adm-categories.php','label' => 'หมวดสินค้า',          'icon' => 'i-tag'),
             array('file' => 'adm-receive.php',   'label' => 'นำเข้าสินค้า',          'icon' => 'i-in'),
             array('file' => 'adm-issue.php',     'label' => 'เบิก / ตัดออก',        'icon' => 'i-out'),
             array('file' => 'adm-return.php',    'label' => 'รับคืนสินค้า',          'icon' => 'i-receipt'),
@@ -47,6 +48,7 @@ if ($user['role'] === 'admin') {
             array('file' => 'store.php',      'label' => 'เปิด / ปิดร้าน',    'icon' => 'i-store',     'perm' => 'sale'),
             array('file' => 'sale.php',       'label' => 'ขายสินค้า',         'icon' => 'i-cart',      'perm' => 'sale'),
             array('file' => 'products.php',   'label' => 'สินค้าในสต๊อก',     'icon' => 'i-boxes'),
+            array('file' => 'categories.php', 'label' => 'หมวดสินค้า',        'icon' => 'i-tag',       'perm' => 'category'),
             array('file' => 'receive.php',    'label' => 'นำเข้าสินค้า',      'icon' => 'i-in',        'perm' => 'receive'),
             array('file' => 'issue.php',      'label' => 'เบิก / ตัดออก',     'icon' => 'i-out',       'perm' => 'issue'),
             array('file' => 'stocktake.php',  'label' => 'ตรวจนับ / ปรับยอด',  'icon' => 'i-clipboard', 'perm' => 'stocktake'),
@@ -113,6 +115,7 @@ $branches = visible_branches($user);
   <defs>
     <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 10.5L12 4l8 6.5V20a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></symbol>
     <symbol id="i-boxes" viewBox="0 0 24 24"><rect x="3" y="12" width="8" height="8" rx="1"/><rect x="13" y="12" width="8" height="8" rx="1"/><rect x="8" y="3" width="8" height="8" rx="1"/></symbol>
+    <symbol id="i-tag" viewBox="0 0 24 24"><path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.5"/></symbol>
     <symbol id="i-box" viewBox="0 0 24 24"><path d="M12 3l8 4v10l-8 4-8-4V7z"/><path d="M4 7l8 4 8-4M12 11v10"/></symbol>
     <symbol id="i-in" viewBox="0 0 24 24"><path d="M12 3v11"/><path d="M8 10l4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></symbol>
     <symbol id="i-out" viewBox="0 0 24 24"><path d="M12 14V3"/><path d="M8 7l4-4 4 4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></symbol>

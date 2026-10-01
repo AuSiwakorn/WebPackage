@@ -2,7 +2,7 @@
 /* ==========================================================
    AOSTOCK DEMO — จัดการพนักงาน (เฉพาะผู้ดูแล)
    ----------------------------------------------------------
-   เพิ่ม · แก้ไข · พักงาน / เปิดใช้งาน · ลบ
+   แก้ไข · พักงาน / เปิดใช้งาน · ลบ  (เพิ่มพนักงานอยู่หน้าแยก adm-user-add.php)
    - สิทธิ์การเข้าถึงกำหนดรายคน
        เมนูที่ใช้ได้: ขายสินค้า+เปิด/ปิดร้าน · นำเข้าสินค้า · เบิก/ตัดออก · ตรวจนับ/ปรับยอด
                       · ประวัติการทำรายการ · รับคืนสินค้า
@@ -38,53 +38,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!csrf_check(isset($_POST['csrf']) ? $_POST['csrf'] : null)) {
         $err = 'เซสชันหมดอายุ กรุณาลองใหม่อีกครั้ง';
-
-    } elseif ($act === 'add') {
-        $errAt = 'new';
-        $name  = trim(preg_replace('/\s+/u', ' ', isset($_POST['name']) ? $_POST['name'] : ''));
-        $uname = strtolower(trim(isset($_POST['username']) ? $_POST['username'] : ''));
-        $ini   = trim(isset($_POST['initials']) ? $_POST['initials'] : '');
-        $bc    = isset($_POST['branch']) ? $_POST['branch'] : '';
-        $pin   = preg_replace('/\D/', '', isset($_POST['pin']) ? $_POST['pin'] : '');
-        $perms = read_perms();
-        $old['new'] = array('name' => $name, 'username' => $uname, 'initials' => $ini, 'branch' => $bc, 'perms' => $perms);
-
-        if ($uname === '') {                                 // ไม่กรอก → ตั้งให้อัตโนมัติ
-            $n = 1;
-            while (isset($all['staff' . $n]) || array_key_exists('staff' . $n, demo_users_all())) {
-                $n++;
-            }
-            $uname = 'staff' . $n;
-        }
-        $everyone = demo_users_all();
-        if ($name === '') {
-            $err = 'กรุณากรอกชื่อพนักงาน';
-        } elseif (!preg_match('/^[a-z0-9_]{3,20}$/', $uname)) {
-            $err = 'ชื่อผู้ใช้ต้องเป็นภาษาอังกฤษพิมพ์เล็ก ตัวเลข หรือ _ ยาว 3–20 ตัว';
-        } elseif (isset($everyone[$uname]) || isset($_SESSION['cfg']['newuser'][$uname])) {
-            $err = 'ชื่อผู้ใช้ ' . $uname . ' มีคนใช้แล้ว';
-        } elseif (!isset($br[$bc])) {
-            $err = 'กรุณาเลือกสาขาที่ประจำ';
-        } elseif (strlen($pin) !== 4) {
-            $err = 'PIN ต้องเป็นตัวเลข 4 หลัก';
-        } elseif (($dup = pin_owner($bc, $pin, '')) !== '') {
-            $err = 'PIN นี้ซ้ำกับ ' . $dup . ' ในสาขาเดียวกัน กรุณาใช้เลขอื่น';
-        } elseif (!$perms) {
-            $err = 'กรุณาเลือกสิทธิ์อย่างน้อย 1 อย่าง';
-        } else {
-            $_SESSION['cfg']['newuser'][$uname] = array(
-                'pin' => $pin, 'password' => '', 'name' => $name, 'role' => 'staff', 'branch' => $bc,
-                'initials' => $ini !== '' ? $ini : auto_initials($name), 'perms' => $perms,
-                'since' => date('Y-m-d'), 'history' => array(), 'active' => true,
-            );
-            unset($_SESSION['cfg']['user'][$uname]);         // เคยลบชื่อนี้ไปแล้ว → เริ่มใหม่
-            log_add($bc, 'setting', $user, 'เพิ่มพนักงานใหม่ ' . $name, array(
-                'ชื่อผู้ใช้' => $uname,
-                'สิทธิ์'    => perm_names($perms),
-                'เพิ่มโดย'  => $user['name'] . ' (ผู้ดูแล)',
-            ));
-            $go = 'adm-users.php?u=' . rawurlencode($uname) . '&ok=add';
-        }
 
     } elseif (!isset($all[$sel])) {
         $err = 'ไม่พบพนักงานคนนี้';
@@ -225,51 +178,13 @@ require dirname(__FILE__) . '/inc/header.php';
 <?php endif; ?>
 
 <?php if ($picked === null): ?>
-<!-- ==================== เพิ่มพนักงาน ==================== -->
-<?php $nv = isset($old['new']) ? $old['new'] : array('name' => '', 'username' => '', 'initials' => '', 'branch' => $branch, 'perms' => perm_default()); ?>
-<details class="card br-add"<?= $errAt === 'new' ? ' open' : '' ?>>
-  <summary class="card-head">
+<!-- ==================== เพิ่มพนักงาน (หน้าแยก adm-user-add.php) ==================== -->
+<section class="card br-add">
+  <div class="card-head">
     <div><h2>เพิ่มพนักงาน</h2><span class="sub">พนักงานเข้าระบบด้วยการแตะชื่อ + PIN 4 หลัก</span></div>
-    <span class="btn btn-primary btn-sm"><svg class="ico"><use href="#i-plus"/></svg> เพิ่มพนักงาน</span>
-  </summary>
-  <?php if ($errAt === 'new'): ?>
-    <div class="alert alert-error adm-ok" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span><?= e($err) ?></span></div>
-  <?php endif; ?>
-  <form class="adm-sec" method="post" action="adm-users.php">
-    <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
-    <input type="hidden" name="act" value="add">
-    <div class="adm-fields">
-      <div class="field">
-        <label for="n-name">ชื่อ–นามสกุล</label>
-        <input class="input" type="text" id="n-name" name="name" value="<?= e($nv['name']) ?>" maxlength="60" required autocomplete="off" placeholder="เช่น ปิยะ ขยันดี">
-      </div>
-      <div class="field">
-        <label for="n-branch">สาขาที่ประจำ</label>
-        <select class="input" id="n-branch" name="branch" required>
-          <?php foreach (demo_branches() as $bc => $b): ?>
-            <option value="<?= e($bc) ?>" <?= $nv['branch'] === $bc ? 'selected' : '' ?>><?= e($b['name']) ?></option>
-          <?php endforeach; ?>
-        </select>
-      </div>
-      <div class="field">
-        <label for="n-pin">PIN 4 หลัก</label>
-        <input class="input adm-pin" type="text" id="n-pin" name="pin" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required autocomplete="off" placeholder="••••">
-        <small class="adm-hint">ห้ามซ้ำกับคนอื่นในสาขาเดียวกัน</small>
-      </div>
-      <div class="field">
-        <label for="n-user">ชื่อผู้ใช้ <small class="adm-none">(ไม่บังคับ)</small></label>
-        <input class="input" type="text" id="n-user" name="username" value="<?= e($nv['username']) ?>" maxlength="20" autocomplete="off" placeholder="เว้นว่าง = ตั้งให้อัตโนมัติ">
-        <small class="adm-hint">ใช้อ้างอิงภายใน · a–z 0–9 _</small>
-      </div>
-      <div class="field">
-        <label for="n-ini">อักษรย่อบนปุ่มเลือกชื่อ <small class="adm-none">(ไม่บังคับ)</small></label>
-        <input class="input adm-pin" type="text" id="n-ini" name="initials" value="<?= e($nv['initials']) ?>" maxlength="4" autocomplete="off" placeholder="อัตโนมัติ">
-      </div>
-    </div>
-    <?php perm_boxes($nv['perms'], $nv['branch']); ?>
-    <button class="btn btn-primary" type="submit"><svg class="ico"><use href="#i-plus"/></svg> เพิ่มพนักงาน</button>
-  </form>
-</details>
+    <a class="btn btn-primary btn-sm" href="adm-user-add.php"><svg class="ico"><use href="#i-plus"/></svg> เพิ่มพนักงาน</a>
+  </div>
+</section>
 <?php endif; ?>
 
 <?php if ($ok !== ''): ?>

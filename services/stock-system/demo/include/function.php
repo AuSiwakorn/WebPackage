@@ -62,11 +62,11 @@ function active_roles()
 /** เมนูที่ทำเสร็จแล้วและเปิดให้ใช้ */
 function active_menus()
 {
-    return array('dashboard.php', 'store.php', 'sale.php', 'products.php', 'receive.php', 'issue.php', 'stocktake.php', 'movements.php',
+    return array('dashboard.php', 'store.php', 'sale.php', 'products.php', 'categories.php', 'receive.php', 'issue.php', 'stocktake.php', 'movements.php',
                  'history.php', 'return.php', 'report-sales.php',
                  'account.php', 'account-settings.php',
-                 'adm-dashboard.php', 'adm-products.php', 'adm-receive.php', 'adm-issue.php', 'adm-return.php', 'adm-history.php',
-                 'adm-movements.php', 'adm-report.php', 'adm-users.php', 'adm-branches.php');
+                 'adm-dashboard.php', 'adm-products.php', 'adm-categories.php', 'adm-receive.php', 'adm-issue.php', 'adm-return.php', 'adm-history.php',
+                 'adm-movements.php', 'adm-report.php', 'adm-users.php', 'adm-user-add.php', 'adm-branches.php');
 }
 
 /** ส่วนประกอบที่ยังไม่ได้ใช้ เปิดทีหลังโดยเติมชื่อลงใน array นี้
@@ -240,6 +240,7 @@ function perm_list()
         'stocktake'     => array('group' => 'menu',  'label' => 'ตรวจนับ / ปรับยอด',               'short' => 'ตรวจนับ'),
         'history'       => array('group' => 'menu',  'label' => 'ประวัติการทำรายการของสาขา',       'short' => 'ประวัติรายการ'),
         'refund'        => array('group' => 'menu',  'label' => 'รับคืนสินค้า / คืนเงินสดให้ลูกค้า', 'short' => 'รับคืนสินค้า'),
+        'category'      => array('group' => 'menu',  'label' => 'จัดการหมวดสินค้า (เพิ่ม / ลบ)',     'short' => 'หมวดสินค้า'),
         'void_others'   => array('group' => 'extra', 'label' => 'แก้/ยกเลิกเอกสารของคนอื่นในสาขา',  'short' => 'แก้งานคนอื่น'),
         'backdate'      => array('group' => 'extra', 'label' => 'แก้/ยกเลิกเอกสารย้อนหลัง',        'short' => 'แก้ย้อนหลัง'),
         'report_branch' => array('group' => 'extra', 'label' => 'ดูรายงานยอดขายทั้งสาขา',         'short' => 'รายงานทั้งสาขา'),
@@ -256,7 +257,8 @@ function perm_default()
 function page_perm($file)
 {
     $map = array('sale.php' => 'sale', 'store.php' => 'sale', 'receive.php' => 'receive', 'issue.php' => 'issue',
-                 'stocktake.php' => 'stocktake', 'history.php' => 'history', 'return.php' => 'refund');
+                 'stocktake.php' => 'stocktake', 'history.php' => 'history', 'return.php' => 'refund',
+                 'categories.php' => 'category');
     return isset($map[$file]) ? $map[$file] : '';
 }
 
@@ -278,7 +280,7 @@ function user_perms($user)
              sale     ขายสินค้า / เปิด–ปิดร้าน (หน้าที่ของพนักงานหน้าร้าน)
              receive / issue / stocktake  งานคลัง (หน้าที่ของพนักงานที่ได้รับมอบหมาย)
            ผู้ดูแลตรวจสอบงานพวกนี้จากหน้าชุด adm- แทน */
-        return array_values(array_diff(array_keys(perm_list()), array('sale', 'receive', 'issue', 'stocktake')));
+        return array_values(array_diff(array_keys(perm_list()), array('sale', 'receive', 'issue', 'stocktake', 'category')));
     }
     if (isset($user['role']) && $user['role'] !== 'staff') {
         return array();
@@ -333,7 +335,7 @@ function demo_users_base()
             'pin' => '2222', 'password' => '1234',
             'name' => 'นิภา วงศ์ทอง',   'role' => 'staff',   'branch' => 'RS', 'initials' => 'นภ',
             /* พนักงานที่เจ้าของไว้ใจ — ได้สิทธิ์เสริมครบ (แทนตำแหน่งหัวหน้าคลัง) */
-            'perms' => array('sale', 'receive', 'issue', 'stocktake', 'history', 'refund', 'void_others', 'backdate', 'report_branch'),
+            'perms' => array('sale', 'receive', 'issue', 'stocktake', 'history', 'refund', 'category', 'void_others', 'backdate', 'report_branch'),
         ),
         'anan' => array(
             'pin' => '3333', 'password' => '1234',
@@ -1528,6 +1530,7 @@ function admin_page_map()
         'products.php'     => 'adm-products.php',
         'issue.php'        => 'adm-issue.php',
         'receive.php'      => 'adm-receive.php',
+        'categories.php'   => 'adm-categories.php',
         'return.php'       => 'adm-return.php',
         'history.php'      => 'adm-history.php',
         'movements.php'    => 'adm-movements.php',
@@ -2219,15 +2222,96 @@ function sale_summary_user($code, $username)
 }
 
 /** หมวดสินค้าทั้งหมด (ไว้ทำปุ่มกรอง) */
+/** ชื่อหมวดสินค้าทั้งหมด (เรียงตามลำดับในทะเบียน) — ใช้กับตัวกรองหมวดทุกหน้า */
 function product_cats()
+{
+    return array_keys(cat_registry());
+}
+
+/* ==========================================================
+   หมวดสินค้า
+   ----------------------------------------------------------
+   หมวดตั้งต้นมาจากสินค้าตัวอย่าง + หมวดที่พนักงาน (สิทธิ์ category) เพิ่มเอง
+   ลบได้เฉพาะหมวดที่ยังไม่มีสินค้า · หมวดใช้ร่วมกันทุกสาขา
+   เดโมเก็บใน $_SESSION['cfg']['cat'] = array('add' => array(ชื่อ => ข้อมูล), 'del' => array(ชื่อ => true))
+   ระบบจริง: ตาราง ao_stock_category (ลบ = is_active 0 หรือ DELETE ถ้าไม่มีสินค้าอ้างถึง)
+   ========================================================== */
+
+/** ทะเบียนหมวด: ชื่อ => array(count จำนวนสินค้า, added เพิ่มเองไหม, by, at) */
+function cat_registry()
 {
     $out = array();
     foreach (demo_products() as $p) {
-        if (!in_array($p['cat'], $out, true)) {
-            $out[] = $p['cat'];
+        if (!isset($out[$p['cat']])) {
+            $out[$p['cat']] = array('count' => 0, 'added' => false, 'by' => '', 'at' => '');
+        }
+        $out[$p['cat']]['count']++;
+    }
+    $cfg = isset($_SESSION['cfg']['cat']) ? $_SESSION['cfg']['cat'] : array();
+    if (!empty($cfg['add'])) {
+        foreach ($cfg['add'] as $name => $m) {
+            if (!isset($out[$name])) {
+                $out[$name] = array('count' => 0, 'added' => true, 'by' => $m['by'], 'at' => $m['at']);
+            }
+        }
+    }
+    if (!empty($cfg['del'])) {
+        foreach ($cfg['del'] as $name => $x) {
+            if (isset($out[$name]) && $out[$name]['count'] === 0) {
+                unset($out[$name]);
+            }
         }
     }
     return $out;
+}
+
+/** สินค้าในหมวด */
+function cat_products($name)
+{
+    $out = array();
+    foreach (demo_products() as $p) {
+        if ($p['cat'] === $name) {
+            $out[] = $p;
+        }
+    }
+    return $out;
+}
+
+/** เพิ่มหมวด — คืนข้อความผิดพลาด ('' = สำเร็จ) */
+function cat_add($name, $user, $code)
+{
+    $name = trim(preg_replace('/\s+/u', ' ', $name));
+    if ($name === '') {
+        return 'กรุณากรอกชื่อหมวด';
+    }
+    if (strlen($name) > 150) {
+        return 'ชื่อหมวดยาวเกินไป (ไม่เกิน 50 ตัวอักษร)';
+    }
+    foreach (array_keys(cat_registry()) as $c) {
+        if (strtolower($c) === strtolower($name)) {
+            return 'มีหมวด “' . $c . '” อยู่แล้ว';
+        }
+    }
+    $_SESSION['cfg']['cat']['add'][$name] = array('by' => $user['name'], 'at' => date('Y-m-d H:i'));
+    unset($_SESSION['cfg']['cat']['del'][$name]);
+    log_add($code, 'setting', $user, 'เพิ่มหมวดสินค้า “' . $name . '”', array('ใช้ได้' => 'ทุกสาขา'));
+    return '';
+}
+
+/** ลบหมวด — ได้เฉพาะหมวดที่ไม่มีสินค้า · คืนข้อความผิดพลาด ('' = สำเร็จ) */
+function cat_delete($name, $user, $code)
+{
+    $all = cat_registry();
+    if (!isset($all[$name])) {
+        return 'ไม่พบหมวดนี้';
+    }
+    if ($all[$name]['count'] > 0) {
+        return 'ลบไม่ได้ เพราะหมวด “' . $name . '” ยังมีสินค้า ' . $all[$name]['count'] . ' รายการ — ย้ายสินค้าไปหมวดอื่นก่อน';
+    }
+    unset($_SESSION['cfg']['cat']['add'][$name]);
+    $_SESSION['cfg']['cat']['del'][$name] = true;
+    log_add($code, 'setting', $user, 'ลบหมวดสินค้า “' . $name . '”', array('สินค้าในหมวด' => '0 รายการ'));
+    return '';
 }
 
 /** ค้นหาสินค้าสำหรับหน้าขาย */

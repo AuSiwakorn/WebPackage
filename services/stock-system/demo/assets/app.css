@@ -2109,3 +2109,8 @@ table.sr-only{display:block}
 .acc-item[open] .acc-chev{transform:rotate(-90deg)}
 .acc-right{display:inline-flex;align-items:center;gap:10px;flex:0 0 auto}
 .acc-item > summary .sub{display:block}
+
+/* ===== หมวดสินค้า ===== */
+.cat-add{display:flex;flex-wrap:wrap;gap:10px;padding:16px 22px 20px}
+.cat-add .input{flex:1 1 260px;width:auto}
+.cat-del{display:inline}

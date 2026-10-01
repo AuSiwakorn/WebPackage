@@ -416,8 +416,10 @@
       if (items[j] !== el && items[j].open) { items[j].open = false; }
     }
   }
+  var ready = false;                       // toggle ของอันที่เปิดไว้ตั้งแต่โหลดหน้า ไม่ต้องปิดอันอื่น (เช่นผลค้นหาหลายหมวด)
+  window.addEventListener('load', function () { setTimeout(function () { ready = true; }, 0); });
   for (var i = 0; i < items.length; i++) {
-    items[i].addEventListener('toggle', function () { if (this.open) { only(this); } });
+    items[i].addEventListener('toggle', function () { if (ready && this.open) { only(this); } });
   }
   var h = location.hash ? document.getElementById(location.hash.slice(1)) : null;
   if (h && h.classList.contains('acc-item')) {
