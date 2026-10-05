@@ -9,6 +9,7 @@
  *   - [x] ช่วงที่ 7: เปิด–ปิดร้านลงตาราง · เงินทอนยกมาของจริง · เตือนเมื่อวันก่อนยังไม่ปิดร้าน
  *   - [x] ช่วงที่ 7: ฟอร์มเติมเงินทอน / หยิบเงินออกระหว่างวัน (act=cash) · ยอดเงินเป็นทศนิยม 2 ตำแหน่ง
  *   - [x] ช่วงที่ 8: "งานของสาขาวันนี้" นับจากเอกสารจริง (branch_rank_today — ขาย รับเข้า เบิก ตรวจนับ รับคืน)
+ *   - [x] ช่วงที่ 11: แยกสิทธิ์ เปิด / ปิดร้าน (store) · เปิดร้านอีกครั้ง (store_reopen — เดิมเปิดได้เฉพาะผู้ดูแลจากหน้าภาพรวม adm-dashboard ซึ่งยังเปิดได้เหมือนเดิม) · เงินเข้า / ออก (cash)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -28,9 +29,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrf_check(isset($_POST['csrf']) ? $_POST['csrf'] : null)) {
         $error = 'เซสชันหมดอายุ กรุณาลองใหม่อีกครั้ง';
     } else {
-        $act = isset($_POST['act']) ? $_POST['act'] : '';
+        $act  = isset($_POST['act']) ? $_POST['act'] : '';
+        $need = array('open' => 'store', 'close' => 'store', 'reopen' => 'store_reopen', 'cash' => 'cash');   // ช่วงที่ 11
 
-        if ($act === 'open' && !store_is_open($code)) {
+        if (isset($need[$act]) && !can($user, $need[$act])) {
+            $pl    = perm_list();
+            $error = 'ไม่มีสิทธิ์ “' . $pl[$need[$act]]['short'] . '” — ติดต่อผู้ดูแลเพื่อเปิดสิทธิ์';
+        } elseif ($act === 'open' && !store_is_open($code)) {
             $topup   = isset($_POST['topup']) ? round((float) preg_replace('/[^0-9.]/', '', $_POST['topup']), 2) : 0;
             $counted = (isset($_POST['counted']) && $_POST['counted'] !== '') ? round((float) preg_replace('/[^0-9.]/', '', $_POST['counted']), 2) : null;
             $reason  = isset($_POST['reason']) ? $_POST['reason'] : '';
@@ -44,9 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         } elseif ($act === 'reopen' && store_is_closed($code)) {
             $reason = isset($_POST['reason']) ? trim($_POST['reason']) : '';
-            if ($user['role'] !== 'admin') {
-                $error = 'เปิดร้านใหม่หลังปิดได้เฉพาะผู้ดูแล';
-            } elseif ($reason === '') {
+            if ($reason === '') {
                 $error = 'กรุณาระบุเหตุผลที่ต้องเปิดร้านใหม่';
             } else {
                 store_reopen($code, $user, $reason);
@@ -139,6 +142,9 @@ require dirname(__FILE__) . '/inc/header.php';
     </div>
   <?php endif; ?>
 
+  <?php if (!can($user, 'store')): ?>
+  <p class="store-note">ร้านยังไม่เปิด — เปิดร้านได้เฉพาะคนที่มีสิทธิ์ “เปิด / ปิดร้าน” · ระหว่างนี้ทำงานอื่นที่ไม่ต้องเปิดร้านได้ตามปกติ</p>
+  <?php else: ?>
   <form class="card" method="post" action="store.php" id="open-form">
     <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
     <input type="hidden" name="act" value="open">
@@ -193,6 +199,7 @@ require dirname(__FILE__) . '/inc/header.php';
       </button>
     </div>
   </form>
+  <?php endif; ?>
 
   <p class="store-note">
     ร้านเปิดวันละครั้ง — พนักงานคนอื่นที่เข้าระบบทีหลังใช้งานได้เลย ไม่ต้องเปิดซ้ำ ·
@@ -211,7 +218,7 @@ require dirname(__FILE__) . '/inc/header.php';
         array('history.php',      'i-history', 'ประวัติการทำรายการ'),
         array('report-sales.php', 'i-chart',   'รายงานยอดขาย'),
     ) as $lk): ?>
-      <?php if (menu_enabled($lk[0])): ?>
+      <?php if (page_ok($user, $lk[0])): ?>
         <a class="btn btn-ghost btn-sm" href="<?= e($lk[0]) ?>"><svg class="ico"><use href="#<?= e($lk[1]) ?>"/></svg> <?= e($lk[2]) ?></a>
       <?php endif; ?>
     <?php endforeach; ?>
@@ -249,6 +256,7 @@ require dirname(__FILE__) . '/inc/header.php';
           <?php endforeach; ?>
         </div>
       <?php endif; ?>
+      <?php if (can($user, 'cash')): ?>
       <form method="post" action="store.php" class="store-cash-f">
         <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
         <input type="hidden" name="act" value="cash">
@@ -270,9 +278,15 @@ require dirname(__FILE__) . '/inc/header.php';
         </div>
         <button class="btn btn-ghost" type="submit"><svg class="ico"><use href="#i-coin"/></svg> บันทึก</button>
       </form>
+      <?php else: ?>
+        <p class="hint-note">เติมเงินทอน / หยิบเงินออกได้เฉพาะคนที่มีสิทธิ์ “เงินเข้า / ออกลิ้นชัก”</p>
+      <?php endif; ?>
     </div>
   </section>
 
+  <?php if (!can($user, 'store')): ?>
+  <p class="store-note">ปิดร้านได้เฉพาะคนที่มีสิทธิ์ “เปิด / ปิดร้าน”</p>
+  <?php else: ?>
   <h3 class="store-h3">ปิดร้าน</h3>
   <p class="store-sub">ทำตอนเลิกงาน — ปิดแล้วจะบันทึกรายการเพิ่มไม่ได้</p>
 
@@ -341,10 +355,11 @@ require dirname(__FILE__) . '/inc/header.php';
         <button class="btn btn-primary btn-block btn-xl" type="submit">
           <svg class="ico"><use href="#i-store-off"/></svg> ปิดร้านและส่งสรุปให้ผู้ดูแล
         </button>
-        <p class="store-note">ปิดแล้วจะบันทึกรายการเพิ่มไม่ได้ ถ้าจำเป็นให้ผู้ดูแลเปิดร้านใหม่</p>
+        <p class="store-note">ปิดแล้วจะบันทึกรายการเพิ่มไม่ได้ ถ้าจำเป็นต้องขายต่อ ให้ผู้ดูแลหรือคนที่มีสิทธิ์ “เปิดร้านอีกครั้ง” เปิดร้านใหม่</p>
       </div>
     </section>
   </form>
+  <?php endif; ?>
 </div>
 
 <?php else: ?>
@@ -381,7 +396,7 @@ require dirname(__FILE__) . '/inc/header.php';
 
   <p class="store-note">ร้านปิดแล้วสำหรับวันนี้ · พรุ่งนี้เปิดใหม่ เงินทอนจะยกมา <?= e(money2($state['keep'])) ?> บาทอัตโนมัติ</p>
 
-  <?php if ($user['role'] === 'admin'): ?>
+  <?php if (can($user, 'store_reopen')): ?>
   <section class="card">
     <div class="card-head"><div><h3>เปิดร้านใหม่</h3><p>ใช้เมื่อปิดร้านไปแล้วแต่ยังต้องขายหรือแก้รายการต่อ · ต้องระบุเหตุผล</p></div></div>
     <form class="card-body" method="post" action="store.php">
@@ -396,7 +411,7 @@ require dirname(__FILE__) . '/inc/header.php';
     </form>
   </section>
   <?php else: ?>
-  <p class="store-note">ถ้าจำเป็นต้องขายต่อหลังปิดร้าน ให้ผู้ดูแลเป็นคนเปิดร้านใหม่</p>
+  <p class="store-note">ถ้าจำเป็นต้องขายต่อหลังปิดร้าน ให้ผู้ดูแลเปิดร้านใหม่ หรือให้คนที่มีสิทธิ์ “เปิดร้านอีกครั้ง” เป็นคนเปิด</p>
   <?php endif; ?>
 </div>
 <?php endif; ?>

@@ -1951,6 +1951,15 @@ table.sr-only{display:block}
 .perm-o input:checked + span{border-color:var(--brand);background:#F1F8F5;box-shadow:0 0 0 1px var(--brand) inset}
 .perm-o input:checked + span .ico{background:var(--brand);border-color:var(--brand);color:#fff}
 .perm-o input:focus-visible + span{outline:3px solid #BFE3D4;outline-offset:1px}
+.perm-o .perm-needs{color:#9A6400}
+.perm-o.is-off{cursor:not-allowed}
+.perm-o.is-off span{opacity:.55;background:var(--bg-soft)}
+/* พนักงานในสาขา (team.php · ช่วงที่ 12) */
+.team-note{display:flex;align-items:flex-start;gap:8px;margin:0;font-size:.84rem;color:var(--ink-3)}
+.team-note .ico{width:16px;height:16px;flex-shrink:0;margin-top:2px}
+.team-confirm{align-items:center;margin-top:4px}
+.adm-inline .team-pin{flex:0 1 150px;min-width:120px}
+.team-pin::placeholder{letter-spacing:0}
 @media (max-width:760px){.adm-row,.adm-fields,.perm-grid{grid-template-columns:1fr}.adm-row .adm-sec + .adm-sec{border-left:0;border-top:1px solid var(--line-2)}}
 .adm-kpi .nm.qty-out{color:var(--down)}
 .adm-kpi .nm.qty-in{color:var(--up)}
@@ -2036,8 +2045,8 @@ table.sr-only{display:block}
 .stk-ok{color:var(--ink-2)}
 .rep-bars{display:flex;align-items:flex-end;gap:4px;height:180px;padding:16px 22px 10px;overflow-x:auto}
 .rep-bar{flex:1 0 18px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:4px;text-decoration:none}
-.rep-col{display:block;width:100%;max-width:34px;background:var(--brand);border-radius:6px 6px 2px 2px;opacity:.85}
-.rep-bar:hover .rep-col{opacity:1}
+.rep-fill{display:block;width:100%;max-width:34px;background:var(--brand);border-radius:6px 6px 2px 2px;opacity:.85}
+.rep-bar:hover .rep-fill{opacity:1}
 .rep-bar small{font-size:.7rem;color:var(--ink-3)}
 .rep-share{display:block;height:5px;margin-top:6px;background:var(--bg-soft);border-radius:3px;overflow:hidden}
 .rep-share i{display:block;height:100%;background:var(--brand)}

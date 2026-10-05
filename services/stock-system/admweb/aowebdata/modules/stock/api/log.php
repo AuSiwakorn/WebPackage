@@ -6,6 +6,7 @@
  * TABLES: ao_stock_log, ao_stock_staff, ao_stock_branch · ao_stock_sale / receive / issue / count / return (สถานะยกเลิก / รับคืนใน log_range)
  * TODO:
  *   - [x] ช่วงที่ 10: แยกจาก api.php เดิม (ย้ายโค้ดทั้งก้อน ไม่แก้ตรรกะ) · จัดฟังก์ชันที่เคยปนอยู่หมวดอื่นให้มาอยู่หมวดนี้
+ *   - [x] ช่วงที่ 12: ชนิดใหม่ category (หมวดสินค้า) · "ผู้ดูแลตั้งค่า" → "ตั้งค่า" · ซ่อนรายการตั้งค่าจากพนักงานทั่วไป
  *
  * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
  */
@@ -17,7 +18,8 @@
      ts เวลา (unix) · time 'HH:MM' · type (คีย์ของ log_types) · by ชื่อผู้ทำ · by_user username
      title ข้อความหลัก · amount ตัวเลขที่เกี่ยวข้อง (หรือ null) · ref เลขที่เอกสาร · detail array('หัวข้อ' => 'ค่า')
    - เอกสารคลังเขียนประวัติในทรานแซกชันเดียวกับตัวเอกสาร
-   - type 'setting' (ผู้ดูแลตั้งค่า) ไม่นับเป็น "ข้อมูลของสาขา" ตอนเช็กลบสาขา (branch_data_reason)
+   - type 'setting' (ตั้งค่า) และ 'category' (เพิ่ม / ลบหมวด) ไม่นับเป็น "ข้อมูลของสาขา" ตอนเช็กลบสาขา (branch_data_reason)
+   - พนักงานทั่วไปไม่เห็นรายการ 'setting' ในประวัติของสาขา — ผู้จัดการสาขา / ผู้ดูแลเห็นครบ (ช่วงที่ 12)
    ========================================================== */
 
 /** บันทึกหนึ่งรายการ — สาขาที่ไม่มีในระบบ (เช่น ผู้ดูแลยังไม่เลือกสาขา) ลงเป็น branch_id 0
@@ -61,20 +63,25 @@ function log_shape($r)
 /** ประวัติของสาขาวันนี้ — เรียงใหม่สุดขึ้นก่อน
     TODO:
       - [x] SELECT ao_stock_log
-      - [x] ช่วงที่ 8: วันอื่นใช้ log_of_day · หลายวันหลายสาขาใช้ log_range */
-function log_today($code, $limit = 0)
+      - [x] ช่วงที่ 8: วันอื่นใช้ log_of_day · หลายวันหลายสาขาใช้ log_range
+      - [x] ช่วงที่ 12: $noSetting ส่งต่อให้ log_of_day */
+function log_today($code, $limit = 0, $noSetting = false)
 {
-    return log_of_day($code, time(), $limit);
+    return log_of_day($code, time(), $limit, $noSetting);
 }
 
 /** ประวัติของสาขาในวันหนึ่ง — เรียงใหม่สุดขึ้นก่อน
+    $noSetting = true ไม่เอารายการ "ตั้งค่า" (เพิ่ม / แก้พนักงาน รีเซ็ต PIN แก้สาขา ฯลฯ) — สำหรับพนักงานทั่วไป
+                 ผู้จัดการสาขาและผู้ดูแลเห็นครบ · รายการ "หมวดสินค้า" ทุกคนเห็น
     TODO:
-      - [x] ช่วงที่ 8: ลำดับเหตุการณ์ของวันก่อน (inc/history-past.php) */
-function log_of_day($code, $ts, $limit = 0)
+      - [x] ช่วงที่ 8: ลำดับเหตุการณ์ของวันก่อน (inc/history-past.php)
+      - [x] ช่วงที่ 12: ซ่อนรายการตั้งค่าจากพนักงานทั่วไป (ข้อ 4ก) */
+function log_of_day($code, $ts, $limit = 0, $noSetting = false)
 {
     $sql = 'SELECT l.*, s.name AS by_name, s.username AS by_user FROM ' . sdb_tb('log') . ' l'
          . ' LEFT JOIN ' . sdb_tb('staff') . ' s ON s.staff_id = l.created_by'
-         . ' WHERE l.branch_id = ? AND l.log_date = ? ORDER BY l.add_date DESC, l.log_id DESC'
+         . ' WHERE l.branch_id = ? AND l.log_date = ?' . ($noSetting ? ' AND l.type <> \'setting\'' : '')
+         . ' ORDER BY l.add_date DESC, l.log_id DESC'
          . ($limit > 0 ? ' LIMIT ' . (int) $limit : '');
     $out = array();
     foreach (sdb_rows($sql, array(branch_id_of((string) $code), date('Y-m-d', $ts))) as $r) {
@@ -184,7 +191,8 @@ function log_types()
         'adjust'  => array('label' => 'ตรวจนับ',      'tone' => 'adj', 'icon' => 'i-clipboard'),
         'avoid'   => array('label' => 'ยกเลิกตรวจนับ', 'tone' => 'out', 'icon' => 'i-ban'),
         'return'  => array('label' => 'รับคืนสินค้า',  'tone' => 'out', 'icon' => 'i-receipt'),
-        'setting' => array('label' => 'ผู้ดูแลตั้งค่า', 'tone' => 'adj', 'icon' => 'i-settings'),
+        'setting' => array('label' => 'ตั้งค่า',       'tone' => 'adj', 'icon' => 'i-settings'),    // ช่วงที่ 12: เดิม "ผู้ดูแลตั้งค่า" — ผู้จัดการสาขาก็ทำได้แล้ว
+        'category' => array('label' => 'หมวดสินค้า',  'tone' => 'adj', 'icon' => 'i-tag'),         // ช่วงที่ 12: เพิ่ม / ลบหมวด (เดิมปนอยู่ใน setting)
         'cash'  => array('label' => 'เงินสด',    'tone' => 'move', 'icon' => 'i-coin'),
         'stock' => array('label' => 'สต๊อก',     'tone' => 'adj',  'icon' => 'i-box'),
     );

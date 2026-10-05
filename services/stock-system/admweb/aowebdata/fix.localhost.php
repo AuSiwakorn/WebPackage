@@ -10,6 +10,7 @@
  *   - [x] aConfigPages = หน้าของ AOSTOCK (themes/aostock) ที่ router เปิดได้ โดยไม่ลง sitemap
  *   - [x] $aModuleUse: เพิ่ม stock · เอาชื่อโมดูลที่ไม่มีโฟลเดอร์ออก (ir, menu, billing, chat, calendar, example, html)
  *   - [x] ช่วงที่ 9: AOSTOCK_SECRET_KEY กุญแจเข้ารหัสค่าลับของการแจ้งเตือน (สุ่มแยกต่อเว็บ)
+ *   - [x] ช่วงที่ 12: aConfigPages เพิ่มหน้า team (พนักงานในสาขา ของผู้จัดการสาขา)
  *   - [x] คัดลอกจาก fix.web-siam.com.php — ต่างกันแค่ฐานข้อมูล, DOMAIN_NAME, ADMIN_INSTALL_PASSWORD
  *   - [ ] แก้ fix.web-siam.com.php เมื่อไร (เช่นเพิ่มหน้าใน aConfigPages / โมดูลใน $aModuleUse) ต้องแก้ไฟล์นี้ให้ตรงกันด้วย
  */
@@ -123,6 +124,7 @@ $aConfig['aConfigPages'] = [
     'history',
     'return',
     'report-sales',
+    'team',                // ช่วงที่ 12: พนักงานในสาขา (ผู้จัดการสาขา)
     // ฝ่ายบัญชี
     'account',
     'account-settings',

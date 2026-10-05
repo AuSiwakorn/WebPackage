@@ -9,6 +9,7 @@
  *   - [x] ช่วงที่ 8: ตัวเลขจริงจากเอกสาร (ขาย รับเข้า ตัดออก ตรวจนับ รับคืน) · เอาแถบ "ข้อมูลสมมติ" ออก
  *   - [x] ช่วงที่ 10: "เป้าวันนี้" กลับมา — ตั้งรายสาขาในหน้าจัดการสาขา (0 = ไม่แสดง)
  *         · งานที่รอดำเนินการ = ตรวจนับรอบนี้ยังไม่ครบ + วันก่อนที่ยังไม่ได้ปิดร้าน
+ *   - [x] ช่วงที่ 11: พาไปเปิดร้านเฉพาะคนที่มีสิทธิ์เปิด / ปิดร้าน · ป้าย "สิทธิ์เสริม" แสดงเฉพาะเมื่อมีสิทธิ์เสริมจริง · ลิงก์งานค้างตามสิทธิ์
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -18,8 +19,8 @@ require_once dirname(__FILE__) . '/include/function.php';
 
 $user   = require_login();                // บัญชี → account.php · ผู้ดูแล → adm-dashboard.php (require_login พาไปเอง)
 
-/* พนักงานหน้างานต้องเปิดร้านก่อนใช้งานในแต่ละวัน */
-if (can($user, 'sale') && store_state($user['branch']) === null) {
+/* พนักงานที่มีสิทธิ์เปิดร้านต้องเปิดร้านก่อนใช้งานในแต่ละวัน (ช่วงที่ 11: เดิมดูสิทธิ์ขาย) */
+if (can($user, 'store') && store_state($user['branch']) === null) {
     header('Location: ' . url('store.php'));
     exit;
 }
@@ -77,8 +78,11 @@ require dirname(__FILE__) . '/inc/header.php';
         <span><?= e($greet) ?> <b><?= e($first) ?></b> · <?= e(thai_date_full(time())) ?>
               · <?= e(branch_name($user['branch'])) ?></span>
       </div>
-      <?php $myPerms = user_perms($user); ?>
-      <?php if ($myPerms): $pl = perm_list(); ?>
+      <?php
+      $pl      = perm_list();
+      $myPerms = array_values(array_filter(user_perms($user), function ($k) use ($pl) { return isset($pl[$k]) && $pl[$k]['group'] === 'extra'; }));
+      ?>
+      <?php if ($myPerms): ?>
         <div class="hm-perms" aria-label="สิทธิ์เสริมของฉัน">
           <span class="hm-perms-lb">สิทธิ์เสริม</span>
           <?php foreach ($myPerms as $pk): if (!isset($pl[$pk]) || $pl[$pk]['group'] !== 'extra') { continue; } ?>
@@ -311,8 +315,7 @@ require dirname(__FILE__) . '/inc/header.php';
         <?php else: ?>
           <div class="tasks">
             <?php foreach ($tasks as $t):
-                $pp = $t['link'] !== '' ? page_perm($t['link']) : '';
-                $go = $t['link'] !== '' && ($pp === '' || can($user, $pp)); ?>
+                $go = $t['link'] !== '' && page_ok($user, $t['link']); ?>
               <div class="task">
                 <span class="ti"><svg class="ico"><use href="#<?= $t['type'] === 'count' ? 'i-clipboard' : 'i-alert' ?>"/></svg></span>
                 <div>

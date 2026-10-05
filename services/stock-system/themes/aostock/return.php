@@ -7,6 +7,7 @@
  * TODO:
  *   - [x] ย้ายจาก demo/ เข้า themes/aostock/ (วิ่งผ่าน router ของ admweb)
  *   - [x] ช่วงที่ 7: ใบรับคืน + บิลเดิม + รูปแนบ อ่านเขียนตาราง
+ *   - [x] ช่วงที่ 11: ไม่มีสิทธิ์คืนเงินสด (refund_cash) = ไม่มีช่องคืนเงิน บันทึกเป็นรับคืนแบบไม่คืนเงิน · ลิงก์ไปเปิดร้านตามสิทธิ์
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -97,9 +98,11 @@ require dirname(__FILE__) . '/inc/header.php';
   <div class="alert alert-info" role="status">
     <svg class="ico"><use href="#i-info"/></svg>
     <span>ร้านยังไม่เปิด — ค้นบิลได้ แต่บันทึกรับคืนไม่ได้ เพราะเงินคืนจ่ายเป็นเงินสดจากลิ้นชักของวันนี้</span>
+    <?php if (page_ok($user, 'store.php')): ?>
     <div class="alert-act">
       <a class="btn btn-ghost btn-sm" href="store.php"><svg class="ico"><use href="#i-store"/></svg> ไปเปิดร้าน</a>
     </div>
+    <?php endif; ?>
   </div>
 <?php endif; ?>
 
@@ -116,7 +119,7 @@ require dirname(__FILE__) . '/inc/header.php';
       รับคืนเรียบร้อย เอกสาร <b><?= e($done['no']) ?></b> (บิล <?= e($done['bill_no']) ?>) ·
       <?= (int) $done['items'] ?> รายการ · <?= number_format($done['qty']) ?> ชิ้น ·
       <?= $done['restock'] ? 'กลับเข้าสต๊อกแล้ว' : 'ไม่เข้าสต๊อก — แยกเก็บไว้' ?> ·
-      คืนเงินสด <b class="num"><?= e(money2($done['refund'])) ?></b> บาท
+      <?php if ($done['refund'] > 0): ?>คืนเงินสด <b class="num"><?= e(money2($done['refund'])) ?></b> บาท<?php else: ?>ไม่ได้คืนเงินสด<?php endif; ?>
     </span>
   </div>
 <?php endif; ?>
@@ -276,6 +279,14 @@ require dirname(__FILE__) . '/inc/header.php';
           </div>
         </div>
 
+        <?php if (!can($user, 'refund_cash')): ?>
+        <div class="field">
+          <label>ยอดเงินคืน</label>
+          <input type="hidden" id="refund" name="refund" value="0">
+          <small class="ret-calc">ไม่มีสิทธิ์คืนเงินสด — บันทึกเป็นรับคืนแบบไม่คืนเงิน (เช่น เปลี่ยนสินค้า / ของเสีย) ·
+            ตามราคาที่ขาย <b id="calc" class="num">0.00</b> บาท</small>
+        </div>
+        <?php else: ?>
         <div class="field">
           <label for="refund">ยอดเงินคืน (เงินสดจากลิ้นชัก)</label>
           <input class="input cash" type="text" id="refund" name="refund" inputmode="decimal" autocomplete="off"
@@ -288,13 +299,14 @@ require dirname(__FILE__) . '/inc/header.php';
           <input class="input" type="text" id="refund_note" name="refund_note" value="<?= e($old['refund_note']) ?>"
                  autocomplete="off" placeholder="เช่น หักค่ากล่องแกะแล้ว 50 บาท">
         </div>
+        <?php endif; ?>
       </div>
 
       <p class="ret-stock" id="ret-stock" hidden></p>
 
       <div class="ret-go">
         <button class="btn btn-primary btn-xl" type="submit" id="ret-go" <?= $isOpen ? '' : 'disabled' ?>>
-          <svg class="ico"><use href="#i-coin"/></svg> บันทึกรับคืนและคืนเงิน
+          <svg class="ico"><use href="#i-coin"/></svg> <?= can($user, 'refund_cash') ? 'บันทึกรับคืนและคืนเงิน' : 'บันทึกรับคืน' ?>
         </button>
         <?php if (!$isOpen): ?><small>ต้องเปิดร้านก่อนจึงบันทึกได้</small><?php endif; ?>
       </div>
@@ -356,7 +368,8 @@ require dirname(__FILE__) . '/inc/header.php';
   var note   = document.getElementById('note');
   var stock  = document.getElementById('ret-stock');
   var go     = document.getElementById('ret-go');
-  var touched = refund.value !== '';
+  var noCash  = (refund.type === 'hidden');          // ไม่มีสิทธิ์คืนเงินสด (ช่วงที่ 11) — ยอดคืน 0 เสมอ
+  var touched = noCash || refund.value !== '';
 
   function fmt(n) { return n.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
   function num(v) { return Number(String(v).replace(/[^0-9.]/g, '')) || 0; }
@@ -371,8 +384,8 @@ require dirname(__FILE__) . '/inc/header.php';
     }
     calcEl.textContent = fmt(calc);
     if (!touched) { refund.value = calc ? calc.toFixed(2) : ''; }
-    var diff = Math.abs(num(refund.value) - calc) >= 0.01 && refund.value !== '';
-    rnWrap.hidden = !diff;
+    var diff = !noCash && Math.abs(num(refund.value) - calc) >= 0.01 && refund.value !== '';
+    if (rnWrap) { rnWrap.hidden = !diff; }
 
     var w = form.querySelector('input[name="why"]:checked');
     noteRq.hidden = !(w && w.getAttribute('data-note') === '1');
@@ -387,7 +400,7 @@ require dirname(__FILE__) . '/inc/header.php';
     }
     if (!go.hasAttribute('data-closed')) {
       go.disabled = (pcs === 0 || !w || (!noteRq.hidden && note.value.trim() === '')
-                     || num(refund.value) > calc + 0.001 || (diff && rn.value.trim() === ''));
+                     || num(refund.value) > calc + 0.001 || (diff && rn && rn.value.trim() === ''));
     }
   }
 

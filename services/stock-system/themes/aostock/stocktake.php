@@ -7,6 +7,7 @@
  * TODO:
  *   - [x] ย้ายจาก demo/ เข้า themes/aostock/ (วิ่งผ่าน router ของ admweb)
  *   - [x] ใบที่บันทึกแล้วเก็บในตาราง ao_stock_* (ช่วงที่ 6) · ยอดขยับระหว่างกดบันทึก แสดงข้อความให้นับใหม่แทนหน้า error
+ *   - [x] ช่วงที่ 11: แก้ / ยกเลิกใบของตัวเองต้องมีสิทธิ์ doc_fix · ปุ่มแก้ / ยกเลิกและลิงก์ยอดคงเหลือแสดงตามสิทธิ์
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -63,7 +64,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $chk    = adj_by_no($code, $no);
 
             if ($chk !== null && !can_void_doc($user, $chk)) {
-                $err = 'ใบตรวจนับนี้เป็นของพนักงานคนอื่น — ต้องมีสิทธิ์แก้งานคนอื่นจึงจะแก้หรือยกเลิกได้';
+                $err = ($chk['by_user'] === $user['username'])
+                     ? 'ไม่มีสิทธิ์ “แก้เอกสารคลังตัวเอง” — ติดต่อผู้ดูแลเพื่อเปิดสิทธิ์'
+                     : 'ใบตรวจนับนี้เป็นของพนักงานคนอื่น — ต้องมีสิทธิ์แก้งานคนอื่นจึงจะแก้หรือยกเลิกได้';
             } elseif ($reason === '') {
                 $err = 'การยกเลิกหรือแก้ไขใบตรวจนับต้องระบุหมายเหตุทุกครั้ง';
             } elseif ($redo && adraft_size() > 0) {
@@ -189,10 +192,10 @@ require dirname(__FILE__) . '/inc/header.php';
     </span>
     <?php $dat = ' data-bill="' . e($done['no']) . '" data-items="' . (int) $done['items'] . '"'; ?>
     <div class="alert-act">
-      <?php foreach (array(
+      <?php foreach ((can_void_doc($user, $done) ? array(
           array('edit', 'แก้ไขใบนี้',  'i-arrow', 'หมายเหตุการแก้ไขใบตรวจนับ'),
           array('void', 'ยกเลิกใบนี้', 'i-ban',   'หมายเหตุการยกเลิกใบตรวจนับ'),
-      ) as $b): ?>
+      ) : array()) as $b): ?>
         <form method="post" action="stocktake.php" data-confirm="<?= e($b[0]) ?>"<?= $dat ?>>
           <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
           <input type="hidden" name="act" value="<?= e($b[0]) ?>">
@@ -204,9 +207,11 @@ require dirname(__FILE__) . '/inc/header.php';
           </button>
         </form>
       <?php endforeach; ?>
+      <?php if (page_ok($user, 'products.php')): ?>
       <a class="btn btn-ghost btn-sm" href="products.php">
         <svg class="ico"><use href="#i-boxes"/></svg> ดูยอดคงเหลือ
       </a>
+      <?php endif; ?>
     </div>
   </div>
 <?php endif; ?>

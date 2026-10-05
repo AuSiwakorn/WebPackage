@@ -6,6 +6,7 @@
  * TABLES: ao_stock_sale, ao_stock_sale_item, ao_stock_move, ao_stock_balance, ao_stock_store_day, ao_stock_return, ao_stock_log
  * TODO:
  *   - [x] ช่วงที่ 10: แยกจาก api.php เดิม (ย้ายโค้ดทั้งก้อน ไม่แก้ตรรกะ) · จัดฟังก์ชันที่เคยปนอยู่หมวดอื่นให้มาอยู่หมวดนี้
+ *   - [x] ช่วงที่ 11: ส่วนลดท้ายบิลต้องมีสิทธิ์ discount · ปุ่มแก้ / ยกเลิกบิลหลังบันทึกต้องมีสิทธิ์ bill_fix
  *
  * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
  */
@@ -241,7 +242,11 @@ function bill_save($code, $user, $method, $received, $vat = false, $net = null)
     $method   = ($method === 'transfer') ? 'transfer' : 'cash';
     $vat      = (bool) $vat;
     $subtotal = round(cart_total(), 2);
-    /* ผู้ขายลดราคาได้ด้วยการแก้ยอดที่ต้องชำระ → ส่วนต่างลงเป็นส่วนลดท้ายบิล (เพิ่มเกินราคาเต็มไม่ได้) */
+    /* ผู้ขายลดราคาได้ด้วยการแก้ยอดที่ต้องชำระ → ส่วนต่างลงเป็นส่วนลดท้ายบิล (เพิ่มเกินราคาเต็มไม่ได้)
+       ไม่มีสิทธิ์ให้ส่วนลด = คิดราคาเต็มเสมอ แม้ส่งยอดต่ำกว่ามา (ช่วงที่ 11) */
+    if (!can($user, 'discount')) {
+        $net = null;
+    }
     $total    = ($net !== null && $net > 0 && $net <= $subtotal) ? round($net, 2) : $subtotal;
     $discount = round($subtotal - $total, 2);
     $recv     = ($method === 'cash') ? (float) (int) $received : $total;
@@ -491,7 +496,11 @@ function sale_flash($err, $done, $voided, $oob)
         }
         echo '</span>';
 
-        /* กดผิดก็แก้ได้ทันทีจากตรงนี้ — ทั้งสองทางต้องกรอกหมายเหตุก่อน */
+        /* กดผิดก็แก้ได้ทันทีจากตรงนี้ — ทั้งสองทางต้องกรอกหมายเหตุก่อน · ต้องมีสิทธิ์แก้บิลของตัวเอง (ช่วงที่ 11) */
+        if (!can_void_doc(current_user(), $done, 'bill')) {
+            echo '</div></div>';
+            return;
+        }
         $atts = ' data-bill="' . e($done['no']) . '" data-total="' . money2($done['total']) . '"'
               . ' data-qty="' . (int) $done['qty'] . '" data-items="' . (int) $done['items'] . '"'
               . ' hx-post="sale.php" hx-target="#sale-live" hx-swap="outerHTML"';

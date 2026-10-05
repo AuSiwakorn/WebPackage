@@ -6,6 +6,7 @@
  * TABLES: ao_stock_return, ao_stock_return_item, ao_stock_sale, ao_stock_sale_item, ao_stock_move, ao_stock_balance, ao_stock_store_day, ao_stock_log · uploads/stock/returns/
  * TODO:
  *   - [x] ช่วงที่ 10: แยกจาก api.php เดิม (ย้ายโค้ดทั้งก้อน ไม่แก้ตรรกะ) · จัดฟังก์ชันที่เคยปนอยู่หมวดอื่นให้มาอยู่หมวดนี้
+ *   - [x] ช่วงที่ 11: ไม่มีสิทธิ์คืนเงินสด (refund_cash) = ยอดคืนเป็น 0 เสมอ
  *
  * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
  */
@@ -314,6 +315,11 @@ function return_save($code, $user, $bill, $qtys, $reason, $note, $refund, $refun
         return array('error' => 'ยังไม่ได้ใส่จำนวนที่คืนสักรายการ');
     }
     $calc   = round($calc, 2);
+    /* ไม่มีสิทธิ์คืนเงินสด = รับคืนแบบไม่คืนเงิน ยอดคืนเป็น 0 เสมอ (ช่วงที่ 11 ข้อ 2ก) */
+    if (!can($user, 'refund_cash')) {
+        $refund     = 0;
+        $refundNote = 'รับคืนแบบไม่คืนเงินสด (ผู้รับคืนไม่มีสิทธิ์คืนเงิน)';
+    }
     $refund = ($refund === '' || $refund === null) ? $calc : round((float) $refund, 2);
     if ($refund < 0 || $refund > $calc) {
         return array('error' => 'ยอดเงินคืนต้องอยู่ระหว่าง 0 ถึง ' . money2($calc) . ' บาท (ไม่เกินที่ลูกค้าจ่ายสำหรับรายการที่คืน)');

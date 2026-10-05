@@ -8,6 +8,9 @@
  *   - [x] ย้ายจาก demo/ เข้า themes/aostock/ (วิ่งผ่าน router ของ admweb)
  *   - [x] อ่าน / เขียนข้อมูลจากตาราง ao_stock_* ผ่าน api.php (ช่วงที่ 5–9)
  *   - [x] ช่วงที่ 10: แก้ File Header ให้ตรงกับระบบจริง
+ *   - [x] ช่วงที่ 11: ช่องติ๊กสิทธิ์ชุดใหม่ (perm_boxes) · ค่าเริ่มต้นตาม perm_default · ตัดสิทธิ์ที่ขาดตัวที่ต้องมีออกตอนบันทึก (read_perms)
+ *   - [x] ช่วงที่ 12: ตรวจ / เพิ่ม / ลงประวัติ ย้ายไป staff_act_add (ใช้ร่วมกับ team.php ของผู้จัดการสาขา — ข้อความเดิมทุกคำ)
+ *         · ช่อง "ตำแหน่ง" (พนักงาน / ผู้จัดการสาขา) บนสุดของฟอร์ม
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -32,53 +35,26 @@ $br  = branches_active();
 $def = (isset($_GET['b']) && is_string($_GET['b']) && isset($br[$_GET['b']])) ? $_GET['b'] : key($br);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $all = staff_all();
     $go  = '';
     if (!csrf_check(isset($_POST['csrf']) ? $_POST['csrf'] : null)) {
         $err = 'เซสชันหมดอายุ กรุณาลองใหม่อีกครั้ง';
     } else {
-            $name  = trim(preg_replace('/\s+/u', ' ', isset($_POST['name']) ? $_POST['name'] : ''));
-            $uname = strtolower(trim(isset($_POST['username']) ? $_POST['username'] : ''));
-            $ini   = trim(isset($_POST['initials']) ? $_POST['initials'] : '');
-            $bc    = isset($_POST['branch']) ? $_POST['branch'] : '';
-            $pin   = preg_replace('/\D/', '', isset($_POST['pin']) ? $_POST['pin'] : '');
-            $perms = read_perms();
-            $old['new'] = array('name' => $name, 'username' => $uname, 'initials' => $ini, 'branch' => $bc, 'perms' => $perms);
-
-            if ($uname === '') {                                 // ไม่กรอก → ตั้งให้อัตโนมัติ
-                $n = 1;
-                while (isset($all['staff' . $n]) || array_key_exists('staff' . $n, users_all())) {
-                    $n++;
-                }
-                $uname = 'staff' . $n;
-            }
-            $everyone = users_all();
-            if ($name === '') {
-                $err = 'กรุณากรอกชื่อพนักงาน';
-            } elseif (!preg_match('/^[a-z0-9_]{3,20}$/', $uname)) {
-                $err = 'ชื่อผู้ใช้ต้องเป็นภาษาอังกฤษพิมพ์เล็ก ตัวเลข หรือ _ ยาว 3–20 ตัว';
-            } elseif (isset($everyone[$uname])) {
-                $err = 'ชื่อผู้ใช้ ' . $uname . ' มีคนใช้แล้ว';
-            } elseif (!isset($br[$bc])) {
-                $err = 'กรุณาเลือกสาขาที่ประจำ';
-            } elseif (strlen($pin) !== 4) {
-                $err = 'PIN ต้องเป็นตัวเลข 4 หลัก';
-            } elseif (($dup = pin_owner($bc, $pin, '')) !== '') {
-                $err = 'PIN นี้ซ้ำกับ ' . $dup . ' ในสาขาเดียวกัน กรุณาใช้เลขอื่น';
-            } elseif (!$perms) {
-                $err = 'กรุณาเลือกสิทธิ์อย่างน้อย 1 อย่าง';
-            } else {
-                staff_create(array(
-                    'username' => $uname, 'name' => $name, 'initials' => $ini, 'role' => 'staff',
-                    'branch' => $bc, 'perms' => $perms, 'pin' => $pin,
-                ));
-                log_add($bc, 'setting', $user, 'เพิ่มพนักงานใหม่ ' . $name, array(
-                    'ชื่อผู้ใช้' => $uname,
-                    'สิทธิ์'    => perm_names($perms),
-                    'เพิ่มโดย'  => $user['name'] . ' (ผู้ดูแล)',
-                ));
-                $go = 'adm-users.php?u=' . rawurlencode($uname) . '&ok=add';
-            }
+        $in = array(
+            'name'     => trim(preg_replace('/\s+/u', ' ', isset($_POST['name']) ? $_POST['name'] : '')),
+            'username' => strtolower(trim(isset($_POST['username']) ? $_POST['username'] : '')),
+            'initials' => trim(isset($_POST['initials']) ? $_POST['initials'] : ''),
+            'branch'   => isset($_POST['branch']) ? $_POST['branch'] : '',
+            'pin'      => isset($_POST['pin']) ? $_POST['pin'] : '',
+            'perms'    => perm_set_manager(read_perms(), isset($_POST['position']) && $_POST['position'] === 'manager'),   // ตำแหน่ง (ช่วงที่ 12)
+        );
+        $old['new'] = array('name' => $in['name'], 'username' => $in['username'], 'initials' => $in['initials'],
+                            'branch' => $in['branch'], 'perms' => $in['perms']);
+        $r = staff_act_add($in, $user);                      // ตรวจ + เพิ่ม + ลงประวัติ (ใช้ร่วมกับ team.php · ช่วงที่ 12)
+        if (isset($r['error'])) {
+            $err = $r['error'];
+        } else {
+            $go = 'adm-users.php?u=' . rawurlencode($r['username']) . '&ok=add';
+        }
     }
     if ($go !== '' && $err === '') {
         header('Location: ' . url($go));
@@ -109,6 +85,7 @@ require dirname(__FILE__) . '/inc/header.php';
   <form class="adm-sec" method="post" action="adm-user-add.php">
     <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
     <input type="hidden" name="act" value="add">
+    <?php staff_position_field(in_array('manager', $nv['perms'], true)); /* ตำแหน่ง: พนักงาน / ผู้จัดการสาขา (ช่วงที่ 12) */ ?>
     <div class="adm-fields">
       <div class="field">
         <label for="n-name">ชื่อ–นามสกุล</label>

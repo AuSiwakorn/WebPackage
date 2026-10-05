@@ -8,6 +8,7 @@
  *   - [x] ย้ายจาก demo/ เข้า themes/aostock/ (วิ่งผ่าน router ของ admweb)
  *   - [x] อ่าน / เขียนข้อมูลจากตาราง ao_stock_* ผ่าน api.php (ช่วงที่ 5–9)
  *   - [x] ช่วงที่ 10: แก้ File Header ให้ตรงกับระบบจริง · กัน XSS — ชื่อหมวดในกล่องยืนยันลบอ่านจาก data-ask (ไม่ต่อลง JavaScript ตรง ๆ)
+ *   - [x] ช่วงที่ 11: แยกสิทธิ์เพิ่มหมวด (category_add) / ลบหมวด (category_del) — เช็กทั้งตอนแสดงฟอร์มและตอนบันทึก
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -16,9 +17,9 @@ if (!defined('ALLOW_DIRECT_ACCESS')) {
 /* ==========================================================
    หมวดสินค้า (พนักงาน)
    ----------------------------------------------------------
-   เข้าได้เฉพาะพนักงานที่ผู้ดูแลติ๊กสิทธิ์ “จัดการหมวดสินค้า” (category)
-   - เพิ่มหมวดใหม่ได้ (ชื่อห้ามซ้ำ)
-   - ลบได้เฉพาะหมวดที่ยังไม่มีสินค้า — หมวดที่มีสินค้าต้องย้ายสินค้าออกก่อน
+   เข้าได้เฉพาะพนักงานที่ผู้ดูแลติ๊กสิทธิ์ “เพิ่มหมวด” หรือ “ลบหมวด” (ช่วงที่ 11 แยกเป็น 2 สิทธิ์)
+   - เพิ่มหมวดใหม่ได้ (ชื่อห้ามซ้ำ) — ต้องมีสิทธิ์ category_add
+   - ลบได้เฉพาะหมวดที่ยังไม่มีสินค้า — หมวดที่มีสินค้าต้องย้ายสินค้าออกก่อน · ต้องมีสิทธิ์ category_del
    - หมวดใช้ร่วมกันทุกสาขา · ทุกการเพิ่ม / ลบ ลงประวัติของสาขาที่ทำ
    - กดจำนวนสินค้า → popup รายชื่อสินค้าในหมวด พร้อมราคาและคงเหลือของสาขาตัวเอง
    ผู้ดูแลเพิ่ม / ลบหมวดได้ที่ adm-categories.php ด้วย
@@ -26,16 +27,20 @@ if (!defined('ALLOW_DIRECT_ACCESS')) {
 
 require_once dirname(__FILE__) . '/include/function.php';
 
-$user = require_login();                 // ไม่มีสิทธิ์ category → กลับหน้าแรก · ผู้ดูแล → adm-categories.php
+$user = require_login();                 // ไม่มีสิทธิ์เพิ่ม / ลบหมวดเลย → กลับหน้าแรก · ผู้ดูแล → adm-categories.php
 $code = work_branch($user);
 $err  = '';
 $errAt = '';
 $name = '';
+$canAdd = can($user, 'category_add');
+$canDel = can($user, 'category_del');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $act = isset($_POST['act']) ? $_POST['act'] : '';
     if (!csrf_check(isset($_POST['csrf']) ? $_POST['csrf'] : null)) {
         $err = 'เซสชันหมดอายุ กรุณาลองใหม่อีกครั้ง';
+    } elseif (($act === 'add' && !$canAdd) || ($act === 'delete' && !$canDel)) {
+        $err = 'ไม่มีสิทธิ์' . ($act === 'add' ? 'เพิ่ม' : 'ลบ') . 'หมวดสินค้า — ติดต่อผู้ดูแลเพื่อเปิดสิทธิ์';
     } elseif ($act === 'add') {
         $name  = isset($_POST['name']) ? (string) $_POST['name'] : '';
         $err   = cat_add($name, $user, $code);
@@ -74,6 +79,7 @@ require dirname(__FILE__) . '/inc/header.php';
 <?php endif; ?>
 
 <!-- ==================== เพิ่มหมวด ==================== -->
+<?php if ($canAdd): ?>
 <section class="card">
   <div class="card-head">
     <div><h2>เพิ่มหมวดสินค้า</h2><span class="sub">ชื่อห้ามซ้ำกับหมวดที่มีอยู่ · เพิ่มแล้วเลือกใช้ได้ทันทีทุกสาขา</span></div>
@@ -90,11 +96,12 @@ require dirname(__FILE__) . '/inc/header.php';
     <button class="btn btn-primary" type="submit"><svg class="ico"><use href="#i-plus"/></svg> เพิ่มหมวด</button>
   </form>
 </section>
+<?php endif; ?>
 
 <!-- ==================== รายการหมวด ==================== -->
 <section class="card">
   <div class="card-head">
-    <div><h2>หมวดทั้งหมด</h2><span class="sub">ลบได้เฉพาะหมวดที่ยังไม่มีสินค้า</span></div>
+    <div><h2>หมวดทั้งหมด</h2><span class="sub"><?= $canDel ? 'ลบได้เฉพาะหมวดที่ยังไม่มีสินค้า' : 'ดูรายชื่อสินค้าในหมวดได้ · ลบหมวดต้องมีสิทธิ์ “ลบหมวด”' ?></span></div>
   </div>
   <div class="tbl-wrap">
     <table class="tbl cat-tbl">
@@ -110,7 +117,8 @@ require dirname(__FILE__) . '/inc/header.php';
             </td>
             <td data-label="ที่มา"><?= $x['added'] ? '<small>เพิ่ม' . ($x['by'] !== '' ? 'โดย ' . e($x['by']) . ' · ' : 'เมื่อ ') . e($x['at']) . '</small>' : '<small>หมวดตั้งต้น</small>' ?></td>
             <td data-label="" class="r">
-              <?php if ($x['count'] === 0): ?>
+              <?php if (!$canDel): ?>
+              <?php elseif ($x['count'] === 0): ?>
                 <form method="post" action="categories.php" class="cat-del" data-ask="<?= e('ลบหมวด “' . $c . '” ?') ?>" onsubmit="return confirm(this.dataset.ask);">
                   <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
                   <input type="hidden" name="act" value="delete">

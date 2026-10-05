@@ -7,6 +7,7 @@
  * TODO:
  *   - [x] ย้ายจาก demo/ เข้า themes/aostock/ (วิ่งผ่าน router ของ admweb)
  *   - [x] ช่วงที่ 8: ทุกวันอ่านจากบิลจริงทั้งช่วงในคิวรีเดียว (เดิมวันก่อนเป็นข้อมูลตัวอย่าง)
+ *   - [x] ช่วงที่ 11: เข้าหน้านี้ต้องมีสิทธิ์ "รายงานยอดขาย" (report) · ปุ่มไปเปิดร้านตามสิทธิ์
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -78,10 +79,11 @@ require dirname(__FILE__) . '/inc/header.php';
   <div class="alert alert-info" role="status">
     <svg class="ico"><use href="#i-info"/></svg>
     <span>ยังไม่ได้เปิดร้านวันนี้ — ดูยอดขายย้อนหลังได้ตามปกติ ยอดของวันนี้จะเริ่มนับเมื่อเปิดร้านและขาย</span>
+    <?php if (page_ok($user, 'store.php')): ?>
     <div class="alert-act">
       <a class="btn btn-ghost btn-sm" href="store.php"><svg class="ico"><use href="#i-store"/></svg> ไปเปิดร้าน</a>
-      
     </div>
+    <?php endif; ?>
   </div>
 <?php endif; ?>
 

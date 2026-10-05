@@ -6,6 +6,8 @@
  * TABLES: ao_stock_staff, ao_stock_remember
  * TODO:
  *   - [x] ช่วงที่ 10: แยกจาก api.php เดิม (ย้ายโค้ดทั้งก้อน ไม่แก้ตรรกะ) · จัดฟังก์ชันที่เคยปนอยู่หมวดอื่นให้มาอยู่หมวดนี้
+ *   - [x] ช่วงที่ 11: เช็กสิทธิ์เข้าหน้าด้วย page_perm_ok (หน้าเดียวใช้ได้หลายสิทธิ์)
+ *   - [x] ช่วงที่ 12: ผู้ดูแลเปิด team.php → ไปหน้าจัดการพนักงาน
  *
  * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
  */
@@ -341,11 +343,11 @@ function require_login()
         header('Location: ' . url($to));
         exit;
     }
-    /* หน้าที่ต้องมีสิทธิ์เฉพาะ (ขาย / นำเข้า / เบิก / ตรวจนับ / ประวัติ / รับคืน) */
-    $need = page_perm($page);
-    if ($need !== '' && !can($u, $need)) {
-        $pl = perm_list();
-        $_SESSION['flash'] = 'ไม่มีสิทธิ์เข้าหน้า “' . $pl[$need]['short'] . '” — ติดต่อผู้ดูแลเพื่อเปิดสิทธิ์';
+    /* หน้าที่ต้องมีสิทธิ์เฉพาะ (page_perm — ช่วงที่ 11 บางหน้ามีได้หลายสิทธิ์ ตัวใดตัวหนึ่งก็เข้าได้) */
+    if (!page_perm_ok($u, $page)) {
+        $need = (array) page_perm($page);
+        $pl   = perm_list();
+        $_SESSION['flash'] = 'ไม่มีสิทธิ์เข้าหน้า “' . $pl[$need[0]]['short'] . '” — ติดต่อผู้ดูแลเพื่อเปิดสิทธิ์';
         header('Location: ' . url(home_page($u)));
         exit;
     }
@@ -380,6 +382,7 @@ function admin_page_map()
         'history.php'      => 'adm-history.php',
         'movements.php'    => 'adm-movements.php',
         'report-sales.php' => 'adm-report.php',
+        'team.php'         => 'adm-users.php',      // ช่วงที่ 12: หน้าผู้จัดการสาขา → ผู้ดูแลใช้หน้าจัดการพนักงาน
         'store.php'        => '',
         'sale.php'         => '',
         'stocktake.php'    => '',

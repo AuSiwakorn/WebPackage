@@ -10,6 +10,8 @@
  *   - [x] บิลขายวันก่อน (ช่วงที่ 7) · บิลที่ยกเลิกแสดงป้าย ไม่มีปุ่มรับคืน
  *   - [x] ช่วงที่ 8: ลำดับเหตุการณ์ทั้งวันจาก ao_stock_log (เปิด–ปิดร้าน เงินเข้าออก รับคืน ยกเลิก ฯลฯ) ใต้บิลขาย
  *   - [x] ช่วงที่ 9: ปุ่ม "รับคืน" ซ่อนเมื่อเมนูรับคืนถูกปิดจากหลังบ้าน
+ *   - [x] ช่วงที่ 11: ปุ่ม "แก้ไขใบนี้" เฉพาะคนที่เข้าหน้างานคลังชนิดนั้นได้ · ปุ่ม "รับคืน" ตามสิทธิ์ (page_ok)
+ *   - [x] ช่วงที่ 12: ลำดับเหตุการณ์ไม่แสดงรายการ "ตั้งค่า" ให้พนักงานทั่วไป
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -85,7 +87,7 @@ $age   = (int) round((strtotime(date('Y-m-d')) - $pastTs) / 86400);
               <div class="tl-act">
                 <?php
                 $btns = array(array('void', 'past_void', 'ยกเลิกใบนี้', 'i-ban'));
-                if ($user['role'] === 'staff') {                  // แก้ไข = ทำใบใหม่ในหน้างานคลัง → เฉพาะพนักงาน
+                if ($user['role'] === 'staff' && page_perm_ok($user, $t['page'])) {   // แก้ไข = ทำใบใหม่ในหน้างานคลัง → เฉพาะพนักงานที่เข้าหน้านั้นได้ (ช่วงที่ 11)
                     array_unshift($btns, array('edit', 'past_edit', 'แก้ไขใบนี้', 'i-arrow'));
                 }
                 foreach ($btns as $b): ?>
@@ -135,7 +137,7 @@ $age   = (int) round((strtotime(date('Y-m-d')) - $pastTs) / 86400);
               <td class="r">
                 <?php if (!empty($b['void'])): ?>
                   <span class="bdg bdg-adj">ยกเลิกแล้ว</span>
-                <?php elseif ($user['role'] === 'staff' && can($user, 'refund') && menu_enabled('return.php')): ?>
+                <?php elseif ($user['role'] === 'staff' && page_ok($user, 'return.php')): ?>
                   <a class="btn btn-ghost btn-sm" href="return.php?bill=<?= e(rawurlencode($b['no'])) ?>">รับคืน</a>
                 <?php endif; ?>
               </td>
@@ -147,7 +149,7 @@ $age   = (int) round((strtotime(date('Y-m-d')) - $pastTs) / 86400);
   <?php endif; ?>
 </section>
 
-<?php $events = array_reverse(log_of_day($code, $pastTs)); ?>
+<?php $events = array_reverse(log_of_day($code, $pastTs, 0, !is_branch_manager($user))); /* ช่วงที่ 12: พนักงานทั่วไปไม่เห็นรายการตั้งค่า */ ?>
 <section class="card">
   <div class="card-head">
     <div>

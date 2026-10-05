@@ -8,6 +8,7 @@
  *   - [x] ย้ายจาก demo/ เข้า themes/aostock/ (วิ่งผ่าน router ของ admweb)
  *   - [x] อ่าน / เขียนข้อมูลจากตาราง ao_stock_* ผ่าน api.php (ช่วงที่ 5–9)
  *   - [x] ช่วงที่ 10: แก้ File Header ให้ตรงกับระบบจริง · กัน XSS — ค่าทุกตัวในกล่องยืนยันผ่าน esc() · ทูลทิปกราฟใช้ textContent
+ *   - [x] ช่วงที่ 11: ช่องติ๊กสิทธิ์ที่พ่วงกัน (data-needs) ปิด / เปิดตามตัวหลัก
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -515,6 +516,38 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
     only(h);
     h.scrollIntoView({ block: 'start' });
   }
+})();
+</script>
+<script>
+/* ช่องติ๊กสิทธิ์ (perm_boxes · ช่วงที่ 11) — สิทธิ์ที่มี data-needs="a b" ใช้ได้เมื่อติ๊ก a หรือ b อย่างน้อยตัวหนึ่ง
+   ตัวหลักถูกเอาออก → ตัวที่พ่วงหลุดและกดไม่ได้ (ฝั่งเซิร์ฟเวอร์ตัดซ้ำอีกชั้นใน read_perms) */
+(function () {
+  var deps = document.querySelectorAll('input[name="perms[]"][data-needs]');
+  if (!deps.length) { return; }
+  function sync(form) {
+    for (var i = 0; i < deps.length; i++) {
+      var d = deps[i];
+      if (d.form !== form) { continue; }
+      var need = d.getAttribute('data-needs').split(' '), ok = false;
+      for (var j = 0; j < need.length; j++) {
+        var p = form.querySelector('input[name="perms[]"][value="' + need[j] + '"]');
+        if (p && p.checked) { ok = true; }
+      }
+      if (!ok) { d.checked = false; }
+      d.disabled = !ok;
+      d.closest('.perm-o').classList.toggle('is-off', !ok);
+    }
+  }
+  var forms = [];
+  for (var i = 0; i < deps.length; i++) {
+    if (deps[i].form && forms.indexOf(deps[i].form) < 0) { forms.push(deps[i].form); }
+  }
+  forms.forEach(function (f) {
+    f.addEventListener('change', function (ev) {
+      if (ev.target.name === 'perms[]') { sync(f); }
+    });
+    sync(f);
+  });
 })();
 </script>
 <?php if (strpos($NAV_ACTIVE, 'adm-report') === 0): ?>

@@ -8,6 +8,7 @@
  *   - [x] ย้ายจาก demo/ เข้า themes/aostock/ (วิ่งผ่าน router ของ admweb)
  *   - [x] อ่าน / เขียนข้อมูลจากตาราง ao_stock_* ผ่าน api.php (ช่วงที่ 5–9)
  *   - [x] ช่วงที่ 10: แก้ File Header ให้ตรงกับระบบจริง
+ *   - [x] ช่วงที่ 11: ลิงก์ไปประวัติเคลื่อนไหวตามสิทธิ์ (page_ok)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -167,7 +168,7 @@ $words = stock_filter_words($q, $cat, $st);
                   <span class="pcell">
                     <?= thumb_html($p) ?>
                     <span class="pcell-t">
-                      <?php if (menu_enabled('movements.php')): ?>
+                      <?php if (page_ok($user, 'movements.php')): ?>
                         <a class="doc doc-link" href="movements.php?sku=<?= e(rawurlencode($p['sku'])) ?>"
                            title="ดูความเคลื่อนไหวของสินค้านี้"><?= e($p['name']) ?></a>
                       <?php else: ?>

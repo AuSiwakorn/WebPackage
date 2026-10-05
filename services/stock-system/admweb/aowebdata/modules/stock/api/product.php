@@ -6,6 +6,7 @@
  * TABLES: ao_stock_product, ao_stock_category, ao_stock_balance, ao_stock_sale / sale_item + ao_stock_receive / receive_item (product_flow_stats)
  * TODO:
  *   - [x] ช่วงที่ 10: แยกจาก api.php เดิม (ย้ายโค้ดทั้งก้อน ไม่แก้ตรรกะ) · จัดฟังก์ชันที่เคยปนอยู่หมวดอื่นให้มาอยู่หมวดนี้
+ *   - [x] ช่วงที่ 12: ประวัติการเพิ่ม / ลบหมวดเป็นชนิด category (พนักงานทุกคนเห็น — เดิมปนอยู่ในตั้งค่า)
  *
  * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
  */
@@ -475,7 +476,7 @@ function cat_add($name, $user, $code)
         'created_by' => isset($user['id']) ? (int) $user['id'] : 0,
     ));
     cat_registry(true);
-    log_add($code, 'setting', $user, 'เพิ่มหมวดสินค้า “' . $name . '”', array('ใช้ได้' => 'ทุกสาขา'));
+    log_add($code, 'category', $user, 'เพิ่มหมวดสินค้า “' . $name . '”', array('ใช้ได้' => 'ทุกสาขา'));
     return '';
 }
 
@@ -491,7 +492,7 @@ function cat_delete($name, $user, $code)
     }
     sdb_q('DELETE FROM ' . sdb_tb('category') . ' WHERE cate_id = ?', array($all[$name]['id']));
     cat_registry(true);
-    log_add($code, 'setting', $user, 'ลบหมวดสินค้า “' . $name . '”', array('สินค้าในหมวด' => '0 รายการ'));
+    log_add($code, 'category', $user, 'ลบหมวดสินค้า “' . $name . '”', array('สินค้าในหมวด' => '0 รายการ'));
     return '';
 }
 

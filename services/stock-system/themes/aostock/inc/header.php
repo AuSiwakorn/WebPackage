@@ -7,6 +7,8 @@
  * TODO:
  *   - [x] ย้ายจาก demo/ เข้า themes/aostock/ (วิ่งผ่าน router ของ admweb)
  *   - [x] ช่วงที่ 8: เอาข้อความ "ข้อมูลสมมติทั้งหมด ยังไม่เชื่อมฐานข้อมูล" ท้ายเมนูออก (ข้อมูลจริงทั้งหมดแล้ว)
+ *   - [x] ช่วงที่ 11: เมนูแสดงตามสิทธิ์ของหน้า (page_ok) · ป้ายสถานะร้านกดไปหน้าเปิดร้านได้เฉพาะคนที่มีสิทธิ์
+ *   - [x] ช่วงที่ 12: เมนู "พนักงานในสาขา" (เฉพาะผู้จัดการสาขา) · ใต้ชื่อแสดง "ผู้จัดการสาขา" (user_role_label)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -63,19 +65,22 @@ if ($user['role'] === 'admin') {
     $NAV_ALL = array(
         'ใช้งานประจำวัน' => array(
             array('file' => 'dashboard.php',  'label' => 'ภาพรวมของฉัน',      'icon' => 'i-home'),
-            array('file' => 'store.php',      'label' => 'เปิด / ปิดร้าน',    'icon' => 'i-store',     'perm' => 'sale'),
-            array('file' => 'sale.php',       'label' => 'ขายสินค้า',         'icon' => 'i-cart',      'perm' => 'sale'),
+            array('file' => 'store.php',      'label' => 'เปิด / ปิดร้าน',    'icon' => 'i-store'),
+            array('file' => 'sale.php',       'label' => 'ขายสินค้า',         'icon' => 'i-cart'),
             array('file' => 'products.php',   'label' => 'สินค้าในสต๊อก',     'icon' => 'i-boxes'),
-            array('file' => 'categories.php', 'label' => 'หมวดสินค้า',        'icon' => 'i-tag',       'perm' => 'category'),
-            array('file' => 'receive.php',    'label' => 'นำเข้าสินค้า',      'icon' => 'i-in',        'perm' => 'receive'),
-            array('file' => 'issue.php',      'label' => 'เบิก / ตัดออก',     'icon' => 'i-out',       'perm' => 'issue'),
-            array('file' => 'stocktake.php',  'label' => 'ตรวจนับ / ปรับยอด',  'icon' => 'i-clipboard', 'perm' => 'stocktake'),
-            array('file' => 'return.php',     'label' => 'รับคืนสินค้า',       'icon' => 'i-receipt',   'perm' => 'refund'),
-            array('file' => 'history.php',    'label' => 'ประวัติการทำรายการ', 'icon' => 'i-history',   'perm' => 'history'),
+            array('file' => 'categories.php', 'label' => 'หมวดสินค้า',        'icon' => 'i-tag'),
+            array('file' => 'receive.php',    'label' => 'นำเข้าสินค้า',      'icon' => 'i-in'),
+            array('file' => 'issue.php',      'label' => 'เบิก / ตัดออก',     'icon' => 'i-out'),
+            array('file' => 'stocktake.php',  'label' => 'ตรวจนับ / ปรับยอด',  'icon' => 'i-clipboard'),
+            array('file' => 'return.php',     'label' => 'รับคืนสินค้า',       'icon' => 'i-receipt'),
+            array('file' => 'history.php',    'label' => 'ประวัติการทำรายการ', 'icon' => 'i-history'),
             array('file' => 'movements.php',  'label' => 'ประวัติเคลื่อนไหว', 'icon' => 'i-activity'),
         ),
         'รายงาน' => array(
             array('file' => 'report-sales.php', 'label' => 'รายงานยอดขาย', 'icon' => 'i-chart'),
+        ),
+        'ผู้จัดการสาขา' => array(                                                  // ช่วงที่ 12 — page_ok กรองให้เหลือเฉพาะผู้จัดการ
+            array('file' => 'team.php', 'label' => 'พนักงานในสาขา', 'icon' => 'i-users'),
         ),
         'บัญชี' => array(
             array('file' => 'account.php',          'label' => 'บิลขายและเงินเข้า', 'icon' => 'i-receipt',  'roles' => array('account')),
@@ -90,8 +95,7 @@ foreach ($NAV_ALL as $group => $items) {
     foreach ($items as $it) {
         /* ใครเห็นเมนูนี้: ค่าเริ่มต้น = พนักงาน + ผู้ดูแล · ฝ่ายบัญชีเห็นเฉพาะเมนูที่ระบุ roles */
         $roles = isset($it['roles']) ? $it['roles'] : array('staff', 'admin');
-        if (menu_enabled($it['file']) && in_array($user['role'], $roles, true)
-            && (!isset($it['perm']) || can($user, $it['perm']))) {
+        if (in_array($user['role'], $roles, true) && page_ok($user, $it['file'])) {      // สิทธิ์ของหน้าอยู่ใน page_perm (ช่วงที่ 11)
             $keep[] = $it;
         }
     }
@@ -230,8 +234,8 @@ $branches = visible_branches($user);
       $__shut  = store_is_closed($__code);
       $__state = store_state($__code);
       ?>
-      <?php if (can($user, 'sale')): ?>
-      <a class="store-chip <?= $__open ? 'is-open' : ($__shut ? 'is-shut' : 'is-wait') ?>" href="store.php">
+      <?php if (can($user, 'sale') || page_perm_ok($user, 'store.php')): ?>
+      <a class="store-chip <?= $__open ? 'is-open' : ($__shut ? 'is-shut' : 'is-wait') ?>"<?= page_ok($user, 'store.php') ? ' href="store.php"' : '' ?>>
         <span class="dot"></span>
         <span class="sc-t">
         <?php if ($__open): ?>
@@ -278,7 +282,7 @@ $branches = visible_branches($user);
           <span class="av"><?= e($user['initials']) ?></span>
           <span class="who-t">
             <b><?= e($user['name']) ?></b>
-            <small><?= e(role_name($user['role'])) ?> · <?= e(branch_name($user['branch'])) ?></small>
+            <small><?= e(user_role_label($user)) ?> · <?= e(branch_name($user['branch'])) ?></small>
           </span>
           <a class="icon-btn" href="logout.php" title="ออกจากระบบ" aria-label="ออกจากระบบ">
             <svg class="ico"><use href="#i-logout"/></svg>
@@ -288,7 +292,7 @@ $branches = visible_branches($user);
         <?php if (menu_enabled('sale.php') && can($user, 'sale')): ?>
           <?php $__cart = cart_count(); ?>
           <a class="btn-sale<?= $__open ? '' : ' is-lock' ?>"
-             href="<?= $__open ? 'sale.php' : 'store.php' ?>"
+             href="<?= ($__open || !page_ok($user, 'store.php')) ? 'sale.php' : 'store.php' ?>"
              title="<?= $__open ? 'เปิดหน้าขายสินค้า' : 'ต้องเปิดร้านก่อนจึงจะขายได้' ?>">
             <svg class="ico"><use href="#i-cart"/></svg>
             <span class="t-full">ขายสินค้า</span>

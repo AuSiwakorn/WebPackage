@@ -10,6 +10,8 @@
  *   - [x] บิลขาย / เปิด–ปิดร้าน ลงฐานข้อมูล (ช่วงที่ 7)
  *   - [x] ช่วงที่ 8: วันก่อนมีลำดับเหตุการณ์ทั้งวันจาก ao_stock_log (inc/history-past.php)
  *   - [x] ช่วงที่ 9: ซ่อนปุ่มไปรายงานยอดขายเมื่อเมนูนั้นถูกปิดจากหลังบ้าน
+ *   - [x] ช่วงที่ 12: พนักงานทั่วไปไม่เห็นรายการ "ตั้งค่า" (เพิ่ม / แก้พนักงาน รีเซ็ต PIN แก้สาขา ฯลฯ) · ผู้จัดการสาขาเห็นครบ
+ *   - [x] ช่วงที่ 11: ปุ่มแก้ / ยกเลิกตามสิทธิ์ใหม่ (บิล = bill_fix + แก้ไขต้องขายได้ · เอกสารคลัง = doc_fix + สิทธิ์หน้างานนั้น) · ลิงก์ตามสิทธิ์ (page_ok)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -74,8 +76,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $err === '' && !$pastTs) {
 
         $chk    = bill_by_no($code, $no);
 
-        if ($chk !== null && !can_void_doc($user, $chk)) {
-            $err = 'บิลนี้เป็นของพนักงานคนอื่น — ต้องมีสิทธิ์แก้งานคนอื่นจึงจะแก้หรือยกเลิกได้';
+        if ($chk !== null && !can_void_doc($user, $chk, 'bill')) {
+            $err = ($chk['by_user'] === $user['username'])
+                 ? 'ไม่มีสิทธิ์ “แก้บิลตัวเอง” — ติดต่อผู้ดูแลเพื่อเปิดสิทธิ์'
+                 : 'บิลนี้เป็นของพนักงานคนอื่น — ต้องมีสิทธิ์แก้งานคนอื่นจึงจะแก้หรือยกเลิกได้';
+        } elseif ($redo && !can($user, 'sale')) {
+            $err = 'แก้ไขบิล = ออกบิลใหม่ในหน้าขาย ต้องมีสิทธิ์ “ขายสินค้า” — ยกเลิกบิลได้อย่างเดียว';
         } elseif (bill_returned_any($no)) {
             $err = 'บิลนี้มีการรับคืนสินค้าไปแล้ว — ยกเลิกหรือแก้ทั้งบิลไม่ได้ ให้ใช้การรับคืนแทน';
         } elseif ($reason === '') {
@@ -100,7 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $err === '' && !$pastTs) {
     }
 }
 
-$all    = log_today($code);
+$all    = log_today($code, 0, !is_branch_manager($user));      // ช่วงที่ 12: พนักงานทั่วไปไม่เห็นรายการ "ตั้งค่า" · ผู้จัดการสาขาเห็นครบ
 $counts = log_counts($all);
 $t      = isset($_GET['t']) ? trim($_GET['t']) : '';
 if ($t !== '' && !isset($counts[$t])) {
@@ -127,10 +133,10 @@ require dirname(__FILE__) . '/inc/header.php';
     <svg class="ico"><use href="#i-info"/></svg>
     <span>ยังไม่ได้เปิดร้านวันนี้ — ดูประวัติได้ตามปกติ งานคลัง (รับเข้า / ตัดออก / ตรวจนับ) ทำได้เลย ส่วนการขายต้องเปิดร้านก่อน</span>
     <div class="alert-act">
-      <?php if (can($user, 'sale')): ?>
+      <?php if (page_ok($user, 'store.php')): ?>
       <a class="btn btn-ghost btn-sm" href="store.php"><svg class="ico"><use href="#i-store"/></svg> ไปเปิดร้าน</a>
       <?php endif; ?>
-      <?php if (menu_enabled('report-sales.php')): ?>
+      <?php if (page_ok($user, 'report-sales.php')): ?>
       <a class="btn btn-ghost btn-sm" href="report-sales.php"><svg class="ico"><use href="#i-chart"/></svg> ดูยอดขายย้อนหลัง</a>
       <?php endif; ?>
     </div>
@@ -215,7 +221,7 @@ require dirname(__FILE__) . '/inc/header.php';
             $adoc = ($r['type'] === 'adjust' && $r['ref'] !== '') ? adj_by_no($code, $r['ref']) : null;
             ?>
 
-            <?php if ($adoc !== null && empty($adoc['void']) && can_void_doc($user, $adoc)): ?>
+            <?php if ($adoc !== null && empty($adoc['void']) && can_void_doc($user, $adoc) && can($user, 'stocktake')): ?>
               <?php $dat = ' data-bill="' . e($adoc['no']) . '" data-items="' . (int) $adoc['items'] . '"'; ?>
               <div class="tl-act">
                 <?php foreach (array(
@@ -243,7 +249,7 @@ require dirname(__FILE__) . '/inc/header.php';
               </p>
             <?php endif; ?>
 
-            <?php if ($idoc !== null && empty($idoc['void']) && can_void_doc($user, $idoc)): ?>
+            <?php if ($idoc !== null && empty($idoc['void']) && can_void_doc($user, $idoc) && can($user, 'issue')): ?>
               <?php $dat = ' data-bill="' . e($idoc['no']) . '" data-qty="' . (int) $idoc['qty']
                          . '" data-items="' . (int) $idoc['items'] . '"'; ?>
               <div class="tl-act">
@@ -300,7 +306,7 @@ require dirname(__FILE__) . '/inc/header.php';
                 — <?= e($rdoc['void_reason']) ?>
               </p>
             <?php endif; ?>
-            <?php if ($bill !== null && empty($bill['void']) && can_void_doc($user, $bill) && !bill_returned_any($bill['no'])): ?>
+            <?php if ($bill !== null && empty($bill['void']) && can_void_doc($user, $bill, 'bill') && !bill_returned_any($bill['no'])): ?>
               <?php
               $act = hist_url($t !== '' ? 't=' . rawurlencode($t) : '');
               $dat = ' data-bill="' . e($bill['no']) . '" data-total="' . e(money2($bill['total']))
@@ -310,7 +316,7 @@ require dirname(__FILE__) . '/inc/header.php';
                 <?php foreach (array(
                     array('edit', 'แก้ไขบิลนี้',  'i-arrow', 'หมายเหตุการแก้ไขบิล'),
                     array('void', 'ยกเลิกบิลนี้', 'i-ban',   'หมายเหตุการยกเลิกบิล'),
-                ) as $b): ?>
+                ) as $b): if ($b[0] === 'edit' && !can($user, 'sale')) { continue; } ?>
                   <form method="post" action="<?= e($act) ?>" data-confirm="<?= e($b[0]) ?>"<?= $dat ?>>
                     <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
                     <input type="hidden" name="act" value="<?= e($b[0]) ?>">

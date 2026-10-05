@@ -191,7 +191,7 @@ require dirname(__FILE__) . '/inc/header.php';
     <?php foreach ($trend as $t): $h = (int) round($t['total'] / $maxT * 100); ?>
       <a class="rep-bar" role="listitem" href="<?= e($fMode === 'year' ? $rq(array('mode' => 'month', 'm' => date('Y-m', $t['ts']))) : $rq(array('mode' => 'day', 'd' => date('Y-m-d', $t['ts'])))) ?>"
          title="<?= e(($fMode === 'year' ? thai_month_full($t['ts']) : thai_date_full($t['ts'])) . ' · ' . money2($t['total']) . ' บาท · ' . $t['bills'] . ' บิล') ?>">
-        <span class="rep-col" style="height:<?= max($t['total'] > 0 ? 3 : 0, $h) ?>%"></span>
+        <span class="rep-fill" style="height:<?= max($t['total'] > 0 ? 3 : 0, $h) ?>%"></span>
         <small><?= e($fMode === 'year' ? thai_month_short($t['ts']) : date('j', $t['ts'])) ?></small>
       </a>
     <?php endforeach; ?>

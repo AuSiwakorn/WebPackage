@@ -8,6 +8,9 @@
  *   - [x] ย้ายจาก demo/ เข้า themes/aostock/ (วิ่งผ่าน router ของ admweb)
  *   - [x] อ่าน / เขียนข้อมูลจากตาราง ao_stock_* ผ่าน api.php (ช่วงที่ 5–9)
  *   - [x] ช่วงที่ 10: แก้ File Header ให้ตรงกับระบบจริง · เช็ก PIN ซ้ำในสาขาตอนย้ายสาขา / เปิดใช้งานกลับ (staff_pin_conflict)
+ *   - [x] ช่วงที่ 11: สิทธิ์ละเอียดขึ้น (ช่องติ๊กแบ่ง 6 หมวด) · ตารางสรุปสิทธิ์รายหมวด · ประวัติบอกสิทธิ์ที่เพิ่ม / เอาออก
+ *   - [x] ช่วงที่ 12: แก้ข้อมูล / PIN / พักงาน / ลบ ย้ายไปใช้ staff_act_* (ใช้ร่วมกับ team.php ของผู้จัดการสาขา — ข้อความเดิมทุกคำ)
+ *         · ตั้ง / ปลด "ผู้จัดการสาขา" ที่ช่อง "ตำแหน่ง" บนสุดของฟอร์ม (หรือที่หน้าจัดการสาขา) · ป้ายผู้จัดการข้างชื่อ · ย้ายสาขายังอยู่ในหน้านี้ (เฉพาะผู้ดูแล)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -17,9 +20,11 @@ if (!defined('ALLOW_DIRECT_ACCESS')) {
    จัดการพนักงาน (เฉพาะผู้ดูแล)
    ----------------------------------------------------------
    แก้ไข · พักงาน / เปิดใช้งาน · ลบ  (เพิ่มพนักงานอยู่หน้าแยก adm-user-add.php)
-   - สิทธิ์การเข้าถึงกำหนดรายคน
-       เมนูที่ใช้ได้: ขายสินค้า+เปิด/ปิดร้าน · นำเข้าสินค้า · เบิก/ตัดออก · ตรวจนับ/ปรับยอด
-                      · ประวัติการทำรายการ · รับคืนสินค้า
+   - สิทธิ์การเข้าถึงกำหนดรายคน (ช่วงที่ 11 แตกละเอียด — รายการเต็มดู perm_list ใน api/core.php)
+       หน้าร้าน:     ขาย · ให้ส่วนลด · เปิด/ปิดร้าน · เปิดร้านอีกครั้ง · เงินเข้า/ออก · แก้บิลตัวเอง
+       งานคลัง:      นำเข้า · เบิก/ตัดออก · ตรวจนับ · แก้เอกสารคลังตัวเอง
+       รับคืน:       รับคืน · คืนเงินสด      หมวดสินค้า: เพิ่ม · ลบ
+       ดูข้อมูล:     สินค้าในสต๊อก · ประวัติเคลื่อนไหว · ประวัติรายการ · รายงานยอดขาย
        สิทธิ์เสริม:   แก้งานคนอื่น · แก้ย้อนหลัง · รายงานทั้งสาขา
    - PIN 4 หลัก ห้ามซ้ำกับคนอื่นในสาขาเดียวกัน — เช็กตอนตั้ง PIN และตอนย้ายสาขา / เปิดใช้งานกลับ (เทียบลายนิ้วมือ PIN · ช่วงที่ 10)
      พนักงานที่ยังไม่ได้เข้าระบบด้วย PIN หลังช่วงที่ 10 ยังไม่มีลายนิ้วมือ — ตอนย้าย / เปิดใช้งานจะยังเช็กไม่ได้
@@ -37,7 +42,6 @@ require_once dirname(__FILE__) . '/include/function.php';
 
 $user = require_login();                 // หน้า adm- : เฉพาะผู้ดูแล (พนักงานถูกพากลับเอง)
 
-$plist = perm_list();
 $err   = '';
 $errAt = '';                                  // 'new' หรือ username ที่มีข้อผิดพลาด
 $sel   = isset($_GET['u']) ? trim($_GET['u']) : '';
@@ -61,46 +65,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $u     = $all[$sel];
         $errAt = $sel;
 
+        /* แก้ข้อมูล / PIN / พักงาน / ลบ ใช้ staff_act_* ร่วมกับหน้าผู้จัดการสาขา (ช่วงที่ 12) · ย้ายสาขาเป็นของผู้ดูแลอย่างเดียว */
         if ($act === 'save') {                               // ชื่อ อักษรย่อ สิทธิ์
             $name  = trim(preg_replace('/\s+/u', ' ', isset($_POST['name']) ? $_POST['name'] : ''));
             $ini   = trim(isset($_POST['initials']) ? $_POST['initials'] : '');
-            $perms = read_perms();
+            $perms = perm_set_manager(read_perms(), isset($_POST['position']) && $_POST['position'] === 'manager');   // ตำแหน่ง (ช่วงที่ 12)
             $old[$sel] = array('name' => $name, 'initials' => $ini, 'perms' => $perms);
-            if ($name === '') {
-                $err = 'กรุณากรอกชื่อพนักงาน';
-            } elseif (!$perms) {
-                $err = 'กรุณาเลือกสิทธิ์อย่างน้อย 1 อย่าง — ถ้าไม่ให้ใช้งานแล้ว ใช้ “พักงาน / ลาออก” แทน';
-            } else {
-                $before  = isset($u['perms']) ? $u['perms'] : array();
-                $changes = array();
-                if ($name !== $u['name']) {
-                    $changes['ชื่อ'] = $u['name'] . ' → ' . $name;
-                }
-                if ($before != $perms) {
-                    $changes['สิทธิ์เดิม'] = perm_names($before);
-                    $changes['สิทธิ์ใหม่'] = perm_names($perms);
-                }
-                staff_update($sel, $name, $ini, $perms);
-                if ($changes) {
-                    $changes['แก้โดย'] = $user['name'] . ' (ผู้ดูแล)';
-                    log_add($u['branch'], 'setting', $user, 'แก้ข้อมูลพนักงาน ' . $name, $changes);
-                }
-                $go = 'adm-users.php?u=' . rawurlencode($sel) . '&ok=save';
-            }
+            $err = staff_act_save($sel, $name, $ini, $perms, $user);
+            $go  = 'adm-users.php?u=' . rawurlencode($sel) . '&ok=save';
 
         } elseif ($act === 'pin') {
-            $pin = preg_replace('/\D/', '', isset($_POST['pin']) ? $_POST['pin'] : '');
-            if (strlen($pin) !== 4) {
-                $err = 'PIN ต้องเป็นตัวเลข 4 หลัก';
-            } elseif (($dup = pin_owner($u['branch'], $pin, $sel)) !== '') {
-                $err = 'PIN นี้ซ้ำกับ ' . $dup . ' ในสาขาเดียวกัน กรุณาใช้เลขอื่น';
-            } else {
-                staff_set_pin($sel, $pin);
-                log_add($u['branch'], 'setting', $user, 'รีเซ็ต PIN ของ ' . $u['name'], array(
-                    'แก้โดย' => $user['name'] . ' (ผู้ดูแล)', 'หมายเหตุ' => 'ไม่แสดงเลข PIN ในประวัติ',
-                ));
-                $go = 'adm-users.php?u=' . rawurlencode($sel) . '&ok=pin';
-            }
+            $err = staff_act_pin($sel, isset($_POST['pin']) ? $_POST['pin'] : '', $user);
+            $go  = 'adm-users.php?u=' . rawurlencode($sel) . '&ok=pin';
 
         } elseif ($act === 'move') {
             $to = isset($_POST['branch']) ? $_POST['branch'] : '';
@@ -124,30 +100,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
         } elseif ($act === 'off' || $act === 'on') {
-            $on  = ($act === 'on');
-            $why = isset($_POST['why']) ? trim($_POST['why']) : '';
-            if ($on && !isset($br[$u['branch']])) {
-                $err = 'สาขาเดิมของ ' . $u['name'] . ' ถูกปิดใช้งานแล้ว — เปิดสาขาก่อน หรือย้ายสาขาก่อนเปิดใช้งาน';
-            } elseif ($on && $u['role'] === 'staff' && ($dup = staff_pin_conflict($sel, $u['branch'])) !== '') {
-                $err = 'PIN ของ ' . $u['name'] . ' ซ้ำกับ ' . $dup . ' ในสาขาเดียวกันแล้ว — รีเซ็ต PIN ก่อนเปิดใช้งาน';     // ช่วงที่ 10
-            } else {
-                staff_set_active($sel, $on);
-                log_add($u['branch'], 'setting', $user, ($on ? 'เปิดใช้งาน ' : 'พักงาน / ลาออก ') . $u['name'], array(
-                    'เหตุผล' => $on ? '—' : ($why !== '' ? $why : 'ไม่ได้ระบุ'),
-                    'แก้โดย' => $user['name'] . ' (ผู้ดูแล)',
-                ));
-                $go = 'adm-users.php?u=' . rawurlencode($sel) . '&ok=' . $act;
-            }
+            $err = staff_act_active($sel, $act === 'on', isset($_POST['why']) ? $_POST['why'] : '', $user);
+            $go  = 'adm-users.php?u=' . rawurlencode($sel) . '&ok=' . $act;
 
         } elseif ($act === 'delete') {
-            $why = staff_data_reason($sel);
-            if ($why !== '') {
-                $err = 'ลบไม่ได้ เพราะ' . $why . ' — ใช้ “พักงาน / ลาออก” แทน ชื่อในเอกสารเก่าจะไม่หาย';
-            } elseif (empty($_POST['sure'])) {
-                $err = 'กรุณาติ๊กยืนยันก่อนลบพนักงาน';
-            } else {
-                staff_delete($sel);
-                log_add($u['branch'], 'setting', $user, 'ลบพนักงาน ' . $u['name'], array('แก้โดย' => $user['name'] . ' (ผู้ดูแล)'));
+            $err = staff_act_delete($sel, !empty($_POST['sure']), $user);
+            if ($err === '') {
                 $_SESSION['flash'] = 'ลบ ' . $u['name'] . ' แล้ว';
                 $go = 'adm-users.php';
             }
@@ -214,7 +172,7 @@ require dirname(__FILE__) . '/inc/header.php';
       <div class="adm-who">
         <span class="av"><?= e(user_initial($picked)) ?></span>
         <div>
-          <h2><?= e($picked['name']) ?> <?php if (!$active): ?><span class="bdg bdg-out">พักงาน</span><?php endif; ?></h2>
+          <h2><?= e($picked['name']) ?> <?php if (in_array('manager', $picked['perms'], true)): ?><span class="bdg bdg-ok">ผู้จัดการสาขา</span><?php endif; ?><?php if (!$active): ?><span class="bdg bdg-out">พักงาน</span><?php endif; ?></h2>
           <span class="sub"><?= e($sel) ?> · <?= e(branch_name($picked['branch'])) ?>
             <?php if (!empty($picked['since'])): ?> · ประจำสาขานี้ตั้งแต่ <?= e(thai_date_full(strtotime($picked['since']))) ?><?php endif; ?></span>
         </div>
@@ -231,6 +189,7 @@ require dirname(__FILE__) . '/inc/header.php';
       <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
       <input type="hidden" name="act" value="save">
       <input type="hidden" name="u" value="<?= e($sel) ?>">
+      <?php staff_position_field(in_array('manager', $pv['perms'], true)); /* ตำแหน่ง: พนักงาน / ผู้จัดการสาขา (ช่วงที่ 12) */ ?>
       <div class="adm-fields">
         <div class="field">
           <label for="e-name">ชื่อ–นามสกุล</label>
@@ -359,15 +318,19 @@ foreach ($order as $g):
           <tbody>
             <?php foreach ($list as $k => $u): $pp = isset($u['perms']) ? $u['perms'] : array(); ?>
               <tr class="<?= $k === $sel ? 'on' : '' ?>">
-                <td data-label="พนักงาน"><b><?= e($u['name']) ?></b><small><?= e($k) ?><?= $g === '_off' ? ' · ' . e(branch_name($u['branch'])) : '' ?></small></td>
-                <?php foreach (array('menu', 'extra') as $grp): ?>
-                  <td data-label="<?= $grp === 'menu' ? 'เมนูที่ใช้ได้' : 'สิทธิ์เสริม' ?>">
-                    <?php $n = 0; foreach ($pp as $pk): if (!isset($plist[$pk]) || $plist[$pk]['group'] !== $grp) { continue; } $n++; ?>
-                      <span class="bdg <?= $grp === 'menu' ? 'bdg-adj' : 'bdg-ok' ?>"><?= e($plist[$pk]['short']) ?></span>
-                    <?php endforeach; ?>
-                    <?php if (!$n): ?><span class="adm-none">—</span><?php endif; ?>
-                  </td>
-                <?php endforeach; ?>
+                <td data-label="พนักงาน"><b><?= e($u['name']) ?></b><?php if (in_array('manager', $pp, true)): ?> <span class="bdg bdg-ok">ผู้จัดการสาขา</span><?php endif; ?><small><?= e($k) ?><?= $g === '_off' ? ' · ' . e(branch_name($u['branch'])) : '' ?></small></td>
+                <?php $sum = perm_summary($pp); $pg = perm_groups(); /* ช่วงที่ 11: สิทธิ์มีหลายตัว — สรุปเป็นรายหมวด (ชี้ดูชื่อสิทธิ์) */ ?>
+                <td data-label="เมนูที่ใช้ได้">
+                  <?php $n = 0; foreach ($sum as $grp => $s): if ($grp === 'extra') { continue; } $n++; ?>
+                    <span class="bdg bdg-adj" title="<?= e(implode(' · ', $s['names'])) ?>"><?= e($pg[$grp]) ?> <?= $s['have'] === $s['total'] ? 'ครบ' : $s['have'] . '/' . $s['total'] ?></span>
+                  <?php endforeach; ?>
+                  <?php if (!$n): ?><span class="adm-none">—</span><?php endif; ?>
+                </td>
+                <td data-label="สิทธิ์เสริม">
+                  <?php if (isset($sum['extra'])): foreach ($sum['extra']['names'] as $nm): ?>
+                    <span class="bdg bdg-ok"><?= e($nm) ?></span>
+                  <?php endforeach; else: ?><span class="adm-none">—</span><?php endif; ?>
+                </td>
                 <td class="r"><a class="btn btn-ghost btn-sm" href="adm-users.php?u=<?= e(rawurlencode($k)) ?>">แก้ไข</a></td>
               </tr>
             <?php endforeach; ?>

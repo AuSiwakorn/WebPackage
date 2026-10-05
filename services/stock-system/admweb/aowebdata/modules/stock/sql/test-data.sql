@@ -4,6 +4,8 @@
 -- วิธีใช้: phpMyAdmin → เลือกฐานข้อมูล → Import ไฟล์นี้ (ต้องติดตั้งตาราง ao_stock_* ครบ 23 ตารางก่อน)
 --         นำเข้าได้กับฐานข้อมูลที่ตาราง ao_stock_* ยังว่างเท่านั้น (มีข้อมูลแล้ว INSERT จะชน PRIMARY KEY แล้วหยุดทั้งไฟล์)
 -- ⚠ ก่อนใช้งานจริง ลบข้อมูลทดสอบทั้งหมดด้วย test-data-clear.sql
+-- ช่วงที่ 11: สิทธิ์พนักงานเป็นชุดใหม่ (ขึ้นต้น v2) · nipa ได้ทุกสิทธิ์รวม “เปิดร้านอีกครั้ง” · คนอื่นได้ค่าเริ่มต้นของพนักงานใหม่
+-- ช่วงที่ 12: nipa เป็นผู้จัดการสาขารังสิต (สิทธิ์ manager) — ใช้ทดสอบหน้า “พนักงานในสาขา”
 --
 -- มีอะไรบ้าง: 3 สาขา (HQ RS BN) · ผู้ใช้ 7 คน · หมวด 7 · สินค้า 81 SKU
 --            ยอดยกมาเป็นใบรับเข้า RC-260917-0001 สาขาละ 1 ใบ (พฤหัสบดี 17 ก.ย.)
@@ -13,7 +15,7 @@
 -- บัญชีทดลอง (PIN / รหัสผ่านสุ่มตอนสร้างไฟล์ · ในฐานข้อมูลเก็บเป็น password_hash)
 --   somchai  สมชาย ใจดี ผู้ดูแล  รหัสผ่าน 7SxVw5VAeb
 --   pim      พิมพ์ชนก บัญชีดี บัญชี  รหัสผ่าน HOtFWewWZ2
---   nipa     นิภา วงศ์ทอง พนักงาน  RS  PIN 7445
+--   nipa     นิภา วงศ์ทอง ผู้จัดการสาขา  RS  PIN 7445
 --   anan     อนันต์ ศรีสุข พนักงาน  BN  PIN 4650
 --   kan      กานต์ พรมมา พนักงาน  HQ  PIN 6687
 --   mint     มิ้นท์ สุขใจ พนักงาน  BN  PIN 8871
@@ -33,11 +35,11 @@ INSERT INTO `ao_stock_branch` (`branch_id`, `code`, `name`, `short_name`, `addre
 INSERT INTO `ao_stock_staff` (`staff_id`, `branch_id`, `username`, `name`, `initials`, `role`, `perms`, `pin_hash`, `password_hash`, `is_active`) VALUES
 (1, 1, 'somchai', 'สมชาย ใจดี', 'สช', 'admin', '', '', '$2y$10$4wCMlx1SRo2FfRTHqowVVOlJcVXnmTQnZKr1Pm5TituQH3slmAF5y', 1),
 (2, 1, 'pim', 'พิมพ์ชนก บัญชีดี', 'พช', 'account', '', '', '$2y$10$rQ/Y6uIW1o.jWMzqY6m9ke6W.DT/wFUBUcOf6vYxpwahV2XmSdGD.', 1),
-(3, 2, 'nipa', 'นิภา วงศ์ทอง', 'นภ', 'staff', 'sale,receive,issue,stocktake,history,refund,category,void_others,backdate,report_branch', '$2y$10$ACFRWVQSMNGF5mP3D0PzAeGn4WqUA.yfpc5eOqHNlHH3sgFI32eKm', '', 1),
-(4, 3, 'anan', 'อนันต์ ศรีสุข', 'อน', 'staff', 'sale,receive,issue,stocktake,history', '$2y$10$3Zjhb1ph7oeNku.2YJTr.ee8/KIo7k61gIjLkmbBYuxhj.sKQ9T3i', '', 1),
-(5, 1, 'kan', 'กานต์ พรมมา', 'กต', 'staff', 'sale,receive,issue,stocktake,history', '$2y$10$wkm/kGcomw0P8Mt6AWEYXeAW5oc5j3V9V9WZPrqPkgApo3KdQGhoe', '', 1),
-(6, 3, 'mint', 'มิ้นท์ สุขใจ', 'มท', 'staff', 'sale,receive,issue,stocktake,history', '$2y$10$Q9uklC6jbxd4tHYDbeDY7uMEWK.Yua1cBoX5uxisRb9Vev2RC0zbe', '', 1),
-(7, 2, 'bee', 'เบียร์ ทองดี', 'บย', 'staff', 'sale,receive,issue,stocktake,history', '$2y$10$VNI.Rq3Fc20Aj6XGxK65ieC1Xy6GaNIcBmVC0w4Y4mCrloYg0i/pa', '', 1);
+(3, 2, 'nipa', 'นิภา วงศ์ทอง', 'นภ', 'staff', 'v2,sale,discount,store,store_reopen,cash,bill_fix,receive,issue,stocktake,doc_fix,refund,refund_cash,category_add,category_del,products,movements,history,report,void_others,backdate,report_branch,manager', '$2y$10$ACFRWVQSMNGF5mP3D0PzAeGn4WqUA.yfpc5eOqHNlHH3sgFI32eKm', '', 1),
+(4, 3, 'anan', 'อนันต์ ศรีสุข', 'อน', 'staff', 'v2,sale,discount,store,cash,bill_fix,receive,issue,stocktake,doc_fix,products,movements,history,report', '$2y$10$3Zjhb1ph7oeNku.2YJTr.ee8/KIo7k61gIjLkmbBYuxhj.sKQ9T3i', '', 1),
+(5, 1, 'kan', 'กานต์ พรมมา', 'กต', 'staff', 'v2,sale,discount,store,cash,bill_fix,receive,issue,stocktake,doc_fix,products,movements,history,report', '$2y$10$wkm/kGcomw0P8Mt6AWEYXeAW5oc5j3V9V9WZPrqPkgApo3KdQGhoe', '', 1),
+(6, 3, 'mint', 'มิ้นท์ สุขใจ', 'มท', 'staff', 'v2,sale,discount,store,cash,bill_fix,receive,issue,stocktake,doc_fix,products,movements,history,report', '$2y$10$Q9uklC6jbxd4tHYDbeDY7uMEWK.Yua1cBoX5uxisRb9Vev2RC0zbe', '', 1),
+(7, 2, 'bee', 'เบียร์ ทองดี', 'บย', 'staff', 'v2,sale,discount,store,cash,bill_fix,receive,issue,stocktake,doc_fix,products,movements,history,report', '$2y$10$VNI.Rq3Fc20Aj6XGxK65ieC1Xy6GaNIcBmVC0w4Y4mCrloYg0i/pa', '', 1);
 
 INSERT INTO `ao_stock_staff_branch` (`staff_id`, `branch_id`, `date_from`, `date_to`) VALUES
 (1, 1, '2026-06-01', NULL),

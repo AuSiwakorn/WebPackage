@@ -9,6 +9,7 @@
  *   - [x] ช่วงที่ 5: ตรวจ PIN / รหัสผ่านกับตาราง (password_hash)
  *   - [x] ช่วงที่ 10: "จดจำการเข้าสู่ระบบ" ใช้ได้จริง 30 วัน · "ลืมรหัสผ่าน?" บอกวิธีรีเซ็ต · เอาป้ายระบบทดลองออก
  *         · ข้อความสิทธิ์ของพนักงานสร้างด้วย textContent (กัน XSS จากชื่อสาขา)
+ *   - [x] ช่วงที่ 12: ปุ่มเลือกชื่อแสดง "ผู้จัดการสาขา" แทน "พนักงาน" (user_role_label)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -201,13 +202,13 @@ if ($staffPick === '' || !isset($staffs[$staffPick])) {
           <?php endif; ?>
           <?php foreach ($staffs as $uname => $u): ?>
             <button class="staff<?= $uname === $staffPick ? ' on' : '' ?>" type="button" data-user="<?= e($uname) ?>"
-                      data-role="<?= e(role_name($u['role'])) ?>"
+                      data-role="<?= e(user_role_label(array('role' => $u['role'], 'username' => $uname))) ?>"
                       data-scope="<?= e(role_scope($u['role'])) ?>"
                       data-branch="<?= e(branch_name($u['branch'])) ?>">
               <span class="av"><?= e(user_initial($u)) ?></span>
               <span class="st">
                 <b><?= e($u['name']) ?></b>
-                <small><?= e(role_name($u['role'])) ?> · <?= e(branch_name($u['branch'])) ?></small>
+                <small><?= e(user_role_label(array('role' => $u['role'], 'username' => $uname))) ?> · <?= e(branch_name($u['branch'])) ?></small>
               </span>
             </button>
           <?php endforeach; ?>

@@ -3,12 +3,13 @@
  * FILE: themes/aostock/adm-branches.php
  * ROLE: จัดการสาขา (เฉพาะผู้ดูแล)
  * DEPENDS: themes/aostock/include/function.php, themes/aostock/inc/header.php, themes/aostock/inc/footer.php
- * TABLES: ao_stock_branch (+ เช็กข้อมูลของสาขาในตาราง ao_stock_* ก่อนลบ) — ผ่าน api.php
+ * TABLES: ao_stock_branch, ao_stock_staff (ผู้จัดการสาขา), ao_stock_log (+ เช็กข้อมูลของสาขาในตาราง ao_stock_* ก่อนลบ) — ผ่าน api.php
  * TODO:
  *   - [x] ย้ายจาก demo/ เข้า themes/aostock/ (วิ่งผ่าน router ของ admweb)
  *   - [x] สาขาเก็บใน ao_stock_branch (ช่วงที่ 5)
  *   - [x] ช่วงที่ 8: ลบโค้ดล้าง $_SESSION['log'] หลังลบสาขา (ประวัติอยู่ในตารางแล้ว branch_delete ลบให้)
  *   - [x] ช่วงที่ 10: ค่าตั้ง "เป้าต่อคนต่อวัน" (daily_goal) ของภาพรวมพนักงาน
+ *   - [x] ช่วงที่ 12: เลือกผู้จัดการสาขารายสาขา (act=managers · staff_act_set_manager) · หัวการ์ดบอกชื่อผู้จัดการ
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -63,7 +64,8 @@ $errB  = '';                 // สาขาที่เกิดข้อผิ
 $old   = array();
 $okB   = isset($_GET['ok']) ? $_GET['ok'] : '';
 $okMsg = array('add' => 'เพิ่มสาขาแล้ว — ย้ายพนักงานเข้าสาขาได้ที่หน้าจัดการพนักงาน', 'save' => 'บันทึกแล้ว มีผลทันที',
-               'close' => 'ปิดใช้งานสาขาแล้ว — ประวัติและรายงานยังอยู่ครบ', 'open' => 'เปิดใช้งานสาขาอีกครั้งแล้ว');
+               'close' => 'ปิดใช้งานสาขาแล้ว — ประวัติและรายงานยังอยู่ครบ', 'open' => 'เปิดใช้งานสาขาอีกครั้งแล้ว',
+               'managers' => 'บันทึกผู้จัดการสาขาแล้ว — มีผลทันที');
 $okDo  = (isset($_GET['do']) && isset($okMsg[$_GET['do']])) ? $_GET['do'] : 'save';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -132,6 +134,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 log_add($bc, 'setting', $user, 'แก้ข้อมูล' . $in['name'], $changes);
             }
             $go = 'adm-branches.php?ok=' . rawurlencode($bc) . '&do=save#b-' . $bc;
+        }
+
+    } elseif ($act === 'managers') {
+        /* ผู้จัดการสาขา (ช่วงที่ 12 ข้อ ข) — ติ๊กจากรายชื่อพนักงานที่ประจำสาขานี้ · มีได้หลายคน · ไม่เปลี่ยน = ไม่ลงประวัติ */
+        $errB = $bc;
+        $want = (isset($_POST['mgr']) && is_array($_POST['mgr'])) ? $_POST['mgr'] : array();
+        foreach (branch_staff($bc) as $k => $s) {
+            $e = staff_act_set_manager($k, in_array($k, $want, true), $user);
+            if ($e !== '') {
+                $err = $e;
+                break;
+            }
+        }
+        if ($err === '') {
+            $go = 'adm-branches.php?ok=' . rawurlencode($bc) . '&do=managers#b-' . $bc;
         }
 
     } elseif ($act === 'close') {
@@ -276,13 +293,20 @@ $openB = ($okB !== '' && isset($list[$okB])) ? $okB : (($errB !== '' && isset($l
 <?php foreach ($list as $bc => $b):
     $on     = !empty($b['active']);
     $staff  = branch_staff($bc);
-    $reason = branch_data_reason($bc); ?>
+    $reason = branch_data_reason($bc);
+    $mgrs   = array();                                   // ชื่อผู้จัดการสาขา (ช่วงที่ 12)
+    foreach ($staff as $s) {
+        if (in_array('manager', $s['perms'], true)) {
+            $mgrs[] = $s['name'];
+        }
+    } ?>
   <details class="card acc-item<?= $on ? '' : ' br-off' ?>" id="b-<?= e($bc) ?>"<?= $bc === $openB ? ' open' : '' ?>>
     <summary class="card-head">
       <div>
         <h2><?= e($b['name']) ?> <span class="bdg bdg-adj"><?= e($bc) ?></span>
           <?php if (!$on): ?><span class="bdg bdg-out">ปิดใช้งาน</span><?php endif; ?></h2>
         <span class="sub">พนักงาน <?= count($staff) ?> คน ·
+          ผู้จัดการ <?= $mgrs ? e(implode(', ', $mgrs)) : 'ยังไม่มี' ?> ·
           <?= $on ? (store_is_open($bc) ? 'ร้านเปิดอยู่' : (store_is_closed($bc) ? 'ปิดร้านแล้ววันนี้' : 'ยังไม่เปิดร้านวันนี้')) : 'ซ่อนจากการใช้งาน ประวัติยังอยู่ครบ' ?>
           · เลขที่บิล <?= e(acct_setting($bc, 'prefix_vat')) ?> / <?= e(acct_setting($bc, 'prefix_novat')) ?></span>
       </div>
@@ -329,6 +353,26 @@ $openB = ($okB !== '' && isset($list[$okB])) ? $okB : (($errB !== '' && isset($l
         <?php endforeach; ?>
       </div>
       <button class="btn btn-primary" type="submit"><svg class="ico"><use href="#i-check"/></svg> บันทึก<?= e($b['name']) ?></button>
+    </form>
+
+    <!-- ผู้จัดการสาขา (ช่วงที่ 12) — เลือกจากพนักงานที่ประจำสาขานี้ · มีได้หลายคน -->
+    <form class="adm-sec" method="post" action="adm-branches.php#b-<?= e($bc) ?>">
+      <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+      <input type="hidden" name="act" value="managers">
+      <input type="hidden" name="b" value="<?= e($bc) ?>">
+      <h3>ผู้จัดการสาขา</h3>
+      <p class="adm-hint">เห็นทุกอย่างในสาขา + ได้สิทธิ์ดูข้อมูลและสิทธิ์เสริมทุกตัวอัตโนมัติ · เพิ่ม / แก้ / รีเซ็ต PIN / พักงานพนักงานในสาขาเองได้ (เมนู “พนักงานในสาขา”) · เลือกได้หลายคน</p>
+      <?php if (!$staff): ?>
+        <p class="adm-hint">ยังไม่มีพนักงานประจำสาขานี้ — เพิ่มพนักงานที่หน้าจัดการพนักงานก่อน</p>
+      <?php else: ?>
+        <div class="perm-grid">
+          <?php foreach ($staff as $k => $s): ?>
+            <label class="perm-o"><input type="checkbox" name="mgr[]" value="<?= e($k) ?>"<?= in_array('manager', $s['perms'], true) ? ' checked' : '' ?>>
+              <span><svg class="ico"><use href="#i-check"/></svg><b><?= e($s['name']) ?></b><small><?= e($k) ?></small></span></label>
+          <?php endforeach; ?>
+        </div>
+        <button class="btn btn-primary" type="submit"><svg class="ico"><use href="#i-check"/></svg> บันทึกผู้จัดการ</button>
+      <?php endif; ?>
     </form>
     <?php endif; ?>
 

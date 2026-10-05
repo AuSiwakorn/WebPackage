@@ -6,6 +6,7 @@
  * TABLES: ao_stock_move, ao_stock_balance, ao_stock_doc_seq, ao_stock_receive / issue / count (+ _item), ao_stock_sale (ชนิด SA), ao_stock_log
  * TODO:
  *   - [x] ช่วงที่ 10: แยกจาก api.php เดิม (ย้ายโค้ดทั้งก้อน ไม่แก้ตรรกะ) · จัดฟังก์ชันที่เคยปนอยู่หมวดอื่นให้มาอยู่หมวดนี้
+ *   - [x] ช่วงที่ 11: แก้ไขเอกสารย้อนหลังต้องมีสิทธิ์ของหน้างานคลังชนิดนั้นด้วย
  *
  * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
  */
@@ -666,6 +667,10 @@ function past_doc_void($code, $no, $user, $reason, $redo)
     }
     $t = past_types();
     $t = $t[$doc['kind']];
+    /* แก้ไข = ทำใบใหม่ในหน้างานคลังของชนิดนั้น → ต้องเข้าหน้านั้นได้ด้วย (ช่วงที่ 11) */
+    if ($redo && $user['role'] !== 'admin' && !page_perm_ok($user, $t['page'])) {
+        return array('error' => 'ไม่มีสิทธิ์ทำ' . $t['label'] . ' — ยกเลิกใบนี้ได้ แต่แก้ไขไม่ได้');
+    }
 
     if ($redo) {
         $busy = ($doc['kind'] === 'RC' && rdraft_count() > 0) || ($doc['kind'] === 'IS' && idraft_count() > 0)

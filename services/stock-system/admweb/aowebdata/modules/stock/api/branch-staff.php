@@ -6,6 +6,8 @@
  * TABLES: ao_stock_branch, ao_stock_staff, ao_stock_staff_branch, ao_stock_remember (ลบตอนลบพนักงาน) · ตาราง ao_stock_* อื่น (เช็กก่อนลบสาขา / พนักงาน)
  * TODO:
  *   - [x] ช่วงที่ 10: แยกจาก api.php เดิม (ย้ายโค้ดทั้งก้อน ไม่แก้ตรรกะ) · จัดฟังก์ชันที่เคยปนอยู่หมวดอื่นให้มาอยู่หมวดนี้
+ *   - [x] ช่วงที่ 11: สิทธิ์ในคอลัมน์ perms มีตัวบอกรุ่น (perm_csv) · แปลงสิทธิ์ชุดเดิมตอนอ่าน · ช่องติ๊กสิทธิ์แบ่งหมวด · สรุป / ประวัติการเปลี่ยนสิทธิ์
+ *   - [x] ช่วงที่ 12: งานจัดการพนักงานใช้ร่วมกัน (staff_act_*) ระหว่างผู้ดูแลกับผู้จัดการสาขา · ยืนยัน PIN ของผู้จัดการ · ประวัติชนิด category ไม่นับเป็นข้อมูลสาขา
  *
  * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
  */
@@ -140,7 +142,7 @@ function branch_delete($code)
         return;
     }
     sdb_tx(function () use ($id) {
-        sdb_q('DELETE FROM ' . sdb_tb('log') . ' WHERE branch_id = ? AND type = \'setting\'', array($id));
+        sdb_q('DELETE FROM ' . sdb_tb('log') . ' WHERE branch_id = ? AND type IN (\'setting\', \'category\')', array($id));
         sdb_q('DELETE FROM ' . sdb_tb('branch') . ' WHERE branch_id = ?', array($id));
     });
     branch_db_rows(true);
@@ -259,17 +261,24 @@ function staff_db_reset()
     staff_db_history(true);
 }
 
-/** สิทธิ์จากคอลัมน์ perms (คั่นด้วย ,) — เฉพาะที่มีใน perm_list เรียงตามลำดับเดิม */
+/** สิทธิ์จากคอลัมน์ perms (คั่นด้วย ,) — เฉพาะที่มีใน perm_list เรียงตามลำดับเดิม
+    TODO:
+      - [x] ช่วงที่ 11: ไม่มีตัวบอกรุ่น PERM_VER = สิทธิ์ชุดเดิม → แปลงเป็นชุดใหม่ (perm_from_legacy) */
 function staff_perms_csv($csv)
 {
-    $have = array_filter(array_map('trim', explode(',', (string) $csv)));
-    $out  = array();
-    foreach (array_keys(perm_list()) as $p) {
-        if (in_array($p, $have, true)) {
-            $out[] = $p;
-        }
+    $have = array_values(array_filter(array_map('trim', explode(',', (string) $csv)), 'strlen'));
+    if (!in_array(PERM_VER, $have, true)) {
+        return $have ? perm_from_legacy($have) : array();
     }
-    return $out;
+    return perm_clean($have);
+}
+
+/** สิทธิ์ → ค่าที่เก็บในคอลัมน์ perms (มีตัวบอกรุ่นนำหน้าเสมอ)
+    TODO:
+      - [x] ช่วงที่ 11 */
+function perm_csv($perms)
+{
+    return implode(',', array_merge(array(PERM_VER), perm_clean($perms)));
 }
 
 /**
@@ -338,7 +347,7 @@ function staff_create($d)
             'name'          => $d['name'],
             'initials'      => ($d['initials'] !== '') ? $d['initials'] : auto_initials($d['name']),
             'role'          => $d['role'],
-            'perms'         => implode(',', isset($d['perms']) ? $d['perms'] : array()),
+            'perms'         => perm_csv(isset($d['perms']) ? $d['perms'] : array()),
             'pin_hash'      => $isStaff ? password_hash($d['pin'], PASSWORD_DEFAULT) : '',
             'pin_fp'        => $isStaff ? pin_fp($d['pin']) : null,
             'password_hash' => $isStaff ? '' : password_hash($d['password'], PASSWORD_DEFAULT),
@@ -358,7 +367,7 @@ function staff_update($username, $name, $initials, $perms)
     sdb_update('staff', array(
         'name'     => $name,
         'initials' => ($initials !== '') ? $initials : auto_initials($name),
-        'perms'    => implode(',', $perms),
+        'perms'    => perm_csv($perms),
     ), array('username' => $username));
     staff_db_reset();
 }
@@ -592,7 +601,7 @@ function full_user($user)
 }
 
 /** สาขานี้มีข้อมูลแล้วหรือยัง — คืนเหตุผล (ว่าง = ยังไม่มี ลบได้)
-    ประวัติชนิด setting (ผู้ดูแลเพิ่ม / แก้สาขา) ไม่นับ — ลบไปพร้อมสาขาใน branch_delete()
+    ประวัติชนิด setting (ผู้ดูแลเพิ่ม / แก้สาขา) และ category (เพิ่ม / ลบหมวด · ช่วงที่ 12) ไม่นับ — ลบไปพร้อมสาขาใน branch_delete()
     TODO:
       - [x] เช็กจากตาราง ao_stock_* (พนักงาน ประวัติประจำสาขา เอกสาร สต๊อก ประวัติการทำรายการ)
       - [x] ช่วงที่ 6: เอกสารคลังเช็กจากตารางแล้ว ไม่ดู session
@@ -618,7 +627,7 @@ function branch_data_reason($code)
         'log'          => 'มีประวัติการทำรายการแล้ว',
     );
     foreach ($checks as $t => $why) {
-        $sql = 'SELECT 1 FROM ' . sdb_tb($t) . ' WHERE branch_id = ?' . ($t === 'log' ? ' AND type <> \'setting\'' : '') . ' LIMIT 1';
+        $sql = 'SELECT 1 FROM ' . sdb_tb($t) . ' WHERE branch_id = ?' . ($t === 'log' ? ' AND type NOT IN (\'setting\', \'category\')' : '') . ' LIMIT 1';
         if (sdb_val($sql, array($id)) !== null) {
             return $why;
         }
@@ -693,6 +702,47 @@ function perm_names($keys)
     return $out ? implode(' · ', $out) : 'ไม่มี';
 }
 
+/** สิทธิ์ที่เปลี่ยน สำหรับลงประวัติ — array('เพิ่มสิทธิ์' => ชื่อ, 'เอาสิทธิ์ออก' => ชื่อ) เฉพาะฝั่งที่มี
+    TODO:
+      - [x] ช่วงที่ 11: สิทธิ์มีหลายตัวขึ้น ประวัติบอกเฉพาะที่เพิ่ม / เอาออก แทนการลงทั้งชุดเดิมและชุดใหม่ */
+function perm_changes($before, $after)
+{
+    $out = array();
+    $add = array_values(array_diff($after, $before));
+    $del = array_values(array_diff($before, $after));
+    if ($add) {
+        $out['เพิ่มสิทธิ์'] = perm_names(array_intersect(array_keys(perm_list()), $add));     // เรียงตาม perm_list (ไม่ผ่าน perm_clean — ตัวพ่วงที่ตัวหลักมีอยู่แล้วต้องไม่หาย)
+    }
+    if ($del) {
+        $out['เอาสิทธิ์ออก'] = perm_names(array_intersect(array_keys(perm_list()), $del));
+    }
+    return $out;
+}
+
+/** สรุปสิทธิ์รายหมวด สำหรับตารางรายชื่อ — array( หมวด => array(have, total, names) ) เฉพาะหมวดที่มีอย่างน้อย 1 ตัว
+    ไม่นับ manager — ตำแหน่งผู้จัดการแสดงเป็นป้ายข้างชื่อแทน (ช่วงที่ 12)
+    TODO:
+      - [x] ช่วงที่ 11 */
+function perm_summary($perms)
+{
+    $out = array();
+    foreach (perm_list() as $k => $p) {
+        if ($k === 'manager') {
+            continue;
+        }
+        $g = $p['group'];
+        if (!isset($out[$g])) {
+            $out[$g] = array('have' => 0, 'total' => 0, 'names' => array());
+        }
+        $out[$g]['total']++;
+        if (in_array($k, $perms, true)) {
+            $out[$g]['have']++;
+            $out[$g]['names'][] = $p['short'];
+        }
+    }
+    return array_filter($out, function ($g) { return $g['have'] > 0; });
+}
+
 /** อักษรย่อจากชื่อ — ตัวแรกของชื่อและนามสกุล (ข้ามสระ/วรรณยุกต์ที่วางบน-ล่าง) */
 function auto_initials($name)
 {
@@ -740,17 +790,11 @@ function staff_data_reason($k)
     return '';
 }
 
-/** อ่านสิทธิ์จากฟอร์ม (เรียงตามลำดับใน perm_list) */
+/** อ่านสิทธิ์จากฟอร์ม (เรียงตามลำดับใน perm_list · ตัดสิทธิ์ที่ขาดตัวที่ต้องมีออก — ช่วงที่ 11) */
 function read_perms()
 {
-    $in  = (isset($_POST['perms']) && is_array($_POST['perms'])) ? $_POST['perms'] : array();
-    $out = array();
-    foreach (array_keys(perm_list()) as $p) {
-        if (in_array($p, $in, true)) {
-            $out[] = $p;
-        }
-    }
-    return $out;
+    $in = (isset($_POST['perms']) && is_array($_POST['perms'])) ? $_POST['perms'] : array();
+    return perm_clean(array_filter($in, 'is_string'));
 }
 
 /** ลายนิ้วมือของ PIN = HMAC-SHA256 ด้วย AOSTOCK_SECRET_KEY — เทียบ PIN ซ้ำได้โดยไม่ต้องรู้ PIN จริง · ไม่มีกุญแจ = null
@@ -810,27 +854,337 @@ function staff_pin_conflict($username, $branch)
     return '';
 }
 
-/** ช่องติ๊กสิทธิ์ แยกกลุ่ม "เมนูที่ใช้ได้" / "สิทธิ์เสริม" */
-function perm_boxes($checked, $branch)
+/** ช่องติ๊กสิทธิ์ แยกตามหมวด (perm_groups) — สิทธิ์ที่ต้องมีตัวอื่นก่อนมี data-needs ให้ footer.php ปิด/เปิดช่องตาม
+    $only = หมวดที่แสดง (null = ทุกหมวด · หน้าผู้จัดการสาขาไม่แสดงหมวดสิทธิ์เสริม)
+    TODO:
+      - [x] ช่วงที่ 11: แบ่ง 6 หมวด · คำอธิบายใต้สิทธิ์ · บอกว่าต้องมีสิทธิ์ไหนก่อน
+      - [x] ช่วงที่ 12: เลือกหมวดที่แสดงได้ · ผู้จัดการสาขาไม่อยู่ในช่องติ๊ก — เลือกที่ "ตำแหน่ง" (staff_position_field) */
+function perm_boxes($checked, $branch, $only = null)
 {
-    $pl = perm_list();
-    foreach (array('menu' => 'เมนูที่ใช้ได้', 'extra' => 'สิทธิ์เสริม (ให้เฉพาะคนที่ไว้ใจ)') as $g => $title) {
+    $pl   = perm_list();
+    $days = (int) backdate_days($branch) . ' วัน (ตั้งที่หน้าจัดการสาขา)';
+    $hint = array(
+        'sale'         => 'ไม่ติ๊ก = พนักงานคลังอย่างเดียว',
+        'discount'     => 'ไม่ติ๊ก = ขายราคาเต็มเท่านั้น',
+        'store'        => 'นับเงินทอนตอนเปิด · นับเงินสดตอนปิด',
+        'store_reopen' => 'ใช้เมื่อปิดร้านไปแล้วแต่ยังต้องขายต่อ · ต้องระบุเหตุผล',
+        'cash'         => 'เติมเงินทอน / หยิบเงินออกระหว่างวัน',
+        'refund'       => 'บิลย้อนหลังได้ ' . $days,
+        'refund_cash'  => 'ไม่ติ๊ก = รับคืนได้แต่ไม่คืนเงินสด',
+        'backdate'     => 'ย้อนหลังได้ ' . $days,
+    );
+    foreach (perm_groups() as $g => $title) {
+        if ($only !== null && !in_array($g, $only, true)) {
+            continue;
+        }
         echo '<h4 class="perm-h">' . e($title) . '</h4><div class="perm-grid">';
         foreach ($pl as $k => $p) {
-            if ($p['group'] !== $g) {
+            if ($p['group'] !== $g || $k === 'manager') {
                 continue;
             }
+            $needs = isset($p['needs']) ? $p['needs'] : array();
             echo '<label class="perm-o"><input type="checkbox" name="perms[]" value="' . e($k) . '"'
+               . ($needs ? ' data-needs="' . e(implode(' ', $needs)) . '"' : '')
                . (in_array($k, $checked, true) ? ' checked' : '') . '><span><svg class="ico"><use href="#i-check"/></svg><b>'
                . e($p['label']) . '</b>';
-            if ($k === 'backdate' || $k === 'refund') {
-                echo '<small>ย้อนหลังได้ ' . (int) backdate_days($branch) . ' วัน (ตั้งที่หน้าจัดการสาขา)</small>';
+            if (isset($hint[$k])) {
+                echo '<small>' . e($hint[$k]) . '</small>';
             }
-            if ($k === 'sale') {
-                echo '<small>ไม่ติ๊ก = พนักงานคลังอย่างเดียว ไม่ต้องเปิดร้านก่อนใช้งาน</small>';
+            if ($needs) {
+                $nm = array();
+                foreach ($needs as $n) {
+                    $nm[] = $pl[$n]['short'];
+                }
+                echo '<small class="perm-needs">ต้องมี ' . e(implode(' หรือ ', $nm)) . ' ด้วย</small>';
             }
             echo '</span></label>';
         }
         echo '</div>';
     }
+}
+
+/* ==========================================================
+   งานจัดการพนักงาน — ใช้ร่วมกันระหว่างผู้ดูแล (adm-users.php / adm-user-add.php) และผู้จัดการสาขา (team.php) · ช่วงที่ 12
+   ----------------------------------------------------------
+   staff_act_*: ตรวจข้อมูล → เขียน → ลงประวัติของสาขา (ชนิด setting) · คืน '' = สำเร็จ หรือข้อความผิดพลาด
+   ใครแก้ใครได้ เช็กที่หน้า: ผู้ดูแลแก้พนักงานได้ทุกคน · ผู้จัดการสาขาใช้ manager_target_error ก่อนเรียก
+   ข้อความผิดพลาด / ประวัติ เหมือนของหน้าผู้ดูแลเดิมทุกคำ (ย้ายมาจาก adm-users.php / adm-user-add.php)
+   ========================================================== */
+
+/** บทบาทของผู้ทำ ต่อท้ายชื่อในประวัติ — (ผู้ดูแล) / (ผู้จัดการสาขา)
+    TODO:
+      - [x] ช่วงที่ 12 */
+function actor_label($user)
+{
+    if ($user['role'] === 'admin') {
+        return 'ผู้ดูแล';
+    }
+    return user_role_label($user);
+}
+
+/** เพิ่มพนักงาน — $in: name username initials branch pin perms
+    คืน array('username' => ชื่อผู้ใช้ที่ได้) หรือ array('error' => ข้อความ)
+    TODO:
+      - [x] ช่วงที่ 12: ย้ายจาก adm-user-add.php ให้ team.php ใช้ด้วย */
+function staff_act_add($in, $actor)
+{
+    $br    = branches_active();
+    $name  = trim(preg_replace('/\s+/u', ' ', (string) $in['name']));
+    $uname = strtolower(trim((string) $in['username']));
+    $ini   = trim((string) $in['initials']);
+    $bc    = (string) $in['branch'];
+    $pin   = preg_replace('/\D/', '', (string) $in['pin']);
+    $perms = perm_clean($in['perms']);
+
+    $everyone = users_all();
+    if ($uname === '') {                                 // ไม่กรอก → ตั้งให้อัตโนมัติ
+        $n = 1;
+        while (array_key_exists('staff' . $n, $everyone)) {
+            $n++;
+        }
+        $uname = 'staff' . $n;
+    }
+    if ($name === '') {
+        return array('error' => 'กรุณากรอกชื่อพนักงาน');
+    } elseif (!preg_match('/^[a-z0-9_]{3,20}$/', $uname)) {
+        return array('error' => 'ชื่อผู้ใช้ต้องเป็นภาษาอังกฤษพิมพ์เล็ก ตัวเลข หรือ _ ยาว 3–20 ตัว');
+    } elseif (isset($everyone[$uname])) {
+        return array('error' => 'ชื่อผู้ใช้ ' . $uname . ' มีคนใช้แล้ว');
+    } elseif (!isset($br[$bc])) {
+        return array('error' => 'กรุณาเลือกสาขาที่ประจำ');
+    } elseif (strlen($pin) !== 4) {
+        return array('error' => 'PIN ต้องเป็นตัวเลข 4 หลัก');
+    } elseif (($dup = pin_owner($bc, $pin, '')) !== '') {
+        return array('error' => 'PIN นี้ซ้ำกับ ' . $dup . ' ในสาขาเดียวกัน กรุณาใช้เลขอื่น');
+    } elseif (!$perms) {
+        return array('error' => 'กรุณาเลือกสิทธิ์อย่างน้อย 1 อย่าง');
+    }
+    staff_create(array(
+        'username' => $uname, 'name' => $name, 'initials' => $ini, 'role' => 'staff',
+        'branch' => $bc, 'perms' => $perms, 'pin' => $pin,
+    ));
+    log_add($bc, 'setting', $actor, 'เพิ่มพนักงานใหม่ ' . $name, array(
+        'ชื่อผู้ใช้' => $uname,
+        'สิทธิ์'    => perm_names($perms),
+        'เพิ่มโดย'  => $actor['name'] . ' (' . actor_label($actor) . ')',
+    ));
+    return array('username' => $uname);
+}
+
+/** แก้ชื่อ / อักษรย่อ / สิทธิ์ ($name ตัดช่องว่างซ้ำแล้ว)
+    TODO:
+      - [x] ช่วงที่ 12: ย้ายจาก adm-users.php (act=save) */
+function staff_act_save($username, $name, $ini, $perms, $actor)
+{
+    $all = staff_all();
+    if (!isset($all[$username])) {
+        return 'ไม่พบพนักงานคนนี้';
+    }
+    $u     = $all[$username];
+    $perms = perm_clean($perms);
+    if ($name === '') {
+        return 'กรุณากรอกชื่อพนักงาน';
+    } elseif (!$perms) {
+        return 'กรุณาเลือกสิทธิ์อย่างน้อย 1 อย่าง — ถ้าไม่ให้ใช้งานแล้ว ใช้ “พักงาน / ลาออก” แทน';
+    }
+    $before  = isset($u['perms']) ? $u['perms'] : array();
+    $changes = array();
+    if ($name !== $u['name']) {
+        $changes['ชื่อ'] = $u['name'] . ' → ' . $name;
+    }
+    $changes = array_merge($changes, perm_changes($before, $perms));     // ช่วงที่ 11: บอกเฉพาะที่เพิ่ม / เอาออก
+    staff_update($username, $name, $ini, $perms);
+    if ($changes) {
+        $changes['แก้โดย'] = $actor['name'] . ' (' . actor_label($actor) . ')';
+        log_add($u['branch'], 'setting', $actor, 'แก้ข้อมูลพนักงาน ' . $name, $changes);
+    }
+    return '';
+}
+
+/** รีเซ็ต PIN (ห้ามซ้ำกับคนอื่นในสาขา · ประวัติไม่แสดงเลข PIN)
+    TODO:
+      - [x] ช่วงที่ 12: ย้ายจาก adm-users.php (act=pin) */
+function staff_act_pin($username, $pin, $actor)
+{
+    $all = staff_all();
+    if (!isset($all[$username])) {
+        return 'ไม่พบพนักงานคนนี้';
+    }
+    $u   = $all[$username];
+    $pin = preg_replace('/\D/', '', (string) $pin);
+    if (strlen($pin) !== 4) {
+        return 'PIN ต้องเป็นตัวเลข 4 หลัก';
+    } elseif (($dup = pin_owner($u['branch'], $pin, $username)) !== '') {
+        return 'PIN นี้ซ้ำกับ ' . $dup . ' ในสาขาเดียวกัน กรุณาใช้เลขอื่น';
+    }
+    staff_set_pin($username, $pin);
+    log_add($u['branch'], 'setting', $actor, 'รีเซ็ต PIN ของ ' . $u['name'], array(
+        'แก้โดย' => $actor['name'] . ' (' . actor_label($actor) . ')', 'หมายเหตุ' => 'ไม่แสดงเลข PIN ในประวัติ',
+    ));
+    return '';
+}
+
+/** พักงาน / ลาออก ($on = false) หรือเปิดใช้งานอีกครั้ง ($on = true)
+    TODO:
+      - [x] ช่วงที่ 12: ย้ายจาก adm-users.php (act=off / on) */
+function staff_act_active($username, $on, $why, $actor)
+{
+    $all = staff_all();
+    if (!isset($all[$username])) {
+        return 'ไม่พบพนักงานคนนี้';
+    }
+    $u   = $all[$username];
+    $br  = branches_active();
+    $why = trim((string) $why);
+    if ($on && !isset($br[$u['branch']])) {
+        return 'สาขาเดิมของ ' . $u['name'] . ' ถูกปิดใช้งานแล้ว — เปิดสาขาก่อน หรือย้ายสาขาก่อนเปิดใช้งาน';
+    } elseif ($on && $u['role'] === 'staff' && ($dup = staff_pin_conflict($username, $u['branch'])) !== '') {
+        return 'PIN ของ ' . $u['name'] . ' ซ้ำกับ ' . $dup . ' ในสาขาเดียวกันแล้ว — รีเซ็ต PIN ก่อนเปิดใช้งาน';     // ช่วงที่ 10
+    }
+    staff_set_active($username, $on);
+    log_add($u['branch'], 'setting', $actor, ($on ? 'เปิดใช้งาน ' : 'พักงาน / ลาออก ') . $u['name'], array(
+        'เหตุผล' => $on ? '—' : ($why !== '' ? $why : 'ไม่ได้ระบุ'),
+        'แก้โดย' => $actor['name'] . ' (' . actor_label($actor) . ')',
+    ));
+    return '';
+}
+
+/** ลบพนักงาน — ได้เฉพาะคนที่ยังไม่เคยทำรายการ และต้องติ๊กยืนยัน ($sure)
+    TODO:
+      - [x] ช่วงที่ 12: ย้ายจาก adm-users.php (act=delete) */
+function staff_act_delete($username, $sure, $actor)
+{
+    $all = staff_all();
+    if (!isset($all[$username])) {
+        return 'ไม่พบพนักงานคนนี้';
+    }
+    $u   = $all[$username];
+    $why = staff_data_reason($username);
+    if ($why !== '') {
+        return 'ลบไม่ได้ เพราะ' . $why . ' — ใช้ “พักงาน / ลาออก” แทน ชื่อในเอกสารเก่าจะไม่หาย';
+    } elseif (!$sure) {
+        return 'กรุณาติ๊กยืนยันก่อนลบพนักงาน';
+    }
+    staff_delete($username);
+    log_add($u['branch'], 'setting', $actor, 'ลบพนักงาน ' . $u['name'], array('แก้โดย' => $actor['name'] . ' (' . actor_label($actor) . ')'));
+    return '';
+}
+
+/** ผู้จัดการสาขาแก้พนักงานคนนี้ได้ไหม — '' = ได้ หรือเหตุผลที่ไม่ได้
+    ได้เฉพาะพนักงาน (ไม่ใช่ผู้จัดการ รวมตัวเอง) ที่ประจำสาขาเดียวกัน · ผู้จัดการคนอื่น / ย้ายสาขา / ตั้งผู้จัดการ เป็นของผู้ดูแล
+    TODO:
+      - [x] ช่วงที่ 12 (ข้อ 2ข) */
+function manager_target_error($manager, $username)
+{
+    $all = staff_all();
+    if (!isset($all[$username])) {
+        return 'ไม่พบพนักงานคนนี้';
+    }
+    $u = $all[$username];
+    if ($u['branch'] !== work_branch($manager)) {
+        return 'พนักงานคนนี้ไม่ได้ประจำสาขาของคุณ';
+    }
+    if (in_array('manager', $u['perms'], true)) {
+        return 'ผู้จัดการสาขาแก้ไขได้เฉพาะผู้ดูแล';
+    }
+    return '';
+}
+
+/** สิทธิ์หลังผู้จัดการสาขาบันทึก = สิทธิ์ที่ติ๊กมา (เฉพาะหมวดที่ผู้จัดการให้ได้) + สิทธิ์เสริมเดิมของคนนั้น (ผู้ดูแลให้ไว้ ห้ามหาย)
+    TODO:
+      - [x] ช่วงที่ 12 (ข้อ 2ก) */
+function perm_merge_by_manager($ticked, $before)
+{
+    $grant = perm_manager_grantable();
+    return perm_clean(array_merge(array_intersect((array) $ticked, $grant), array_diff((array) $before, $grant)));
+}
+
+/** ยืนยันตัวตนด้วย PIN ของตัวเองก่อนจัดการพนักงาน (เครื่อง POS ใช้ร่วมกัน) — '' = ผ่าน
+    กรอกผิดนับรวมกับการเข้าระบบ: ครบ STAFF_LOCK_FAILS ครั้ง ล็อก STAFF_LOCK_MINUTES นาที (เข้าระบบใหม่ก็ไม่ได้จนพ้นเวลา)
+    TODO:
+      - [x] ช่วงที่ 12 (ข้อ 3ก) */
+function staff_pin_confirm($username, $pin)
+{
+    $left = staff_locked_left($username);
+    if ($left > 0) {
+        return 'PIN ของคุณถูกล็อกอีก ' . (int) ceil($left / 60) . ' นาที เพราะกรอกผิดหลายครั้ง';
+    }
+    $row = staff_auth_row($username);
+    $pin = preg_replace('/\D/', '', (string) $pin);
+    if ($row === null || $row['pin_hash'] === '' || strlen($pin) !== 4 || !password_verify($pin, $row['pin_hash'])) {
+        staff_login_failed($username);
+        return 'PIN ยืนยันตัวตนไม่ถูกต้อง — กรอกผิด ' . STAFF_LOCK_FAILS . ' ครั้งจะถูกล็อก ' . STAFF_LOCK_MINUTES . ' นาที';
+    }
+    if ((int) $row['fail_count'] > 0) {
+        sdb_update('staff', array('fail_count' => 0), array('staff_id' => (int) $row['staff_id']));
+        staff_db_reset();
+    }
+    return '';
+}
+
+/* ---------- ตำแหน่ง: พนักงาน / ผู้จัดการสาขา (ช่วงที่ 12 ข้อ ก + ข) ----------
+   ผู้จัดการสาขา = สิทธิ์ manager ในคอลัมน์ perms เหมือนเดิม แต่หน้าจอให้เลือกเป็น "ตำแหน่ง" แยกจากช่องติ๊กสิทธิ์
+   ตั้งได้ 2 ทาง: หน้าจัดการพนักงาน (ช่องตำแหน่งบนสุด) และหน้าจัดการสาขา (เลือกผู้จัดการรายสาขา) */
+
+/** สิทธิ์ชุดนี้ + ตั้ง / ปลดผู้จัดการ
+    TODO:
+      - [x] ช่วงที่ 12 */
+function perm_set_manager($perms, $on)
+{
+    $p = array_values(array_diff((array) $perms, array('manager')));
+    if ($on) {
+        $p[] = 'manager';
+    }
+    return perm_clean($p);
+}
+
+/** ช่องเลือกตำแหน่ง (name="position" = staff | manager) — วางบนสุดของฟอร์มเพิ่ม / แก้พนักงานของผู้ดูแล
+    TODO:
+      - [x] ช่วงที่ 12 (ข้อ ก) */
+function staff_position_field($isManager)
+{
+    $opts = array(
+        'staff'   => array('พนักงาน', 'ทำงานได้ตามสิทธิ์ที่ติ๊กด้านล่าง'),
+        'manager' => array('ผู้จัดการสาขา', 'เห็นทุกอย่างในสาขา + ได้สิทธิ์ดูข้อมูลและสิทธิ์เสริมทุกตัวอัตโนมัติ · เพิ่ม / แก้ / รีเซ็ต PIN / พักงานพนักงานในสาขาเองได้ (เมนู “พนักงานในสาขา”) · งานขาย / งานคลังยังตามที่ติ๊ก'),
+    );
+    echo '<h4 class="perm-h">ตำแหน่ง</h4><div class="perm-grid staff-pos">';
+    foreach ($opts as $k => $o) {
+        echo '<label class="perm-o"><input type="radio" name="position" value="' . e($k) . '"'
+           . ((($k === 'manager') === (bool) $isManager) ? ' checked' : '') . '><span><svg class="ico"><use href="#i-check"/></svg><b>'
+           . e($o[0]) . '</b><small>' . e($o[1]) . '</small></span></label>';
+    }
+    echo '</div>';
+}
+
+/** เขียนเฉพาะสิทธิ์ (ไม่แตะชื่อ / อักษรย่อ)
+    TODO:
+      - [x] ช่วงที่ 12 */
+function staff_set_perms($username, $perms)
+{
+    sdb_update('staff', array('perms' => perm_csv($perms)), array('username' => $username));
+    staff_db_reset();
+}
+
+/** ตั้ง / ปลดผู้จัดการสาขา (หน้าจัดการสาขา) — ไม่เปลี่ยน = ไม่ทำอะไร · คืน '' หรือข้อความผิดพลาด
+    TODO:
+      - [x] ช่วงที่ 12 (ข้อ ข) */
+function staff_act_set_manager($username, $on, $actor)
+{
+    $all = staff_all();
+    if (!isset($all[$username])) {
+        return 'ไม่พบพนักงานคนนี้';
+    }
+    $u = $all[$username];
+    if (in_array('manager', $u['perms'], true) === (bool) $on) {
+        return '';
+    }
+    if ($on && !user_active($u)) {
+        return $u['name'] . ' พักงานอยู่ — เปิดใช้งานก่อนจึงจะตั้งเป็นผู้จัดการได้';
+    }
+    staff_set_perms($username, perm_set_manager($u['perms'], $on));
+    log_add($u['branch'], 'setting', $actor, ($on ? 'ตั้ง ' . $u['name'] . ' เป็นผู้จัดการสาขา' : 'ปลด ' . $u['name'] . ' จากผู้จัดการสาขา'), array(
+        'สาขา'  => branch_name($u['branch']),
+        'แก้โดย' => $actor['name'] . ' (' . actor_label($actor) . ')',
+    ));
+    return '';
 }

@@ -7,6 +7,7 @@
  * TODO:
  *   - [x] ย้ายจาก demo/ เข้า themes/aostock/ (วิ่งผ่าน router ของ admweb)
  *   - [x] ช่วงที่ 7: บิลลงตาราง · บันทึก / ยกเลิกไม่ผ่าน (ของไม่พอ ร้านปิด มีรับคืนแล้ว) แสดงข้อความ
+ *   - [x] ช่วงที่ 11: แก้ / ยกเลิกบิลของตัวเองต้องมีสิทธิ์ bill_fix · ร้านยังไม่เปิดและไม่มีสิทธิ์เปิดร้าน → กลับหน้าแรกพร้อมข้อความ
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -27,8 +28,13 @@ require_once dirname(__FILE__) . '/include/function.php';
 $user = require_login();
 $code = work_branch($user);          // ผู้ดูแลเลือกสาขาได้จากแถบบน
 
-/* ขายได้ต่อเมื่อเปิดร้านแล้ว */
+/* ขายได้ต่อเมื่อเปิดร้านแล้ว — ไม่มีสิทธิ์เปิดร้าน (ช่วงที่ 11) ไปหน้าเปิดร้านไม่ได้ → กลับหน้าแรกพร้อมบอกเหตุผล */
 if (!store_is_open($code)) {
+    if (!page_ok($user, 'store.php')) {
+        $_SESSION['flash'] = store_is_closed($code) ? 'ร้านปิดแล้วสำหรับวันนี้ — ขายต่อไม่ได้' : 'ร้านยังไม่เปิด — รอคนที่มีสิทธิ์ “เปิด / ปิดร้าน” เปิดร้านก่อน';
+        header('Location: ' . url(home_page($user)));
+        exit;
+    }
     header('Location: ' . url('store.php'));
     exit;
 }
@@ -72,8 +78,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $chk    = bill_by_no($code, $no);
 
-            if ($chk !== null && !can_void_doc($user, $chk)) {
-                $err = 'บิลนี้เป็นของพนักงานคนอื่น — ต้องมีสิทธิ์แก้งานคนอื่นจึงจะแก้หรือยกเลิกได้';
+            if ($chk !== null && !can_void_doc($user, $chk, 'bill')) {
+                $err = ($chk['by_user'] === $user['username'])
+                     ? 'ไม่มีสิทธิ์ “แก้บิลตัวเอง” — ติดต่อผู้ดูแลเพื่อเปิดสิทธิ์'
+                     : 'บิลนี้เป็นของพนักงานคนอื่น — ต้องมีสิทธิ์แก้งานคนอื่นจึงจะแก้หรือยกเลิกได้';
             } elseif (bill_returned_any($no)) {
                 $err = 'บิลนี้มีการรับคืนสินค้าไปแล้ว — ยกเลิกหรือแก้ทั้งบิลไม่ได้ ให้ใช้การรับคืนแทน';
             } elseif ($reason === '') {

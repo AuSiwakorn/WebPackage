@@ -7,6 +7,7 @@
  * TODO:
  *   - [x] ย้ายจาก demo/ เข้า themes/aostock/ (วิ่งผ่าน router ของ admweb)
  *   - [x] ช่วงที่ 7: บิลที่บันทึกแล้วอยู่ในตาราง — ไฟล์นี้แสดงตะกร้า + สรุปยอดวันนี้
+ *   - [x] ช่วงที่ 11: ช่องแก้ยอดชำระ (ส่วนลด) เฉพาะคนที่มีสิทธิ์ discount · ลิงก์ประวัติตามสิทธิ์
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -171,7 +172,14 @@ $base = 'sale.php' . ($qs !== '' ? '?' . $qs : '');
           <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
           <input type="hidden" name="act" value="pay">
 
-          <?php /* ยอดที่ต้องชำระแก้ได้ — ลดราคาให้ลูกค้า ระบบลงเป็น "ส่วนลด" ในบิลให้เอง (เพิ่มเกินราคาจริงไม่ได้) */ ?>
+          <?php /* ยอดที่ต้องชำระแก้ได้ — ลดราคาให้ลูกค้า ระบบลงเป็น "ส่วนลด" ในบิลให้เอง (เพิ่มเกินราคาจริงไม่ได้)
+                   ไม่มีสิทธิ์ให้ส่วนลด = แสดงยอดเต็มอย่างเดียว (ช่วงที่ 11 — ฝั่งเซิร์ฟเวอร์คิดราคาเต็มเสมออยู่แล้ว) */ ?>
+          <?php if (!can($user, 'discount')): ?>
+          <div class="pay-tot">
+            <span>ยอดที่ต้องชำระ</span>
+            <b class="num" id="total" data-v="<?= (int) $tot ?>"><?= money2($tot) ?></b>
+          </div>
+          <?php else: ?>
           <div class="pay-tot pay-net">
             <label for="net">ยอดที่ต้องชำระ<small>แก้ได้ถ้าลดราคาให้ลูกค้า</small></label>
             <input class="num" type="text" inputmode="decimal" id="net" name="net" autocomplete="off"
@@ -184,6 +192,7 @@ $base = 'sale.php' . ($qs !== '' ? '?' . $qs : '');
             <div class="d"><span>ส่วนลด</span><b class="num" id="disc">−0.00</b></div>
           </div>
           <p class="pay-err" id="net-err" hidden>ยอดชำระต้องมากกว่า 0 และไม่เกินราคาเต็ม <?= money2($tot) ?> บาท</p>
+          <?php endif; ?>
 
           <?php /* บิล VAT กับไม่ VAT ใช้เลขที่คนละชุด — พนักงานเลือกตามที่ลูกค้าต้องการ */ ?>
           <div class="pay-how pay-vat">
@@ -238,9 +247,11 @@ $base = 'sale.php' . ($qs !== '' ? '?' . $qs : '');
       <?php if ($sum['bills'] > 0): ?>
         <div class="kv1"><span>เงินสด</span><b class="num"><?= money2($sum['cash']) ?></b></div>
         <div class="kv1"><span>โอน / พร้อมเพย์</span><b class="num"><?= money2($sum['transfer']) ?></b></div>
+        <?php if (page_ok($user, 'history.php')): ?>
         <a class="btn btn-block" href="history.php?t=sale">
           <svg class="ico"><use href="#i-history"/></svg> ดูประวัติบิลวันนี้
         </a>
+        <?php endif; ?>
       <?php endif; ?>
     </div>
   </aside>

@@ -10,6 +10,7 @@
  *   - [x] stock_doc_seq ใช้คอลัมน์ period รองรับทั้งเลขบิลรายเดือนและเลขเอกสารคลังรายวัน
  *   - [x] ช่วงที่ 7: stock_store_day.reopen_count ($sqlAlter) · เงินคืนลูกค้าไม่ลง stock_cash_move
  *   - [x] ช่วงที่ 10: stock_branch.daily_goal + stock_staff.pin_fp ($sqlAlter) · ตารางใหม่ stock_remember (จดจำการเข้าสู่ระบบ) — ต้องกด Reinstall
+ *   - [x] ช่วงที่ 11: สิทธิ์พนักงานชุดใหม่ใน stock_staff.perms (อธิบายด้านล่าง) — โครงสร้างไม่เปลี่ยน ไม่ต้อง Reinstall
  *   - [ ] เพิ่มคอลัมน์ทีหลัง: ใส่ $sqlAlter[ตาราง][คอลัมน์] = "ALTER TABLE ... ADD COLUMN ..." (ไม่ต้องใส่ IF NOT EXISTS — ตัวติดตั้งเช็กคอลัมน์ให้เอง)
  */
 /* ==========================================================
@@ -84,13 +85,14 @@ $sqlAlter[_DBPREFIX_ . 'stock_branch']['daily_goal'] = "ALTER TABLE `" . _DBPREF
       role: staff=พนักงาน (เมนูตามที่ติ๊กใน perms เฉพาะสาขาตนเอง) · admin=ผู้ดูแล (ทุกสาขา ไม่ขาย)
       ไม่มีบทบาทหัวหน้าคลัง — ใช้สิทธิ์เสริม perms ติ๊กให้พนักงานรายคนแทน
       ผู้ดูแลเพิ่ม / แก้ / พักงาน / ลบ พนักงานได้ที่หน้า "จัดการพนักงาน" (ลบได้เฉพาะคนที่ยังไม่เคยทำรายการ)
-      perms (คั่นด้วย ,) แบ่ง 2 กลุ่ม
-        เมนูที่ใช้ได้: sale ขาย + เปิด/ปิดร้าน · receive นำเข้าสินค้า · issue เบิก/ตัดออก
-                      · stocktake ตรวจนับ/ปรับยอด · history ประวัติการทำรายการของสาขา · refund รับคืนสินค้า
-                      · category จัดการหมวดสินค้า (เพิ่ม / ลบหมวดที่ยังไม่มีสินค้า)
-        สิทธิ์เสริม:   void_others แก้/ยกเลิกเอกสารคนอื่นในสาขา · backdate แก้ย้อนหลัง
-                      · report_branch รายงานยอดขายทั้งสาขา
-      admin ได้ทุกสิทธิ์ ยกเว้น sale (ผู้ดูแลไม่ขาย / ไม่เปิด-ปิดร้าน)
+      perms (คั่นด้วย ,) — ช่วงที่ 11 ขึ้นต้นด้วยตัวบอกรุ่น v2 ตามด้วยสิทธิ์ 21 ตัว (รายการเต็ม: perm_list ใน api/core.php)
+        หน้าร้าน:  sale discount store store_reopen cash bill_fix
+        งานคลัง:   receive issue stocktake doc_fix
+        รับคืน:    refund refund_cash        หมวดสินค้า: category_add category_del
+        ดูข้อมูล:  products movements history report
+        สิทธิ์เสริม: void_others backdate report_branch
+      แถวที่ไม่มี v2 = สิทธิ์ชุดเดิม 7 ตัว (sale receive issue stocktake history refund category) → แปลงตอนอ่าน ไม่ต้อง Reinstall
+      admin ได้ทุกสิทธิ์ ยกเว้นงานหน้าร้าน / งานคลัง / หมวดสินค้าฝั่งพนักงาน (ผู้ดูแลไม่ขาย / ไม่เปิด-ปิดร้าน)
       branch_id = สาขาปัจจุบัน (admin ใส่สาขาหลักได้ แต่สลับดูทุกสาขา)
       fail_count / locked_until = กรอกผิด 5 ครั้งล็อก 15 นาที
       pin_fp = ลายนิ้วมือของ PIN (HMAC-SHA256 ด้วย AOSTOCK_SECRET_KEY) ไว้เช็ก PIN ซ้ำในสาขาตอนย้ายสาขา / เปิดใช้งานกลับ
