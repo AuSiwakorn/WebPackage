@@ -1,0 +1,158 @@
+วิธีติดตั้ง CKEditor 5 + CKFinder 
+===========================================================================================================================================================================
+===========================================================================================================================================================================
+===========================================================================================================================================================================
+
+1. นำโฟล์เดอร์ ckedtor5 และ ckfinder ที่อยู่ใน admweb/include/editor/ ทั้ง 2 ตัวนำไปใส่โปรเจกต์ admweb ที่ต้องการจะติดตั้ง นำทั้ง 2 โฟลเดอร์นี้ไปที่ admweb/include/editor/ เหมือนเดิม
+
+===========================================================================================================================================================================
+
+2. นำไฟล์ editor.php ที่อยู่ใน admweb/include/pages_inc/ นำไปใส่ทับในโปรเจกต์ admweb ที่ต้องการจะติดตั้งลงใน admweb/include/pages_inc/ เหมือนเดิม
+
+===========================================================================================================================================================================
+
+3.  ไปที่ admweb/core/siteconfig/config/db_config.php ไปแก้ไขโค้ดที่บรรทัด 73 - 81 แก้ไขที่ 
+
+$__dbConfigWebsite[$_k]['editortype']['data']     = array(
+    'ckeditor' => 'ckeditor',
+    'summernote' => 'summernote',
+);
+
+เป็น
+
+$__dbConfigWebsite[$_k]['editortype']['data']     = array(
+    'ckeditor' => 'ckeditor',
+    'ckeditor5' => 'ckeditor5',
+    'summernote' => 'summernote',
+);
+
+===========================================================================================================================================================================
+
+4. ไปที่ไฟล์ fix.[domain].php จากนั้นใส่โค้ด 2 บรรทัดนี้
+$aConfig['codeBlock'] = 'true';
+$aConfig['insertHTML'] = 'true';
+
+===========================================================================================================================================================================
+
+5. ไปที่โฟลเดอร์ admweb/plugins/articles/option แก้ไขไฟล์ 4 ไฟล์นี้ 
+
+5.1 isContent1.php
+
+===============
+<?php if ($isOpens['isContent']) { ?>
+	<div class="form-group">
+		<div><?php echo @$tagname['isContent']; ?></div>
+		<div>
+			<?php if ($isOpens['EDTNAME'] === 'ckeditor5') {
+			?>
+				<div id="editor1_<?php echo $kLang; ?>" style="min-height: 600px;"><?php echo @$content; ?></div>
+				<textarea name="frm[<?php echo $kLang; ?>][content]"
+					id="output1_<?php echo $kLang; ?>"
+					rows="5" style="display:none; width:100%;"></textarea>
+			<?php } else {
+			?>
+				<textarea name="frm[<?php echo $kLang; ?>][content]" class="<?php echo ($isOpens['EDTNAME'] === 'ckeditor') ? 'ckeditor' : 'demo-summernote'; ?>" rows="5" style="width:100%;"><?php echo @$content; ?></textarea>
+			<?php } ?>
+		</div>
+	</div>
+<?php } ?>
+=============
+
+5.2 isContent2.php
+
+=============
+<?php if ($isOpens['isContent2']) { ?>
+	<div class="form-group">
+		<div><?php echo @$tagname['isContent2']; ?></div>
+		<div>
+			<?php if ($isOpens['EDTNAME'] === 'ckeditor5') {
+			?>
+				<div id="editor2_<?php echo $kLang; ?>" style="min-height: 400px;"><?php echo @$content2; ?></div>
+				<textarea name="frm[<?php echo $kLang; ?>][content2]"
+					id="output2_<?php echo $kLang; ?>"
+					style="display:none;"></textarea>
+			<?php } else {
+			?>
+				<textarea name="frm[<?php echo $kLang; ?>][content2]" class="<?php echo ($isOpens['EDTNAME'] === 'ckeditor') ? 'ckeditor' : 'demo-summernote'; ?>" rows="5" style="width:100%;"><?php echo @$content2; ?></textarea>
+			<?php } ?>
+		</div>
+	</div>
+<?php } ?>
+============
+
+5.3 isContent3.php
+
+============
+<?php if ($isOpens['isContent3']) { ?>
+	<div class="form-group">
+		<div><?php echo @$tagname['isContent3']; ?></div>
+		<div>
+			<?php if ($isOpens['EDTNAME'] === 'ckeditor5') {
+			?>
+				<div id="editor3_<?php echo $kLang; ?>" style="min-height: 400px;"><?php echo @$content3; ?></div>
+				<textarea name="frm[<?php echo $kLang; ?>][content3]"
+					id="output3_<?php echo $kLang; ?>"
+					style="display:none;"></textarea>
+			<?php } else {
+			?>
+				<textarea name="frm[<?php echo $kLang; ?>][content3]" class="<?php echo ($isOpens['EDTNAME'] === 'ckeditor') ? 'ckeditor' : 'demo-summernote'; ?>" rows="5" style="width:100%;"><?php echo @$content3; ?></textarea>
+			<?php } ?>
+		</div>
+	</div>
+<?php } ?>
+=============
+
+5.4 isContent4.php
+
+=============
+<?php if ($isOpens['isContent4']) { ?>
+	<div class="form-group">
+		<div><?php echo @$tagname['isContent4']; ?></div>
+		<div>
+			<?php if ($isOpens['EDTNAME'] === 'ckeditor5') {
+			?>
+				<div id="editor4_<?php echo $kLang; ?>" style="min-height: 400px;"><?php echo @$content4; ?></div>
+				<textarea name="frm[<?php echo $kLang; ?>][content4]"
+					id="output4_<?php echo $kLang; ?>"
+					style="display:none;"></textarea>
+			<?php } else {
+			?>
+				<textarea name="frm[<?php echo $kLang; ?>][content4]" class="<?php echo ($isOpens['EDTNAME'] === 'ckeditor') ? 'ckeditor' : 'demo-summernote'; ?>" rows="5" style="width:100%;"><?php echo @$content4; ?></textarea>
+			<?php } ?>
+		</div>
+	</div>
+<?php } ?>
+=============
+
+===========================================================================================================================================================================
+
+6. แก้ไขไฟล์ 5 ไฟล์ที่อยู่ใน admweb/plugins/articles มีดังนี้
+6.1 inc_add.php
+6.2 inc_addgroup.php
+6.3 inc_edit.php
+6.4 inc_editgroup.php
+6.5 inc_pages.php
+
+โดยแก้ที่ส่วน 
+
+if ($isOpens['EDTNAME'] == 'ckeditor') {
+	$aConfig['editor_height'] = $aArticleConfig['editorheight'];
+	$aConfig['isTabLoad'] = true;
+	include('include/pages_inc/editor.php');
+}
+
+เป็น 
+
+if ($isOpens['EDTNAME'] == 'ckeditor' || $isOpens['EDTNAME'] == 'ckeditor5') {
+	$aConfig['editor_height'] = $aArticleConfig['editorheight'];
+	$aConfig['isTabLoad'] = true;
+	include('include/pages_inc/editor.php');
+}
+
+================================================================================================================================================================
+เพิ่มเติม
+================================================================================================================================================================
+1. สามารถเพิ่มฟังก์ชันให้กับตัว CKeditor ได้ที่ไฟล์ admweb/include/editor/ckeditor5/main.js
+สามารถเปิดปิดได้ในส่วนของ import{} กับ plugins: {}
+2.ไฟล์ที่เรียกใช้ CKEditor คือ admweb/include/pages_inc/editor.php
+3. ตั้งค่า CKFinder อยู่ที่ admweb/include/editor/ckfinder/config.php

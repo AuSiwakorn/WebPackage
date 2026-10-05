@@ -1,0 +1,10 @@
+<?php
+//$aBanner = Banner_get_banner_by_keys($keysbanner);
+$aBanner = plugin_banner_get_banner_by_keys($keysbanner);
+?>
+
+<?php foreach ($aBanner as $k => $v) {?>
+<?php echo URL_UPLOAD.'/'.@$v['filename']; ?>
+<?php echo @$v['link']; ?>
+<?php echo @$v['target']; ?>
+<?php } ?>

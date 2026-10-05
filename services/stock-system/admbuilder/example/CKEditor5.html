@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>CKEditor 5 CDN Example</title>
+  <script src="https://cdn.ckeditor.com/ckeditor5/41.0.0/classic/ckeditor.js"></script>
+</head>
+<body>
+  <h3>CKEditor 5 Example (CDN)</h3>
+  <textarea id="editor"></textarea>
+
+  <script>
+    ClassicEditor
+      .create(document.querySelector('#editor'), {
+        toolbar: [
+          'undo', 'redo', '|',
+          'heading', '|',
+          'bold', 'italic', 'underline', 'strikethrough', '|',
+          'link', 'blockQuote', 'insertTable', 'imageUpload', '|',
+          'bulletedList', 'numberedList', 'outdent', 'indent'
+        ]
+      })
+      .then(editor => {
+        console.log('Editor ready', editor);
+      })
+      .catch(error => {
+        console.error(error);
+      });
+  </script>
+</body>
+</html>

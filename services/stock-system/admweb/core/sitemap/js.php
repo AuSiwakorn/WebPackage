@@ -1,0 +1,1 @@
+<script src="<?php echo TEMPLATE_URL; ?>/plugins/bootstrap-select/bootstrap-select.min.js"></script>

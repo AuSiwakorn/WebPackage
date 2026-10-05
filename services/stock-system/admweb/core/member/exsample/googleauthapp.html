@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Google Authenticator Setup</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@100..900&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
+      crossorigin="anonymous"
+    />
+    <style>
+      body {
+        font-family: "Noto Sans Thai", sans-serif;
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+        overflow: hidden;
+        background-color: #f8f9fa;
+      }
+
+      .mobile-background {
+        width: 100%;
+        height: 100vh;
+        object-fit: cover;
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: -1;
+        display: none;
+        transition: opacity 0.5s ease;
+      }
+
+      .mobile-background.active {
+        display: block;
+      }
+
+      .container {
+        position: relative;
+        z-index: 1;
+        height: 100vh;
+      }
+
+      .btn-navigation {
+        border-radius: 50px;
+        padding: 10px 20px;
+        font-weight: 500;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+      }
+
+      .btn-back {
+        background-color: rgba(255, 255, 255, 0.9);
+        color: #333;
+        border: none;
+      }
+      .btn-back:hover {
+        background-color: rgba(255, 255, 255, 0.8);
+        color: #fff;
+        border: none;
+      }
+
+      .btn-next {
+        background-color: #0d6efd;
+        color: white;
+        border: none;
+      }
+      .btn-next:hover {
+        background-color: #0a58ca;
+      }
+
+      .btn:disabled {
+        opacity: 0.6;
+      }
+
+      .navigation-buttons {
+        position: fixed;
+        bottom: 30px;
+        left: 0;
+        width: 100%;
+        display: flex;
+        padding: 0 20px;
+        gap: 15px;
+      }
+
+      .step-indicator {
+        position: fixed;
+        top: 20px;
+        left: 0;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        z-index: 10;
+      }
+
+      .step-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background-color: rgba(255, 255, 255, 0.5);
+        border: 1px solid rgba(0, 0, 0, 0.2);
+      }
+
+      .step-dot.active {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+        transform: scale(1.2);
+      }
+
+      .page-title {
+        position: fixed;
+        top: 40px;
+        left: 0;
+        width: 100%;
+        text-align: center;
+        color: white;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        font-weight: 600;
+        font-size: 1.2rem;
+        padding: 0 20px;
+        z-index: 5;
+      }
+
+      .overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+          to bottom,
+          rgba(0, 0, 0, 0.4) 0%,
+          rgba(0, 0, 0, 0) 30%,
+          rgba(0, 0, 0, 0) 70%,
+          rgba(0, 0, 0, 0.4) 100%
+        );
+        z-index: -1;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="overlay"></div>
+
+    <img
+      src="go1.png"
+      alt="go1.png"
+      class="mobile-background active"
+      id="page1"
+    />
+    <img src="go2.png" alt="go2.png" class="mobile-background" id="page2" />
+    <img src="go3.png" alt="go3.png" class="mobile-background" id="page3" />
+    <img
+      src="thankyou.png"
+      alt="thankyou.png"
+      class="mobile-background"
+      id="page4"
+    />
+
+    <div class="container">
+      <div class="navigation-buttons">
+        <button
+          type="button"
+          class="btn btn-navigation btn-back"
+          id="backBtn"
+          onclick="previousPage()"
+          style="
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            width: auto;
+            padding: 8px 16px;
+            font-size: 0.9rem;
+            z-index: 20;
+          "
+        >
+          ย้อนกลับ
+        </button>
+        <button
+          type="button"
+          class="btn btn-navigation btn-next"
+          id="nextBtn"
+          onclick="nextPage()"
+          style="
+            position: fixed;
+            top: 20px;
+            left: 120px;
+            width: auto;
+            padding: 8px 16px;
+            font-size: 0.9rem;
+            z-index: 20;
+          "
+        >
+          ถัดไป
+        </button>
+      </div>
+    </div>
+
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI"
+      crossorigin="anonymous"
+    ></script>
+
+    <script>
+      let currentPage = 1;
+      const totalPages = 4;
+      function showPage(pageNumber) {
+        document.querySelectorAll(".mobile-background").forEach((img) => {
+          img.classList.remove("active");
+        });
+        document.getElementById("page" + pageNumber).classList.add("active");
+        document.querySelectorAll(".step-dot").forEach((dot, index) => {
+          if (index + 1 === pageNumber) {
+            dot.classList.add("active");
+          } else {
+            dot.classList.remove("active");
+          }
+        });
+        updateButtons();
+      }
+      function updateButtons() {
+        const backBtn = document.getElementById("backBtn");
+        const nextBtn = document.getElementById("nextBtn");
+        if (currentPage === 1) {
+          backBtn.onclick = () => (window.location.href = "twfastep.html");
+          backBtn.disabled = false;
+        } else {
+          backBtn.onclick = previousPage;
+          backBtn.disabled = false;
+        }
+        if (currentPage === totalPages) {
+          nextBtn.style.display = "none";
+        } else {
+          nextBtn.style.display = "block";
+          nextBtn.textContent = "ถัดไป";
+          nextBtn.onclick = nextPage;
+        }
+      }
+      function nextPage() {
+        if (currentPage < totalPages) {
+          currentPage++;
+          showPage(currentPage);
+        }
+      }
+      function previousPage() {
+        if (currentPage > 1) {
+          currentPage--;
+          showPage(currentPage);
+        }
+      }
+      showPage(1);
+    </script>
+  </body>
+</html>

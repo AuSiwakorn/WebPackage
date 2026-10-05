@@ -1,0 +1,1 @@
+<p>&lt;?php</p><p>$aPage = plugin_articles_getpages('keysname');</p><p>$aPage = $aPage['data'];</p><p>?&gt;</p>

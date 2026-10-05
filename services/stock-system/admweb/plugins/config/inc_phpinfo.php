@@ -1,0 +1,1 @@
+<iframe src="<?php echo URL_ADMIN.'/phpinfo.php'; ?>" width="100%" height="600" frameborder="0" style="border: 1px #CCC solid;"></iframe>

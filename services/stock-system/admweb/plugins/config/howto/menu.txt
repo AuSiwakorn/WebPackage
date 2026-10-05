@@ -1,0 +1,4 @@
+[bannerSpecial]
+name="แบนเนอร์ Special ทุกหน้า";
+link="index.php?module=banner&mp=config&keysname=specialmenu";
+title="แบนเนอร์ Special";

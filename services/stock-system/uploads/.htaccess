@@ -1,0 +1,31 @@
+# AOSTOCK: uploads/ = ไฟล์ที่ผู้ใช้อัปโหลด + ไฟล์ที่ admweb เขียนเอง
+# กฎทั้งหมดอยู่ที่ไฟล์นี้ไฟล์เดียว — ไม่แก้ .htaccess / config ของ piccorp (อัปเกรด admweb ได้ไม่ทับ)
+RewriteEngine On
+
+# 1) โฟลเดอร์ส่วนตัวของ admweb — ห้ามเปิดจากเบราว์เซอร์
+#    autobackup/ backdb/ = SQL dump ของฐานข้อมูล (admin ดาวน์โหลดผ่าน PHP readfile ไม่กระทบ)
+#    hash/ = hash ตรวจไฟล์ · logs/ = log · permission/ = รายการสิทธิ์ที่รอลงทะเบียน · config_file/ = HTML ที่ include ฝั่ง server
+RewriteRule ^(autobackup|backdb|hash|logs|permission|config_file)(/|$) - [F,L]
+
+# 2) ห้ามเรียกสคริปต์ทุกชนิดใน uploads/ (กันไฟล์ที่อัปโหลดมาถูกรันเป็นโค้ด)
+#    ใช้ FilesMatch (ไม่ใช่ RewriteRule) เพราะมีผลถึงโฟลเดอร์ย่อยที่มี .htaccess + RewriteEngine ของตัวเองด้วย (piccorp/webroot)
+<FilesMatch "\.(php[0-9]?|phtml|pht|phar|pl|py|cgi|sh)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+#    ยกเว้นตัวย่อรูป piccorp/webroot/img.php ที่ admweb เรียกใช้ (สคริปต์อื่นของ piccorp เช่น tests.php, check_system.php ยังปิด)
+<Files "img.php">
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order deny,allow
+        Allow from all
+    </IfModule>
+</Files>

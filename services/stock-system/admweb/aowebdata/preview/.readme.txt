@@ -1,0 +1,15 @@
+#######################################################################
+-----------------------------------------------------------------------
+    How to use the preview system :
+
+    1. Create a file in the preview folder and name it preview_
+        followed by the keysname obtained from the website URL.
+
+    2. Since the preview is an iframe, write the HTML DOM structure
+        inside the preview file.
+
+    3. Insert the customer’s template into the HTML structure.
+
+    4. Finally, replace text in the template with SESSION variables.
+-----------------------------------------------------------------------
+#######################################################################

@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light" data-scheme="navy">
+
+<head>
+   <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+   <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1">
+   <title>Contact | Nifty - Admin Template</title>
+
+
+   <!-- STYLESHEETS -->
+   <!-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ -->
+
+   <!-- Fonts [ OPTIONAL ] -->
+   <link rel="preconnect" href="https://fonts.googleapis.com">
+   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;700&family=Ubuntu:wght@400;500;700&display=swap" rel="stylesheet">
+
+
+   <!-- Bootstrap CSS [ REQUIRED ] -->
+   <link rel="stylesheet" href="./assets/css/bootstrap.min.css">
+
+   <!-- Nifty CSS [ REQUIRED ] -->
+   <link rel="stylesheet" href="./assets/css/nifty.min.css">
+
+   <!-- Nifty Demo Icons [ OPTIONAL ] -->
+   <link rel="stylesheet" href="./assets/css/demo-purpose/demo-icons.min.css">
+
+   <!-- Demo purpose CSS [ DEMO ] -->
+   <link rel="stylesheet" href="./assets/css/demo-purpose/demo-settings.min.css">
+
+
+   <!-- Favicons [ OPTIONAL ] -->
+   <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
+   <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32x32.png">
+   <link rel="icon" type="image/png" sizes="16x16" href="./favicon-16x16.png">
+   <link rel="manifest" href="./site.webmanifest">
+
+
+   <!-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   [ REQUIRED ]
+   You must include this category in your project.
+
+
+   [ OPTIONAL ]
+   This is an optional plugin. You may choose to include it in your project.
+
+
+   [ DEMO ]
+   Used for demonstration purposes only. This category should NOT be included in your project.
+
+
+   [ SAMPLE ]
+   Here's a sample script that explains how to initialize plugins and/or components: This category should NOT be included in your project.
+
+
+   Detailed information and more samples can be found in the documentation.
+
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ -->
+
+</head>
+
+<body class="">
+
+
+   <!-- PAGE CONTAINER -->
+   <!-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ -->
+   <div id="root" class="root front-container">
+
+
+      <!-- HEADER -->
+      <!-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ -->
+      <header id="header" class="header sticky-top">
+         <div class="h-100 container">
+            <nav class="p-0 h-100 navbar navbar-expand-lg navbar-light">
+
+               <!-- Logo Brand -->
+               <a href="./" class="p-0 m-0 navbar-brand">
+                  <svg width="85" height="27" viewBox="0 0 105.83 33.867" xmlns="http://www.w3.org/2000/svg">
+                     <rect x="2.088" y="1.747" width="30.372" height="30.372" rx="7.938" ry="7.938" fill="var(--bs-primary)"></rect>
+                     <path d="m8.906 8.481 16.752 15.09.068-14.829c0-.144-.12-.26-.27-.26h-5.005l-.026 7.213-8.363-7.214zm-.016 1.816-.068 14.828c0 .144.12.26.27.26h5.005l.025-7.213 8.363 7.214h3.157z" fill="#fff"></path>
+                     <path d="M57.383 23.605q-1.513-2.687-3.274-5.306t-3.748-4.944v10.25h-3.477V7.958h2.868q.745.745 1.648 1.828.903 1.084 1.829 2.326.948 1.22 1.874 2.551.925 1.31 1.738 2.529V7.957h3.5v15.647zm9.709 0h-3.364V11.729h3.364zm.316-15.308q0 .926-.61 1.468-.587.519-1.4.519t-1.422-.52q-.587-.541-.587-1.467t.587-1.445q.61-.542 1.423-.542t1.4.542q.61.52.61 1.445zm7.993-2.212q.948 0 1.738.203.79.18 1.22.361l-.655 2.687q-.452-.203-.993-.293-.52-.113-.971-.113-.61 0-1.039.18-.406.158-.655.452-.225.293-.338.7-.09.406-.09.88v.587h4.154v2.8h-4.155v9.076h-3.364V11.097q0-2.303 1.287-3.657 1.31-1.355 3.86-1.355zm4.267 2.687 3.364-.542v3.5h4.042v2.799h-4.042v4.177q0 1.061.361 1.693.384.633 1.513.633.542 0 1.106-.09.587-.114 1.062-.294l.474 2.619q-.61.248-1.355.429t-1.829.18q-1.377 0-2.28-.361-.903-.384-1.445-1.039-.542-.677-.768-1.625-.203-.948-.203-2.1zm20.912 2.957q-1.016 3.432-2.122 6.435t-2.416 5.825q-.474 1.016-.948 1.716-.475.722-1.039 1.174-.564.474-1.287.677-.7.226-1.648.226-.79 0-1.468-.158-.654-.136-1.083-.316l.587-2.687q.519.18.925.248.407.068.858.068.903 0 1.378-.497.496-.474.835-1.332-1.151-2.258-2.303-5.057-1.151-2.822-2.167-6.322h3.567q.226.88.52 1.92.315 1.015.654 2.076.339 1.039.677 2.032.361.994.678 1.806.293-.812.61-1.806t.609-2.032q.316-1.06.587-2.077.293-1.039.52-1.919z" fill="currentColor" aria-label="Nifty"></path>
+                  </svg>
+               </a>
+
+               <div class="d-flex gap-2 align-items-center ms-auto me-3 order-lg-3">
+
+                  <!-- Color Mode Switcher -->
+                  <div class="position-relative color-mode">
+                     <button type="button" class="cm-selected dropdown-toggle hide-arrow btn btn-sm btn-icon text-body-emphasis" data-bs-toggle="dropdown" aria-expanded="false">
+                        <span class="cm-selected-icon"></span>
+                     </button>
+                     <div class="dropdown-menu dropdown-menu-end">
+
+                        <button class="dropdown-item cm-switcher" type="button" data-color-mode="light">
+                           <i class="psi-sun fs-4 cm-selected-icon"></i>
+                           Light
+                        </button>
+
+                        <button class="dropdown-item cm-switcher" type="button" data-color-mode="dark">
+                           <i class="psi-half-moon fs-4 cm-selected-icon"></i>
+                           Dark
+                        </button>
+
+                        <button class="dropdown-item cm-switcher" type="button" data-color-mode="system">
+                           <i class="psi-contrast fs-4 cm-selected-icon"></i>
+                           System
+                        </button>
+
+                     </div>
+                  </div>
+
+                  <!-- Login and Sign up Buttons --><a role="button" tabindex="0" href="./front-pages-login-2.html" class="fw-semibold d-none d-md-inline btn btn-outline-primary">
+                     Log in
+                  </a><a role="button" tabindex="0" href="./front-pages-register-2.html" class="fw-semibold btn btn-primary">
+                     Sign up
+                  </a>
+               </div>
+
+               <!-- Separator -->
+               <div class="vr d-none d-sm-block d-lg-none my-2 mx-1 me-2"></div>
+
+               <!-- Toggle navbar button (Mobile only) -->
+               <button data-bs-toggle="offcanvas" data-bs-target="#offcanvasNavbar" aria-controls="offcanvasNavbar" type="button" aria-label="Toggle navigation" class="btn btn-icon btn-sm p-0 border-0 shadow-none navbar-toggler collapsed">
+                  <i class="psi-view-list fs-5"></i>
+               </button>
+
+
+               <!-- Offcanvas for small devices - Contains menu and dropdown -->
+               <div id="offcanvasNavbar" class="offcanvas-body-sm align-self-stretch offcanvas offcanvas-start">
+                  <div class="offcanvas-header">
+                     <div class="offcanvas-title h5" id="offcanvasNavbarLabel-expand-md"></div>
+                     <button type="button" class="btn-close" aria-label="Close"></button>
+                  </div>
+                  <div class="h-100 align-self-stretch offcanvas-body">
+                     <div class="navbar nav-component navbar-nav-scroll d-inline-flex flex-nowrap gap-2 align-items-start align-items-lg-stretch mx-auto my-2 my-lg-0 navbar-nav nav-underline" id="header-navbar"><a aria-current="page" class="nav-link py-0 my-2" href="./front-pages-home.html#home">
+                           Home
+                        </a>
+                        <a aria-current="page" class="nav-link py-0 my-2" href="./front-pages-home.html#features">
+                           Features
+                        </a>
+                        <a aria-current="page" class="nav-link py-0 my-2" href="./front-pages-home.html#pricing">
+                           Pricing
+                        </a>
+                        <a aria-current="page" class="nav-link py-0 my-2" href="./front-pages-home.html#testimonials">
+                           Testimonials
+                        </a>
+                        <div class="nav-item dropdown dropdown-hover">
+                           <button type="button" aria-expanded="false" data-bs-toggle="dropdown" class="nav-link py-2 hstack gap-2 dropdown-toggle btn btn-primary text-reset">
+                              More Pages
+                           </button>
+                           <div class="dropdown-menu"><a class="nav-link dropdown-item" href='./front-pages-privacy-policy.html'>Privacy Policy</a><a class="nav-link dropdown-item" href='./front-pages-terms-conditions.html'>Terms &amp; Conditions</a>
+                              <hr class="dropdown-divider" role="separator"><a class="nav-link dropdown-item active" href='./front-pages-contact.html'>Contact</a>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            </nav>
+         </div>
+      </header>
+
+      <!-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ -->
+      <!-- END - HEADER -->
+
+
+      <!-- CONTENTS -->
+      <!-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ -->
+      <div id="content" data-bs-spy="scroll" data-bs-target="#navbar-example" data-bs-offset="0" tabindex="0" class="content front-bg ">
+         <div class="content__boxed p-0  ">
+
+
+            <div class="pt-4 sb-2 container">
+               <div class="mb-5">
+                  <nav aria-label="breadcrumb">
+                     <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="./">Home</a></li>
+                        <li class="breadcrumb-item text-capitalize active" aria-current="page">Contact</li>
+                     </ol>
+                  </nav>
+                  <h1 class="page-title text-body-emphasis">Contact Us</h1>
+                  <p class="lead text-body-secondary">
+                     We'd love to hear from you.
+                     Send us a message and we'll respond as soon as possible.
+                  </p>
+               </div>
+               <div class="g-4 row">
+                  <div class="col-lg-5">
+                     <div class="h-100">
+                        <h3 class="h3 mb-4">Get in Touch</h3>
+                        <p class="mb-4">
+                           Have questions or need assistance? Our team is here to help.
+                           Fill out the form or use the contact information below to reach us.
+                        </p>
+                        <div class="vstack gap-4">
+                           <div class="d-flex align-items-center gap-3">
+                              <div class="flex-shrink-0 img-sm">
+                                 <div class="ratio ratio-1x1 text-primary">
+                                    <div class="d-flex align-items-center justify-content-center">
+                                       <i class="pli-mail fs-3 text-primary"></i>
+                                    </div>
+                                 </div>
+                              </div>
+                              <div class="flex-grow-1 text-primary-emphasis">
+                                 <h4 class="h5 mb-1">Email Us</h4>
+                                 <a href="mailto:info@example.com" class="link-hover-underline-dotted">
+                                    info@example.com
+                                 </a>
+                              </div>
+                           </div>
+                           <div class="d-flex align-items-center gap-3">
+                              <div class="flex-shrink-0 img-sm">
+                                 <div class="ratio ratio-1x1 text-primary">
+                                    <div class="d-flex align-items-center justify-content-center">
+                                       <i class="pli-old-telephone fs-3 text-primary"></i>
+                                    </div>
+                                 </div>
+                              </div>
+                              <div class="flex-grow-1 text-primary-emphasis">
+                                 <h4 class="h5 mb-1">Call Us</h4>
+                                 <a href="tel:+15551234567" class="link-hover-underline-dotted">
+                                    +1 (555) 123-4567
+                                 </a>
+                              </div>
+                           </div>
+                           <div class="d-flex align-items-center gap-3">
+                              <div class="flex-shrink-0 img-sm">
+                                 <div class="ratio ratio-1x1 text-primary">
+                                    <div class="d-flex align-items-center justify-content-center">
+                                       <i class="pli-map-marker-2 fs-3 text-primary"></i>
+                                    </div>
+                                 </div>
+                              </div>
+                              <div class="flex-grow-1 text-primary-emphasis">
+                                 <h4 class="h5 mb-1">Visit Us</h4>
+                                 <a href="#" class="link-hover-underline-dotted">
+                                    795 Folsom Ave, Suite 600
+                                    San Francisco, CA 94107
+                                 </a>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+                  <div class="col-lg-7">
+                     <div class="shadow-sm card">
+                        <div class="p-4 card-body">
+                           <form class="">
+                              <div class="g-3 row">
+                                 <div class="col-md-6">
+                                    <label class="form-label" for="formName">Your Name</label>
+                                    <input placeholder="Enter your name" id="formName" class="form-control" type="text">
+                                 </div>
+                                 <div class="col-md-6">
+                                    <label class="form-label" for="formEmail">Email Address</label>
+                                    <input placeholder="Enter your email" id="formEmail" class="form-control" type="email">
+                                 </div>
+                                 <div class="col-12">
+                                    <label class="form-label" for="formSubject">Subject</label>
+                                    <input placeholder="Enter subject" id="formSubject" class="form-control" type="text">
+                                 </div>
+                                 <div class="col-12">
+                                    <label class="form-label" for="formMessage">Your Message</label>
+                                    <textarea rows="5" placeholder="Enter your message" id="formMessage" class="form-control"></textarea>
+                                 </div>
+                                 <div class="col-12">
+                                    <button type="submit" class="fw-medium hstack gap-3 btn btn-primary btn-lg">
+                                       <i class="pli-mail-send fs-3"></i>
+                                       <span class="vr"></span>
+                                       Send Message
+                                    </button>
+                                 </div>
+                              </div>
+                           </form>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            </div>
+
+
+         </div>
+      </div>
+      <!-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ -->
+      <!-- END - CONTENTS --><!-- FOOTER -->
+
+      <footer class="footer pt-5 pb-4">
+         <div class="container">
+            <div class="g-4 row">
+               <div class="mb-4 mb-lg-0 col-lg-4">
+                  <h4 class="fw-bold mb-3">Nifty</h4>
+                  <p class="text-muted">Nifty is is flat admin template for multi-purpose usage built with the latest version of Bootstrap.</p>
+                  <p class="text-muted">
+                     Made with
+                     <i class="psi-heart-2 fs-4 text-danger mx-1"></i>
+                     by
+                     <a class="ml-1 fw-medium btn-link" href="https://themeon.net/">
+                        ThemeOn
+                     </a>
+                  </p>
+                  <div class="d-flex gap-2 text-body-secondary">
+                     <a href="#" class="btn btn-icon btn-hover btn-primary text-inherit">
+                        <i class="psi-facebook fs-4"></i>
+                     </a>
+                     <a href="#" class="btn btn-icon btn-hover btn-dark text-inherit">
+                        <i class="psi-twitter-x fs-4"></i>
+                     </a>
+                     <a href="#" class="btn btn-icon btn-hover btn-danger text-inherit">
+                        <i class="psi-google-plus fs-4"></i>
+                     </a>
+                     <a href="#" class="btn btn-icon btn-hover btn-warning text-inherit">
+                        <i class="psi-instagram fs-4"></i>
+                     </a>
+                  </div>
+               </div>
+               <div class="mb-4 mb-md-0 col-lg-2 col-md-4">
+                  <h6 class="h4 mb-3">About</h6>
+                  <ul class="list-unstyled">
+                     <li><a class="link-hover-underline-dotted mb-2" href="#">About Us</a></li>
+                     <li><a class="link-hover-underline-dotted mb-2" href="#">Corporate</a></li>
+                     <li><a class="link-hover-underline-dotted mb-2" href="#">Terms &amp; Conditions</a></li>
+                     <li><a class="link-hover-underline-dotted mb-2" href="#">Privacy Policy</a></li>
+                  </ul>
+               </div>
+               <div class="mb-4 mb-md-0 col-lg-2 col-md-4">
+                  <h6 class="h4 mb-3">Company</h6>
+                  <ul class="list-unstyled">
+                     <li><a class="link-hover-underline-dotted mb-2" href="#">Contact</a></li>
+                     <li><a class="link-hover-underline-dotted mb-2" href="#">Blog</a></li>
+                     <li><a class="link-hover-underline-dotted mb-2" href="#">Careers</a></li>
+                     <li><a class="link-hover-underline-dotted mb-2" href="#">Community</a></li>
+                  </ul>
+               </div>
+               <div class="col-lg-2 col-md-4">
+                  <h6 class="h4 mb-3">Support</h6>
+                  <ul class="list-unstyled">
+                     <li><a class="link-hover-underline-dotted mb-2" href="#">Help Center</a></li>
+                     <li><a class="link-hover-underline-dotted mb-2" href="#">Knowledge Base</a></li>
+                     <li><a class="link-hover-underline-dotted mb-2" href="#">Tutorials</a></li>
+                     <li><a class="link-hover-underline-dotted mb-2" href="#">Status</a></li>
+                  </ul>
+               </div>
+            </div>
+            <hr class="my-4 bg-secondary">
+            <div class="row">
+               <div class="col-md-6 text-center text-md-start">
+                  <p class="small text-muted mb-0">© Nifty - All rights reserved.</p>
+               </div>
+               <div class="col-md-6 text-center text-md-end">
+                  <ul class="list-inline mb-0">
+                     <li class="list-inline-item"><a href="#" class="link-hover-underline-dotted small">Privacy Policy</a></li>
+                     <li class="list-inline-item"><a href="#" class="link-hover-underline-dotted small">Terms of Service</a></li>
+                     <li class="list-inline-item"><a href="#" class="link-hover-underline-dotted small">Sitemap</a></li>
+                  </ul>
+               </div>
+            </div>
+         </div>
+      </footer>
+
+      <!-- END - FOOTER -->
+   </div>
+   <!-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ -->
+   <!-- END - PAGE CONTAINER -->
+   <!-- SCROLL TO TOP BUTTON -->
+   <!-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ -->
+   <button id="scrollToTop" class="scroll-btn" tabindex="0" type="button" aria-label="Scroll to top button"></button>
+   <!-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ -->
+   <!-- END - SCROLL TO TOP BUTTON -->
+   <!-- JAVASCRIPTS -->
+   <!-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ -->
+
+
+   <!-- Popper JS [ OPTIONAL ] -->
+   <script src="./assets/vendors/popperjs/popper.min.js"></script>
+
+
+   <!-- Bootstrap JS [ OPTIONAL ] -->
+   <script src="./assets/vendors/bootstrap/bootstrap.min.js"></script>
+
+
+   <!-- Nifty JS [ OPTIONAL ] -->
+   <script src="./assets/js/nifty.js"></script>
+
+
+   <!-- Nifty Settings [ DEMO ] -->
+   <script src="./assets/js/demo-purpose-only.js"></script>
+
+
+   <!-- Scripts [ OPTIONAL ] -->
+   <script src="./assets/vendors/motion/motion.min.js"></script>
+
+
+   <!-- Initialize [ SAMPLE ] -->
+   <script src="./assets/pages/landing-pages.js"></script>
+
+
+</body>
+
+</html>

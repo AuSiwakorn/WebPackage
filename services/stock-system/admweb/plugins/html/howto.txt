@@ -1,0 +1,2 @@
+=============== get html ===============
+<?php echo ManageHtml_get('footeraddress'); ?>

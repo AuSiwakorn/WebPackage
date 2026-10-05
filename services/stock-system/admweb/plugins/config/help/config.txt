@@ -1,0 +1,5 @@
+//Website
+echo SiteConfig_get('{keyname}','{default data}','{upload/uploads}');
+
+//Admweb can get
+echo GlobalConfig_get('{keyname}','{default data}','{upload/uploads}');

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Quill CDN Example</title>
+
+  <!-- Quill CSS -->
+  <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+
+  <!-- Bootstrap (ถ้าต้องการ layout สวยขึ้น) -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="p-4">
+
+  <div class="container">
+    <h3>Quill Editor (CDN)</h3>
+    <!-- Toolbar -->
+    <div id="toolbar">
+      <span class="ql-formats">
+        <select class="ql-header">
+          <option selected></option>
+          <option value="1"></option>
+          <option value="2"></option>
+        </select>
+        <select class="ql-font"></select>
+      </span>
+      <span class="ql-formats">
+        <button class="ql-bold"></button>
+        <button class="ql-italic"></button>
+        <button class="ql-underline"></button>
+        <button class="ql-strike"></button>
+      </span>
+      <span class="ql-formats">
+        <button class="ql-list" value="ordered"></button>
+        <button class="ql-list" value="bullet"></button>
+        <button class="ql-link"></button>
+        <button class="ql-image"></button>
+      </span>
+    </div>
+
+    <!-- Editor -->
+    <div id="editor" style="height: 200px; background: #fff;"></div>
+  </div>
+
+  <!-- Quill JS -->
+  <script src="https://cdn.quilljs.com/1.3.7/quill.js"></script>
+  <script>
+    // สร้าง Quill instance
+    var quill = new Quill('#editor', {
+      modules: {
+        toolbar: '#toolbar'
+      },
+      theme: 'snow'
+    });
+
+    // ตัวอย่างดึงค่า html ออกมา
+    function getContent() {
+      console.log(quill.root.innerHTML);
+    }
+  </script>
+  <script>
+        const toolbarOptions = [
+            ['bold', 'italic', 'underline', 'strike'], // toggled buttons
+            ['blockquote', 'code-block'],
+            ['link', 'image', 'video'],
+            [{'header': 1}, {'header': 2}, {'header': 3}, {'header': 4}, {'header': 5}], // custom button values
+            [{'list': 'ordered'}, {'list': 'bullet'}, {'list': 'check'}],
+            [{'script': 'sub'}, {'script': 'super'}], // superscript/subscript
+            [{'color': []}, {'background': []}], // dropdown with defaults from theme
+            [{'align': []}],
+            ['clean'] // remove formatting button
+        ];
+
+        const toolbarOptionsMini =[
+            ['bold', 'italic', 'underline', 'strike'], 
+            ['link'],
+            [{'script': 'sub'}, {'script': 'super'}], // superscript/subscript
+            [{'color': []}, {'background': []}], // dropdown with defaults from theme
+            [{'align': []}]
+        ];
+
+        const quillMini = new Quill('.isDescEdt', {modules: {toolbar: toolbarOptionsMini},theme: 'snow'});
+        const quill = new Quill('.isContentEdt', {modules: {toolbar: toolbarOptions},theme: 'snow'});
+    </script>
+</body>
+</html>

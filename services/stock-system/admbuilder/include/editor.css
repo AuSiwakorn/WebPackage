@@ -1,0 +1,92 @@
+/*
+ * FILE: admbuilder/include/editor.css
+ * ROLE: CSS เฉพาะหน้า editor.php (โหลดใน iframe เท่านั้น) — base/reset ของกล่อง editor
+ * NOTE: ช่วง 1 = ไฟล์เริ่มต้น (base padding/scroll). ช่วง 6 จะย้ายกฎ form/label/input/textarea/select
+ *       จาก include/style.css มาไว้ที่นี่ แล้วเลิกโหลด style.css ใน iframe
+ * TODO:
+ *   - [x] base body/layout ของหน้า editor (ช่วง 1)
+ *   - [x] ย้ายกฎ form/editor จาก style.css เข้ามา scope ใต้ .ao-editor-body (ช่วง 6)
+ *   - [x] ตัด !important ที่เคย patch Summernote toolbar ออกจาก style.css (ช่วง 6)
+ */
+
+html,
+body.ao-editor-body {
+    margin: 0;
+    padding: 0;
+    background: #ffffff;
+}
+
+body.ao-editor-body {
+    padding: 16px;
+}
+
+/* กล่องเนื้อหา editor เต็มความกว้าง iframe */
+.ao-editor-body .ao-builder-content {
+    width: 100%;
+}
+
+/* ปุ่ม header/footer ของฟอร์มในบริบท standalone (ไม่มี .modal ของ Bootstrap ครอบ) */
+.ao-editor-body .modal-header,
+.ao-editor-body .modal-footer {
+    border: 0;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.ao-editor-body .modal-body {
+    padding-left: 0;
+    padding-right: 0;
+}
+
+/* ===== Form styles (ช่วง 6: ย้ายมาจาก style.css + scope ใต้ .ao-editor-body) ===== */
+.ao-editor-body .form-group {
+    margin-bottom: 15px;
+}
+
+.ao-editor-body label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+    color: #444;
+}
+
+.ao-editor-body input[type="text"],
+.ao-editor-body input[type="url"],
+.ao-editor-body select,
+.ao-editor-body textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 14px;
+    outline: none;
+}
+
+.ao-editor-body input:focus,
+.ao-editor-body textarea:focus,
+.ao-editor-body select:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 3px rgba(0, 123, 255, 0.4);
+}
+
+.ao-editor-body .btn-save {
+    background: #007bff;
+    border: none;
+    color: #fff;
+    padding: 8px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.ao-editor-body .btn-save:hover {
+    background: #0056b3;
+}
+
+/* ปุ่มในกล่อง editor (ย้ายมาจาก .ao-builder-content .btn ใน style.css) */
+.ao-editor-body .modal-footer .btn,
+.ao-editor-body .ao-builder-content .btn {
+    margin-left: 5px;
+    border-radius: 20px;
+    padding-left: 18px;
+    padding-right: 18px;
+}

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Two Factor Authentication</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@100..900&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
+      crossorigin="anonymous"
+    />
+    <style>
+      body {
+        font-family: "Noto Sans Thai", sans-serif;
+        background-color: #f8f9fa;
+        min-height: 100vh;
+        padding: 20px 0;
+      }
+
+      .page-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 30px;
+        text-align: center;
+      }
+
+      .app-card {
+        border-radius: 15px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        margin-bottom: 25px;
+        overflow: hidden;
+        border: none;
+      }
+
+      .app-card:hover,
+      .app-card:active {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+      }
+
+      .app-card .card-body {
+        padding: 25px 15px;
+      }
+
+      .app-card img {
+        max-width: 120px;
+        height: auto;
+        margin-bottom: 15px;
+        border-radius: 10px;
+      }
+
+      .app-card .card-text {
+        font-weight: 500;
+        margin-top: 10px;
+        font-size: 1.1rem;
+      }
+
+      .google-card {
+        background: linear-gradient(to bottom right, #fff8e1, #fff);
+        border-left: 4px solid #ffc107;
+      }
+
+      .microsoft-card {
+        background: linear-gradient(to bottom right, #e3f2fd, #fff);
+        border-left: 4px solid #0d6efd;
+      }
+
+      .header {
+        text-align: center;
+        margin-bottom: 30px;
+      }
+
+      .header img {
+        max-width: 80px;
+        margin-bottom: 15px;
+      }
+
+      .header h1 {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #333;
+        margin-bottom: 5px;
+      }
+
+      .header p {
+        color: #6c757d;
+        font-size: 1rem;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>Two Factor Authentication</h1>
+        <p>เพิ่มความปลอดภัยให้บัญชีของคุณ</p>
+      </div>
+
+      <p class="page-title">เลือกแอปพลิเคชันที่ต้องการใช้งาน</p>
+
+      <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+          <a href="googleauthapp.html" class="text-decoration-none">
+            <div class="card app-card google-card">
+              <div class="card-body text-center">
+                <img src="google.png" alt="Google Authenticator" />
+                <p class="card-text">Google Authenticator</p>
+              </div>
+            </div>
+          </a>
+        </div>
+
+        <div class="col-md-6 col-lg-5">
+          <a href="microsoftauthapp.html" class="text-decoration-none">
+            <div class="card app-card microsoft-card">
+              <div class="card-body text-center">
+                <img src="microsoft.webp" alt="Microsoft Authenticator" />
+                <p class="card-text">Microsoft Authenticator</p>
+              </div>
+            </div>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI"
+      crossorigin="anonymous"
+    ></script>
+  </body>
+</html>

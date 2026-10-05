@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Tiptap CDN Example</title>
+  <style>
+    #editor {
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      padding: 10px;
+      min-height: 200px;
+    }
+  </style>
+</head>
+<body>
+  <h3>Tiptap Example</h3>
+  <div id="editor"></div>
+  <button id="getContent">Get Content</button>
+  <pre id="output"></pre>
+
+  <!-- โหลด ProseMirror + Tiptap Core ผ่าน esm.run CDN -->
+  <script type="module">
+    import { Editor } from "https://esm.run/@tiptap/core";
+    import StarterKit from "https://esm.run/@tiptap/starter-kit";
+
+    const editor = new Editor({
+      element: document.querySelector('#editor'),
+      extensions: [
+        StarterKit,
+      ],
+      content: '<p>Hello <strong>Tiptap</strong>!</p>',
+    });
+
+    document.getElementById("getContent").addEventListener("click", () => {
+      const html = editor.getHTML();
+      document.getElementById("output").textContent = html;
+      console.log(html);
+    });
+  </script>
+</body>
+</html>

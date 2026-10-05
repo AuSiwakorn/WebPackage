@@ -1,0 +1,25 @@
+<?php
+include 'admweb/mainApi.php';
+include 'admweb/api/oApi.php';
+$isseolink = true;
+
+if (@$_REQUEST['lang'] != '' && in_array($_REQUEST['lang'], $aConfig['language'])) {
+    $lang = $_REQUEST['lang'];
+    $oApi->setLanguage($lang);
+}
+
+$_aMember = @$_SESSION['member'];
+////////////////////////////////////////////
+///////////// fix test request /////////////
+////////////////////////////////////////////
+foreach ($_REQUEST as $k => $v) {
+    if (is_string($v)) {
+        $_REQUEST[$k] = fixinjection($v);
+    }
+}
+foreach ($_GET as $k => $v) {
+    if (is_string($v)) {
+        $_GET[$k] = fixinjection($v);
+    }
+}
+////////////////////////////////////////////
