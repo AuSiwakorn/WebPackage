@@ -11,6 +11,7 @@
  *   - [x] ช่วงที่ 11: สิทธิ์ละเอียดขึ้น (ช่องติ๊กแบ่ง 6 หมวด) · ตารางสรุปสิทธิ์รายหมวด · ประวัติบอกสิทธิ์ที่เพิ่ม / เอาออก
  *   - [x] ช่วงที่ 12: แก้ข้อมูล / PIN / พักงาน / ลบ ย้ายไปใช้ staff_act_* (ใช้ร่วมกับ team.php ของผู้จัดการสาขา — ข้อความเดิมทุกคำ)
  *         · ตั้ง / ปลด "ผู้จัดการสาขา" ที่ช่อง "ตำแหน่ง" บนสุดของฟอร์ม (หรือที่หน้าจัดการสาขา) · ป้ายผู้จัดการข้างชื่อ · ย้ายสาขายังอยู่ในหน้านี้ (เฉพาะผู้ดูแล)
+ *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -143,11 +144,11 @@ require dirname(__FILE__) . '/inc/header.php';
 
 ?>
 
-<?php if ($err !== '' && $errAt === ''): ?>
-  <div class="alert alert-error" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span><?= e($err) ?></span></div>
-<?php endif; ?>
+<?php if ($err !== '' && $errAt === '') { ?>
+  <div class="alert alert-error" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span><?php echo e($err) ?></span></div>
+<?php } ?>
 
-<?php if ($picked === null): ?>
+<?php if ($picked === null) { ?>
 <!-- ==================== เพิ่มพนักงาน (หน้าแยก adm-user-add.php) ==================== -->
 <section class="card br-add">
   <div class="card-head">
@@ -155,13 +156,13 @@ require dirname(__FILE__) . '/inc/header.php';
     <a class="btn btn-primary btn-sm" href="adm-user-add.php"><svg class="ico"><use href="#i-plus"/></svg> เพิ่มพนักงาน</a>
   </div>
 </section>
-<?php endif; ?>
+<?php } ?>
 
-<?php if ($ok !== ''): ?>
-  <div class="alert alert-ok" role="status"><svg class="ico"><use href="#i-check"/></svg><span><?= e($ok) ?></span></div>
-<?php endif; ?>
+<?php if ($ok !== '') { ?>
+  <div class="alert alert-ok" role="status"><svg class="ico"><use href="#i-check"/></svg><span><?php echo e($ok) ?></span></div>
+<?php } ?>
 
-<?php if ($picked !== null):
+<?php if ($picked !== null) {
     $pv     = isset($old[$sel]) ? $old[$sel] : array('name' => $picked['name'], 'initials' => $picked['initials'],
                                                       'perms' => isset($picked['perms']) ? $picked['perms'] : array());
     $active = user_active($picked);
@@ -170,34 +171,34 @@ require dirname(__FILE__) . '/inc/header.php';
   <section class="card adm-edit">
     <div class="card-head">
       <div class="adm-who">
-        <span class="av"><?= e(user_initial($picked)) ?></span>
+        <span class="av"><?php echo e(user_initial($picked)) ?></span>
         <div>
-          <h2><?= e($picked['name']) ?> <?php if (in_array('manager', $picked['perms'], true)): ?><span class="bdg bdg-ok">ผู้จัดการสาขา</span><?php endif; ?><?php if (!$active): ?><span class="bdg bdg-out">พักงาน</span><?php endif; ?></h2>
-          <span class="sub"><?= e($sel) ?> · <?= e(branch_name($picked['branch'])) ?>
-            <?php if (!empty($picked['since'])): ?> · ประจำสาขานี้ตั้งแต่ <?= e(thai_date_full(strtotime($picked['since']))) ?><?php endif; ?></span>
+          <h2><?php echo e($picked['name']) ?> <?php if (in_array('manager', $picked['perms'], true)) { ?><span class="bdg bdg-ok">ผู้จัดการสาขา</span><?php } ?><?php if (!$active) { ?><span class="bdg bdg-out">พักงาน</span><?php } ?></h2>
+          <span class="sub"><?php echo e($sel) ?> · <?php echo e(branch_name($picked['branch'])) ?>
+            <?php if (!empty($picked['since'])) { ?> · ประจำสาขานี้ตั้งแต่ <?php echo e(thai_date_full(strtotime($picked['since']))) ?><?php } ?></span>
         </div>
       </div>
       <a class="btn btn-ghost btn-sm" href="adm-users.php"><svg class="ico"><use href="#i-x"/></svg> ปิด</a>
     </div>
-    <?php if ($errAt === $sel && $err !== ''): ?>
-      <div class="alert alert-error adm-ok" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span><?= e($err) ?></span></div>
-    <?php endif; ?>
+    <?php if ($errAt === $sel && $err !== '') { ?>
+      <div class="alert alert-error adm-ok" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span><?php echo e($err) ?></span></div>
+    <?php } ?>
 
-    <?php if ($active): ?>
+    <?php if ($active) { ?>
     <!-- ข้อมูล + สิทธิ์ -->
-    <form class="adm-sec" method="post" action="adm-users.php?u=<?= e(rawurlencode($sel)) ?>">
-      <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+    <form class="adm-sec" method="post" action="adm-users.php?u=<?php echo e(rawurlencode($sel)) ?>">
+      <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
       <input type="hidden" name="act" value="save">
-      <input type="hidden" name="u" value="<?= e($sel) ?>">
+      <input type="hidden" name="u" value="<?php echo e($sel) ?>">
       <?php staff_position_field(in_array('manager', $pv['perms'], true)); /* ตำแหน่ง: พนักงาน / ผู้จัดการสาขา (ช่วงที่ 12) */ ?>
       <div class="adm-fields">
         <div class="field">
           <label for="e-name">ชื่อ–นามสกุล</label>
-          <input class="input" type="text" id="e-name" name="name" value="<?= e($pv['name']) ?>" maxlength="60" required autocomplete="off">
+          <input class="input" type="text" id="e-name" name="name" value="<?php echo e($pv['name']) ?>" maxlength="60" required autocomplete="off">
         </div>
         <div class="field">
           <label for="e-ini">อักษรย่อ</label>
-          <input class="input adm-pin" type="text" id="e-ini" name="initials" value="<?= e($pv['initials']) ?>" maxlength="4" autocomplete="off">
+          <input class="input adm-pin" type="text" id="e-ini" name="initials" value="<?php echo e($pv['initials']) ?>" maxlength="4" autocomplete="off">
         </div>
       </div>
       <?php perm_boxes($pv['perms'], $picked['branch']); ?>
@@ -205,10 +206,10 @@ require dirname(__FILE__) . '/inc/header.php';
     </form>
 
     <div class="adm-row">
-      <form class="adm-sec" method="post" action="adm-users.php?u=<?= e(rawurlencode($sel)) ?>">
-        <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+      <form class="adm-sec" method="post" action="adm-users.php?u=<?php echo e(rawurlencode($sel)) ?>">
+        <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
         <input type="hidden" name="act" value="pin">
-        <input type="hidden" name="u" value="<?= e($sel) ?>">
+        <input type="hidden" name="u" value="<?php echo e($sel) ?>">
         <h3>รีเซ็ต PIN</h3>
         <p class="adm-hint">ใช้เมื่อพนักงานลืม PIN · ห้ามซ้ำกับคนอื่นในสาขาเดียวกัน</p>
         <div class="adm-inline">
@@ -217,68 +218,68 @@ require dirname(__FILE__) . '/inc/header.php';
           <button class="btn btn-ghost" type="submit">ตั้ง PIN ใหม่</button>
         </div>
       </form>
-      <form class="adm-sec" method="post" action="adm-users.php?u=<?= e(rawurlencode($sel)) ?>">
-        <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+      <form class="adm-sec" method="post" action="adm-users.php?u=<?php echo e(rawurlencode($sel)) ?>">
+        <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
         <input type="hidden" name="act" value="move">
-        <input type="hidden" name="u" value="<?= e($sel) ?>">
+        <input type="hidden" name="u" value="<?php echo e($sel) ?>">
         <h3>ย้ายสาขา</h3>
         <p class="adm-hint">มีผลตั้งแต่วันนี้ · ยอดขายและเอกสารเก่ายังผูกกับสาขาเดิม</p>
         <div class="adm-inline">
           <label class="sr-only" for="to">สาขาปลายทาง</label>
           <select class="input" id="to" name="branch" required>
             <option value="">เลือกสาขาปลายทาง</option>
-            <?php foreach (branches_active() as $bc => $b): if ($bc === $picked['branch']) { continue; } ?>
-              <option value="<?= e($bc) ?>"><?= e($b['name']) ?></option>
-            <?php endforeach; ?>
+            <?php foreach (branches_active() as $bc => $b) { if ($bc === $picked['branch']) { continue; } ?>
+              <option value="<?php echo e($bc) ?>"><?php echo e($b['name']) ?></option>
+            <?php } ?>
           </select>
           <button class="btn btn-ghost" type="submit">ย้าย</button>
         </div>
-        <?php if (!empty($picked['history'])): ?>
+        <?php if (!empty($picked['history'])) { ?>
           <ul class="adm-hist">
-            <?php foreach ($picked['history'] as $h): ?>
-              <li><?= e(branch_name($h['branch'])) ?> · <?= e(thai_date_full(strtotime($h['from']))) ?> – <?= e(thai_date_full(strtotime($h['to']))) ?></li>
-            <?php endforeach; ?>
+            <?php foreach ($picked['history'] as $h) { ?>
+              <li><?php echo e(branch_name($h['branch'])) ?> · <?php echo e(thai_date_full(strtotime($h['from']))) ?> – <?php echo e(thai_date_full(strtotime($h['to']))) ?></li>
+            <?php } ?>
           </ul>
-        <?php endif; ?>
+        <?php } ?>
       </form>
     </div>
-    <?php endif; ?>
+    <?php } ?>
 
     <!-- พักงาน / เปิดใช้งาน · ลบ -->
     <div class="adm-row br-danger">
-      <form class="adm-sec" method="post" action="adm-users.php?u=<?= e(rawurlencode($sel)) ?>">
-        <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
-        <input type="hidden" name="act" value="<?= $active ? 'off' : 'on' ?>">
-        <input type="hidden" name="u" value="<?= e($sel) ?>">
-        <?php if ($active): ?>
+      <form class="adm-sec" method="post" action="adm-users.php?u=<?php echo e(rawurlencode($sel)) ?>">
+        <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
+        <input type="hidden" name="act" value="<?php echo $active ? 'off' : 'on' ?>">
+        <input type="hidden" name="u" value="<?php echo e($sel) ?>">
+        <?php if ($active) { ?>
           <h3>พักงาน / ลาออก</h3>
           <p class="adm-hint">เข้าระบบไม่ได้ ไม่ขึ้นในรายชื่อหน้าเข้าระบบ แต่ชื่อในบิลและเอกสารเก่ายังอยู่ · เปิดกลับมาได้</p>
           <div class="adm-inline">
             <input class="input" type="text" name="why" placeholder="เหตุผล เช่น ลาออก / ลาคลอด" autocomplete="off">
             <button class="btn btn-ghost" type="submit"><svg class="ico"><use href="#i-ban"/></svg> พักงาน</button>
           </div>
-        <?php else: ?>
+        <?php } else { ?>
           <h3>เปิดใช้งานอีกครั้ง</h3>
           <p class="adm-hint">กลับมาเข้าระบบได้ด้วย PIN เดิม สิทธิ์เดิมยังอยู่</p>
           <button class="btn btn-ghost" type="submit"><svg class="ico"><use href="#i-check"/></svg> เปิดใช้งาน</button>
-        <?php endif; ?>
+        <?php } ?>
       </form>
-      <form class="adm-sec" method="post" action="adm-users.php?u=<?= e(rawurlencode($sel)) ?>">
-        <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+      <form class="adm-sec" method="post" action="adm-users.php?u=<?php echo e(rawurlencode($sel)) ?>">
+        <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
         <input type="hidden" name="act" value="delete">
-        <input type="hidden" name="u" value="<?= e($sel) ?>">
+        <input type="hidden" name="u" value="<?php echo e($sel) ?>">
         <h3>ลบพนักงาน</h3>
-        <?php if ($reason !== ''): ?>
-          <p class="adm-hint">ลบไม่ได้ เพราะ<?= e($reason) ?> — ใช้พักงาน / ลาออกแทน</p>
-        <?php else: ?>
+        <?php if ($reason !== '') { ?>
+          <p class="adm-hint">ลบไม่ได้ เพราะ<?php echo e($reason) ?> — ใช้พักงาน / ลาออกแทน</p>
+        <?php } else { ?>
           <p class="adm-hint">ยังไม่เคยทำรายการ ลบได้ · ลบแล้วกู้คืนไม่ได้</p>
-          <label class="br-sure"><input type="checkbox" name="sure" value="1" required> ยืนยันลบ <?= e($picked['name']) ?></label>
+          <label class="br-sure"><input type="checkbox" name="sure" value="1" required> ยืนยันลบ <?php echo e($picked['name']) ?></label>
           <button class="btn btn-ghost br-del" type="submit"><svg class="ico"><use href="#i-trash"/></svg> ลบพนักงาน</button>
-        <?php endif; ?>
+        <?php } ?>
       </form>
     </div>
   </section>
-<?php endif; ?>
+<?php } ?>
 
 <!-- ==================== รายชื่อพนักงานแยกสาขา ==================== -->
 <?php
@@ -294,51 +295,51 @@ $openG = $order[0];
 if ($picked !== null) {
     $openG = user_active($picked) ? $picked['branch'] : '_off';
 }
-foreach ($order as $g):
+foreach ($order as $g) {
     if ($g !== '_off' && !isset($groups[$g])) { $groups[$g] = array(); }
     if ($g === '_off' && empty($groups[$g])) { continue; }
     $list = $groups[$g]; ?>
-  <details class="card acc-item<?= $g === '_off' ? ' br-off' : '' ?>" id="g-<?= e($g) ?>"<?= $g === $openG ? ' open' : '' ?>>
+  <details class="card acc-item<?php echo $g === '_off' ? ' br-off' : '' ?>" id="g-<?php echo e($g) ?>"<?php echo $g === $openG ? ' open' : '' ?>>
     <summary class="card-head">
-      <div><h2><?= $g === '_off' ? 'พักงาน / ลาออก' : e(branch_name($g)) ?></h2>
-        <span class="sub"><?= count($list) ?> คน<?php if ($list): $nm = array(); foreach ($list as $u) { $nm[] = $u['name']; } ?> · <?= e(implode(', ', $nm)) ?><?php endif; ?></span></div>
+      <div><h2><?php echo $g === '_off' ? 'พักงาน / ลาออก' : e(branch_name($g)) ?></h2>
+        <span class="sub"><?php echo count($list) ?> คน<?php if ($list) { $nm = array(); foreach ($list as $u) { $nm[] = $u['name']; } ?> · <?php echo e(implode(', ', $nm)) ?><?php } ?></span></div>
       <span class="acc-right">
-        <?php if ($g !== '_off'): ?>
-          <a class="btn btn-ghost btn-sm" href="adm-branches.php#b-<?= e($g) ?>"><svg class="ico"><use href="#i-settings"/></svg> จัดการสาขา</a>
-        <?php endif; ?>
+        <?php if ($g !== '_off') { ?>
+          <a class="btn btn-ghost btn-sm" href="adm-branches.php#b-<?php echo e($g) ?>"><svg class="ico"><use href="#i-settings"/></svg> จัดการสาขา</a>
+        <?php } ?>
         <svg class="ico acc-chev" aria-hidden="true"><use href="#i-arrow"/></svg>
       </span>
     </summary>
-    <?php if (!$list): ?>
+    <?php if (!$list) { ?>
       <p class="empty">ยังไม่มีพนักงานในสาขานี้</p>
-    <?php else: ?>
+    <?php } else { ?>
       <div class="tbl-wrap">
         <table class="tbl">
           <thead><tr><th>พนักงาน</th><th>เมนูที่ใช้ได้</th><th>สิทธิ์เสริม</th><th></th></tr></thead>
           <tbody>
-            <?php foreach ($list as $k => $u): $pp = isset($u['perms']) ? $u['perms'] : array(); ?>
-              <tr class="<?= $k === $sel ? 'on' : '' ?>">
-                <td data-label="พนักงาน"><b><?= e($u['name']) ?></b><?php if (in_array('manager', $pp, true)): ?> <span class="bdg bdg-ok">ผู้จัดการสาขา</span><?php endif; ?><small><?= e($k) ?><?= $g === '_off' ? ' · ' . e(branch_name($u['branch'])) : '' ?></small></td>
+            <?php foreach ($list as $k => $u) { $pp = isset($u['perms']) ? $u['perms'] : array(); ?>
+              <tr class="<?php echo $k === $sel ? 'on' : '' ?>">
+                <td data-label="พนักงาน"><b><?php echo e($u['name']) ?></b><?php if (in_array('manager', $pp, true)) { ?> <span class="bdg bdg-ok">ผู้จัดการสาขา</span><?php } ?><small><?php echo e($k) ?><?php echo $g === '_off' ? ' · ' . e(branch_name($u['branch'])) : '' ?></small></td>
                 <?php $sum = perm_summary($pp); $pg = perm_groups(); /* ช่วงที่ 11: สิทธิ์มีหลายตัว — สรุปเป็นรายหมวด (ชี้ดูชื่อสิทธิ์) */ ?>
                 <td data-label="เมนูที่ใช้ได้">
-                  <?php $n = 0; foreach ($sum as $grp => $s): if ($grp === 'extra') { continue; } $n++; ?>
-                    <span class="bdg bdg-adj" title="<?= e(implode(' · ', $s['names'])) ?>"><?= e($pg[$grp]) ?> <?= $s['have'] === $s['total'] ? 'ครบ' : $s['have'] . '/' . $s['total'] ?></span>
-                  <?php endforeach; ?>
-                  <?php if (!$n): ?><span class="adm-none">—</span><?php endif; ?>
+                  <?php $n = 0; foreach ($sum as $grp => $s) { if ($grp === 'extra') { continue; } $n++; ?>
+                    <span class="bdg bdg-adj" title="<?php echo e(implode(' · ', $s['names'])) ?>"><?php echo e($pg[$grp]) ?> <?php echo $s['have'] === $s['total'] ? 'ครบ' : $s['have'] . '/' . $s['total'] ?></span>
+                  <?php } ?>
+                  <?php if (!$n) { ?><span class="adm-none">—</span><?php } ?>
                 </td>
                 <td data-label="สิทธิ์เสริม">
-                  <?php if (isset($sum['extra'])): foreach ($sum['extra']['names'] as $nm): ?>
-                    <span class="bdg bdg-ok"><?= e($nm) ?></span>
-                  <?php endforeach; else: ?><span class="adm-none">—</span><?php endif; ?>
+                  <?php if (isset($sum['extra'])) { foreach ($sum['extra']['names'] as $nm) { ?>
+                    <span class="bdg bdg-ok"><?php echo e($nm) ?></span>
+                  <?php } } else { ?><span class="adm-none">—</span><?php } ?>
                 </td>
-                <td class="r"><a class="btn btn-ghost btn-sm" href="adm-users.php?u=<?= e(rawurlencode($k)) ?>">แก้ไข</a></td>
+                <td class="r"><a class="btn btn-ghost btn-sm" href="adm-users.php?u=<?php echo e(rawurlencode($k)) ?>">แก้ไข</a></td>
               </tr>
-            <?php endforeach; ?>
+            <?php } ?>
           </tbody>
         </table>
       </div>
-    <?php endif; ?>
+    <?php } ?>
   </details>
-<?php endforeach; ?>
+<?php } ?>
 
 <?php require dirname(__FILE__) . '/inc/footer.php'; ?>

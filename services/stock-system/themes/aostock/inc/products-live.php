@@ -9,6 +9,7 @@
  *   - [x] อ่าน / เขียนข้อมูลจากตาราง ao_stock_* ผ่าน api.php (ช่วงที่ 5–9)
  *   - [x] ช่วงที่ 10: แก้ File Header ให้ตรงกับระบบจริง
  *   - [x] ช่วงที่ 11: ลิงก์ไปประวัติเคลื่อนไหวตามสิทธิ์ (page_ok)
+ *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -52,36 +53,36 @@ $words = stock_filter_words($q, $cat, $st);
               'i-box',   '',                                       '',    false),
     );
 
-    foreach ($cards as $k):
+    foreach ($cards as $k) {
         $tap = ($k[5] !== '');
         $tag = $tap ? 'a' : 'div';
     ?>
-      <<?= $tag ?> class="kpi<?= $k[4] ?><?= $tap ? ' kpi--tap' : '' ?><?= $k[6] ? ' on' : '' ?>"
-         <?php if ($tap): ?>href="<?= e($k[5]) ?>" hx-get="<?= e($k[5]) ?>"
-         aria-pressed="<?= $k[6] ? 'true' : 'false' ?>"<?php endif; ?>>
+      <<?php echo $tag ?> class="kpi<?php echo $k[4] ?><?php echo $tap ? ' kpi--tap' : '' ?><?php echo $k[6] ? ' on' : '' ?>"
+         <?php if ($tap) { ?>href="<?php echo e($k[5]) ?>" hx-get="<?php echo e($k[5]) ?>"
+         aria-pressed="<?php echo $k[6] ? 'true' : 'false' ?>"<?php } ?>>
         <div class="kpi-top">
-          <span><?= e($k[0]) ?></span>
-          <span class="kpi-ic"><svg class="ico"><use href="#<?= e($k[3]) ?>"/></svg></span>
+          <span><?php echo e($k[0]) ?></span>
+          <span class="kpi-ic"><svg class="ico"><use href="#<?php echo e($k[3]) ?>"/></svg></span>
         </div>
-        <b><?= $k[1] ?></b>
-        <small><?= e($k[2]) ?></small>
-      </<?= $tag ?>>
-    <?php endforeach; ?>
+        <b><?php echo $k[1] ?></b>
+        <small><?php echo e($k[2]) ?></small>
+      </<?php echo $tag ?>>
+    <?php } ?>
   </section>
 
-  <?php if ($words): ?>
+  <?php if ($words) { ?>
     <p class="filtered" hx-target="#stock-live" hx-swap="outerHTML" hx-push-url="true">
       <svg class="ico"><use href="#i-info"/></svg>
       <span>
-        กำลังกรอง: <b><?= e(implode(' · ', $words)) ?></b> —
-        เห็น <b><?= number_format($view['skus']) ?></b> รายการ
-        จากทั้ง<?= e(branch_name($code)) ?> <b><?= number_format($all['skus']) ?></b> รายการ
+        กำลังกรอง: <b><?php echo e(implode(' · ', $words)) ?></b> —
+        เห็น <b><?php echo number_format($view['skus']) ?></b> รายการ
+        จากทั้ง<?php echo e(branch_name($code)) ?> <b><?php echo number_format($all['skus']) ?></b> รายการ
       </span>
       <a class="btn btn-ghost btn-sm" href="products.php" hx-get="products.php">
         <svg class="ico"><use href="#i-x"/></svg> ล้างตัวกรอง
       </a>
     </p>
-  <?php endif; ?>
+  <?php } ?>
 
   <!-- ===== ตัวกรอง ===== -->
   <section class="card stock-filter">
@@ -90,25 +91,25 @@ $words = stock_filter_words($q, $cat, $st);
       <div class="find-in">
         <svg class="ico"><use href="#i-search"/></svg>
         <label class="sr-only" for="q">ค้นหาสินค้า</label>
-        <input type="search" id="q" name="q" value="<?= e($q) ?>" placeholder="ชื่อสินค้า หรือ SKU"
+        <input type="search" id="q" name="q" value="<?php echo e($q) ?>" placeholder="ชื่อสินค้า หรือ SKU"
                hx-get="products.php" hx-trigger="input changed delay:350ms, search"
                hx-include="closest form" hx-target="#stock-live" hx-swap="outerHTML"
                hx-sync="this:replace" hx-push-url="true" hx-preserve="true">
       </div>
-      <?php if ($cat !== ''):  ?><input type="hidden" name="cat"  value="<?= e($cat) ?>"><?php endif; ?>
-      <?php if ($st !== ''):   ?><input type="hidden" name="st"   value="<?= e($st) ?>"><?php endif; ?>
-      <?php if ($sort !== ''): ?><input type="hidden" name="sort" value="<?= e($sort) ?>"><?php endif; ?>
+      <?php if ($cat !== '') {  ?><input type="hidden" name="cat"  value="<?php echo e($cat) ?>"><?php } ?>
+      <?php if ($st !== '') {   ?><input type="hidden" name="st"   value="<?php echo e($st) ?>"><?php } ?>
+      <?php if ($sort !== '') { ?><input type="hidden" name="sort" value="<?php echo e($sort) ?>"><?php } ?>
       <button class="btn" type="submit">ค้นหา</button>
     </form>
 
 
     <div class="cats" hx-target="#stock-live" hx-swap="outerHTML" hx-push-url="true">
       <?php $u = 'products.php' . stock_qs($q, '', $st, $sort); ?>
-      <a class="cat<?= $cat === '' ? ' on' : '' ?>" href="<?= e($u) ?>" hx-get="<?= e($u) ?>">ทุกหมวด</a>
-      <?php foreach (product_cats() as $c): ?>
+      <a class="cat<?php echo $cat === '' ? ' on' : '' ?>" href="<?php echo e($u) ?>" hx-get="<?php echo e($u) ?>">ทุกหมวด</a>
+      <?php foreach (product_cats() as $c) { ?>
         <?php $u = 'products.php' . stock_qs($q, $c, $st, $sort); ?>
-        <a class="cat<?= $cat === $c ? ' on' : '' ?>" href="<?= e($u) ?>" hx-get="<?= e($u) ?>"><?= e($c) ?></a>
-      <?php endforeach; ?>
+        <a class="cat<?php echo $cat === $c ? ' on' : '' ?>" href="<?php echo e($u) ?>" hx-get="<?php echo e($u) ?>"><?php echo e($c) ?></a>
+      <?php } ?>
     </div>
   </section>
 
@@ -116,37 +117,37 @@ $words = stock_filter_words($q, $cat, $st);
   <section class="card">
     <div class="card-head">
       <div>
-        <h2>สินค้าใน<?= e(branch_name($code)) ?></h2>
+        <h2>สินค้าใน<?php echo e(branch_name($code)) ?></h2>
         <span class="sub">
-          <?= number_format($view['skus']) ?> รายการ · รวม <?= number_format($view['qty']) ?> ชิ้น
-          <?= $qs !== '' ? ' (จากการกรอง)' : '' ?>
+          <?php echo number_format($view['skus']) ?> รายการ · รวม <?php echo number_format($view['qty']) ?> ชิ้น
+          <?php echo $qs !== '' ? ' (จากการกรอง)' : '' ?>
         </span>
       </div>
-      <?php if (can($user, 'receive')): /* ผู้ดูแลไม่นำเข้าสินค้า — ปุ่มนี้มีเฉพาะพนักงานที่มีสิทธิ์ */ ?>
+      <?php if (can($user, 'receive')) { /* ผู้ดูแลไม่นำเข้าสินค้า — ปุ่มนี้มีเฉพาะพนักงานที่มีสิทธิ์ */ ?>
       <div class="head-act">
         <a class="btn btn-in" href="receive.php">
           <svg class="ico"><use href="#i-in"/></svg> นำเข้าสินค้า
         </a>
       </div>
-      <?php endif; ?>
+      <?php } ?>
       <div class="sortbox" hx-target="#stock-live" hx-swap="outerHTML" hx-push-url="true">
         <label class="sr-only" for="sort">เรียงตาม</label>
         <select class="select" id="sort" name="sort"
                 hx-get="products.php" hx-trigger="change"
-                hx-vals='<?= e(json_encode(array('q' => $q, 'cat' => $cat, 'st' => $st))) ?>'>
-          <?php foreach (stock_sorts() as $key => $lb): ?>
-            <option value="<?= e($key) ?>" <?= $sort === $key ? 'selected' : '' ?>><?= e($lb) ?></option>
-          <?php endforeach; ?>
+                hx-vals='<?php echo e(json_encode(array('q' => $q, 'cat' => $cat, 'st' => $st))) ?>'>
+          <?php foreach (stock_sorts() as $key => $lb) { ?>
+            <option value="<?php echo e($key) ?>" <?php echo $sort === $key ? 'selected' : '' ?>><?php echo e($lb) ?></option>
+          <?php } ?>
         </select>
       </div>
     </div>
 
-    <?php if (!$rows): ?>
+    <?php if (!$rows) { ?>
       <p class="empty">
         <svg class="ico"><use href="#i-boxes"/></svg>
         ไม่พบสินค้าที่ตรงกับเงื่อนไข<br><small>ลองล้างตัวกรอง หรือพิมพ์คำค้นให้สั้นลง</small>
       </p>
-    <?php else: ?>
+    <?php } else { ?>
       <div class="tbl-wrap">
         <table class="tbl tbl-stock">
           <thead>
@@ -161,50 +162,50 @@ $words = stock_filter_words($q, $cat, $st);
             </tr>
           </thead>
           <tbody>
-            <?php foreach ($rows as $r): ?>
+            <?php foreach ($rows as $r) { ?>
               <?php $p = $r['p']; ?>
-              <tr class="st-<?= e($r['status']) ?>">
+              <tr class="st-<?php echo e($r['status']) ?>">
                 <td data-label="สินค้า">
                   <span class="pcell">
-                    <?= thumb_html($p) ?>
+                    <?php echo thumb_html($p) ?>
                     <span class="pcell-t">
-                      <?php if (page_ok($user, 'movements.php')): ?>
-                        <a class="doc doc-link" href="movements.php?sku=<?= e(rawurlencode($p['sku'])) ?>"
-                           title="ดูความเคลื่อนไหวของสินค้านี้"><?= e($p['name']) ?></a>
-                      <?php else: ?>
-                        <span class="doc"><?= e($p['name']) ?></span>
-                      <?php endif; ?>
-                      <small><?= e($p['sku']) ?></small>
+                      <?php if (page_ok($user, 'movements.php')) { ?>
+                        <a class="doc doc-link" href="movements.php?sku=<?php echo e(rawurlencode($p['sku'])) ?>"
+                           title="ดูความเคลื่อนไหวของสินค้านี้"><?php echo e($p['name']) ?></a>
+                      <?php } else { ?>
+                        <span class="doc"><?php echo e($p['name']) ?></span>
+                      <?php } ?>
+                      <small><?php echo e($p['sku']) ?></small>
                     </span>
                   </span>
                 </td>
-                <td data-label="หมวด"><?= e($p['cat']) ?></td>
+                <td data-label="หมวด"><?php echo e($p['cat']) ?></td>
                 <td data-label="คงเหลือ" class="r">
-                  <b class="num qty-<?= e($r['status']) ?>"><?= number_format($r['qty']) ?></b>
-                  <small><?= e($p['unit']) ?></small>
+                  <b class="num qty-<?php echo e($r['status']) ?>"><?php echo number_format($r['qty']) ?></b>
+                  <small><?php echo e($p['unit']) ?></small>
                 </td>
-                <td data-label="จุดสั่งซื้อ" class="r num"><?= number_format($p['reorder']) ?></td>
+                <td data-label="จุดสั่งซื้อ" class="r num"><?php echo number_format($p['reorder']) ?></td>
                 <td data-label="ระดับสต๊อก">
-                  <span class="lvl" title="<?= $r['pct'] ?>% ของจุดสั่งซื้อ">
-                    <i class="lvl-<?= e($r['status']) ?>" style="width:<?= max(2, min(100, $r['pct'])) ?>%"></i>
+                  <span class="lvl" title="<?php echo $r['pct'] ?>% ของจุดสั่งซื้อ">
+                    <i class="lvl-<?php echo e($r['status']) ?>" style="width:<?php echo max(2, min(100, $r['pct'])) ?>%"></i>
                   </span>
                 </td>
-                <td data-label="ราคาขาย" class="r num"><?= money2(product_price($p)) ?></td>
+                <td data-label="ราคาขาย" class="r num"><?php echo money2(product_price($p)) ?></td>
                 <td data-label="สถานะ">
-                  <span class="badge b-<?= e(stock_tone($r['status'])) ?>"><?= e(stock_label($r['status'])) ?></span>
+                  <span class="badge b-<?php echo e(stock_tone($r['status'])) ?>"><?php echo e(stock_label($r['status'])) ?></span>
                 </td>
               </tr>
-            <?php endforeach; ?>
+            <?php } ?>
           </tbody>
           <tfoot>
             <tr>
               <th colspan="2">รวมที่แสดงอยู่</th>
-              <th class="r num"><?= number_format($view['qty']) ?></th>
-              <th colspan="4"><?= number_format($view['skus']) ?> รายการ</th>
+              <th class="r num"><?php echo number_format($view['qty']) ?></th>
+              <th colspan="4"><?php echo number_format($view['skus']) ?> รายการ</th>
             </tr>
           </tfoot>
         </table>
       </div>
-    <?php endif; ?>
+    <?php } ?>
   </section>
 </div>

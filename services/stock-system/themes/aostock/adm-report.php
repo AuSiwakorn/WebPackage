@@ -7,6 +7,7 @@
  * TODO:
  *   - [x] ย้ายจาก demo/ เข้า themes/aostock/ (วิ่งผ่าน router ของ admweb)
  *   - [x] ช่วงที่ 8: SQL ทั้งช่วง (เดิมวนอ่านบิลพร้อมรายการทีละวันทีละสาขา)
+ *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -139,65 +140,65 @@ require dirname(__FILE__) . '/inc/header.php';
 <section class="card acct-filter hist-filter">
   <form method="get" action="adm-report.php" class="acct-row">
     <div class="segs">
-      <?php foreach (array('recent' => '30 วัน', 'day' => 'รายวัน', 'month' => 'รายเดือน', 'year' => 'รายปี') as $md => $lb): ?>
-        <a class="seg<?= $fMode === $md ? ' on' : '' ?>" href="<?= e($rq(array('mode' => $md))) ?>"><?= e($lb) ?></a>
-      <?php endforeach; ?>
+      <?php foreach (array('recent' => '30 วัน', 'day' => 'รายวัน', 'month' => 'รายเดือน', 'year' => 'รายปี') as $md => $lb) { ?>
+        <a class="seg<?php echo $fMode === $md ? ' on' : '' ?>" href="<?php echo e($rq(array('mode' => $md))) ?>"><?php echo e($lb) ?></a>
+      <?php } ?>
     </div>
-    <input type="hidden" name="mode" value="<?= e($fMode) ?>">
-    <?php if ($fMode === 'day'): ?>
-      <a class="btn btn-ghost btn-sm" href="<?= e($rq(array('d' => date('Y-m-d', strtotime('-1 day', $dayTs))))) ?>" aria-label="วันก่อนหน้า">‹</a>
+    <input type="hidden" name="mode" value="<?php echo e($fMode) ?>">
+    <?php if ($fMode === 'day') { ?>
+      <a class="btn btn-ghost btn-sm" href="<?php echo e($rq(array('d' => date('Y-m-d', strtotime('-1 day', $dayTs))))) ?>" aria-label="วันก่อนหน้า">‹</a>
       <label class="sr-only" for="rd">วันที่</label>
-      <input class="input acct-date" type="date" id="rd" name="d" value="<?= e(date('Y-m-d', $dayTs)) ?>" max="<?= e(date('Y-m-d')) ?>" onchange="this.form.submit()">
-      <?php if ($dayTs < $today): ?><a class="btn btn-ghost btn-sm" href="<?= e($rq(array('d' => date('Y-m-d', strtotime('+1 day', $dayTs))))) ?>" aria-label="วันถัดไป">›</a><?php endif; ?>
-    <?php elseif ($fMode === 'month'): ?>
-      <a class="btn btn-ghost btn-sm" href="<?= e($rq(array('m' => date('Y-m', strtotime('-1 month', $monTs))))) ?>" aria-label="เดือนก่อนหน้า">‹</a>
+      <input class="input acct-date" type="date" id="rd" name="d" value="<?php echo e(date('Y-m-d', $dayTs)) ?>" max="<?php echo e(date('Y-m-d')) ?>" onchange="this.form.submit()">
+      <?php if ($dayTs < $today) { ?><a class="btn btn-ghost btn-sm" href="<?php echo e($rq(array('d' => date('Y-m-d', strtotime('+1 day', $dayTs))))) ?>" aria-label="วันถัดไป">›</a><?php } ?>
+    <?php } elseif ($fMode === 'month') { ?>
+      <a class="btn btn-ghost btn-sm" href="<?php echo e($rq(array('m' => date('Y-m', strtotime('-1 month', $monTs))))) ?>" aria-label="เดือนก่อนหน้า">‹</a>
       <label class="sr-only" for="rm">เดือน</label>
-      <input class="input acct-date" type="month" id="rm" name="m" value="<?= e(date('Y-m', $monTs)) ?>" max="<?= e(date('Y-m')) ?>" onchange="this.form.submit()">
-      <?php if ($monTs < strtotime(date('Y-m-01'))): ?><a class="btn btn-ghost btn-sm" href="<?= e($rq(array('m' => date('Y-m', strtotime('+1 month', $monTs))))) ?>" aria-label="เดือนถัดไป">›</a><?php endif; ?>
-    <?php elseif ($fMode === 'year'): ?>
+      <input class="input acct-date" type="month" id="rm" name="m" value="<?php echo e(date('Y-m', $monTs)) ?>" max="<?php echo e(date('Y-m')) ?>" onchange="this.form.submit()">
+      <?php if ($monTs < strtotime(date('Y-m-01'))) { ?><a class="btn btn-ghost btn-sm" href="<?php echo e($rq(array('m' => date('Y-m', strtotime('+1 month', $monTs))))) ?>" aria-label="เดือนถัดไป">›</a><?php } ?>
+    <?php } elseif ($fMode === 'year') { ?>
       <label class="sr-only" for="ry">ปี</label>
       <select class="input acct-date" id="ry" name="y" onchange="this.form.submit()">
-        <?php for ($y = (int) date('Y'); $y >= $yearMin; $y--): ?>
-          <option value="<?= $y ?>" <?= $y === $year ? 'selected' : '' ?>>ปี <?= $y + 543 ?></option>
-        <?php endfor; ?>
+        <?php for ($y = (int) date('Y'); $y >= $yearMin; $y--) { ?>
+          <option value="<?php echo $y ?>" <?php echo $y === $year ? 'selected' : '' ?>>ปี <?php echo $y + 543 ?></option>
+        <?php } ?>
       </select>
-    <?php endif; ?>
+    <?php } ?>
     <label class="sr-only" for="rb">สาขา</label>
     <select class="input acct-branch" id="rb" name="b" onchange="this.form.submit()">
       <option value="ALL">ทุกสาขา</option>
-      <?php foreach ($brAll as $c => $x): ?>
-        <option value="<?= e($c) ?>" <?= $fB === $c ? 'selected' : '' ?>><?= e($x['name']) ?><?= empty($x['active']) ? ' (ปิดใช้งาน)' : '' ?></option>
-      <?php endforeach; ?>
+      <?php foreach ($brAll as $c => $x) { ?>
+        <option value="<?php echo e($c) ?>" <?php echo $fB === $c ? 'selected' : '' ?>><?php echo e($x['name']) ?><?php echo empty($x['active']) ? ' (ปิดใช้งาน)' : '' ?></option>
+      <?php } ?>
     </select>
-      <a class="btn btn-ghost btn-sm rep-csv" href="<?= e($rq(array('export' => 'csv'))) ?>"><svg class="ico"><use href="#i-in"/></svg> ดาวน์โหลด CSV</a>
+      <a class="btn btn-ghost btn-sm rep-csv" href="<?php echo e($rq(array('export' => 'csv'))) ?>"><svg class="ico"><use href="#i-in"/></svg> ดาวน์โหลด CSV</a>
   </form>
 </section>
 
 <!-- ==================== สรุป ==================== -->
 <section class="mini num adm-kpi" aria-label="สรุปยอดขาย">
-  <div class="m"><div class="lb">ยอดขาย</div><div class="nm"><?= e(money2($sum['total'])) ?></div>
-    <div class="sb">เงินสด <?= e(money2($sum['cash'])) ?> · โอน <?= e(money2($sum['total'] - $sum['cash'])) ?></div></div>
-  <div class="m"><div class="lb">บิล</div><div class="nm"><?= number_format($sum['bills']) ?></div>
-    <div class="sb">เฉลี่ย <?= e(money2($sum['bills'] ? $sum['total'] / $sum['bills'] : 0)) ?> บาท / บิล · VAT <?= number_format($sum['vat']) ?> ใบ<?= $sum['void'] ? ' · ยกเลิก ' . number_format($sum['void']) : '' ?></div></div>
-  <div class="m"><div class="lb">สินค้าที่ขายได้</div><div class="nm"><?= number_format($sum['qty']) ?> ชิ้น</div>
-    <div class="sb"><?= $sum['disc'] > 0 ? 'ให้ส่วนลดรวม ' . e(money2($sum['disc'])) . ' บาท' : 'ไม่มีส่วนลด' ?></div></div>
+  <div class="m"><div class="lb">ยอดขาย</div><div class="nm"><?php echo e(money2($sum['total'])) ?></div>
+    <div class="sb">เงินสด <?php echo e(money2($sum['cash'])) ?> · โอน <?php echo e(money2($sum['total'] - $sum['cash'])) ?></div></div>
+  <div class="m"><div class="lb">บิล</div><div class="nm"><?php echo number_format($sum['bills']) ?></div>
+    <div class="sb">เฉลี่ย <?php echo e(money2($sum['bills'] ? $sum['total'] / $sum['bills'] : 0)) ?> บาท / บิล · VAT <?php echo number_format($sum['vat']) ?> ใบ<?php echo $sum['void'] ? ' · ยกเลิก ' . number_format($sum['void']) : '' ?></div></div>
+  <div class="m"><div class="lb">สินค้าที่ขายได้</div><div class="nm"><?php echo number_format($sum['qty']) ?> ชิ้น</div>
+    <div class="sb"><?php echo $sum['disc'] > 0 ? 'ให้ส่วนลดรวม ' . e(money2($sum['disc'])) . ' บาท' : 'ไม่มีส่วนลด' ?></div></div>
 </section>
 
-<?php if ($fMode !== 'day'): ?>
+<?php if ($fMode !== 'day') { ?>
 <!-- ==================== แนวโน้ม ==================== -->
 <section class="card">
-  <div class="card-head"><div><h2>ยอดขาย<?= $fMode === 'year' ? 'รายเดือน' : 'รายวัน' ?></h2><span class="sub"><?= e($rangeTxt) ?></span></div></div>
+  <div class="card-head"><div><h2>ยอดขาย<?php echo $fMode === 'year' ? 'รายเดือน' : 'รายวัน' ?></h2><span class="sub"><?php echo e($rangeTxt) ?></span></div></div>
   <div class="rep-bars" role="list">
-    <?php foreach ($trend as $t): $h = (int) round($t['total'] / $maxT * 100); ?>
-      <a class="rep-bar" role="listitem" href="<?= e($fMode === 'year' ? $rq(array('mode' => 'month', 'm' => date('Y-m', $t['ts']))) : $rq(array('mode' => 'day', 'd' => date('Y-m-d', $t['ts'])))) ?>"
-         title="<?= e(($fMode === 'year' ? thai_month_full($t['ts']) : thai_date_full($t['ts'])) . ' · ' . money2($t['total']) . ' บาท · ' . $t['bills'] . ' บิล') ?>">
-        <span class="rep-fill" style="height:<?= max($t['total'] > 0 ? 3 : 0, $h) ?>%"></span>
-        <small><?= e($fMode === 'year' ? thai_month_short($t['ts']) : date('j', $t['ts'])) ?></small>
+    <?php foreach ($trend as $t) { $h = (int) round($t['total'] / $maxT * 100); ?>
+      <a class="rep-bar" role="listitem" href="<?php echo e($fMode === 'year' ? $rq(array('mode' => 'month', 'm' => date('Y-m', $t['ts']))) : $rq(array('mode' => 'day', 'd' => date('Y-m-d', $t['ts'])))) ?>"
+         title="<?php echo e(($fMode === 'year' ? thai_month_full($t['ts']) : thai_date_full($t['ts'])) . ' · ' . money2($t['total']) . ' บาท · ' . $t['bills'] . ' บิล') ?>">
+        <span class="rep-fill" style="height:<?php echo max($t['total'] > 0 ? 3 : 0, $h) ?>%"></span>
+        <small><?php echo e($fMode === 'year' ? thai_month_short($t['ts']) : date('j', $t['ts'])) ?></small>
       </a>
-    <?php endforeach; ?>
+    <?php } ?>
   </div>
 </section>
-<?php endif; ?>
+<?php } ?>
 
 <!-- แยกสาขา / รายพนักงาน ย้ายไปหน้าเฉพาะแล้ว -->
 <section class="card rep-links">
@@ -213,24 +214,24 @@ require dirname(__FILE__) . '/inc/header.php';
 <section class="card">
   <div class="card-head"><div><h2>สินค้าขายดี 10 อันดับ</h2><span class="sub">ตามยอดขาย (หักส่วนลดท้ายบิลตามสัดส่วนแล้ว)</span></div>
     <a class="btn btn-ghost btn-sm" href="adm-report-products.php">ดูทั้ง 100 อันดับ ›</a></div>
-  <?php if (!$prods): ?>
+  <?php if (!$prods) { ?>
     <p class="empty">ไม่มียอดขายในช่วงนี้</p>
-  <?php else: ?>
+  <?php } else { ?>
     <div class="tbl-wrap">
       <table class="tbl num">
         <thead><tr><th>สินค้า</th><th class="r">จำนวน</th><th class="r">ยอดขาย</th></tr></thead>
         <tbody>
-          <?php $i = 0; foreach ($prods as $sku => $p): $i++; ?>
+          <?php $i = 0; foreach ($prods as $sku => $p) { $i++; ?>
             <tr>
-              <td><b class="hist-t"><span class="rep-rank"><?= $i ?></span><?= e($p['name']) ?></b><small class="hist-n"><?= e($sku) ?></small></td>
-              <td data-label="จำนวน" class="r"><?= number_format($p['qty']) ?> <?= e($p['unit']) ?></td>
-              <td data-label="ยอดขาย" class="r"><b><?= e(money2($p['total'])) ?></b></td>
+              <td><b class="hist-t"><span class="rep-rank"><?php echo $i ?></span><?php echo e($p['name']) ?></b><small class="hist-n"><?php echo e($sku) ?></small></td>
+              <td data-label="จำนวน" class="r"><?php echo number_format($p['qty']) ?> <?php echo e($p['unit']) ?></td>
+              <td data-label="ยอดขาย" class="r"><b><?php echo e(money2($p['total'])) ?></b></td>
             </tr>
-          <?php endforeach; ?>
+          <?php } ?>
         </tbody>
       </table>
     </div>
-  <?php endif; ?>
+  <?php } ?>
 </section>
 
 <?php require dirname(__FILE__) . '/inc/footer.php'; ?>

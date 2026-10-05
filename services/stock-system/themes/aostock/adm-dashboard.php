@@ -8,6 +8,7 @@
  *   - [x] ย้ายจาก demo/ เข้า themes/aostock/ (วิ่งผ่าน router ของ admweb)
  *   - [x] ช่วงที่ 7: สถานะร้าน / ยอดขาย / เปิดใหม่หลังปิด / วันที่ลืมปิดร้าน อ่านจากตาราง · เอาแถบ "ข้อมูลสมมติ" ออก
  *   - [x] ช่วงที่ 8: แก้ "ตัดออก — สูญหาย" ในรายการที่ต้องตรวจ ให้อ่านใบตัดออกของวันนี้จากตาราง (เดิมอ่าน $_SESSION['issue'] ที่ไม่มีแล้ว)
+ *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -121,60 +122,60 @@ $__tones = array('ยกเลิกเอกสาร' => 'bdg-out', 'แก้
 ?>
 
 <section class="mini num adm-kpi" aria-label="สรุปวันนี้">
-  <div class="m"><div class="lb">ยอดขายวันนี้</div><div class="nm"><?= e(money2($__tot['total'])) ?></div><div class="sb"><?= number_format($__tot['bills']) ?> บิล · <?= e(branch_label($branch)) ?></div></div>
+  <div class="m"><div class="lb">ยอดขายวันนี้</div><div class="nm"><?php echo e(money2($__tot['total'])) ?></div><div class="sb"><?php echo number_format($__tot['bills']) ?> บิล · <?php echo e(branch_label($branch)) ?></div></div>
   <div class="m"><div class="lb">เงินขาด / เกินตอนปิดร้าน</div>
-    <div class="nm <?= $__tot['diff'] < 0 ? 'qty-out' : ($__tot['diff'] > 0 ? 'qty-in' : '') ?>"><?= $__tot['diff'] == 0 ? '0.00' : ($__tot['diff'] > 0 ? '+' : '−') . e(money2(abs($__tot['diff']))) ?></div>
+    <div class="nm <?php echo $__tot['diff'] < 0 ? 'qty-out' : ($__tot['diff'] > 0 ? 'qty-in' : '') ?>"><?php echo $__tot['diff'] == 0 ? '0.00' : ($__tot['diff'] > 0 ? '+' : '−') . e(money2(abs($__tot['diff']))) ?></div>
     <div class="sb">ผลการปิดร้านล่าสุดของแต่ละสาขา</div></div>
-  <div class="m"><div class="lb">รายการที่ต้องตรวจ</div><div class="nm <?= $__review ? 'qty-out' : '' ?>"><?= count($__review) ?></div><div class="sb">คืนเงินสดรวม <?= e(money2($__tot['refund'])) ?> บาท</div></div>
+  <div class="m"><div class="lb">รายการที่ต้องตรวจ</div><div class="nm <?php echo $__review ? 'qty-out' : '' ?>"><?php echo count($__review) ?></div><div class="sb">คืนเงินสดรวม <?php echo e(money2($__tot['refund'])) ?> บาท</div></div>
 </section>
 
 <!-- ==================== สถานะร้านวันนี้ ==================== -->
 <section class="card">
-  <div class="card-head"><div><h3>สถานะร้านวันนี้</h3><p><?= e(thai_date_full(time())) ?> · ยอดขายไม่นับบิลที่ยกเลิก</p></div></div>
+  <div class="card-head"><div><h3>สถานะร้านวันนี้</h3><p><?php echo e(thai_date_full(time())) ?> · ยอดขายไม่นับบิลที่ยกเลิก</p></div></div>
   <div class="card-body card-body--flush">
     <div class="tbl-wrap">
       <table class="tbl num">
         <thead><tr><th>สาขา</th><th>ร้าน</th><th class="r">ยอดขาย</th><th class="r">เงินสด / โอน</th><th class="r">บิลยกเลิก</th><th class="r">เงินตอนปิดร้าน</th></tr></thead>
         <tbody>
-          <?php foreach ($__rows as $r): $st = $r['st']; $s = $r['sum']; ?>
+          <?php foreach ($__rows as $r) { $st = $r['st']; $s = $r['sum']; ?>
             <tr>
-              <td data-label="สาขา"><b><?= e(branch_name($r['code'])) ?></b>
-                <?php if ($r['unclosed']): ?>
-                  <small class="warn-txt">ยังไม่ได้ปิดร้าน: <?= e(implode(', ', array_map(function ($d) { return thai_day_month(strtotime($d)); }, array_slice($r['unclosed'], 0, 5)))) ?><?= count($r['unclosed']) > 5 ? ' …' : '' ?></small>
-                <?php endif; ?>
+              <td data-label="สาขา"><b><?php echo e(branch_name($r['code'])) ?></b>
+                <?php if ($r['unclosed']) { ?>
+                  <small class="warn-txt">ยังไม่ได้ปิดร้าน: <?php echo e(implode(', ', array_map(function ($d) { return thai_day_month(strtotime($d)); }, array_slice($r['unclosed'], 0, 5)))) ?><?php echo count($r['unclosed']) > 5 ? ' …' : '' ?></small>
+                <?php } ?>
               </td>
               <td data-label="ร้าน">
-                <?php if ($st === null): ?>
+                <?php if ($st === null) { ?>
                   <span class="bdg bdg-adj">ยังไม่เปิด</span>
-                <?php elseif (empty($st['closed_at'])): ?>
-                  <span class="bdg bdg-ok">เปิดอยู่</span><small>เปิด <?= e($st['opened_at']) ?> น. · <?= e($st['opened_by']) ?><?= $st['reopen_count'] > 0 ? ' · เปิดใหม่ ' . (int) $st['reopen_count'] . ' ครั้ง' : '' ?></small>
-                <?php else: ?>
-                  <span class="bdg bdg-adj">ปิดแล้ว</span><small><?= e($st['opened_at']) ?>–<?= e($st['closed_at']) ?> น. · ปิดโดย <?= e($st['closed_by']) ?></small>
+                <?php } elseif (empty($st['closed_at'])) { ?>
+                  <span class="bdg bdg-ok">เปิดอยู่</span><small>เปิด <?php echo e($st['opened_at']) ?> น. · <?php echo e($st['opened_by']) ?><?php echo $st['reopen_count'] > 0 ? ' · เปิดใหม่ ' . (int) $st['reopen_count'] . ' ครั้ง' : '' ?></small>
+                <?php } else { ?>
+                  <span class="bdg bdg-adj">ปิดแล้ว</span><small><?php echo e($st['opened_at']) ?>–<?php echo e($st['closed_at']) ?> น. · ปิดโดย <?php echo e($st['closed_by']) ?></small>
                   <form class="dash-reopen" method="post" action="adm-dashboard.php">
-                    <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+                    <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
                     <input type="hidden" name="act" value="reopen">
-                    <input type="hidden" name="b" value="<?= e($r['code']) ?>">
+                    <input type="hidden" name="b" value="<?php echo e($r['code']) ?>">
                     <input class="input" type="text" name="reason" required placeholder="เหตุผลเปิดใหม่" aria-label="เหตุผลเปิดร้านใหม่">
                     <button class="btn btn-ghost btn-sm" type="submit"><svg class="ico"><use href="#i-store"/></svg> เปิดใหม่</button>
                   </form>
-                <?php endif; ?>
+                <?php } ?>
               </td>
-              <td class="r" data-label="ยอดขาย"><?= e(money2($s['total'])) ?><small><?= number_format($s['bills']) ?> บิล</small></td>
-              <td class="r" data-label="เงินสด / โอน"><?= e(money2($s['cash'])) ?><small>โอน <?= e(money2($s['transfer'])) ?></small></td>
-              <td class="r" data-label="บิลยกเลิก"><?= $s['void'] ? '<span class="bdg bdg-warn">' . number_format($s['void']) . '</span>' : '—' ?></td>
+              <td class="r" data-label="ยอดขาย"><?php echo e(money2($s['total'])) ?><small><?php echo number_format($s['bills']) ?> บิล</small></td>
+              <td class="r" data-label="เงินสด / โอน"><?php echo e(money2($s['cash'])) ?><small>โอน <?php echo e(money2($s['transfer'])) ?></small></td>
+              <td class="r" data-label="บิลยกเลิก"><?php echo $s['void'] ? '<span class="bdg bdg-warn">' . number_format($s['void']) . '</span>' : '—' ?></td>
               <td class="r" data-label="เงินตอนปิดร้าน">
-                <?php if ($r['diff'] === null): ?>
-                  <small><?= $st === null ? '—' : 'ยังไม่ปิดร้าน' ?></small>
-                <?php elseif (abs($r['diff']) < 0.01): ?>
+                <?php if ($r['diff'] === null) { ?>
+                  <small><?php echo $st === null ? '—' : 'ยังไม่ปิดร้าน' ?></small>
+                <?php } elseif (abs($r['diff']) < 0.01) { ?>
                   <span class="bdg bdg-ok">ตรงพอดี</span>
-                <?php else: ?>
-                  <span class="bdg bdg-out"><?= $r['diff'] > 0 ? 'เกิน +' : 'ขาด −' ?><?= e(money2(abs($r['diff']))) ?></span>
-                <?php endif; ?>
-                <?php if ($r['prev']): ?><small>ผลของรอบที่ปิดไปก่อนเปิดใหม่</small><?php endif; ?>
-                <?php if ($r['refund'] > 0): ?><small>คืนเงินลูกค้า <?= e(money2($r['refund'])) ?></small><?php endif; ?>
+                <?php } else { ?>
+                  <span class="bdg bdg-out"><?php echo $r['diff'] > 0 ? 'เกิน +' : 'ขาด −' ?><?php echo e(money2(abs($r['diff']))) ?></span>
+                <?php } ?>
+                <?php if ($r['prev']) { ?><small>ผลของรอบที่ปิดไปก่อนเปิดใหม่</small><?php } ?>
+                <?php if ($r['refund'] > 0) { ?><small>คืนเงินลูกค้า <?php echo e(money2($r['refund'])) ?></small><?php } ?>
               </td>
             </tr>
-          <?php endforeach; ?>
+          <?php } ?>
         </tbody>
       </table>
     </div>
@@ -184,31 +185,31 @@ $__tones = array('ยกเลิกเอกสาร' => 'bdg-out', 'แก้
 <!-- ==================== รายการที่ต้องตรวจ ==================== -->
 <section class="card">
   <div class="card-head"><div><h3>รายการที่ต้องตรวจ</h3><p>ยกเลิก / แก้เอกสาร · รับคืนและเงินคืน · เปิดร้านใหม่หลังปิด · ตัดออกเพราะสูญหาย · เงินไม่ตรงตอนปิดร้าน</p></div></div>
-  <?php if (!$__review): ?>
+  <?php if (!$__review) { ?>
     <p class="empty"><svg class="ico"><use href="#i-check"/></svg>วันนี้ยังไม่มีรายการที่ต้องตรวจ</p>
-  <?php else: ?>
+  <?php } else { ?>
     <div class="card-body card-body--flush">
       <div class="tbl-wrap">
         <table class="tbl">
           <thead><tr><th>เวลา</th><th>เรื่อง</th><th>รายละเอียด</th><th>ผู้ทำ</th><th class="r"></th></tr></thead>
           <tbody>
-            <?php foreach ($__review as $r): ?>
+            <?php foreach ($__review as $r) { ?>
               <tr>
-                <td class="num" data-label="เวลา"><?= e($r['time']) ?> น.<small><?= e(branch_name($r['code'])) ?></small></td>
-                <td data-label="เรื่อง"><span class="bdg <?= e($__tones[$r['kind']]) ?>"><?= e($r['kind']) ?></span></td>
-                <td data-label="รายละเอียด"><?= e($r['title']) ?>
-                  <?php if ($r['why'] !== ''): ?><small>เหตุผล: <?= e($r['why']) ?></small><?php endif; ?>
-                  <?php if ($r['amount'] !== null): ?><small>คืนเงินสด <?= e(money2($r['amount'])) ?> บาท</small><?php endif; ?>
+                <td class="num" data-label="เวลา"><?php echo e($r['time']) ?> น.<small><?php echo e(branch_name($r['code'])) ?></small></td>
+                <td data-label="เรื่อง"><span class="bdg <?php echo e($__tones[$r['kind']]) ?>"><?php echo e($r['kind']) ?></span></td>
+                <td data-label="รายละเอียด"><?php echo e($r['title']) ?>
+                  <?php if ($r['why'] !== '') { ?><small>เหตุผล: <?php echo e($r['why']) ?></small><?php } ?>
+                  <?php if ($r['amount'] !== null) { ?><small>คืนเงินสด <?php echo e(money2($r['amount'])) ?> บาท</small><?php } ?>
                 </td>
-                <td data-label="ผู้ทำ"><?= e($r['by']) ?></td>
-                <td class="r"><a class="btn btn-ghost btn-sm" href="adm-history.php?b=<?= e(rawurlencode($r['code'])) ?>">ดูประวัติ</a></td>
+                <td data-label="ผู้ทำ"><?php echo e($r['by']) ?></td>
+                <td class="r"><a class="btn btn-ghost btn-sm" href="adm-history.php?b=<?php echo e(rawurlencode($r['code'])) ?>">ดูประวัติ</a></td>
               </tr>
-            <?php endforeach; ?>
+            <?php } ?>
           </tbody>
         </table>
       </div>
     </div>
-  <?php endif; ?>
+  <?php } ?>
 </section>
 
 <!-- ==================== สต๊อกแยกตามสาขา ==================== -->
@@ -219,18 +220,18 @@ $__tones = array('ยกเลิกเอกสาร' => 'bdg-out', 'แก้
       <table class="tbl tbl--compact num">
         <thead><tr><th>สาขา</th><th class="r">มูลค่าสต๊อก</th><th class="r">ใกล้หมด</th><th class="r">หมด</th><th>ต้องสั่งก่อน</th></tr></thead>
         <tbody>
-          <?php foreach ($__codes as $c): $s = stock_summary($c); $lw = low_stock_products($c, 2); ?>
+          <?php foreach ($__codes as $c) { $s = stock_summary($c); $lw = low_stock_products($c, 2); ?>
             <tr>
-              <td data-label="สาขา"><b><?= e(branch_name($c)) ?></b></td>
-              <td class="r" data-label="มูลค่าสต๊อก"><?= e(money($s['value'])) ?></td>
-              <td class="r" data-label="ใกล้หมด"><?= $s['low'] ? '<span class="bdg bdg-warn">' . number_format($s['low']) . '</span>' : '—' ?></td>
-              <td class="r" data-label="หมด"><?= $s['out'] ? '<span class="bdg bdg-out">' . number_format($s['out']) . '</span>' : '—' ?></td>
+              <td data-label="สาขา"><b><?php echo e(branch_name($c)) ?></b></td>
+              <td class="r" data-label="มูลค่าสต๊อก"><?php echo e(money($s['value'])) ?></td>
+              <td class="r" data-label="ใกล้หมด"><?php echo $s['low'] ? '<span class="bdg bdg-warn">' . number_format($s['low']) . '</span>' : '—' ?></td>
+              <td class="r" data-label="หมด"><?php echo $s['out'] ? '<span class="bdg bdg-out">' . number_format($s['out']) . '</span>' : '—' ?></td>
               <td data-label="ต้องสั่งก่อน">
-                <?php if (!$lw): ?>—<?php endif; ?>
-                <?php foreach ($lw as $l): ?><small><?= e($l['product']['name']) ?> · เหลือ <?= number_format($l['qty']) ?></small><?php endforeach; ?>
+                <?php if (!$lw) { ?>—<?php } ?>
+                <?php foreach ($lw as $l) { ?><small><?php echo e($l['product']['name']) ?> · เหลือ <?php echo number_format($l['qty']) ?></small><?php } ?>
               </td>
             </tr>
-          <?php endforeach; ?>
+          <?php } ?>
         </tbody>
       </table>
     </div>

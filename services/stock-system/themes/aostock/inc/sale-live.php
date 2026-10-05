@@ -8,6 +8,7 @@
  *   - [x] ย้ายจาก demo/ เข้า themes/aostock/ (วิ่งผ่าน router ของ admweb)
  *   - [x] ช่วงที่ 7: บิลที่บันทึกแล้วอยู่ในตาราง — ไฟล์นี้แสดงตะกร้า + สรุปยอดวันนี้
  *   - [x] ช่วงที่ 11: ช่องแก้ยอดชำระ (ส่วนลด) เฉพาะคนที่มีสิทธิ์ discount · ลิงก์ประวัติตามสิทธิ์
+ *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -44,54 +45,54 @@ $base = 'sale.php' . ($qs !== '' ? '?' . $qs : '');
         <label class="sr-only" for="q">ค้นหาสินค้า</label>
         <?php /* ใช้ input ไม่ใช่ keyup เพราะพิมพ์ไทยผ่าน IME หรือแป้นบนจอ
                  บางเครื่องไม่ส่ง keyup · hx-preserve ทำให้เคอร์เซอร์ยังอยู่ในช่อง */ ?>
-        <input type="search" id="q" name="q" value="<?= e($q) ?>" placeholder="ชื่อสินค้า หรือ SKU"
+        <input type="search" id="q" name="q" value="<?php echo e($q) ?>" placeholder="ชื่อสินค้า หรือ SKU"
                hx-get="sale.php" hx-trigger="input changed delay:350ms, search"
                hx-include="closest form" hx-target="#sale-live" hx-swap="outerHTML"
                hx-sync="this:replace" hx-push-url="true" hx-preserve="true">
       </div>
-      <?php if ($cat !== ''): ?><input type="hidden" name="cat" value="<?= e($cat) ?>"><?php endif; ?>
+      <?php if ($cat !== '') { ?><input type="hidden" name="cat" value="<?php echo e($cat) ?>"><?php } ?>
       <button class="btn" type="submit">ค้นหา</button>
     </form>
 
     <div class="cats" hx-target="#sale-live" hx-swap="outerHTML" hx-push-url="true">
-      <a class="cat<?= $cat === '' ? ' on' : '' ?>"
-         href="sale.php<?= $q !== '' ? '?q=' . rawurlencode($q) : '' ?>"
-         hx-get="sale.php<?= $q !== '' ? '?q=' . rawurlencode($q) : '' ?>">ทั้งหมด</a>
-      <?php foreach (product_cats() as $c): ?>
+      <a class="cat<?php echo $cat === '' ? ' on' : '' ?>"
+         href="sale.php<?php echo $q !== '' ? '?q=' . rawurlencode($q) : '' ?>"
+         hx-get="sale.php<?php echo $q !== '' ? '?q=' . rawurlencode($q) : '' ?>">ทั้งหมด</a>
+      <?php foreach (product_cats() as $c) { ?>
         <?php $u = 'sale.php?cat=' . rawurlencode($c) . ($q !== '' ? '&q=' . rawurlencode($q) : ''); ?>
-        <a class="cat<?= $cat === $c ? ' on' : '' ?>" href="<?= e($u) ?>" hx-get="<?= e($u) ?>"><?= e($c) ?></a>
-      <?php endforeach; ?>
+        <a class="cat<?php echo $cat === $c ? ' on' : '' ?>" href="<?php echo e($u) ?>" hx-get="<?php echo e($u) ?>"><?php echo e($c) ?></a>
+      <?php } ?>
     </div>
 
-    <?php if (!$list): ?>
+    <?php if (!$list) { ?>
       <p class="empty">
         <svg class="ico"><use href="#i-search"/></svg>
         ไม่พบสินค้าที่ตรงกับคำค้น<br><small>ลองพิมพ์ชื่อสั้นลง หรือเลือกหมวด “ทั้งหมด”</small>
       </p>
-    <?php else: ?>
+    <?php } else { ?>
       <div class="goods">
-        <?php foreach ($list as $p): ?>
+        <?php foreach ($list as $p) { ?>
           <?php $inCart = isset($_SESSION['cart'][$p['sku']]) ? (int) $_SESSION['cart'][$p['sku']] : 0; ?>
-          <form method="post" action="<?= e($base) ?>" class="g-form"
-                hx-post="<?= e($base) ?>" hx-target="#sale-live" hx-swap="outerHTML">
-            <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+          <form method="post" action="<?php echo e($base) ?>" class="g-form"
+                hx-post="<?php echo e($base) ?>" hx-target="#sale-live" hx-swap="outerHTML">
+            <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
             <input type="hidden" name="act" value="add">
-            <input type="hidden" name="sku" value="<?= e($p['sku']) ?>">
-            <button class="good<?= $p['qty'] <= 0 ? ' is-out' : '' ?><?= $inCart > 0 ? ' is-in' : '' ?>"
-                    type="submit" <?= $p['qty'] <= 0 ? 'disabled' : '' ?>>
-              <?php if ($inCart > 0): ?><i class="g-bdg"><?= $inCart ?></i><?php endif; ?>
-              <?= thumb_html($p, 'thumb--lg') ?>
-              <span class="g-cat"><?= e($p['cat']) ?></span>
-              <span class="g-nm"><?= e($p['name']) ?></span>
-              <span class="g-pr num"><?= money2($p['price']) ?><small>บาท/<?= e($p['unit']) ?></small></span>
-              <span class="g-qty<?= $p['qty'] <= 0 ? ' out' : ($p['qty'] <= $p['reorder'] ? ' low' : '') ?>">
-                <?= $p['qty'] <= 0 ? 'หมด' : 'เหลือ ' . number_format($p['qty']) . ' ' . e($p['unit']) ?>
+            <input type="hidden" name="sku" value="<?php echo e($p['sku']) ?>">
+            <button class="good<?php echo $p['qty'] <= 0 ? ' is-out' : '' ?><?php echo $inCart > 0 ? ' is-in' : '' ?>"
+                    type="submit" <?php echo $p['qty'] <= 0 ? 'disabled' : '' ?>>
+              <?php if ($inCart > 0) { ?><i class="g-bdg"><?php echo $inCart ?></i><?php } ?>
+              <?php echo thumb_html($p, 'thumb--lg') ?>
+              <span class="g-cat"><?php echo e($p['cat']) ?></span>
+              <span class="g-nm"><?php echo e($p['name']) ?></span>
+              <span class="g-pr num"><?php echo money2($p['price']) ?><small>บาท/<?php echo e($p['unit']) ?></small></span>
+              <span class="g-qty<?php echo $p['qty'] <= 0 ? ' out' : ($p['qty'] <= $p['reorder'] ? ' low' : '') ?>">
+                <?php echo $p['qty'] <= 0 ? 'หมด' : 'เหลือ ' . number_format($p['qty']) . ' ' . e($p['unit']) ?>
               </span>
             </button>
           </form>
-        <?php endforeach; ?>
+        <?php } ?>
       </div>
-    <?php endif; ?>
+    <?php } ?>
   </section>
 
   <!-- ==================== ตะกร้า ==================== -->
@@ -100,99 +101,99 @@ $base = 'sale.php' . ($qs !== '' ? '?' . $qs : '');
       <div class="card-head">
         <div>
           <h2>ตะกร้า</h2>
-          <span class="sub"><?= count($cart) ?> รายการ · <?= number_format(cart_count()) ?> ชิ้น</span>
+          <span class="sub"><?php echo count($cart) ?> รายการ · <?php echo number_format(cart_count()) ?> ชิ้น</span>
         </div>
-        <?php if ($cart): ?>
-          <form method="post" action="<?= e($base) ?>" hx-post="<?= e($base) ?>"
+        <?php if ($cart) { ?>
+          <form method="post" action="<?php echo e($base) ?>" hx-post="<?php echo e($base) ?>"
                 hx-target="#sale-live" hx-swap="outerHTML">
-            <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+            <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
             <input type="hidden" name="act" value="clear">
             <button class="icon-btn" type="submit" title="ล้างตะกร้า" aria-label="ล้างตะกร้า">
               <svg class="ico"><use href="#i-trash"/></svg>
             </button>
           </form>
-        <?php endif; ?>
+        <?php } ?>
       </div>
 
-      <?php if (!$cart): ?>
+      <?php if (!$cart) { ?>
         <p class="empty empty-cart">
           <svg class="ico"><use href="#i-cart"/></svg>
           ยังไม่มีสินค้าในตะกร้า<br><small>แตะสินค้าทางซ้ายเพื่อเริ่มขาย</small>
         </p>
-      <?php else: ?>
+      <?php } else { ?>
 
         <ul class="cart-list">
-          <?php foreach ($cart as $l): ?>
+          <?php foreach ($cart as $l) { ?>
             <li>
               <div class="cl-t">
-                <b><?= e($l['name']) ?></b>
-                <small class="num"><?= money2($l['price']) ?> × <?= $l['qty'] ?> <?= e($l['unit']) ?></small>
+                <b><?php echo e($l['name']) ?></b>
+                <small class="num"><?php echo money2($l['price']) ?> × <?php echo $l['qty'] ?> <?php echo e($l['unit']) ?></small>
               </div>
               <div class="cl-q" hx-target="#sale-live" hx-swap="outerHTML">
-                <form method="post" action="<?= e($base) ?>" hx-post="<?= e($base) ?>">
-                  <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+                <form method="post" action="<?php echo e($base) ?>" hx-post="<?php echo e($base) ?>">
+                  <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
                   <input type="hidden" name="act" value="minus">
-                  <input type="hidden" name="sku" value="<?= e($l['sku']) ?>">
+                  <input type="hidden" name="sku" value="<?php echo e($l['sku']) ?>">
                   <button type="submit" aria-label="ลดจำนวน"><svg class="ico"><use href="#i-minus"/></svg></button>
                 </form>
 
                 <?php /* พิมพ์จำนวนแก้ได้เลยเมื่อกดผิด ไม่ต้องกดลดทีละครั้ง */ ?>
-                <form method="post" action="<?= e($base) ?>" hx-post="<?= e($base) ?>" class="cl-set"
+                <form method="post" action="<?php echo e($base) ?>" hx-post="<?php echo e($base) ?>" class="cl-set"
                       hx-trigger="submit, change">
-                  <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+                  <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
                   <input type="hidden" name="act" value="set">
-                  <input type="hidden" name="sku" value="<?= e($l['sku']) ?>">
-                  <input class="num" type="text" inputmode="numeric" name="qty" value="<?= $l['qty'] ?>"
-                         aria-label="จำนวนของ <?= e($l['name']) ?>" autocomplete="off">
+                  <input type="hidden" name="sku" value="<?php echo e($l['sku']) ?>">
+                  <input class="num" type="text" inputmode="numeric" name="qty" value="<?php echo $l['qty'] ?>"
+                         aria-label="จำนวนของ <?php echo e($l['name']) ?>" autocomplete="off">
                   <noscript><button type="submit">ตกลง</button></noscript>
                 </form>
 
-                <form method="post" action="<?= e($base) ?>" hx-post="<?= e($base) ?>">
-                  <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+                <form method="post" action="<?php echo e($base) ?>" hx-post="<?php echo e($base) ?>">
+                  <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
                   <input type="hidden" name="act" value="add">
-                  <input type="hidden" name="sku" value="<?= e($l['sku']) ?>">
+                  <input type="hidden" name="sku" value="<?php echo e($l['sku']) ?>">
                   <button type="submit" aria-label="เพิ่มจำนวน"><svg class="ico"><use href="#i-plus"/></svg></button>
                 </form>
               </div>
-              <div class="cl-s num"><?= money2($l['sum']) ?></div>
-              <form class="cl-del" method="post" action="<?= e($base) ?>"
-                    hx-post="<?= e($base) ?>" hx-target="#sale-live" hx-swap="outerHTML">
-                <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+              <div class="cl-s num"><?php echo money2($l['sum']) ?></div>
+              <form class="cl-del" method="post" action="<?php echo e($base) ?>"
+                    hx-post="<?php echo e($base) ?>" hx-target="#sale-live" hx-swap="outerHTML">
+                <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
                 <input type="hidden" name="act" value="del">
-                <input type="hidden" name="sku" value="<?= e($l['sku']) ?>">
-                <button type="submit" aria-label="เอา <?= e($l['name']) ?> ออกจากตะกร้า"
+                <input type="hidden" name="sku" value="<?php echo e($l['sku']) ?>">
+                <button type="submit" aria-label="เอา <?php echo e($l['name']) ?> ออกจากตะกร้า"
                         title="เอาออกจากตะกร้า"><svg class="ico"><use href="#i-x"/></svg></button>
               </form>
             </li>
-          <?php endforeach; ?>
+          <?php } ?>
         </ul>
 
-        <form method="post" action="<?= e($base) ?>" class="pay" data-confirm="pay" hx-confirm="ยืนยันการรับเงิน"
-              hx-post="<?= e($base) ?>" hx-target="#sale-live" hx-swap="outerHTML">
-          <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+        <form method="post" action="<?php echo e($base) ?>" class="pay" data-confirm="pay" hx-confirm="ยืนยันการรับเงิน"
+              hx-post="<?php echo e($base) ?>" hx-target="#sale-live" hx-swap="outerHTML">
+          <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
           <input type="hidden" name="act" value="pay">
 
           <?php /* ยอดที่ต้องชำระแก้ได้ — ลดราคาให้ลูกค้า ระบบลงเป็น "ส่วนลด" ในบิลให้เอง (เพิ่มเกินราคาจริงไม่ได้)
                    ไม่มีสิทธิ์ให้ส่วนลด = แสดงยอดเต็มอย่างเดียว (ช่วงที่ 11 — ฝั่งเซิร์ฟเวอร์คิดราคาเต็มเสมออยู่แล้ว) */ ?>
-          <?php if (!can($user, 'discount')): ?>
+          <?php if (!can($user, 'discount')) { ?>
           <div class="pay-tot">
             <span>ยอดที่ต้องชำระ</span>
-            <b class="num" id="total" data-v="<?= (int) $tot ?>"><?= money2($tot) ?></b>
+            <b class="num" id="total" data-v="<?php echo (int) $tot ?>"><?php echo money2($tot) ?></b>
           </div>
-          <?php else: ?>
+          <?php } else { ?>
           <div class="pay-tot pay-net">
             <label for="net">ยอดที่ต้องชำระ<small>แก้ได้ถ้าลดราคาให้ลูกค้า</small></label>
             <input class="num" type="text" inputmode="decimal" id="net" name="net" autocomplete="off"
-                   value="<?= e(rtrim(rtrim(number_format($tot, 2, '.', ''), '0'), '.')) ?>" data-full="<?= e($tot) ?>"
+                   value="<?php echo e(rtrim(rtrim(number_format($tot, 2, '.', ''), '0'), '.')) ?>" data-full="<?php echo e($tot) ?>"
                    aria-label="ยอดที่ต้องชำระ">
-            <b class="num" id="total" data-v="<?= (int) $tot ?>" hidden><?= money2($tot) ?></b>
+            <b class="num" id="total" data-v="<?php echo (int) $tot ?>" hidden><?php echo money2($tot) ?></b>
           </div>
           <div class="pay-disc" id="pay-disc" hidden>
-            <div><span>ราคาเต็ม</span><b class="num"><?= money2($tot) ?></b></div>
+            <div><span>ราคาเต็ม</span><b class="num"><?php echo money2($tot) ?></b></div>
             <div class="d"><span>ส่วนลด</span><b class="num" id="disc">−0.00</b></div>
           </div>
-          <p class="pay-err" id="net-err" hidden>ยอดชำระต้องมากกว่า 0 และไม่เกินราคาเต็ม <?= money2($tot) ?> บาท</p>
-          <?php endif; ?>
+          <p class="pay-err" id="net-err" hidden>ยอดชำระต้องมากกว่า 0 และไม่เกินราคาเต็ม <?php echo money2($tot) ?> บาท</p>
+          <?php } ?>
 
           <?php /* บิล VAT กับไม่ VAT ใช้เลขที่คนละชุด — พนักงานเลือกตามที่ลูกค้าต้องการ */ ?>
           <div class="pay-how pay-vat">
@@ -209,11 +210,11 @@ $base = 'sale.php' . ($qs !== '' ? '?' . $qs : '');
             <span class="lbl lbl-mt">รับเงินมา</span>
             <div class="cash-in">
               <input class="input num" type="text" inputmode="numeric" id="received" name="received"
-                     value="<?= (int) $tot ?>" autocomplete="off" aria-label="จำนวนเงินที่รับมา">
+                     value="<?php echo (int) $tot ?>" autocomplete="off" aria-label="จำนวนเงินที่รับมา">
               <span class="unit">บาท</span>
             </div>
             <div class="amt-quick" id="recv-quick">
-              <button type="button" data-set="<?= (int) $tot ?>">พอดี</button>
+              <button type="button" data-set="<?php echo (int) $tot ?>">พอดี</button>
               <?php
               $seen = array((int) $tot);
               foreach (array(100, 500, 1000) as $step) {
@@ -231,28 +232,28 @@ $base = 'sale.php' . ($qs !== '' ? '?' . $qs : '');
             <svg class="ico"><use href="#i-check"/></svg> รับเงินและบันทึกบิล
           </button>
         </form>
-      <?php endif; ?>
+      <?php } ?>
     </div>
 
     <!-- ===== ยอดขายวันนี้ ===== -->
     <div class="card">
       <div class="card-head">
-        <div><h2>ยอดขายวันนี้</h2><span class="sub"><?= e(branch_name($code)) ?></span></div>
+        <div><h2>ยอดขายวันนี้</h2><span class="sub"><?php echo e(branch_name($code)) ?></span></div>
       </div>
       <div class="mini num mini-flat">
-        <div class="m"><div class="lb">บิล</div><div class="nm"><?= number_format($sum['bills']) ?></div><div class="sb">ใบ</div></div>
-        <div class="m"><div class="lb">ชิ้น</div><div class="nm"><?= number_format($sum['qty']) ?></div><div class="sb">รวมทุกบิล</div></div>
-        <div class="m"><div class="lb">ยอดขาย</div><div class="nm"><?= money($sum['total']) ?></div><div class="sb">บาท</div></div>
+        <div class="m"><div class="lb">บิล</div><div class="nm"><?php echo number_format($sum['bills']) ?></div><div class="sb">ใบ</div></div>
+        <div class="m"><div class="lb">ชิ้น</div><div class="nm"><?php echo number_format($sum['qty']) ?></div><div class="sb">รวมทุกบิล</div></div>
+        <div class="m"><div class="lb">ยอดขาย</div><div class="nm"><?php echo money($sum['total']) ?></div><div class="sb">บาท</div></div>
       </div>
-      <?php if ($sum['bills'] > 0): ?>
-        <div class="kv1"><span>เงินสด</span><b class="num"><?= money2($sum['cash']) ?></b></div>
-        <div class="kv1"><span>โอน / พร้อมเพย์</span><b class="num"><?= money2($sum['transfer']) ?></b></div>
-        <?php if (page_ok($user, 'history.php')): ?>
+      <?php if ($sum['bills'] > 0) { ?>
+        <div class="kv1"><span>เงินสด</span><b class="num"><?php echo money2($sum['cash']) ?></b></div>
+        <div class="kv1"><span>โอน / พร้อมเพย์</span><b class="num"><?php echo money2($sum['transfer']) ?></b></div>
+        <?php if (page_ok($user, 'history.php')) { ?>
         <a class="btn btn-block" href="history.php?t=sale">
           <svg class="ico"><use href="#i-history"/></svg> ดูประวัติบิลวันนี้
         </a>
-        <?php endif; ?>
-      <?php endif; ?>
+        <?php } ?>
+      <?php } ?>
     </div>
   </aside>
 

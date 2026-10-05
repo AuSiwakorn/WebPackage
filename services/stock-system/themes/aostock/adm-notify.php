@@ -10,6 +10,7 @@
  *   - [x] ช่วงที่ 8: ตัวอย่างข้อความและอีเมลทดสอบใช้ผลเปิด–ปิดร้านจริงจาก ao_stock_store_day
  *   - [x] ช่วงที่ 9: ค่าตั้งการแจ้งเตือน + ประวัติการส่งอยู่ในตาราง (ao_stock_setting / ao_stock_notify_log) · ตัวอย่างข้อความจากข้อมูลจริง
  *         · บอกเวลาที่ cron ทำงานล่าสุด / อีเมลส่งล่าสุด · ปุ่มทดสอบส่งอีเมล (SMTP) คงไว้แบบเดิม
+ *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -297,71 +298,71 @@ $msg = function ($s) use ($err, $flash) {
 };
 ?>
 
-<?php if (isset($err['top'])): ?>
-  <div class="alert alert-error" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span><?= e($err['top']) ?></span></div>
-<?php endif; ?>
+<?php if (isset($err['top'])) { ?>
+  <div class="alert alert-error" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span><?php echo e($err['top']) ?></span></div>
+<?php } ?>
 
 <!-- ==================== 1) Telegram ==================== -->
-<details class="card acc-item" id="nt-tg"<?= $open === 'tg' ? ' open' : '' ?>>
+<details class="card acc-item" id="nt-tg"<?php echo $open === 'tg' ? ' open' : '' ?>>
   <summary class="card-head">
     <div>
       <h2>แจ้งเตือนทาง Telegram</h2>
-      <span class="sub"><span class="nt-st <?= $tgOn ? 'on' : '' ?>"><?= $tgOn ? 'เปิดอยู่' : 'ปิดอยู่' ?></span>
-        <?= $tgOn ? $nChat . ' แชต · ' . count(notify_get('tg_events')) . ' เหตุการณ์' : 'แจ้งทันทีเมื่อเกิดเหตุการณ์สำคัญในสาขา' ?></span>
+      <span class="sub"><span class="nt-st <?php echo $tgOn ? 'on' : '' ?>"><?php echo $tgOn ? 'เปิดอยู่' : 'ปิดอยู่' ?></span>
+        <?php echo $tgOn ? $nChat . ' แชต · ' . count(notify_get('tg_events')) . ' เหตุการณ์' : 'แจ้งทันทีเมื่อเกิดเหตุการณ์สำคัญในสาขา' ?></span>
     </div>
     <svg class="ico acc-chev" aria-hidden="true"><use href="#i-arrow"/></svg>
   </summary>
-  <?= $msg('tg') ?>
+  <?php echo $msg('tg') ?>
   <form class="adm-sec nt-grid" method="post" action="adm-notify.php#nt-tg">
-    <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+    <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
     <div class="nt-main">
-      <label class="nt-sw"><input type="checkbox" name="tg_on" value="1" <?= $v('tg', 'tg_on') === '1' ? 'checked' : '' ?>>
+      <label class="nt-sw"><input type="checkbox" name="tg_on" value="1" <?php echo $v('tg', 'tg_on') === '1' ? 'checked' : '' ?>>
         <span class="nt-knob" aria-hidden="true"></span><b>เปิดการแจ้งเตือน Telegram</b></label>
 
       <div class="field">
         <label for="tg-token">Bot token</label>
         <input class="input mono" type="text" id="tg-token" name="tg_token" autocomplete="off" spellcheck="false"
-               value="<?= e(isset($old['tg']['tg_token_new']) ? $old['tg']['tg_token_new'] : '') ?>"
-               placeholder="<?= notify_get('tg_token') !== '' ? e(mask_secret(notify_get('tg_token'))) . ' (บันทึกไว้แล้ว — เว้นว่าง = ใช้ค่าเดิม)' : '123456789:AAH…' ?>">
+               value="<?php echo e(isset($old['tg']['tg_token_new']) ? $old['tg']['tg_token_new'] : '') ?>"
+               placeholder="<?php echo notify_get('tg_token') !== '' ? e(mask_secret(notify_get('tg_token'))) . ' (บันทึกไว้แล้ว — เว้นว่าง = ใช้ค่าเดิม)' : '123456789:AAH…' ?>">
         <small class="adm-hint">ได้จาก <b>@BotFather</b> ใน Telegram → พิมพ์ /newbot → ตั้งชื่อบอท → คัดลอก token มาวาง</small>
       </div>
 
       <div class="field">
         <label for="tg-chats">Chat ID ที่จะรับข้อความ</label>
         <textarea class="input mono" id="tg-chats" name="tg_chats" rows="2" spellcheck="false"
-                  placeholder="เช่น 123456789 (คน) หรือ -1001234567890 (กลุ่ม) · หลายแชตขึ้นบรรทัดใหม่"><?= e($v('tg', 'tg_chats')) ?></textarea>
+                  placeholder="เช่น 123456789 (คน) หรือ -1001234567890 (กลุ่ม) · หลายแชตขึ้นบรรทัดใหม่"><?php echo e($v('tg', 'tg_chats')) ?></textarea>
         <small class="adm-hint">ทักบอทก่อน 1 ครั้ง (หรือเพิ่มบอทเข้ากลุ่มแล้วพิมพ์อะไรก็ได้) แล้วกด “ค้นหา Chat ID” ระบบจะดึงรายชื่อแชตมาให้เลือก</small>
-        <?php if ($found !== null): ?>
+        <?php if ($found !== null) { ?>
           <div class="nt-found">
-            <?php if (!$found): ?>
+            <?php if (!$found) { ?>
               <span class="adm-none">ยังไม่พบแชต — ทักบอทหรือพิมพ์ในกลุ่มก่อน แล้วกดค้นหาอีกครั้ง</span>
-            <?php else: foreach ($found as $id => $nm): ?>
-              <button type="button" class="btn btn-ghost btn-sm" data-add-chat="<?= e($id) ?>"><svg class="ico"><use href="#i-plus"/></svg> <?= e($nm) ?> <code><?= e($id) ?></code></button>
-            <?php endforeach; endif; ?>
+            <?php } else { foreach ($found as $id => $nm) { ?>
+              <button type="button" class="btn btn-ghost btn-sm" data-add-chat="<?php echo e($id) ?>"><svg class="ico"><use href="#i-plus"/></svg> <?php echo e($nm) ?> <code><?php echo e($id) ?></code></button>
+            <?php } } ?>
           </div>
-        <?php endif; ?>
+        <?php } ?>
       </div>
 
       <fieldset class="nt-set">
         <legend>แจ้งเมื่อ</legend>
-        <?php $sel = $v('tg', 'tg_events'); foreach ($evs as $k => $x): ?>
-          <label class="bs-check nt-ev"><input type="checkbox" name="tg_events[]" value="<?= e($k) ?>" data-ev="<?= e($k) ?>" <?= in_array($k, $sel, true) ? 'checked' : '' ?>>
-            <span><?= e($x[0]) ?><small><?= e($x[1]) ?></small></span></label>
-        <?php endforeach; ?>
+        <?php $sel = $v('tg', 'tg_events'); foreach ($evs as $k => $x) { ?>
+          <label class="bs-check nt-ev"><input type="checkbox" name="tg_events[]" value="<?php echo e($k) ?>" data-ev="<?php echo e($k) ?>" <?php echo in_array($k, $sel, true) ? 'checked' : '' ?>>
+            <span><?php echo e($x[0]) ?><small><?php echo e($x[1]) ?></small></span></label>
+        <?php } ?>
       </fieldset>
 
       <fieldset class="nt-set">
         <legend>สาขา</legend>
-        <label class="bs-check"><input type="radio" name="tg_scope" value="all" <?= !$tgBr ? 'checked' : '' ?> data-scope="tg"> ทุกสาขา (รวมสาขาที่เพิ่มภายหลัง)</label>
-        <label class="bs-check"><input type="radio" name="tg_scope" value="some" <?= $tgBr ? 'checked' : '' ?> data-scope="tg"> เลือกสาขา</label>
-        <div class="nt-brs" data-scope-list="tg"<?= $tgBr ? '' : ' hidden' ?>>
-          <?php foreach ($br as $c => $b): ?>
-            <label class="bs-check"><input type="checkbox" name="tg_branches[]" value="<?= e($c) ?>" <?= in_array($c, $tgBr, true) ? 'checked' : '' ?>> <?= e($b['name']) ?></label>
-          <?php endforeach; ?>
+        <label class="bs-check"><input type="radio" name="tg_scope" value="all" <?php echo !$tgBr ? 'checked' : '' ?> data-scope="tg"> ทุกสาขา (รวมสาขาที่เพิ่มภายหลัง)</label>
+        <label class="bs-check"><input type="radio" name="tg_scope" value="some" <?php echo $tgBr ? 'checked' : '' ?> data-scope="tg"> เลือกสาขา</label>
+        <div class="nt-brs" data-scope-list="tg"<?php echo $tgBr ? '' : ' hidden' ?>>
+          <?php foreach ($br as $c => $b) { ?>
+            <label class="bs-check"><input type="checkbox" name="tg_branches[]" value="<?php echo e($c) ?>" <?php echo in_array($c, $tgBr, true) ? 'checked' : '' ?>> <?php echo e($b['name']) ?></label>
+          <?php } ?>
         </div>
       </fieldset>
 
-      <label class="bs-check"><input type="checkbox" name="tg_silent" value="1" <?= $v('tg', 'tg_silent') === '1' ? 'checked' : '' ?>>
+      <label class="bs-check"><input type="checkbox" name="tg_silent" value="1" <?php echo $v('tg', 'tg_silent') === '1' ? 'checked' : '' ?>>
         ส่งแบบไม่มีเสียงแจ้งเตือน (ข้อความยังเข้า แต่โทรศัพท์ไม่ดัง)</label>
 
       <div class="nt-btns">
@@ -373,82 +374,82 @@ $msg = function ($s) use ($err, $flash) {
 
     <aside class="nt-prev" aria-label="ตัวอย่างข้อความ">
       <div class="nt-phone">
-        <div class="nt-phone-h"><span class="nt-ava">AO</span><div><b><?= e(APP_NAME) ?> Bot</b><small>ตัวอย่างข้อความ</small></div></div>
+        <div class="nt-phone-h"><span class="nt-ava">AO</span><div><b><?php echo e(APP_NAME) ?> Bot</b><small>ตัวอย่างข้อความ</small></div></div>
         <div class="nt-chat">
-          <?php foreach ($evs as $k => $x): $t = notify_tg_sample($k, $sampleBr); ?>
-            <div class="nt-msg" data-ev-prev="<?= e($k) ?>"<?= in_array($k, $sel, true) ? '' : ' hidden' ?>><?= nl2br($t) ?><span class="nt-time"><?= e($k === 'open' ? '08:42' : '20:11') ?></span></div>
-          <?php endforeach; ?>
-          <p class="nt-none" <?= $sel ? 'hidden' : '' ?>>เลือกเหตุการณ์ทางซ้ายเพื่อดูตัวอย่าง</p>
+          <?php foreach ($evs as $k => $x) { $t = notify_tg_sample($k, $sampleBr); ?>
+            <div class="nt-msg" data-ev-prev="<?php echo e($k) ?>"<?php echo in_array($k, $sel, true) ? '' : ' hidden' ?>><?php echo nl2br($t) ?><span class="nt-time"><?php echo e($k === 'open' ? '08:42' : '20:11') ?></span></div>
+          <?php } ?>
+          <p class="nt-none" <?php echo $sel ? 'hidden' : '' ?>>เลือกเหตุการณ์ทางซ้ายเพื่อดูตัวอย่าง</p>
         </div>
       </div>
-      <small class="adm-hint">ตัวอย่างใช้ข้อมูลของ<?= e($br[$sampleBr]['name']) ?> · ข้อความจริงส่งทันทีเมื่อเกิดเหตุการณ์</small>
+      <small class="adm-hint">ตัวอย่างใช้ข้อมูลของ<?php echo e($br[$sampleBr]['name']) ?> · ข้อความจริงส่งทันทีเมื่อเกิดเหตุการณ์</small>
     </aside>
   </form>
 </details>
 
 <!-- ==================== 2) อีเมลรายวัน ==================== -->
-<details class="card acc-item" id="nt-mail"<?= $open === 'mail' ? ' open' : '' ?>>
+<details class="card acc-item" id="nt-mail"<?php echo $open === 'mail' ? ' open' : '' ?>>
   <summary class="card-head">
     <div>
       <h2>อีเมลสรุปยอดขายรายวัน</h2>
-      <span class="sub"><span class="nt-st <?= $mailOn ? 'on' : '' ?>"><?= $mailOn ? 'เปิดอยู่' : 'ปิดอยู่' ?></span>
-        <?= $mailOn ? 'ส่งทุกวัน ' . e(notify_get('mail_time')) . ' น. ถึง ' . $nTo . ' คน' : 'ยอดขายแต่ละสาขาของวัน ส่งเข้าอีเมลทุกวันอัตโนมัติ' ?>
-        <?= notify_get('mail_last_sent') !== '' ? ' · ส่งล่าสุด ' . e(thai_date_full(strtotime(notify_get('mail_last_sent')))) : '' ?></span>
+      <span class="sub"><span class="nt-st <?php echo $mailOn ? 'on' : '' ?>"><?php echo $mailOn ? 'เปิดอยู่' : 'ปิดอยู่' ?></span>
+        <?php echo $mailOn ? 'ส่งทุกวัน ' . e(notify_get('mail_time')) . ' น. ถึง ' . $nTo . ' คน' : 'ยอดขายแต่ละสาขาของวัน ส่งเข้าอีเมลทุกวันอัตโนมัติ' ?>
+        <?php echo notify_get('mail_last_sent') !== '' ? ' · ส่งล่าสุด ' . e(thai_date_full(strtotime(notify_get('mail_last_sent')))) : '' ?></span>
     </div>
     <svg class="ico acc-chev" aria-hidden="true"><use href="#i-arrow"/></svg>
   </summary>
-  <?= $msg('mail') ?>
-  <?php if (!$smtpOk): ?>
+  <?php echo $msg('mail') ?>
+  <?php if (!$smtpOk) { ?>
     <div class="alert adm-ok nt-warn" role="note"><svg class="ico"><use href="#i-info"/></svg>
       <span>ยังไม่ได้ตั้งค่าเซิร์ฟเวอร์อีเมล — ตั้งที่ส่วน <a href="#nt-smtp">“เซิร์ฟเวอร์อีเมล (SMTP)”</a> ด้านล่างก่อนเปิดใช้งาน</span></div>
-  <?php endif; ?>
+  <?php } ?>
   <?php $cronAt = (string) stock_setting_get('cron_last_run', ''); ?>
-  <?php if ($mailOn && ($cronAt === '' || strtotime($cronAt) < time() - 1800)): ?>
+  <?php if ($mailOn && ($cronAt === '' || strtotime($cronAt) < time() - 1800)) { ?>
     <div class="alert adm-ok nt-warn" role="note"><svg class="ico"><use href="#i-info"/></svg>
-      <span>ตัวส่งอีเมลอัตโนมัติ (cron) <?= $cronAt === '' ? 'ยังไม่เคยทำงาน' : 'ไม่ได้ทำงานมาตั้งแต่ ' . e(thai_day_month(strtotime($cronAt))) . ' ' . date('H:i', strtotime($cronAt)) . ' น.' ?>
+      <span>ตัวส่งอีเมลอัตโนมัติ (cron) <?php echo $cronAt === '' ? 'ยังไม่เคยทำงาน' : 'ไม่ได้ทำงานมาตั้งแต่ ' . e(thai_day_month(strtotime($cronAt))) . ' ' . date('H:i', strtotime($cronAt)) . ' น.' ?>
         — อีเมลรายวันจะยังไม่ถูกส่ง แจ้งผู้ดูแลระบบให้ตั้ง Cron Jobs ของโฮสต์ (ดูหน้า “AOSTOCK — สถานะระบบ” ในหลังบ้าน)</span></div>
-  <?php endif; ?>
+  <?php } ?>
   <form class="adm-sec" method="post" action="adm-notify.php#nt-mail" id="mail-form">
-    <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
-    <label class="nt-sw"><input type="checkbox" name="mail_on" value="1" <?= $v('mail', 'mail_on') === '1' ? 'checked' : '' ?>>
+    <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
+    <label class="nt-sw"><input type="checkbox" name="mail_on" value="1" <?php echo $v('mail', 'mail_on') === '1' ? 'checked' : '' ?>>
       <span class="nt-knob" aria-hidden="true"></span><b>เปิดส่งอีเมลสรุปยอดขายรายวัน</b></label>
 
     <div class="adm-fields">
       <div class="field bs-wide">
         <label for="mail-to">ผู้รับ</label>
         <textarea class="input" id="mail-to" name="mail_to" rows="2" spellcheck="false"
-                  placeholder="owner@company.com&#10;account@company.com"><?= e($v('mail', 'mail_to')) ?></textarea>
+                  placeholder="owner@company.com&#10;account@company.com"><?php echo e($v('mail', 'mail_to')) ?></textarea>
         <small class="adm-hint">หลายคนขึ้นบรรทัดใหม่หรือคั่นด้วยจุลภาค · เช่น เจ้าของร้าน ฝ่ายบัญชี ผู้จัดการเขต</small>
       </div>
       <div class="field">
         <label for="mail-time">เวลาส่ง</label>
-        <input class="input" type="time" id="mail-time" name="mail_time" value="<?= e($v('mail', 'mail_time')) ?>" required>
+        <input class="input" type="time" id="mail-time" name="mail_time" value="<?php echo e($v('mail', 'mail_time')) ?>" required>
         <small class="adm-hint">ควรหลังเวลาปิดร้านของทุกสาขา · สรุปของ “วันนั้น”</small>
       </div>
       <div class="field">
         <span class="lbl">ส่งวันไหน</span>
-        <label class="bs-check"><input type="radio" name="mail_days" value="open" <?= $v('mail', 'mail_days') !== 'all' ? 'checked' : '' ?>> เฉพาะวันที่มียอดขาย</label>
-        <label class="bs-check"><input type="radio" name="mail_days" value="all" <?= $v('mail', 'mail_days') === 'all' ? 'checked' : '' ?>> ทุกวัน (วันหยุดแจ้งว่าไม่มียอด)</label>
+        <label class="bs-check"><input type="radio" name="mail_days" value="open" <?php echo $v('mail', 'mail_days') !== 'all' ? 'checked' : '' ?>> เฉพาะวันที่มียอดขาย</label>
+        <label class="bs-check"><input type="radio" name="mail_days" value="all" <?php echo $v('mail', 'mail_days') === 'all' ? 'checked' : '' ?>> ทุกวัน (วันหยุดแจ้งว่าไม่มียอด)</label>
       </div>
     </div>
 
     <div class="nt-cols">
       <fieldset class="nt-set">
         <legend>สาขาในรายงาน</legend>
-        <label class="bs-check"><input type="radio" name="mail_scope" value="all" <?= !$mlBr ? 'checked' : '' ?> data-scope="mail"> ทุกสาขา</label>
-        <label class="bs-check"><input type="radio" name="mail_scope" value="some" <?= $mlBr ? 'checked' : '' ?> data-scope="mail"> เลือกสาขา</label>
-        <div class="nt-brs" data-scope-list="mail"<?= $mlBr ? '' : ' hidden' ?>>
-          <?php foreach ($br as $c => $b): ?>
-            <label class="bs-check"><input type="checkbox" name="mail_branches[]" value="<?= e($c) ?>" <?= in_array($c, $mlBr, true) ? 'checked' : '' ?>> <?= e($b['name']) ?></label>
-          <?php endforeach; ?>
+        <label class="bs-check"><input type="radio" name="mail_scope" value="all" <?php echo !$mlBr ? 'checked' : '' ?> data-scope="mail"> ทุกสาขา</label>
+        <label class="bs-check"><input type="radio" name="mail_scope" value="some" <?php echo $mlBr ? 'checked' : '' ?> data-scope="mail"> เลือกสาขา</label>
+        <div class="nt-brs" data-scope-list="mail"<?php echo $mlBr ? '' : ' hidden' ?>>
+          <?php foreach ($br as $c => $b) { ?>
+            <label class="bs-check"><input type="checkbox" name="mail_branches[]" value="<?php echo e($c) ?>" <?php echo in_array($c, $mlBr, true) ? 'checked' : '' ?>> <?php echo e($b['name']) ?></label>
+          <?php } ?>
         </div>
       </fieldset>
       <fieldset class="nt-set">
         <legend>ในอีเมลมี</legend>
         <label class="bs-check"><input type="checkbox" checked disabled> ยอดขาย · จำนวนบิล แยกสาขา (มีเสมอ)</label>
-        <?php $pp = $v('mail', 'mail_parts'); foreach ($mps as $k => $x): ?>
-          <label class="bs-check"><input type="checkbox" name="mail_parts[]" value="<?= e($k) ?>" <?= in_array($k, $pp, true) ? 'checked' : '' ?>> <?= e($x[0]) ?></label>
-        <?php endforeach; ?>
+        <?php $pp = $v('mail', 'mail_parts'); foreach ($mps as $k => $x) { ?>
+          <label class="bs-check"><input type="checkbox" name="mail_parts[]" value="<?php echo e($k) ?>" <?php echo in_array($k, $pp, true) ? 'checked' : '' ?>> <?php echo e($x[0]) ?></label>
+        <?php } ?>
       </fieldset>
     </div>
 
@@ -465,18 +466,18 @@ $msg = function ($s) use ($err, $flash) {
 </details>
 
 <!-- ==================== 3) SMTP ==================== -->
-<details class="card acc-item" id="nt-smtp"<?= $open === 'smtp' ? ' open' : '' ?>>
+<details class="card acc-item" id="nt-smtp"<?php echo $open === 'smtp' ? ' open' : '' ?>>
   <summary class="card-head">
     <div>
       <h2>เซิร์ฟเวอร์อีเมล (SMTP)</h2>
-      <span class="sub"><?= notify_get('smtp_host') !== '' ? e(notify_get('smtp_host')) . ':' . e(notify_get('smtp_port')) . ' · ' . strtoupper(e(notify_get('smtp_secure'))) . ' · ผู้ส่ง ' . e(notify_get('from_email') !== '' ? notify_get('from_email') : notify_get('smtp_user'))
+      <span class="sub"><?php echo notify_get('smtp_host') !== '' ? e(notify_get('smtp_host')) . ':' . e(notify_get('smtp_port')) . ' · ' . strtoupper(e(notify_get('smtp_secure'))) . ' · ผู้ส่ง ' . e(notify_get('from_email') !== '' ? notify_get('from_email') : notify_get('smtp_user'))
                        : 'ใช้ส่งอีเมลรายวัน · ใช้อีเมลบริษัท, Google Workspace หรือ Microsoft 365 ได้' ?></span>
     </div>
     <svg class="ico acc-chev" aria-hidden="true"><use href="#i-arrow"/></svg>
   </summary>
-  <?= $msg('smtp') ?>
+  <?php echo $msg('smtp') ?>
   <form class="adm-sec" method="post" action="adm-notify.php#nt-smtp">
-    <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+    <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
     <input type="hidden" name="act" value="save_smtp">
     <div class="nt-presets">
       <span class="adm-hint">ตั้งค่าด่วน:</span>
@@ -487,41 +488,41 @@ $msg = function ($s) use ($err, $flash) {
     <div class="adm-fields">
       <div class="field">
         <label for="sm-host">SMTP host</label>
-        <input class="input" type="text" id="sm-host" name="smtp_host" value="<?= e($v('smtp', 'smtp_host')) ?>" placeholder="smtp.gmail.com" autocomplete="off">
+        <input class="input" type="text" id="sm-host" name="smtp_host" value="<?php echo e($v('smtp', 'smtp_host')) ?>" placeholder="smtp.gmail.com" autocomplete="off">
         <small class="adm-hint">เว้นว่าง = ใช้ mail() ของเซิร์ฟเวอร์ (มักเข้า Spam ไม่แนะนำ)</small>
       </div>
       <div class="field nt-pp">
         <div>
           <label for="sm-port">พอร์ต</label>
-          <input class="input" type="number" id="sm-port" name="smtp_port" value="<?= e($v('smtp', 'smtp_port')) ?>" min="1" max="65535" inputmode="numeric">
+          <input class="input" type="number" id="sm-port" name="smtp_port" value="<?php echo e($v('smtp', 'smtp_port')) ?>" min="1" max="65535" inputmode="numeric">
         </div>
         <div>
           <label for="sm-sec">การเข้ารหัส</label>
           <select class="input" id="sm-sec" name="smtp_secure">
-            <?php foreach (array('tls' => 'TLS (587)', 'ssl' => 'SSL (465)', 'none' => 'ไม่เข้ารหัส (25)') as $k => $lb): ?>
-              <option value="<?= e($k) ?>" <?= $v('smtp', 'smtp_secure') === $k ? 'selected' : '' ?>><?= e($lb) ?></option>
-            <?php endforeach; ?>
+            <?php foreach (array('tls' => 'TLS (587)', 'ssl' => 'SSL (465)', 'none' => 'ไม่เข้ารหัส (25)') as $k => $lb) { ?>
+              <option value="<?php echo e($k) ?>" <?php echo $v('smtp', 'smtp_secure') === $k ? 'selected' : '' ?>><?php echo e($lb) ?></option>
+            <?php } ?>
           </select>
         </div>
       </div>
       <div class="field">
         <label for="sm-user">ชื่อผู้ใช้</label>
-        <input class="input" type="text" id="sm-user" name="smtp_user" value="<?= e($v('smtp', 'smtp_user')) ?>" placeholder="report@company.com" autocomplete="off">
+        <input class="input" type="text" id="sm-user" name="smtp_user" value="<?php echo e($v('smtp', 'smtp_user')) ?>" placeholder="report@company.com" autocomplete="off">
       </div>
       <div class="field">
         <label for="sm-pass">รหัสผ่าน</label>
         <input class="input" type="password" id="sm-pass" name="smtp_pass" value="" autocomplete="new-password"
-               placeholder="<?= notify_get('smtp_pass') !== '' ? 'บันทึกไว้แล้ว — เว้นว่าง = ใช้ค่าเดิม' : '' ?>">
+               placeholder="<?php echo notify_get('smtp_pass') !== '' ? 'บันทึกไว้แล้ว — เว้นว่าง = ใช้ค่าเดิม' : '' ?>">
         <small class="adm-hint">Gmail / Google Workspace ใช้ “App password” 16 ตัว ไม่ใช่รหัสผ่านปกติ
-          <?php if (notify_get('smtp_pass') !== ''): ?> · <label class="nt-inline"><input type="checkbox" name="smtp_pass_clear" value="1"> ลบรหัสผ่านที่บันทึกไว้</label><?php endif; ?></small>
+          <?php if (notify_get('smtp_pass') !== '') { ?> · <label class="nt-inline"><input type="checkbox" name="smtp_pass_clear" value="1"> ลบรหัสผ่านที่บันทึกไว้</label><?php } ?></small>
       </div>
       <div class="field">
         <label for="sm-fn">ชื่อผู้ส่ง</label>
-        <input class="input" type="text" id="sm-fn" name="from_name" value="<?= e($v('smtp', 'from_name')) ?>" maxlength="60" required>
+        <input class="input" type="text" id="sm-fn" name="from_name" value="<?php echo e($v('smtp', 'from_name')) ?>" maxlength="60" required>
       </div>
       <div class="field">
         <label for="sm-fe">อีเมลผู้ส่ง</label>
-        <input class="input" type="email" id="sm-fe" name="from_email" value="<?= e($v('smtp', 'from_email')) ?>" placeholder="ว่าง = ใช้ชื่อผู้ใช้">
+        <input class="input" type="email" id="sm-fe" name="from_email" value="<?php echo e($v('smtp', 'from_email')) ?>" placeholder="ว่าง = ใช้ชื่อผู้ใช้">
         <small class="adm-hint">ควรเป็นโดเมนเดียวกับ SMTP ไม่อย่างนั้นอาจเข้า Spam</small>
       </div>
     </div>
@@ -531,33 +532,33 @@ $msg = function ($s) use ($err, $flash) {
 
 <!-- ==================== 4) ประวัติการส่ง ==================== -->
 <?php $logs = notify_log_rows(); ?>
-<details class="card acc-item" id="nt-log"<?= $open === 'log' ? ' open' : '' ?>>
+<details class="card acc-item" id="nt-log"<?php echo $open === 'log' ? ' open' : '' ?>>
   <summary class="card-head">
-    <div><h2>ประวัติการส่งล่าสุด</h2><span class="sub"><?= $logs ? count($logs) . ' รายการล่าสุด · ส่งไม่สำเร็จจะเห็นสาเหตุ' : 'ยังไม่มีการส่ง' ?></span></div>
+    <div><h2>ประวัติการส่งล่าสุด</h2><span class="sub"><?php echo $logs ? count($logs) . ' รายการล่าสุด · ส่งไม่สำเร็จจะเห็นสาเหตุ' : 'ยังไม่มีการส่ง' ?></span></div>
     <svg class="ico acc-chev" aria-hidden="true"><use href="#i-arrow"/></svg>
   </summary>
-  <?php if (!$logs): ?>
+  <?php if (!$logs) { ?>
     <p class="empty">ยังไม่มีการส่ง — เปิดใช้งานหรือกดส่งทดสอบแล้วจะแสดงที่นี่</p>
-  <?php else: ?>
+  <?php } else { ?>
     <div class="tbl-wrap">
       <table class="tbl">
         <thead><tr><th>เวลา</th><th>ช่องทาง</th><th>เรื่อง</th><th>ถึง</th><th>ผล</th></tr></thead>
         <tbody>
-          <?php foreach ($logs as $l): ?>
+          <?php foreach ($logs as $l) { ?>
             <tr>
-              <td data-label="เวลา" class="num"><?= e(thai_day_month($l['ts'])) ?> <?= date('H:i', $l['ts']) ?></td>
-              <td data-label="ช่องทาง"><span class="bdg <?= $l['channel'] === 'tg' ? 'bdg-move' : 'bdg-adj' ?>"><?= $l['channel'] === 'tg' ? 'Telegram' : 'อีเมล' ?></span></td>
-              <td data-label="เรื่อง"><?= e($l['subject'] !== '' ? $l['subject'] : $l['label']) ?><small><?= e($l['label']) ?><?= $l['branch'] !== '' ? ' · ' . e($l['branch']) : '' ?></small></td>
-              <td data-label="ถึง"><small><?= e($l['to']) ?></small></td>
-              <td data-label="ผล"><?php if ($l['skip']): ?><span class="nt-skip">ข้าม</span><small><?= e($l['error']) ?></small>
-                <?php elseif ($l['ok']): ?><span class="nt-ok">สำเร็จ</span>
-                <?php else: ?><span class="nt-bad" title="<?= e($l['error']) ?>">ไม่สำเร็จ</span><small><?= e($l['error']) ?></small><?php endif; ?></td>
+              <td data-label="เวลา" class="num"><?php echo e(thai_day_month($l['ts'])) ?> <?php echo date('H:i', $l['ts']) ?></td>
+              <td data-label="ช่องทาง"><span class="bdg <?php echo $l['channel'] === 'tg' ? 'bdg-move' : 'bdg-adj' ?>"><?php echo $l['channel'] === 'tg' ? 'Telegram' : 'อีเมล' ?></span></td>
+              <td data-label="เรื่อง"><?php echo e($l['subject'] !== '' ? $l['subject'] : $l['label']) ?><small><?php echo e($l['label']) ?><?php echo $l['branch'] !== '' ? ' · ' . e($l['branch']) : '' ?></small></td>
+              <td data-label="ถึง"><small><?php echo e($l['to']) ?></small></td>
+              <td data-label="ผล"><?php if ($l['skip']) { ?><span class="nt-skip">ข้าม</span><small><?php echo e($l['error']) ?></small>
+                <?php } elseif ($l['ok']) { ?><span class="nt-ok">สำเร็จ</span>
+                <?php } else { ?><span class="nt-bad" title="<?php echo e($l['error']) ?>">ไม่สำเร็จ</span><small><?php echo e($l['error']) ?></small><?php } ?></td>
             </tr>
-          <?php endforeach; ?>
+          <?php } ?>
         </tbody>
       </table>
     </div>
-  <?php endif; ?>
+  <?php } ?>
 </details>
 
 <!-- popup ตัวอย่างอีเมล -->

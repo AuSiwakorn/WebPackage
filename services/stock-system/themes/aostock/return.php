@@ -8,6 +8,7 @@
  *   - [x] ย้ายจาก demo/ เข้า themes/aostock/ (วิ่งผ่าน router ของ admweb)
  *   - [x] ช่วงที่ 7: ใบรับคืน + บิลเดิม + รูปแนบ อ่านเขียนตาราง
  *   - [x] ช่วงที่ 11: ไม่มีสิทธิ์คืนเงินสด (refund_cash) = ไม่มีช่องคืนเงิน บันทึกเป็นรับคืนแบบไม่คืนเงิน · ลิงก์ไปเปิดร้านตามสิทธิ์
+ *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -86,105 +87,105 @@ $NAV_ACTIVE = 'return.php';
 require dirname(__FILE__) . '/inc/header.php';
 ?>
 
-<?php if (!$allowed): ?>
+<?php if (!$allowed) { ?>
   <div class="alert alert-warn" role="status">
     <svg class="ico"><use href="#i-ban"/></svg>
     <span>คุณยังไม่มีสิทธิ์รับคืนสินค้า — ให้ผู้ดูแลติ๊กสิทธิ์ “รับคืนสินค้า” ให้ก่อน</span>
   </div>
   <?php require dirname(__FILE__) . '/inc/footer.php'; exit; ?>
-<?php endif; ?>
+<?php } ?>
 
-<?php if (!$isOpen): ?>
+<?php if (!$isOpen) { ?>
   <div class="alert alert-info" role="status">
     <svg class="ico"><use href="#i-info"/></svg>
     <span>ร้านยังไม่เปิด — ค้นบิลได้ แต่บันทึกรับคืนไม่ได้ เพราะเงินคืนจ่ายเป็นเงินสดจากลิ้นชักของวันนี้</span>
-    <?php if (page_ok($user, 'store.php')): ?>
+    <?php if (page_ok($user, 'store.php')) { ?>
     <div class="alert-act">
       <a class="btn btn-ghost btn-sm" href="store.php"><svg class="ico"><use href="#i-store"/></svg> ไปเปิดร้าน</a>
     </div>
-    <?php endif; ?>
+    <?php } ?>
   </div>
-<?php endif; ?>
+<?php } ?>
 
-<?php if ($err !== ''): ?>
+<?php if ($err !== '') { ?>
   <div class="alert alert-error" role="alert">
-    <svg class="ico"><use href="#i-alert"/></svg><span><?= e($err) ?></span>
+    <svg class="ico"><use href="#i-alert"/></svg><span><?php echo e($err) ?></span>
   </div>
-<?php endif; ?>
+<?php } ?>
 
-<?php if ($done !== null): ?>
+<?php if ($done !== null) { ?>
   <div class="alert alert-ok" role="status">
     <svg class="ico"><use href="#i-check"/></svg>
     <span>
-      รับคืนเรียบร้อย เอกสาร <b><?= e($done['no']) ?></b> (บิล <?= e($done['bill_no']) ?>) ·
-      <?= (int) $done['items'] ?> รายการ · <?= number_format($done['qty']) ?> ชิ้น ·
-      <?= $done['restock'] ? 'กลับเข้าสต๊อกแล้ว' : 'ไม่เข้าสต๊อก — แยกเก็บไว้' ?> ·
-      <?php if ($done['refund'] > 0): ?>คืนเงินสด <b class="num"><?= e(money2($done['refund'])) ?></b> บาท<?php else: ?>ไม่ได้คืนเงินสด<?php endif; ?>
+      รับคืนเรียบร้อย เอกสาร <b><?php echo e($done['no']) ?></b> (บิล <?php echo e($done['bill_no']) ?>) ·
+      <?php echo (int) $done['items'] ?> รายการ · <?php echo number_format($done['qty']) ?> ชิ้น ·
+      <?php echo $done['restock'] ? 'กลับเข้าสต๊อกแล้ว' : 'ไม่เข้าสต๊อก — แยกเก็บไว้' ?> ·
+      <?php if ($done['refund'] > 0) { ?>คืนเงินสด <b class="num"><?php echo e(money2($done['refund'])) ?></b> บาท<?php } else { ?>ไม่ได้คืนเงินสด<?php } ?>
     </span>
   </div>
-<?php endif; ?>
+<?php } ?>
 
-<?php if ($bill === null): ?>
+<?php if ($bill === null) { ?>
 
   <!-- ==================== ค้นบิล ==================== -->
   <section class="card">
     <div class="card-head">
       <div>
         <h2>ค้นหาบิลที่ลูกค้าจะคืน</h2>
-        <span class="sub">ค้นจากเลขบิล ชื่อสินค้า หรือ SKU · แสดงย้อนหลัง <?= return_lookback_days() ?> วัน</span>
+        <span class="sub">ค้นจากเลขบิล ชื่อสินค้า หรือ SKU · แสดงย้อนหลัง <?php echo return_lookback_days() ?> วัน</span>
       </div>
     </div>
     <form class="ret-find" method="get" action="return.php">
       <div class="find-in">
         <svg class="ico"><use href="#i-search"/></svg>
         <label class="sr-only" for="rq">ค้นหาบิล</label>
-        <input class="input" type="search" id="rq" name="q" value="<?= e($q) ?>"
+        <input class="input" type="search" id="rq" name="q" value="<?php echo e($q) ?>"
                placeholder="เช่น RS2026-09-0012 หรือ ฟิล์ม" autocomplete="off">
       </div>
       <button class="btn btn-primary" type="submit"><svg class="ico"><use href="#i-search"/></svg> ค้นหา</button>
     </form>
 
-    <?php if (!$found): ?>
+    <?php if (!$found) { ?>
       <p class="empty"><svg class="ico"><use href="#i-receipt"/></svg>ไม่พบบิลที่ตรงกับคำค้น</p>
-    <?php else: ?>
+    <?php } else { ?>
       <div class="tbl-wrap">
         <table class="tbl num">
           <thead>
             <tr><th>เลขบิล</th><th>วันที่ขาย</th><th>รายการ</th><th class="r">ยอด</th><th>สถานะการคืน</th><th></th></tr>
           </thead>
           <tbody>
-            <?php foreach ($found as $b):
+            <?php foreach ($found as $b) {
                 $st = bill_return_status($b, $user);
                 $names = array();
                 foreach ($b['lines'] as $l) { $names[] = $l['name'] . ' ×' . $l['qty']; } ?>
-              <tr class="<?= $st['ok'] ? '' : 'off' ?>">
-                <td class="doc" data-label="เลขบิล"><?= e($b['no']) ?><small><?= e($b['by']) ?></small></td>
+              <tr class="<?php echo $st['ok'] ? '' : 'off' ?>">
+                <td class="doc" data-label="เลขบิล"><?php echo e($b['no']) ?><small><?php echo e($b['by']) ?></small></td>
                 <td data-label="วันที่ขาย">
-                  <?= bill_age_days($b) === 0 ? 'วันนี้' : e(thai_day_month(strtotime($b['date']))) ?>
-                  <small><?= e($b['time']) ?> น. · <?= $b['method'] === 'cash' ? 'เงินสด' : 'โอน / พร้อมเพย์' ?></small>
+                  <?php echo bill_age_days($b) === 0 ? 'วันนี้' : e(thai_day_month(strtotime($b['date']))) ?>
+                  <small><?php echo e($b['time']) ?> น. · <?php echo $b['method'] === 'cash' ? 'เงินสด' : 'โอน / พร้อมเพย์' ?></small>
                 </td>
-                <td data-label="รายการ"><span class="ret-names"><?= e(implode(' · ', $names)) ?></span></td>
-                <td class="r" data-label="ยอด"><?= e(money2($b['total'])) ?></td>
+                <td data-label="รายการ"><span class="ret-names"><?php echo e(implode(' · ', $names)) ?></span></td>
+                <td class="r" data-label="ยอด"><?php echo e(money2($b['total'])) ?></td>
                 <td data-label="สถานะ">
                   <?php $bc = array('ok' => 'bdg-ok', 'late' => 'bdg-out', 'done' => 'bdg-adj'); ?>
-                  <span class="bdg <?= $bc[$st['code']] ?>"><?= e($st['code'] === 'late' ? 'เกินกำหนด' : $st['msg']) ?></span>
-                  <?php if (bill_has_returns($b['no'], $b)): ?><small>มีการคืนไปแล้วบางส่วน</small><?php endif; ?>
+                  <span class="bdg <?php echo $bc[$st['code']] ?>"><?php echo e($st['code'] === 'late' ? 'เกินกำหนด' : $st['msg']) ?></span>
+                  <?php if (bill_has_returns($b['no'], $b)) { ?><small>มีการคืนไปแล้วบางส่วน</small><?php } ?>
                 </td>
                 <td class="r">
-                  <?php if ($st['ok']): ?>
-                    <a class="btn btn-ghost btn-sm" href="return.php?bill=<?= e(rawurlencode($b['no'])) ?>">เลือกบิลนี้</a>
-                  <?php endif; ?>
+                  <?php if ($st['ok']) { ?>
+                    <a class="btn btn-ghost btn-sm" href="return.php?bill=<?php echo e(rawurlencode($b['no'])) ?>">เลือกบิลนี้</a>
+                  <?php } ?>
                 </td>
               </tr>
-            <?php endforeach; ?>
+            <?php } ?>
           </tbody>
         </table>
       </div>
-    <?php endif; ?>
-    <div class="card-foot">บิลที่เก่ากว่า <?= backdate_days($code) ?> วันคืนไม่ได้ · จำนวนวันผู้ดูแลตั้งได้ที่หน้าจัดการสาขา</div>
+    <?php } ?>
+    <div class="card-foot">บิลที่เก่ากว่า <?php echo backdate_days($code) ?> วันคืนไม่ได้ · จำนวนวันผู้ดูแลตั้งได้ที่หน้าจัดการสาขา</div>
   </section>
 
-<?php else: ?>
+<?php } else { ?>
 
   <?php $st = bill_return_status($bill, $user); $lines = return_lines($bill); ?>
 
@@ -192,24 +193,24 @@ require dirname(__FILE__) . '/inc/header.php';
   <section class="card">
     <div class="card-head">
       <div>
-        <h2>บิล <?= e($bill['no']) ?></h2>
+        <h2>บิล <?php echo e($bill['no']) ?></h2>
         <span class="sub">
-          ขายเมื่อ <?= e(thai_date_full(strtotime($bill['date']))) ?> <?= e($bill['time']) ?> น. โดย <?= e($bill['by']) ?> ·
-          <?= $bill['method'] === 'cash' ? 'เงินสด' : 'โอน / พร้อมเพย์' ?> · ยอด <?= e(money2($bill['total'])) ?> บาท
+          ขายเมื่อ <?php echo e(thai_date_full(strtotime($bill['date']))) ?> <?php echo e($bill['time']) ?> น. โดย <?php echo e($bill['by']) ?> ·
+          <?php echo $bill['method'] === 'cash' ? 'เงินสด' : 'โอน / พร้อมเพย์' ?> · ยอด <?php echo e(money2($bill['total'])) ?> บาท
         </span>
       </div>
       <a class="btn btn-ghost btn-sm" href="return.php"><svg class="ico"><use href="#i-search"/></svg> เลือกบิลอื่น</a>
     </div>
     <div class="ret-status">
-      <span class="bdg <?= $st['code'] === 'ok' ? 'bdg-ok' : 'bdg-out' ?>"><?= e($st['msg']) ?></span>
-      <small>ผ่านมา <?= bill_age_days($bill) ?> วัน · กำหนดคืน <?= backdate_days($code) ?> วัน</small>
+      <span class="bdg <?php echo $st['code'] === 'ok' ? 'bdg-ok' : 'bdg-out' ?>"><?php echo e($st['msg']) ?></span>
+      <small>ผ่านมา <?php echo bill_age_days($bill) ?> วัน · กำหนดคืน <?php echo backdate_days($code) ?> วัน</small>
     </div>
   </section>
 
-  <?php if ($st['ok']): ?>
-  <form method="post" action="return.php?bill=<?= e(rawurlencode($bill['no'])) ?>" id="ret-form" enctype="multipart/form-data">
-    <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
-    <input type="hidden" name="bill" value="<?= e($bill['no']) ?>">
+  <?php if ($st['ok']) { ?>
+  <form method="post" action="return.php?bill=<?php echo e(rawurlencode($bill['no'])) ?>" id="ret-form" enctype="multipart/form-data">
+    <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
+    <input type="hidden" name="bill" value="<?php echo e($bill['no']) ?>">
 
     <section class="card">
       <div class="card-head"><div><h2>รายการที่คืน</h2><span class="sub">ใส่จำนวนเฉพาะรายการที่ลูกค้าคืน · คืนบางชิ้นได้</span></div></div>
@@ -217,25 +218,25 @@ require dirname(__FILE__) . '/inc/header.php';
         <table class="tbl num ret-tbl">
           <thead><tr><th>สินค้า</th><th class="r">ราคาที่ขาย</th><th class="r">ซื้อ</th><th class="r">คืนไปแล้ว</th><th class="r">จำนวนที่คืน</th></tr></thead>
           <tbody>
-            <?php foreach ($lines as $l):
+            <?php foreach ($lines as $l) {
                 $v = isset($old['qty'][$l['sku']]) ? (int) $old['qty'][$l['sku']] : 0; ?>
-              <tr class="<?= $l['remain'] === 0 ? 'off' : '' ?>">
-                <td data-label="สินค้า"><b><?= e($l['name']) ?></b><small><?= e($l['sku']) ?></small></td>
-                <td class="r" data-label="ราคาที่ขาย"><?= e(money2($l['price'])) ?></td>
-                <td class="r" data-label="ซื้อ"><?= (int) $l['qty'] ?> <?= e($l['unit']) ?></td>
-                <td class="r" data-label="คืนไปแล้ว"><?= $l['back'] ? (int) $l['back'] : '—' ?></td>
+              <tr class="<?php echo $l['remain'] === 0 ? 'off' : '' ?>">
+                <td data-label="สินค้า"><b><?php echo e($l['name']) ?></b><small><?php echo e($l['sku']) ?></small></td>
+                <td class="r" data-label="ราคาที่ขาย"><?php echo e(money2($l['price'])) ?></td>
+                <td class="r" data-label="ซื้อ"><?php echo (int) $l['qty'] ?> <?php echo e($l['unit']) ?></td>
+                <td class="r" data-label="คืนไปแล้ว"><?php echo $l['back'] ? (int) $l['back'] : '—' ?></td>
                 <td class="r" data-label="จำนวนที่คืน">
-                  <?php if ($l['remain'] > 0): ?>
-                    <input class="input ret-q" type="number" name="q_<?= e($l['sku']) ?>" value="<?= $v ?>"
-                           min="0" max="<?= (int) $l['remain'] ?>" step="1" inputmode="numeric"
-                           data-price="<?= e($l['price']) ?>" aria-label="จำนวนที่คืน <?= e($l['name']) ?>">
-                    <small>คืนได้อีก <?= (int) $l['remain'] ?></small>
-                  <?php else: ?>
+                  <?php if ($l['remain'] > 0) { ?>
+                    <input class="input ret-q" type="number" name="q_<?php echo e($l['sku']) ?>" value="<?php echo $v ?>"
+                           min="0" max="<?php echo (int) $l['remain'] ?>" step="1" inputmode="numeric"
+                           data-price="<?php echo e($l['price']) ?>" aria-label="จำนวนที่คืน <?php echo e($l['name']) ?>">
+                    <small>คืนได้อีก <?php echo (int) $l['remain'] ?></small>
+                  <?php } else { ?>
                     <small>คืนครบแล้ว</small>
-                  <?php endif; ?>
+                  <?php } ?>
                 </td>
               </tr>
-            <?php endforeach; ?>
+            <?php } ?>
           </tbody>
         </table>
       </div>
@@ -247,20 +248,20 @@ require dirname(__FILE__) . '/inc/header.php';
       <div class="why-wrap">
         <span class="why-lb" id="why-lb">เหตุผลการคืน <i class="req">จำเป็น</i></span>
         <div class="why" role="radiogroup" aria-labelledby="why-lb">
-          <?php foreach (return_reasons() as $k => $r): ?>
+          <?php foreach (return_reasons() as $k => $r) { ?>
             <label class="why-o">
-              <input type="radio" name="why" value="<?= e($k) ?>" data-note="<?= $r['note'] ? '1' : '0' ?>"
-                     data-restock="<?= $r['restock'] ? '1' : '0' ?>" <?= $old['why'] === $k ? 'checked' : '' ?>>
-              <span><b><?= e($r['label']) ?></b><small><?= e($r['hint']) ?></small></span>
+              <input type="radio" name="why" value="<?php echo e($k) ?>" data-note="<?php echo $r['note'] ? '1' : '0' ?>"
+                     data-restock="<?php echo $r['restock'] ? '1' : '0' ?>" <?php echo $old['why'] === $k ? 'checked' : '' ?>>
+              <span><b><?php echo e($r['label']) ?></b><small><?php echo e($r['hint']) ?></small></span>
             </label>
-          <?php endforeach; ?>
+          <?php } ?>
         </div>
       </div>
 
       <div class="recv-fields">
         <div class="field">
           <label for="note">รายละเอียด <i class="req" id="note-req" hidden>จำเป็นสำหรับเหตุผลนี้</i></label>
-          <input class="input" type="text" id="note" name="note" value="<?= e($old['note']) ?>" autocomplete="off"
+          <input class="input" type="text" id="note" name="note" value="<?php echo e($old['note']) ?>" autocomplete="off"
                  placeholder="เช่น ลูกค้าซื้อเคสผิดรุ่น ต้องการ iPhone 15 แทน 15 Pro">
         </div>
 
@@ -274,70 +275,70 @@ require dirname(__FILE__) . '/inc/header.php';
         <div class="field">
           <label>ผู้รับคืน</label>
           <div class="who-box">
-            <span class="av"><?= e($user['initials']) ?></span>
-            <div><b><?= e($user['name']) ?></b><small><?= e(role_name($user['role'])) ?> · <?= e(branch_name($code)) ?></small></div>
+            <span class="av"><?php echo e($user['initials']) ?></span>
+            <div><b><?php echo e($user['name']) ?></b><small><?php echo e(role_name($user['role'])) ?> · <?php echo e(branch_name($code)) ?></small></div>
           </div>
         </div>
 
-        <?php if (!can($user, 'refund_cash')): ?>
+        <?php if (!can($user, 'refund_cash')) { ?>
         <div class="field">
           <label>ยอดเงินคืน</label>
           <input type="hidden" id="refund" name="refund" value="0">
           <small class="ret-calc">ไม่มีสิทธิ์คืนเงินสด — บันทึกเป็นรับคืนแบบไม่คืนเงิน (เช่น เปลี่ยนสินค้า / ของเสีย) ·
             ตามราคาที่ขาย <b id="calc" class="num">0.00</b> บาท</small>
         </div>
-        <?php else: ?>
+        <?php } else { ?>
         <div class="field">
           <label for="refund">ยอดเงินคืน (เงินสดจากลิ้นชัก)</label>
           <input class="input cash" type="text" id="refund" name="refund" inputmode="decimal" autocomplete="off"
-                 value="<?= e($old['refund']) ?>" placeholder="0.00">
+                 value="<?php echo e($old['refund']) ?>" placeholder="0.00">
           <small class="ret-calc">ตามราคาที่ขาย <b id="calc" class="num">0.00</b> บาท · แก้ได้แต่ไม่เกินยอดนี้</small>
         </div>
 
         <div class="field" id="rn-wrap" hidden>
           <label for="refund_note">เหตุผลที่ปรับยอดเงินคืน <i class="req">จำเป็น</i></label>
-          <input class="input" type="text" id="refund_note" name="refund_note" value="<?= e($old['refund_note']) ?>"
+          <input class="input" type="text" id="refund_note" name="refund_note" value="<?php echo e($old['refund_note']) ?>"
                  autocomplete="off" placeholder="เช่น หักค่ากล่องแกะแล้ว 50 บาท">
         </div>
-        <?php endif; ?>
+        <?php } ?>
       </div>
 
       <p class="ret-stock" id="ret-stock" hidden></p>
 
       <div class="ret-go">
-        <button class="btn btn-primary btn-xl" type="submit" id="ret-go" <?= $isOpen ? '' : 'disabled' ?>>
-          <svg class="ico"><use href="#i-coin"/></svg> <?= can($user, 'refund_cash') ? 'บันทึกรับคืนและคืนเงิน' : 'บันทึกรับคืน' ?>
+        <button class="btn btn-primary btn-xl" type="submit" id="ret-go" <?php echo $isOpen ? '' : 'disabled' ?>>
+          <svg class="ico"><use href="#i-coin"/></svg> <?php echo can($user, 'refund_cash') ? 'บันทึกรับคืนและคืนเงิน' : 'บันทึกรับคืน' ?>
         </button>
-        <?php if (!$isOpen): ?><small>ต้องเปิดร้านก่อนจึงบันทึกได้</small><?php endif; ?>
+        <?php if (!$isOpen) { ?><small>ต้องเปิดร้านก่อนจึงบันทึกได้</small><?php } ?>
       </div>
     </section>
   </form>
-  <?php endif; ?>
+  <?php } ?>
 
-<?php endif; ?>
+<?php } ?>
 
-<?php if ($today): ?>
+<?php if ($today) { ?>
   <!-- ==================== รับคืนวันนี้ ==================== -->
   <section class="card">
-    <div class="card-head"><div><h2>รับคืนวันนี้</h2><span class="sub"><?= count($today) ?> ใบ · เงินสดออกจากลิ้นชักรวม <?= e(money2(store_refunds($code))) ?> บาท</span></div></div>
+    <div class="card-head"><div><h2>รับคืนวันนี้</h2><span class="sub"><?php echo count($today) ?> ใบ · เงินสดออกจากลิ้นชักรวม <?php echo e(money2(store_refunds($code))) ?> บาท</span></div></div>
     <div class="tbl-wrap">
       <table class="tbl num">
         <thead><tr><th>ใบรับคืน</th><th>บิลเดิม</th><th>เหตุผล</th><th>สต๊อก</th><th class="r">คืนเงิน</th></tr></thead>
         <tbody>
-          <?php foreach ($today as $r): ?>
+          <?php foreach ($today as $r) { ?>
             <tr>
-              <td class="doc" data-label="ใบรับคืน"><?= e($r['no']) ?><small><?= e($r['time']) ?> น. · รับคืนโดย <?= e($r['by']) ?></small></td>
-              <td data-label="บิลเดิม"><?= e($r['bill_no']) ?><small>ขายโดย <?= e($r['bill_by']) ?></small></td>
-              <td data-label="เหตุผล"><?= e(return_reason_label($r['reason'])) ?><?php if ($r['note'] !== ''): ?><small><?= e($r['note']) ?></small><?php endif; ?></td>
-              <td data-label="สต๊อก"><span class="bdg <?= $r['restock'] ? 'bdg-in' : 'bdg-adj' ?>"><?= $r['restock'] ? '+' . (int) $r['qty'] . ' เข้าสต๊อก' : 'แยกเก็บ' ?></span></td>
-              <td class="r" data-label="คืนเงิน"><?= e(money2($r['refund'])) ?><?php if ($r['refund_note'] !== ''): ?><small>ปรับจาก <?= e(money2($r['calc'])) ?> · <?= e($r['refund_note']) ?></small><?php endif; ?></td>
+              <td class="doc" data-label="ใบรับคืน"><?php echo e($r['no']) ?><small><?php echo e($r['time']) ?> น. · รับคืนโดย <?php echo e($r['by']) ?></small></td>
+              <td data-label="บิลเดิม"><?php echo e($r['bill_no']) ?><small>ขายโดย <?php echo e($r['bill_by']) ?></small></td>
+              <td data-label="เหตุผล"><?php echo e(return_reason_label($r['reason'])) ?><?php if ($r['note'] !== '') { ?><small><?php echo e($r['note']) ?></small><?php } ?></td>
+              <td data-label="สต๊อก"><span class="bdg <?php echo $r['restock'] ? 'bdg-in' : 'bdg-adj' ?>"><?php echo $r['restock'] ? '+' . (int) $r['qty'] . ' เข้าสต๊อก' : 'แยกเก็บ' ?></span></td>
+              <td class="r" data-label="คืนเงิน"><?php echo e(money2($r['refund'])) ?><?php if ($r['refund_note'] !== '') { ?><small>ปรับจาก <?php echo e(money2($r['calc'])) ?> · <?php echo e($r['refund_note']) ?></small><?php } ?></td>
             </tr>
-          <?php endforeach; ?>
+          <?php } ?>
         </tbody>
       </table>
     </div>
   </section>
-<?php endif; ?>
+<?php } ?>
 
 <script>
 (function () {

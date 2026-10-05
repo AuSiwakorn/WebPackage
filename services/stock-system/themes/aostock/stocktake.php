@@ -8,6 +8,7 @@
  *   - [x] ย้ายจาก demo/ เข้า themes/aostock/ (วิ่งผ่าน router ของ admweb)
  *   - [x] ใบที่บันทึกแล้วเก็บในตาราง ao_stock_* (ช่วงที่ 6) · ยอดขยับระหว่างกดบันทึก แสดงข้อความให้นับใหม่แทนหน้า error
  *   - [x] ช่วงที่ 11: แก้ / ยกเลิกใบของตัวเองต้องมีสิทธิ์ doc_fix · ปุ่มแก้ / ยกเลิกและลิงก์ยอดคงเหลือแสดงตามสิทธิ์
+ *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -154,70 +155,70 @@ $NAV_ACTIVE = 'stocktake.php';
 require dirname(__FILE__) . '/inc/header.php';
 ?>
 
-<?php if ($err !== ''): ?>
+<?php if ($err !== '') { ?>
   <div class="alert alert-error" role="alert">
-    <svg class="ico"><use href="#i-alert"/></svg><span><?= e($err) ?></span>
+    <svg class="ico"><use href="#i-alert"/></svg><span><?php echo e($err) ?></span>
   </div>
-<?php endif; ?>
+<?php } ?>
 
-<?php if ($voided !== null): ?>
+<?php if ($voided !== null) { ?>
   <?php $isEdit = (isset($voided['void_mode']) && $voided['void_mode'] === 'edit'); ?>
-  <div class="alert <?= $isEdit ? 'alert-info' : 'alert-warn' ?>" role="status">
-    <svg class="ico"><use href="#<?= $isEdit ? 'i-arrow' : 'i-ban' ?>"/></svg>
+  <div class="alert <?php echo $isEdit ? 'alert-info' : 'alert-warn' ?>" role="status">
+    <svg class="ico"><use href="#<?php echo $isEdit ? 'i-arrow' : 'i-ban' ?>"/></svg>
     <span>
-      <?php if ($isEdit): ?>
-        ยกเลิกใบ <b><?= e($voided['no']) ?></b> และดึง <?= (int) $voided['items'] ?> รายการกลับเข้าใบให้แล้ว —
+      <?php if ($isEdit) { ?>
+        ยกเลิกใบ <b><?php echo e($voided['no']) ?></b> และดึง <?php echo (int) $voided['items'] ?> รายการกลับเข้าใบให้แล้ว —
         แก้จำนวนที่นับได้แล้วบันทึกใหม่ ระบบจะออกเลขใบใหม่ให้
-      <?php else: ?>
-        ยกเลิกใบตรวจนับ <b><?= e($voided['no']) ?></b> แล้ว · ยอดทุกรายการกลับเป็นก่อนตรวจนับ ·
-        เหตุผล: <?= e($voided['void_reason']) ?>
-      <?php endif; ?>
+      <?php } else { ?>
+        ยกเลิกใบตรวจนับ <b><?php echo e($voided['no']) ?></b> แล้ว · ยอดทุกรายการกลับเป็นก่อนตรวจนับ ·
+        เหตุผล: <?php echo e($voided['void_reason']) ?>
+      <?php } ?>
     </span>
   </div>
-<?php endif; ?>
+<?php } ?>
 
-<?php if ($done !== null && empty($done['void'])): ?>
+<?php if ($done !== null && empty($done['void'])) { ?>
   <?php $s = $done['sum']; $net = $s['plus'] - $s['minus']; ?>
   <div class="alert alert-ok" role="status">
     <svg class="ico"><use href="#i-check"/></svg>
     <span>
-      <?php if ($s['over'] + $s['short'] === 0): ?>
-        บันทึกแล้ว เอกสาร <b><?= e($done['no']) ?></b> · นับ <?= (int) $s['items'] ?> รายการ <b>ตรงกับระบบทั้งหมด</b>
-      <?php else: ?>
-        ปรับยอดเรียบร้อย เอกสาร <b><?= e($done['no']) ?></b> ·
-        นับ <?= (int) $s['items'] ?> รายการ (ตรง <?= $s['same'] ?> · เกิน <?= $s['over'] ?> · ขาด <?= $s['short'] ?>) ·
-        สุทธิ <b class="num"><?= $net >= 0 ? '+' : '−' ?><?= number_format(abs($net)) ?></b> ชิ้น ·
-        <?= $s['value'] < 0 ? '−' : '' ?><?= money2(abs($s['value'])) ?> บาท
-      <?php endif; ?>
+      <?php if ($s['over'] + $s['short'] === 0) { ?>
+        บันทึกแล้ว เอกสาร <b><?php echo e($done['no']) ?></b> · นับ <?php echo (int) $s['items'] ?> รายการ <b>ตรงกับระบบทั้งหมด</b>
+      <?php } else { ?>
+        ปรับยอดเรียบร้อย เอกสาร <b><?php echo e($done['no']) ?></b> ·
+        นับ <?php echo (int) $s['items'] ?> รายการ (ตรง <?php echo $s['same'] ?> · เกิน <?php echo $s['over'] ?> · ขาด <?php echo $s['short'] ?>) ·
+        สุทธิ <b class="num"><?php echo $net >= 0 ? '+' : '−' ?><?php echo number_format(abs($net)) ?></b> ชิ้น ·
+        <?php echo $s['value'] < 0 ? '−' : '' ?><?php echo money2(abs($s['value'])) ?> บาท
+      <?php } ?>
     </span>
     <?php $dat = ' data-bill="' . e($done['no']) . '" data-items="' . (int) $done['items'] . '"'; ?>
     <div class="alert-act">
       <?php foreach ((can_void_doc($user, $done) ? array(
           array('edit', 'แก้ไขใบนี้',  'i-arrow', 'หมายเหตุการแก้ไขใบตรวจนับ'),
           array('void', 'ยกเลิกใบนี้', 'i-ban',   'หมายเหตุการยกเลิกใบตรวจนับ'),
-      ) : array()) as $b): ?>
-        <form method="post" action="stocktake.php" data-confirm="<?= e($b[0]) ?>"<?= $dat ?>>
-          <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
-          <input type="hidden" name="act" value="<?= e($b[0]) ?>">
-          <input type="hidden" name="no" value="<?= e($done['no']) ?>">
+      ) : array()) as $b) { ?>
+        <form method="post" action="stocktake.php" data-confirm="<?php echo e($b[0]) ?>"<?php echo $dat ?>>
+          <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
+          <input type="hidden" name="act" value="<?php echo e($b[0]) ?>">
+          <input type="hidden" name="no" value="<?php echo e($done['no']) ?>">
           <input class="reason-fb" type="text" name="reason" value=""
-                 placeholder="หมายเหตุ (จำเป็น)" aria-label="<?= e($b[3]) ?>">
+                 placeholder="หมายเหตุ (จำเป็น)" aria-label="<?php echo e($b[3]) ?>">
           <button class="btn btn-ghost btn-sm" type="submit">
-            <svg class="ico"><use href="#<?= e($b[2]) ?>"/></svg> <?= e($b[1]) ?>
+            <svg class="ico"><use href="#<?php echo e($b[2]) ?>"/></svg> <?php echo e($b[1]) ?>
           </button>
         </form>
-      <?php endforeach; ?>
-      <?php if (page_ok($user, 'products.php')): ?>
+      <?php } ?>
+      <?php if (page_ok($user, 'products.php')) { ?>
       <a class="btn btn-ghost btn-sm" href="products.php">
         <svg class="ico"><use href="#i-boxes"/></svg> ดูยอดคงเหลือ
       </a>
-      <?php endif; ?>
+      <?php } ?>
     </div>
   </div>
-<?php endif; ?>
+<?php } ?>
 
 <form method="post" action="stocktake.php" id="adj-form" data-confirm="adjust">
-  <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+  <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
   <input type="hidden" name="act" value="save">
 
   <?php require dirname(__FILE__) . '/inc/adjust-live.php'; ?>

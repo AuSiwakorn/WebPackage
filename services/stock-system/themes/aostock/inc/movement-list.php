@@ -8,6 +8,7 @@
  *   - [x] ย้ายจาก demo/ เข้า themes/aostock/ (วิ่งผ่าน router ของ admweb)
  *   - [x] อ่าน / เขียนข้อมูลจากตาราง ao_stock_* ผ่าน api.php (ช่วงที่ 5–9)
  *   - [x] ช่วงที่ 10: แก้ File Header ให้ตรงกับระบบจริง
+ *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -22,22 +23,22 @@ if (!defined('ALLOW_DIRECT_ACCESS')) {
 require_once dirname(__FILE__) . '/../include/function.php';
 ?>
 <ul class="mv-list" id="mv-list">
-  <?php if (!$list): ?>
+  <?php if (!$list) { ?>
     <li class="mv-none">ไม่พบสินค้าที่ตรงกับคำค้น</li>
-  <?php endif; ?>
-  <?php foreach ($list as $p): ?>
+  <?php } ?>
+  <?php foreach ($list as $p) { ?>
     <li>
-      <a class="mv-item<?= $p['sku'] === $sku ? ' on' : '' ?>"
-         href="<?= e((isset($MV_PAGE) ? $MV_PAGE : 'movements.php') . move_qs($q, $cat, $p['sku'], $period, isset($MV_EXTRA) ? $MV_EXTRA : array())) ?>">
-        <?= thumb_html($p) ?>
+      <a class="mv-item<?php echo $p['sku'] === $sku ? ' on' : '' ?>"
+         href="<?php echo e((isset($MV_PAGE) ? $MV_PAGE : 'movements.php') . move_qs($q, $cat, $p['sku'], $period, isset($MV_EXTRA) ? $MV_EXTRA : array())) ?>">
+        <?php echo thumb_html($p) ?>
         <span class="mv-it">
-          <b><?= e($p['name']) ?></b>
-          <small><?= e($p['sku']) ?></small>
+          <b><?php echo e($p['name']) ?></b>
+          <small><?php echo e($p['sku']) ?></small>
         </span>
-        <span class="mv-q num<?= $p['qty'] <= 0 ? ' q-out' : ($p['qty'] <= $p['reorder'] ? ' q-low' : '') ?>">
-          <?= number_format($p['qty']) ?><small><?= e($p['unit']) ?></small>
+        <span class="mv-q num<?php echo $p['qty'] <= 0 ? ' q-out' : ($p['qty'] <= $p['reorder'] ? ' q-low' : '') ?>">
+          <?php echo number_format($p['qty']) ?><small><?php echo e($p['unit']) ?></small>
         </span>
       </a>
     </li>
-  <?php endforeach; ?>
+  <?php } ?>
 </ul>

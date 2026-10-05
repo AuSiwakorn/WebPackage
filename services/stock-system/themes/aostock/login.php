@@ -10,6 +10,7 @@
  *   - [x] ช่วงที่ 10: "จดจำการเข้าสู่ระบบ" ใช้ได้จริง 30 วัน · "ลืมรหัสผ่าน?" บอกวิธีรีเซ็ต · เอาป้ายระบบทดลองออก
  *         · ข้อความสิทธิ์ของพนักงานสร้างด้วย textContent (กัน XSS จากชื่อสาขา)
  *   - [x] ช่วงที่ 12: ปุ่มเลือกชื่อแสดง "ผู้จัดการสาขา" แทน "พนักงาน" (user_role_label)
+ *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -105,14 +106,14 @@ if ($staffPick === '' || !isset($staffs[$staffPick])) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>เข้าสู่ระบบ | <?= e(APP_NAME) ?> — <?= e(APP_TITLE) ?></title>
+<title>เข้าสู่ระบบ | <?php echo e(APP_NAME) ?> — <?php echo e(APP_TITLE) ?></title>
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#07211B">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2064%2064'%3E%3Crect%20width='64'%20height='64'%20rx='14'%20fill='%2307211B'/%3E%3Cpath%20d='M14%2024l18-9%2018%209-18%209z'%20fill='%23C9A86A'/%3E%3Cpath%20d='M14%2024v16l18%209V33z'%20fill='%230E7A5F'/%3E%3Cpath%20d='M50%2024v16l-18%209V33z'%20fill='%2312946F'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="<?= e(asset_url('app.css')) ?>?v=<?= (int) @filemtime(dirname(__FILE__) . '/assets/app.css') ?>">
+<link rel="stylesheet" href="<?php echo e(asset_url('app.css')) ?>?v=<?php echo (int) @filemtime(dirname(__FILE__) . '/assets/app.css') ?>">
 </head>
 <body>
 
@@ -136,7 +137,7 @@ if ($staffPick === '' || !isset($staffs[$staffPick])) {
   <section class="login-brand">
     <div>
       <span class="logo logo--light"><span class="logo-ao">AO</span><span class="logo-sk">STOCK</span></span>
-      <div class="brand-by"><?= e(APP_TITLE) ?> · by AOSOFT</div>
+      <div class="brand-by"><?php echo e(APP_TITLE) ?> · by AOSOFT</div>
     </div>
 
     <div class="login-brand-mid">
@@ -160,7 +161,7 @@ if ($staffPick === '' || !isset($staffs[$staffPick])) {
     </div>
 
     <div class="login-brand-foot">
-      © <?= date('Y') ?> <?= e(APP_OWNER) ?> ·
+      © <?php echo date('Y') ?> <?php echo e(APP_OWNER) ?> ·
       <a href="https://www.aosoft.co.th/services/stock-system/" target="_blank" rel="noopener">ดูรายละเอียดบริการ</a>
     </div>
   </section>
@@ -171,47 +172,47 @@ if ($staffPick === '' || !isset($staffs[$staffPick])) {
 
       <h2>เข้าสู่ระบบ</h2>
 
-      <?php if (role_enabled('admin')): ?>
+      <?php if (role_enabled('admin')) { ?>
       <div class="lg-tabs" role="tablist">
-        <button type="button" class="<?= $mode === 'pin' ? 'on' : '' ?>" data-tab="pin" role="tab"
-                aria-selected="<?= $mode === 'pin' ? 'true' : 'false' ?>">พนักงาน (PIN)</button>
-        <button type="button" class="<?= $mode === 'admin' ? 'on' : '' ?>" data-tab="admin" role="tab"
-                aria-selected="<?= $mode === 'admin' ? 'true' : 'false' ?>">ผู้ดูแล / บัญชี</button>
+        <button type="button" class="<?php echo $mode === 'pin' ? 'on' : '' ?>" data-tab="pin" role="tab"
+                aria-selected="<?php echo $mode === 'pin' ? 'true' : 'false' ?>">พนักงาน (PIN)</button>
+        <button type="button" class="<?php echo $mode === 'admin' ? 'on' : '' ?>" data-tab="admin" role="tab"
+                aria-selected="<?php echo $mode === 'admin' ? 'true' : 'false' ?>">ผู้ดูแล / บัญชี</button>
       </div>
-      <?php endif; ?>
+      <?php } ?>
 
-      <?php if ($error !== ''): ?>
+      <?php if ($error !== '') { ?>
         <div class="alert alert-error" role="alert">
           <svg class="ico"><use href="#i-alert"/></svg>
-          <span><?= e($error) ?></span>
+          <span><?php echo e($error) ?></span>
         </div>
-      <?php endif; ?>
+      <?php } ?>
 
       <!-- ===== แท็บ 1: PIN ===== -->
-      <form class="login-form pane<?= $mode === 'pin' ? ' on' : '' ?>" id="pane-pin"
+      <form class="login-form pane<?php echo $mode === 'pin' ? ' on' : '' ?>" id="pane-pin"
             method="post" action="login.php" autocomplete="off">
-        <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+        <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
         <input type="hidden" name="mode" value="pin">
-        <input type="hidden" name="staff" id="staff" value="<?= e($staffPick) ?>">
+        <input type="hidden" name="staff" id="staff" value="<?php echo e($staffPick) ?>">
         <input type="hidden" name="pin" id="pin" value="">
 
         <span class="lbl">เลือกชื่อของคุณ</span>
         <div class="staffs" id="staffs">
-          <?php if (!$staffs): ?>
+          <?php if (!$staffs) { ?>
             <p class="staff-perm">ยังไม่มีพนักงานในระบบ — ผู้ดูแลเพิ่มพนักงานได้ที่เมนู "จัดการพนักงาน" (เข้าระบบที่แท็บผู้ดูแล)</p>
-          <?php endif; ?>
-          <?php foreach ($staffs as $uname => $u): ?>
-            <button class="staff<?= $uname === $staffPick ? ' on' : '' ?>" type="button" data-user="<?= e($uname) ?>"
-                      data-role="<?= e(user_role_label(array('role' => $u['role'], 'username' => $uname))) ?>"
-                      data-scope="<?= e(role_scope($u['role'])) ?>"
-                      data-branch="<?= e(branch_name($u['branch'])) ?>">
-              <span class="av"><?= e(user_initial($u)) ?></span>
+          <?php } ?>
+          <?php foreach ($staffs as $uname => $u) { ?>
+            <button class="staff<?php echo $uname === $staffPick ? ' on' : '' ?>" type="button" data-user="<?php echo e($uname) ?>"
+                      data-role="<?php echo e(user_role_label(array('role' => $u['role'], 'username' => $uname))) ?>"
+                      data-scope="<?php echo e(role_scope($u['role'])) ?>"
+                      data-branch="<?php echo e(branch_name($u['branch'])) ?>">
+              <span class="av"><?php echo e(user_initial($u)) ?></span>
               <span class="st">
-                <b><?= e($u['name']) ?></b>
-                <small><?= e(user_role_label(array('role' => $u['role'], 'username' => $uname))) ?> · <?= e(branch_name($u['branch'])) ?></small>
+                <b><?php echo e($u['name']) ?></b>
+                <small><?php echo e(user_role_label(array('role' => $u['role'], 'username' => $uname))) ?> · <?php echo e(branch_name($u['branch'])) ?></small>
               </span>
             </button>
-          <?php endforeach; ?>
+          <?php } ?>
         </div>
 
         <p class="staff-perm" id="staff-perm">
@@ -243,16 +244,16 @@ if ($staffPick === '' || !isset($staffs[$staffPick])) {
       </form>
 
       <!-- ===== แท็บ 2: ผู้ดูแล ===== -->
-      <?php if (role_enabled('admin')): ?>
-      <form class="login-form pane<?= $mode === 'admin' ? ' on' : '' ?>" id="pane-admin"
+      <?php if (role_enabled('admin')) { ?>
+      <form class="login-form pane<?php echo $mode === 'admin' ? ' on' : '' ?>" id="pane-admin"
             method="post" action="login.php" autocomplete="on">
-        <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+        <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
         <input type="hidden" name="mode" value="admin">
 
         <div class="field">
           <label for="username">ชื่อผู้ใช้</label>
           <input class="input" type="text" id="username" name="adm_user"
-                 value="<?= e($username) ?>" placeholder="เช่น somchai"
+                 value="<?php echo e($username) ?>" placeholder="เช่น somchai"
                  autocomplete="username" autocapitalize="none" spellcheck="false">
         </div>
 
@@ -269,7 +270,7 @@ if ($staffPick === '' || !isset($staffs[$staffPick])) {
         </div>
 
         <div class="login-row">
-          <label class="check"><input type="checkbox" name="remember" value="1"<?= !empty($_POST['remember']) ? ' checked' : '' ?>> จดจำการเข้าสู่ระบบ 30 วัน</label>
+          <label class="check"><input type="checkbox" name="remember" value="1"<?php echo !empty($_POST['remember']) ? ' checked' : '' ?>> จดจำการเข้าสู่ระบบ 30 วัน</label>
           <button type="button" class="link-btn" id="forgot-btn" aria-expanded="false" aria-controls="forgot-help">ลืมรหัสผ่าน?</button>
         </div>
         <div class="login-help" id="forgot-help" hidden>
@@ -282,7 +283,7 @@ if ($staffPick === '' || !isset($staffs[$staffPick])) {
           <svg class="ico"><use href="#i-login"/></svg> เข้าสู่ระบบ
         </button>
       </form>
-      <?php endif; ?>
+      <?php } ?>
 
       <p class="login-foot">ลืม PIN หรือรหัสผ่าน / ถูกล็อก — ติดต่อผู้ดูแลระบบเพื่อรีเซ็ต</p>
     </div>

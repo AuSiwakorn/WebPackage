@@ -9,6 +9,7 @@
  *   - [x] อ่าน / เขียนข้อมูลจากตาราง ao_stock_* ผ่าน api.php (ช่วงที่ 5–9)
  *   - [x] ช่วงที่ 10: แก้ File Header ให้ตรงกับระบบจริง · กัน XSS — ชื่อหมวดในกล่องยืนยันลบอ่านจาก data-ask (ไม่ต่อลง JavaScript ตรง ๆ)
  *   - [x] ช่วงที่ 11: แยกสิทธิ์เพิ่มหมวด (category_add) / ลบหมวด (category_del) — เช็กทั้งตอนแสดงฟอร์มและตอนบันทึก
+ *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -74,89 +75,89 @@ $NAV_ACTIVE = 'categories.php';
 require dirname(__FILE__) . '/inc/header.php';
 ?>
 
-<?php if ($err !== '' && $errAt === ''): ?>
-  <div class="alert alert-error" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span><?= e($err) ?></span></div>
-<?php endif; ?>
+<?php if ($err !== '' && $errAt === '') { ?>
+  <div class="alert alert-error" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span><?php echo e($err) ?></span></div>
+<?php } ?>
 
 <!-- ==================== เพิ่มหมวด ==================== -->
-<?php if ($canAdd): ?>
+<?php if ($canAdd) { ?>
 <section class="card">
   <div class="card-head">
     <div><h2>เพิ่มหมวดสินค้า</h2><span class="sub">ชื่อห้ามซ้ำกับหมวดที่มีอยู่ · เพิ่มแล้วเลือกใช้ได้ทันทีทุกสาขา</span></div>
   </div>
-  <?php if ($errAt === 'new'): ?>
-    <div class="alert alert-error adm-ok" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span><?= e($err) ?></span></div>
-  <?php endif; ?>
+  <?php if ($errAt === 'new') { ?>
+    <div class="alert alert-error adm-ok" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span><?php echo e($err) ?></span></div>
+  <?php } ?>
   <form class="cat-add" method="post" action="categories.php">
-    <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+    <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
     <input type="hidden" name="act" value="add">
     <label class="sr-only" for="cn">ชื่อหมวด</label>
-    <input class="input" type="text" id="cn" name="name" value="<?= e($name) ?>" maxlength="50" required
+    <input class="input" type="text" id="cn" name="name" value="<?php echo e($name) ?>" maxlength="50" required
            placeholder="เช่น หูฟัง / ลำโพง" autocomplete="off">
     <button class="btn btn-primary" type="submit"><svg class="ico"><use href="#i-plus"/></svg> เพิ่มหมวด</button>
   </form>
 </section>
-<?php endif; ?>
+<?php } ?>
 
 <!-- ==================== รายการหมวด ==================== -->
 <section class="card">
   <div class="card-head">
-    <div><h2>หมวดทั้งหมด</h2><span class="sub"><?= $canDel ? 'ลบได้เฉพาะหมวดที่ยังไม่มีสินค้า' : 'ดูรายชื่อสินค้าในหมวดได้ · ลบหมวดต้องมีสิทธิ์ “ลบหมวด”' ?></span></div>
+    <div><h2>หมวดทั้งหมด</h2><span class="sub"><?php echo $canDel ? 'ลบได้เฉพาะหมวดที่ยังไม่มีสินค้า' : 'ดูรายชื่อสินค้าในหมวดได้ · ลบหมวดต้องมีสิทธิ์ “ลบหมวด”' ?></span></div>
   </div>
   <div class="tbl-wrap">
     <table class="tbl cat-tbl">
       <thead><tr><th>หมวด</th><th class="r">สินค้า</th><th>ที่มา</th><th class="r"><span class="sr-only">จัดการ</span></th></tr></thead>
       <tbody>
-        <?php foreach ($cats as $c => $x): ?>
+        <?php foreach ($cats as $c => $x) { ?>
           <tr>
-            <td data-label="หมวด"><b><?= e($c) ?></b></td>
+            <td data-label="หมวด"><b><?php echo e($c) ?></b></td>
             <td data-label="สินค้า" class="r num">
-              <?php if ($x['count']): ?>
-                <button type="button" class="cell-link" data-cat-list="cl-<?= e(substr(md5($c), 0, 8)) ?>" title="ดูรายชื่อสินค้าในหมวดนี้"><?= number_format($x['count']) ?> รายการ</button>
-              <?php else: ?><span class="adm-none">ยังไม่มีสินค้า</span><?php endif; ?>
+              <?php if ($x['count']) { ?>
+                <button type="button" class="cell-link" data-cat-list="cl-<?php echo e(substr(md5($c), 0, 8)) ?>" title="ดูรายชื่อสินค้าในหมวดนี้"><?php echo number_format($x['count']) ?> รายการ</button>
+              <?php } else { ?><span class="adm-none">ยังไม่มีสินค้า</span><?php } ?>
             </td>
-            <td data-label="ที่มา"><?= $x['added'] ? '<small>เพิ่ม' . ($x['by'] !== '' ? 'โดย ' . e($x['by']) . ' · ' : 'เมื่อ ') . e($x['at']) . '</small>' : '<small>หมวดตั้งต้น</small>' ?></td>
+            <td data-label="ที่มา"><?php echo $x['added'] ? '<small>เพิ่ม' . ($x['by'] !== '' ? 'โดย ' . e($x['by']) . ' · ' : 'เมื่อ ') . e($x['at']) . '</small>' : '<small>หมวดตั้งต้น</small>' ?></td>
             <td data-label="" class="r">
-              <?php if (!$canDel): ?>
-              <?php elseif ($x['count'] === 0): ?>
-                <form method="post" action="categories.php" class="cat-del" data-ask="<?= e('ลบหมวด “' . $c . '” ?') ?>" onsubmit="return confirm(this.dataset.ask);">
-                  <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+              <?php if (!$canDel) { ?>
+              <?php } elseif ($x['count'] === 0) { ?>
+                <form method="post" action="categories.php" class="cat-del" data-ask="<?php echo e('ลบหมวด “' . $c . '” ?') ?>" onsubmit="return confirm(this.dataset.ask);">
+                  <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
                   <input type="hidden" name="act" value="delete">
-                  <input type="hidden" name="c" value="<?= e($c) ?>">
+                  <input type="hidden" name="c" value="<?php echo e($c) ?>">
                   <button class="btn btn-ghost btn-sm br-del" type="submit"><svg class="ico"><use href="#i-trash"/></svg> ลบ</button>
                 </form>
-              <?php else: ?>
+              <?php } else { ?>
                 <small class="adm-none" title="ย้ายสินค้าออกจากหมวดก่อนจึงจะลบได้">ลบไม่ได้ (มีสินค้า)</small>
-              <?php endif; ?>
+              <?php } ?>
             </td>
           </tr>
-        <?php endforeach; ?>
+        <?php } ?>
       </tbody>
     </table>
   </div>
 </section>
 
 <!-- ==================== รายชื่อสินค้าในแต่ละหมวด (แสดงใน popup เมื่อกดจำนวน) ==================== -->
-<?php foreach ($cats as $c => $x): if (!$x['count']) { continue; } ?>
-  <template id="cl-<?= e(substr(md5($c), 0, 8)) ?>">
+<?php foreach ($cats as $c => $x) { if (!$x['count']) { continue; } ?>
+  <template id="cl-<?php echo e(substr(md5($c), 0, 8)) ?>">
     <div class="ds-head">
-      <h2><?= e($c) ?></h2>
-      <p class="sub"><?= number_format($x['count']) ?> รายการ · คงเหลือของ<?= e(branch_name($code)) ?></p>
+      <h2><?php echo e($c) ?></h2>
+      <p class="sub"><?php echo number_format($x['count']) ?> รายการ · คงเหลือของ<?php echo e(branch_name($code)) ?></p>
     </div>
     <div class="ds-pane">
       <table class="ds-lines">
         <thead><tr><th>สินค้า</th><th class="r">ราคาขาย</th><th class="r">คงเหลือ</th></tr></thead>
         <tbody>
-          <?php foreach (cat_products($c) as $p): $st = branch_status($p, $code); ?>
-            <tr><td><?= e($p['name']) ?> <small><?= e($p['sku']) ?></small></td>
-                <td class="r num"><?= e(money2($p['price'])) ?></td>
-                <td class="r num"><span class="stk stk-<?= e($st) ?>"><?= number_format(product_qty($p, $code)) ?></span> <small><?= e($p['unit']) ?></small></td></tr>
-          <?php endforeach; ?>
+          <?php foreach (cat_products($c) as $p) { $st = branch_status($p, $code); ?>
+            <tr><td><?php echo e($p['name']) ?> <small><?php echo e($p['sku']) ?></small></td>
+                <td class="r num"><?php echo e(money2($p['price'])) ?></td>
+                <td class="r num"><span class="stk stk-<?php echo e($st) ?>"><?php echo number_format(product_qty($p, $code)) ?></span> <small><?php echo e($p['unit']) ?></small></td></tr>
+          <?php } ?>
         </tbody>
       </table>
     </div>
   </template>
-<?php endforeach; ?>
+<?php } ?>
 
 <dialog class="ds-modal" id="cl-modal" aria-label="สินค้าในหมวด">
   <button type="button" class="icon-btn ds-close" data-cl-close aria-label="ปิด"><svg class="ico"><use href="#i-x"/></svg></button>

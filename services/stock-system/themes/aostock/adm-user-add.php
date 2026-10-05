@@ -11,6 +11,7 @@
  *   - [x] ช่วงที่ 11: ช่องติ๊กสิทธิ์ชุดใหม่ (perm_boxes) · ค่าเริ่มต้นตาม perm_default · ตัดสิทธิ์ที่ขาดตัวที่ต้องมีออกตอนบันทึก (read_perms)
  *   - [x] ช่วงที่ 12: ตรวจ / เพิ่ม / ลงประวัติ ย้ายไป staff_act_add (ใช้ร่วมกับ team.php ของผู้จัดการสาขา — ข้อความเดิมทุกคำ)
  *         · ช่อง "ตำแหน่ง" (พนักงาน / ผู้จัดการสาขา) บนสุดของฟอร์ม
+ *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -74,29 +75,29 @@ require dirname(__FILE__) . '/inc/header.php';
 
 <p class="hist-back"><a class="btn btn-ghost btn-sm" href="adm-users.php">‹ กลับไปจัดการพนักงาน</a></p>
 
-<?php if ($err !== ''): ?>
-  <div class="alert alert-error" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span><?= e($err) ?></span></div>
-<?php endif; ?>
+<?php if ($err !== '') { ?>
+  <div class="alert alert-error" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span><?php echo e($err) ?></span></div>
+<?php } ?>
 
 <section class="card">
   <div class="card-head">
     <div><h2>ข้อมูลพนักงานใหม่</h2><span class="sub">สิทธิ์แก้ภายหลังได้ที่หน้าจัดการพนักงาน · มีผลทันที</span></div>
   </div>
   <form class="adm-sec" method="post" action="adm-user-add.php">
-    <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+    <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
     <input type="hidden" name="act" value="add">
     <?php staff_position_field(in_array('manager', $nv['perms'], true)); /* ตำแหน่ง: พนักงาน / ผู้จัดการสาขา (ช่วงที่ 12) */ ?>
     <div class="adm-fields">
       <div class="field">
         <label for="n-name">ชื่อ–นามสกุล</label>
-        <input class="input" type="text" id="n-name" name="name" value="<?= e($nv['name']) ?>" maxlength="60" required autocomplete="off" placeholder="เช่น ปิยะ ขยันดี">
+        <input class="input" type="text" id="n-name" name="name" value="<?php echo e($nv['name']) ?>" maxlength="60" required autocomplete="off" placeholder="เช่น ปิยะ ขยันดี">
       </div>
       <div class="field">
         <label for="n-branch">สาขาที่ประจำ</label>
         <select class="input" id="n-branch" name="branch" required>
-          <?php foreach (branches_active() as $bc => $b): ?>
-            <option value="<?= e($bc) ?>" <?= $nv['branch'] === $bc ? 'selected' : '' ?>><?= e($b['name']) ?></option>
-          <?php endforeach; ?>
+          <?php foreach (branches_active() as $bc => $b) { ?>
+            <option value="<?php echo e($bc) ?>" <?php echo $nv['branch'] === $bc ? 'selected' : '' ?>><?php echo e($b['name']) ?></option>
+          <?php } ?>
         </select>
       </div>
       <div class="field">
@@ -106,12 +107,12 @@ require dirname(__FILE__) . '/inc/header.php';
       </div>
       <div class="field">
         <label for="n-user">ชื่อผู้ใช้ <small class="adm-none">(ไม่บังคับ)</small></label>
-        <input class="input" type="text" id="n-user" name="username" value="<?= e($nv['username']) ?>" maxlength="20" autocomplete="off" placeholder="เว้นว่าง = ตั้งให้อัตโนมัติ">
+        <input class="input" type="text" id="n-user" name="username" value="<?php echo e($nv['username']) ?>" maxlength="20" autocomplete="off" placeholder="เว้นว่าง = ตั้งให้อัตโนมัติ">
         <small class="adm-hint">ใช้อ้างอิงภายใน · a–z 0–9 _</small>
       </div>
       <div class="field">
         <label for="n-ini">อักษรย่อบนปุ่มเลือกชื่อ <small class="adm-none">(ไม่บังคับ)</small></label>
-        <input class="input adm-pin" type="text" id="n-ini" name="initials" value="<?= e($nv['initials']) ?>" maxlength="4" autocomplete="off" placeholder="อัตโนมัติ">
+        <input class="input adm-pin" type="text" id="n-ini" name="initials" value="<?php echo e($nv['initials']) ?>" maxlength="4" autocomplete="off" placeholder="อัตโนมัติ">
       </div>
     </div>
     <?php perm_boxes($nv['perms'], $nv['branch']); ?>

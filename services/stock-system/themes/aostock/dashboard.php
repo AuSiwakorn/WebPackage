@@ -10,6 +10,7 @@
  *   - [x] ช่วงที่ 10: "เป้าวันนี้" กลับมา — ตั้งรายสาขาในหน้าจัดการสาขา (0 = ไม่แสดง)
  *         · งานที่รอดำเนินการ = ตรวจนับรอบนี้ยังไม่ครบ + วันก่อนที่ยังไม่ได้ปิดร้าน
  *   - [x] ช่วงที่ 11: พาไปเปิดร้านเฉพาะคนที่มีสิทธิ์เปิด / ปิดร้าน · ป้าย "สิทธิ์เสริม" แสดงเฉพาะเมื่อมีสิทธิ์เสริมจริง · ลิงก์งานค้างตามสิทธิ์
+ *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -74,62 +75,62 @@ require dirname(__FILE__) . '/inc/header.php';
     <!-- ===== การ์ดผลงานของฉันวันนี้ ===== -->
     <section class="hero-me num">
       <div class="hm-hi">
-        <span class="av"><?= e($user['initials']) ?></span>
-        <span><?= e($greet) ?> <b><?= e($first) ?></b> · <?= e(thai_date_full(time())) ?>
-              · <?= e(branch_name($user['branch'])) ?></span>
+        <span class="av"><?php echo e($user['initials']) ?></span>
+        <span><?php echo e($greet) ?> <b><?php echo e($first) ?></b> · <?php echo e(thai_date_full(time())) ?>
+              · <?php echo e(branch_name($user['branch'])) ?></span>
       </div>
       <?php
       $pl      = perm_list();
       $myPerms = array_values(array_filter(user_perms($user), function ($k) use ($pl) { return isset($pl[$k]) && $pl[$k]['group'] === 'extra'; }));
       ?>
-      <?php if ($myPerms): ?>
+      <?php if ($myPerms) { ?>
         <div class="hm-perms" aria-label="สิทธิ์เสริมของฉัน">
           <span class="hm-perms-lb">สิทธิ์เสริม</span>
-          <?php foreach ($myPerms as $pk): if (!isset($pl[$pk]) || $pl[$pk]['group'] !== 'extra') { continue; } ?>
-            <span class="hm-perm" title="<?= e($pl[$pk]['label']) ?>"><svg class="ico"><use href="#i-check"/></svg><?= e($pl[$pk]['short']) ?></span>
-          <?php endforeach; ?>
+          <?php foreach ($myPerms as $pk) { if (!isset($pl[$pk]) || $pl[$pk]['group'] !== 'extra') { continue; } ?>
+            <span class="hm-perm" title="<?php echo e($pl[$pk]['label']) ?>"><svg class="ico"><use href="#i-check"/></svg><?php echo e($pl[$pk]['short']) ?></span>
+          <?php } ?>
         </div>
-      <?php endif; ?>
+      <?php } ?>
 
       <div class="hm-lb">ชิ้นที่ฉันจัดการวันนี้</div>
-      <div class="hm-nm"><?= number_format($today['qty']) ?><small>ชิ้น</small></div>
+      <div class="hm-nm"><?php echo number_format($today['qty']) ?><small>ชิ้น</small></div>
       <div class="hm-sub">
-        <?php if ($today['idle']): ?>
+        <?php if ($today['idle']) { ?>
           ยังไม่มีรายการที่บันทึกวันนี้ — นับรวมการขาย รับเข้า เบิก ตรวจนับ และรับคืน
-        <?php else: ?>
-          <?= number_format($today['docs']) ?> เอกสาร ·
-          <?= number_format($today['items']) ?> รายการ ·
-          เฉลี่ย <?= number_format(round($today['qty'] / $today['docs'])) ?> ชิ้น/เอกสาร
-        <?php endif; ?>
+        <?php } else { ?>
+          <?php echo number_format($today['docs']) ?> เอกสาร ·
+          <?php echo number_format($today['items']) ?> รายการ ·
+          เฉลี่ย <?php echo number_format(round($today['qty'] / $today['docs'])) ?> ชิ้น/เอกสาร
+        <?php } ?>
       </div>
 
-      <?php if ($goal > 0): ?>
-        <div class="hm-goal<?= $goalPct >= 100 ? ' done' : '' ?>">
+      <?php if ($goal > 0) { ?>
+        <div class="hm-goal<?php echo $goalPct >= 100 ? ' done' : '' ?>">
           <div class="t">
-            <span>เป้าวันนี้ <?= number_format($goal) ?> ชิ้น</span>
-            <b><?= $goalPct ?>%</b>
+            <span>เป้าวันนี้ <?php echo number_format($goal) ?> ชิ้น</span>
+            <b><?php echo $goalPct ?>%</b>
           </div>
-          <div class="bar"><i style="width:<?= max($goalPct, 2) ?>%"></i></div>
+          <div class="bar"><i style="width:<?php echo max($goalPct, 2) ?>%"></i></div>
         </div>
-      <?php endif; ?>
+      <?php } ?>
     </section>
 
     <!-- ===== สถิติย่อย ===== -->
     <section class="mini num" aria-label="สรุปผลงานย้อนหลัง">
       <div class="m">
         <div class="lb">เมื่อวาน</div>
-        <div class="nm"><?= $yesterday['idle'] ? '—' : number_format($yesterday['qty']) ?></div>
-        <div class="sb"><?= $yesterday['idle'] ? 'ไม่มีรายการ' : number_format($yesterday['docs']) . ' เอกสาร' ?></div>
+        <div class="nm"><?php echo $yesterday['idle'] ? '—' : number_format($yesterday['qty']) ?></div>
+        <div class="sb"><?php echo $yesterday['idle'] ? 'ไม่มีรายการ' : number_format($yesterday['docs']) . ' เอกสาร' ?></div>
       </div>
       <div class="m">
         <div class="lb">7 วันล่าสุด</div>
-        <div class="nm"><?= number_format($weekSum['qty']) ?></div>
-        <div class="sb">เฉลี่ย <?= number_format($weekSum['days'] > 0 ? round($weekSum['qty'] / $weekSum['days']) : 0) ?>/วันทำงาน</div>
+        <div class="nm"><?php echo number_format($weekSum['qty']) ?></div>
+        <div class="sb">เฉลี่ย <?php echo number_format($weekSum['days'] > 0 ? round($weekSum['qty'] / $weekSum['days']) : 0) ?>/วันทำงาน</div>
       </div>
       <div class="m">
         <div class="lb">เดือนนี้</div>
-        <div class="nm"><?= number_format($monthSum['qty']) ?></div>
-        <div class="sb"><?= number_format($monthSum['days']) ?> วันทำงาน</div>
+        <div class="nm"><?php echo number_format($monthSum['qty']) ?></div>
+        <div class="sb"><?php echo number_format($monthSum['days']) ?> วันทำงาน</div>
       </div>
     </section>
 
@@ -143,16 +144,16 @@ require dirname(__FILE__) . '/inc/header.php';
       </div>
       <div class="card-body">
         <div class="bars num" role="img" aria-label="กราฟแท่งผลงานรายวันย้อนหลัง 7 วัน">
-          <?php foreach ($week as $i => $w):
+          <?php foreach ($week as $i => $w) {
               $isToday = ($i === count($week) - 1);
               $h = $maxWeek > 0 ? round($w['qty'] / $maxWeek * 100) : 0; ?>
-            <div class="b<?= $w['qty'] > 0 ? ' has' : '' ?><?= $isToday ? ' today' : '' ?>">
-              <div class="v" style="height:<?= $w['idle'] ? 0 : max($h, 4) ?>%">
-                <span><?= $w['idle'] ? '—' : e($short($w['qty'])) ?></span>
+            <div class="b<?php echo $w['qty'] > 0 ? ' has' : '' ?><?php echo $isToday ? ' today' : '' ?>">
+              <div class="v" style="height:<?php echo $w['idle'] ? 0 : max($h, 4) ?>%">
+                <span><?php echo $w['idle'] ? '—' : e($short($w['qty'])) ?></span>
               </div>
-              <div class="l"><?= e(short_day($w['ts'])) ?></div>
+              <div class="l"><?php echo e(short_day($w['ts'])) ?></div>
             </div>
-          <?php endforeach; ?>
+          <?php } ?>
         </div>
 
         <div class="sr-only">
@@ -160,9 +161,9 @@ require dirname(__FILE__) . '/inc/header.php';
             <caption>ผลงานรายวัน 7 วันล่าสุด</caption>
             <thead><tr><th>วัน</th><th>ชิ้น</th></tr></thead>
             <tbody>
-              <?php foreach ($week as $w): ?>
-                <tr><td><?= e(short_day($w['ts'])) ?></td><td><?= $w['idle'] ? 'ไม่มีรายการ' : number_format($w['qty']) ?></td></tr>
-              <?php endforeach; ?>
+              <?php foreach ($week as $w) { ?>
+                <tr><td><?php echo e(short_day($w['ts'])) ?></td><td><?php echo $w['idle'] ? 'ไม่มีรายการ' : number_format($w['qty']) ?></td></tr>
+              <?php } ?>
             </tbody>
           </table>
         </div>
@@ -174,7 +175,7 @@ require dirname(__FILE__) . '/inc/header.php';
       <div class="card-head">
         <div>
           <h3>รายวัน · เดือนนี้</h3>
-          <p>10 วันล่าสุด จากทั้งหมด <?= number_format(count($monthDays)) ?> วัน</p>
+          <p>10 วันล่าสุด จากทั้งหมด <?php echo number_format(count($monthDays)) ?> วัน</p>
         </div>
       </div>
       <div class="card-body card-body--flush">
@@ -187,27 +188,27 @@ require dirname(__FILE__) . '/inc/header.php';
               <?php
               $show = array_slice($monthDays, -10);
               $show = array_reverse($show);
-              foreach ($show as $d): ?>
-                <tr<?= $d['idle'] ? ' class="off"' : '' ?>>
-                  <td data-label="วันที่"><?= e(short_day($d['ts'])) ?> <?= e(thai_month_short($d['ts'])) ?></td>
-                  <?php if ($d['idle']): ?>
+              foreach ($show as $d) { ?>
+                <tr<?php echo $d['idle'] ? ' class="off"' : '' ?>>
+                  <td data-label="วันที่"><?php echo e(short_day($d['ts'])) ?> <?php echo e(thai_month_short($d['ts'])) ?></td>
+                  <?php if ($d['idle']) { ?>
                     <td class="r" data-label="เอกสาร">—</td>
                     <td class="r" data-label="รายการ">—</td>
                     <td class="r" data-label="ชิ้น">ไม่มีรายการ</td>
-                  <?php else: ?>
-                    <td class="r" data-label="เอกสาร"><?= number_format($d['docs']) ?></td>
-                    <td class="r" data-label="รายการ"><?= number_format($d['items']) ?></td>
-                    <td class="r" data-label="ชิ้น"><b><?= number_format($d['qty']) ?></b></td>
-                  <?php endif; ?>
+                  <?php } else { ?>
+                    <td class="r" data-label="เอกสาร"><?php echo number_format($d['docs']) ?></td>
+                    <td class="r" data-label="รายการ"><?php echo number_format($d['items']) ?></td>
+                    <td class="r" data-label="ชิ้น"><b><?php echo number_format($d['qty']) ?></b></td>
+                  <?php } ?>
                 </tr>
-              <?php endforeach; ?>
+              <?php } ?>
             </tbody>
             <tfoot>
               <tr>
-                <th>รวม <?= number_format($monthSum['days']) ?> วันทำงาน</th>
-                <th class="r"><?= number_format($monthSum['docs']) ?></th>
-                <th class="r"><?= number_format($monthSum['items']) ?></th>
-                <th class="r"><?= number_format($monthSum['qty']) ?></th>
+                <th>รวม <?php echo number_format($monthSum['days']) ?> วันทำงาน</th>
+                <th class="r"><?php echo number_format($monthSum['docs']) ?></th>
+                <th class="r"><?php echo number_format($monthSum['items']) ?></th>
+                <th class="r"><?php echo number_format($monthSum['qty']) ?></th>
               </tr>
             </tfoot>
           </table>
@@ -228,26 +229,26 @@ require dirname(__FILE__) . '/inc/header.php';
         </div>
       </div>
       <div class="card-body">
-        <?php if (!$types): ?>
+        <?php if (!$types) { ?>
           <div class="tasks-empty"><svg class="ico"><use href="#i-info"/></svg> ยังไม่มีรายการวันนี้</div>
-        <?php else: ?>
+        <?php } else { ?>
           <div class="wt num">
-            <?php foreach ($types as $t): ?>
-              <div class="wt-row t-<?= e($t['type']) ?>">
+            <?php foreach ($types as $t) { ?>
+              <div class="wt-row t-<?php echo e($t['type']) ?>">
                 <div class="t">
-                  <span><?= e($t['label']) ?> · <?= number_format($t['docs']) ?> ใบ</span>
-                  <b><?= number_format($t['qty']) ?> ชิ้น</b>
+                  <span><?php echo e($t['label']) ?> · <?php echo number_format($t['docs']) ?> ใบ</span>
+                  <b><?php echo number_format($t['qty']) ?> ชิ้น</b>
                 </div>
-                <div class="bar"><i style="width:<?= max($t['pct'], 2) ?>%"></i></div>
+                <div class="bar"><i style="width:<?php echo max($t['pct'], 2) ?>%"></i></div>
               </div>
-            <?php endforeach; ?>
+            <?php } ?>
           </div>
-        <?php endif; ?>
+        <?php } ?>
       </div>
     </section>
 
     <!-- ===== สินค้าที่จัดการบ่อยวันนี้ ===== -->
-    <?php if ($tops): ?>
+    <?php if ($tops) { ?>
       <section class="card">
         <div class="card-head">
           <div>
@@ -257,46 +258,46 @@ require dirname(__FILE__) . '/inc/header.php';
         </div>
         <div class="card-body">
           <div class="kv num">
-            <?php foreach ($tops as $t): ?>
+            <?php foreach ($tops as $t) { ?>
               <div>
                 <span>
-                  <?= e($t['product']['name']) ?>
-                  <small><?= e($t['product']['sku']) ?></small>
+                  <?php echo e($t['product']['name']) ?>
+                  <small><?php echo e($t['product']['sku']) ?></small>
                 </span>
-                <b><?= number_format($t['qty']) ?> <?= e($t['product']['unit']) ?></b>
+                <b><?php echo number_format($t['qty']) ?> <?php echo e($t['product']['unit']) ?></b>
               </div>
-            <?php endforeach; ?>
+            <?php } ?>
           </div>
         </div>
       </section>
-    <?php endif; ?>
+    <?php } ?>
 
     <!-- ===== อันดับในสาขาวันนี้ ===== -->
     <section class="card">
       <div class="card-head">
         <div>
           <h3>ทั้งสาขาวันนี้</h3>
-          <p><?= e(branch_name($user['branch'])) ?></p>
+          <p><?php echo e(branch_name($user['branch'])) ?></p>
         </div>
         <?php
         $branchTotal = 0;
         foreach ($rank as $r) { $branchTotal += $r['qty']; }
         ?>
         <span class="card-sum num" style="font-size:.84rem;color:var(--ink-3);white-space:nowrap">
-          รวม <?= number_format($branchTotal) ?> ชิ้น
+          รวม <?php echo number_format($branchTotal) ?> ชิ้น
         </span>
       </div>
       <div class="card-body card-body--flush">
-        <?php $no = 0; foreach ($rank as $r): $no++; ?>
-          <div class="rk num<?= $r['username'] === $me ? ' me' : '' ?><?= $r['idle'] ? ' off' : '' ?>">
-            <span class="n"><?= $r['idle'] ? '–' : $no ?></span>
+        <?php $no = 0; foreach ($rank as $r) { $no++; ?>
+          <div class="rk num<?php echo $r['username'] === $me ? ' me' : '' ?><?php echo $r['idle'] ? ' off' : '' ?>">
+            <span class="n"><?php echo $r['idle'] ? '–' : $no ?></span>
             <span class="nm">
-              <b><?= e($r['name']) ?></b>
-              <?php if ($r['username'] === $me): ?><small>ฉัน</small><?php endif; ?>
+              <b><?php echo e($r['name']) ?></b>
+              <?php if ($r['username'] === $me) { ?><small>ฉัน</small><?php } ?>
             </span>
-            <span class="a"><?= $r['idle'] ? 'ยังไม่มีรายการ' : number_format($r['qty']) ?></span>
+            <span class="a"><?php echo $r['idle'] ? 'ยังไม่มีรายการ' : number_format($r['qty']) ?></span>
           </div>
-        <?php endforeach; ?>
+        <?php } ?>
       </div>
       <div class="card-foot">แสดงเฉพาะจำนวนชิ้น ไม่แสดงต้นทุนหรือมูลค่า · เห็นเฉพาะสาขาของตัวเอง</div>
     </section>
@@ -306,26 +307,26 @@ require dirname(__FILE__) . '/inc/header.php';
       <div class="card-head">
         <div>
           <h3>งานที่รอดำเนินการ</h3>
-          <p>งานค้างของ<?= e(branch_label($branch)) ?></p>
+          <p>งานค้างของ<?php echo e(branch_label($branch)) ?></p>
         </div>
       </div>
       <div class="card-body">
-        <?php if (!$tasks): ?>
+        <?php if (!$tasks) { ?>
           <div class="tasks-empty"><svg class="ico"><use href="#i-check"/></svg> ไม่มีงานค้าง — ตรวจนับรอบนี้ครบแล้ว และปิดร้านครบทุกวัน</div>
-        <?php else: ?>
+        <?php } else { ?>
           <div class="tasks">
-            <?php foreach ($tasks as $t):
+            <?php foreach ($tasks as $t) {
                 $go = $t['link'] !== '' && page_ok($user, $t['link']); ?>
               <div class="task">
-                <span class="ti"><svg class="ico"><use href="#<?= $t['type'] === 'count' ? 'i-clipboard' : 'i-alert' ?>"/></svg></span>
+                <span class="ti"><svg class="ico"><use href="#<?php echo $t['type'] === 'count' ? 'i-clipboard' : 'i-alert' ?>"/></svg></span>
                 <div>
-                  <b><?= e($t['title']) ?></b>
-                  <small><?= e($t['sub']) ?><?php if ($go): ?> · <a href="<?= e($t['link']) ?>">ไปตรวจนับ</a><?php endif; ?></small>
+                  <b><?php echo e($t['title']) ?></b>
+                  <small><?php echo e($t['sub']) ?><?php if ($go) { ?> · <a href="<?php echo e($t['link']) ?>">ไปตรวจนับ</a><?php } ?></small>
                 </div>
               </div>
-            <?php endforeach; ?>
+            <?php } ?>
           </div>
-        <?php endif; ?>
+        <?php } ?>
       </div>
     </section>
 
@@ -334,40 +335,40 @@ require dirname(__FILE__) . '/inc/header.php';
       <div class="card-head">
         <div>
           <h3>สต๊อกที่ต้องดูแล</h3>
-          <p><?= e(branch_label($branch)) ?> · มูลค่ารวม <?= e(money($sum['value'])) ?> บาท</p>
+          <p><?php echo e(branch_label($branch)) ?> · มูลค่ารวม <?php echo e(money($sum['value'])) ?> บาท</p>
         </div>
       </div>
       <div class="card-body card-body--flush">
-        <?php if (!$lows): ?>
+        <?php if (!$lows) { ?>
           <div class="card-body">
             <div class="tasks-empty"><svg class="ico"><use href="#i-check"/></svg> สต๊อกทุกรายการอยู่เหนือจุดสั่งซื้อ</div>
           </div>
-        <?php else: ?>
+        <?php } else { ?>
           <div class="lowlist num">
-            <?php foreach ($lows as $r):
+            <?php foreach ($lows as $r) {
                 $pct   = $r['reorder'] > 0 ? min(100, round($r['qty'] / $r['reorder'] * 100)) : 0;
                 $isOut = $r['status'] === 'out'; ?>
-              <div class="low <?= $isOut ? 'is-out' : '' ?>">
+              <div class="low <?php echo $isOut ? 'is-out' : '' ?>">
                 <div class="low-t">
-                  <b><?= e($r['product']['name']) ?></b>
+                  <b><?php echo e($r['product']['name']) ?></b>
                   <small>
-                    <?= e($r['product']['sku']) ?>
-                    <?php if ($branch === 'ALL'): ?>· <?= e(branch_name($r['branch'])) ?><?php endif; ?>
-                    · จุดสั่งซื้อ <?= number_format($r['reorder']) ?> <?= e($r['product']['unit']) ?>
+                    <?php echo e($r['product']['sku']) ?>
+                    <?php if ($branch === 'ALL') { ?>· <?php echo e(branch_name($r['branch'])) ?><?php } ?>
+                    · จุดสั่งซื้อ <?php echo number_format($r['reorder']) ?> <?php echo e($r['product']['unit']) ?>
                   </small>
-                  <div class="low-bar <?= $isOut ? 'out' : '' ?>"><i style="width:<?= max($pct, 3) ?>%"></i></div>
+                  <div class="low-bar <?php echo $isOut ? 'out' : '' ?>"><i style="width:<?php echo max($pct, 3) ?>%"></i></div>
                 </div>
                 <div class="low-n">
-                  <b><?= number_format($r['qty']) ?></b>
-                  <small><?= e($r['product']['unit']) ?></small>
+                  <b><?php echo number_format($r['qty']) ?></b>
+                  <small><?php echo e($r['product']['unit']) ?></small>
                 </div>
               </div>
-            <?php endforeach; ?>
+            <?php } ?>
           </div>
-        <?php endif; ?>
+        <?php } ?>
       </div>
       <div class="card-foot">
-        ใกล้หมด <?= number_format($sum['low']) ?> รายการ · หมดแล้ว <?= number_format($sum['out']) ?> รายการ
+        ใกล้หมด <?php echo number_format($sum['low']) ?> รายการ · หมดแล้ว <?php echo number_format($sum['out']) ?> รายการ
       </div>
     </section>
 

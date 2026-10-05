@@ -7,6 +7,7 @@
  * TODO:
  *   - [x] ย้ายจาก demo/ เข้า themes/aostock/ (วิ่งผ่าน router ของ admweb)
  *   - [x] อ่านใบเบิกจากฐานข้อมูลทั้งช่วงในคิวรีเดียว (ช่วงที่ 6) · ราคาทุนใช้ snapshot ในใบ
+ *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -166,41 +167,41 @@ require dirname(__FILE__) . '/inc/header.php';
 <section class="card acct-filter hist-filter">
   <form method="get" action="adm-issue.php" class="acct-row">
     <div class="segs">
-      <?php foreach (array('recent' => '30 วัน', 'day' => 'รายวัน', 'month' => 'รายเดือน', 'year' => 'รายปี') as $md => $lb): ?>
-        <a class="seg<?= $fMode === $md ? ' on' : '' ?>" href="<?= e($aq(array('mode' => $md))) ?>"><?= e($lb) ?></a>
-      <?php endforeach; ?>
+      <?php foreach (array('recent' => '30 วัน', 'day' => 'รายวัน', 'month' => 'รายเดือน', 'year' => 'รายปี') as $md => $lb) { ?>
+        <a class="seg<?php echo $fMode === $md ? ' on' : '' ?>" href="<?php echo e($aq(array('mode' => $md))) ?>"><?php echo e($lb) ?></a>
+      <?php } ?>
     </div>
-    <input type="hidden" name="mode" value="<?= e($fMode) ?>">
+    <input type="hidden" name="mode" value="<?php echo e($fMode) ?>">
 
-    <?php if ($fMode === 'day'): ?>
-      <a class="btn btn-ghost btn-sm" href="<?= e($aq(array('d' => date('Y-m-d', strtotime('-1 day', $dayTs))))) ?>" aria-label="วันก่อนหน้า">‹</a>
+    <?php if ($fMode === 'day') { ?>
+      <a class="btn btn-ghost btn-sm" href="<?php echo e($aq(array('d' => date('Y-m-d', strtotime('-1 day', $dayTs))))) ?>" aria-label="วันก่อนหน้า">‹</a>
       <label class="sr-only" for="fd">วันที่</label>
-      <input class="input acct-date" type="date" id="fd" name="d" value="<?= e(date('Y-m-d', $dayTs)) ?>" max="<?= e(date('Y-m-d')) ?>" onchange="this.form.submit()">
-      <?php if ($dayTs < $today): ?>
-        <a class="btn btn-ghost btn-sm" href="<?= e($aq(array('d' => date('Y-m-d', strtotime('+1 day', $dayTs))))) ?>" aria-label="วันถัดไป">›</a>
-      <?php endif; ?>
-    <?php elseif ($fMode === 'month'): ?>
-      <a class="btn btn-ghost btn-sm" href="<?= e($aq(array('m' => date('Y-m', strtotime('-1 month', $monTs))))) ?>" aria-label="เดือนก่อนหน้า">‹</a>
+      <input class="input acct-date" type="date" id="fd" name="d" value="<?php echo e(date('Y-m-d', $dayTs)) ?>" max="<?php echo e(date('Y-m-d')) ?>" onchange="this.form.submit()">
+      <?php if ($dayTs < $today) { ?>
+        <a class="btn btn-ghost btn-sm" href="<?php echo e($aq(array('d' => date('Y-m-d', strtotime('+1 day', $dayTs))))) ?>" aria-label="วันถัดไป">›</a>
+      <?php } ?>
+    <?php } elseif ($fMode === 'month') { ?>
+      <a class="btn btn-ghost btn-sm" href="<?php echo e($aq(array('m' => date('Y-m', strtotime('-1 month', $monTs))))) ?>" aria-label="เดือนก่อนหน้า">‹</a>
       <label class="sr-only" for="fm">เดือน</label>
-      <input class="input acct-date" type="month" id="fm" name="m" value="<?= e(date('Y-m', $monTs)) ?>" max="<?= e(date('Y-m')) ?>" onchange="this.form.submit()">
-      <?php if ($monTs < strtotime(date('Y-m-01'))): ?>
-        <a class="btn btn-ghost btn-sm" href="<?= e($aq(array('m' => date('Y-m', strtotime('+1 month', $monTs))))) ?>" aria-label="เดือนถัดไป">›</a>
-      <?php endif; ?>
-    <?php elseif ($fMode === 'year'): ?>
+      <input class="input acct-date" type="month" id="fm" name="m" value="<?php echo e(date('Y-m', $monTs)) ?>" max="<?php echo e(date('Y-m')) ?>" onchange="this.form.submit()">
+      <?php if ($monTs < strtotime(date('Y-m-01'))) { ?>
+        <a class="btn btn-ghost btn-sm" href="<?php echo e($aq(array('m' => date('Y-m', strtotime('+1 month', $monTs))))) ?>" aria-label="เดือนถัดไป">›</a>
+      <?php } ?>
+    <?php } elseif ($fMode === 'year') { ?>
       <label class="sr-only" for="fy">ปี</label>
       <select class="input acct-date" id="fy" name="y" onchange="this.form.submit()">
-        <?php for ($y = (int) date('Y'); $y >= $yearMin; $y--): ?>
-          <option value="<?= $y ?>" <?= $y === $year ? 'selected' : '' ?>>ปี <?= $y + 543 ?></option>
-        <?php endfor; ?>
+        <?php for ($y = (int) date('Y'); $y >= $yearMin; $y--) { ?>
+          <option value="<?php echo $y ?>" <?php echo $y === $year ? 'selected' : '' ?>>ปี <?php echo $y + 543 ?></option>
+        <?php } ?>
       </select>
-    <?php endif; ?>
+    <?php } ?>
 
     <label class="sr-only" for="fb">สาขา</label>
     <select class="input acct-branch" id="fb" name="b" onchange="this.form.submit()">
       <option value="ALL">ทุกสาขา</option>
-      <?php foreach ($brAll as $c => $x): ?>
-        <option value="<?= e($c) ?>" <?= $fB === $c ? 'selected' : '' ?>><?= e($x['name']) ?><?= empty($x['active']) ? ' (ปิดใช้งาน)' : '' ?></option>
-      <?php endforeach; ?>
+      <?php foreach ($brAll as $c => $x) { ?>
+        <option value="<?php echo e($c) ?>" <?php echo $fB === $c ? 'selected' : '' ?>><?php echo e($x['name']) ?><?php echo empty($x['active']) ? ' (ปิดใช้งาน)' : '' ?></option>
+      <?php } ?>
     </select>
 
     <label class="sr-only" for="fs">เรียงตาม</label>
@@ -214,101 +215,101 @@ require dirname(__FILE__) . '/inc/header.php';
           'value|asc'  => 'มูลค่ารวม: น้อย → มาก',
           'qty|desc'   => 'จำนวน: มาก → น้อย',
           'qty|asc'    => 'จำนวน: น้อย → มาก',
-      ) as $k => $lb): ?>
-        <option value="<?= e($k) ?>" <?= $k === $fSort . '|' . $fDir ? 'selected' : '' ?>><?= e($lb) ?></option>
-      <?php endforeach; ?>
+      ) as $k => $lb) { ?>
+        <option value="<?php echo e($k) ?>" <?php echo $k === $fSort . '|' . $fDir ? 'selected' : '' ?>><?php echo e($lb) ?></option>
+      <?php } ?>
     </select>
-    <input type="hidden" name="sort" value="<?= e($fSort) ?>">
-    <input type="hidden" name="dir" value="<?= e($fDir) ?>">
+    <input type="hidden" name="sort" value="<?php echo e($fSort) ?>">
+    <input type="hidden" name="dir" value="<?php echo e($fDir) ?>">
 
     <label class="sr-only" for="fq">ค้นหา</label>
-    <input class="input adm-q" type="search" id="fq" name="q" value="<?= e($fQ) ?>" placeholder="ค้นชื่อสินค้า / SKU / เลขที่ใบ">
-    <?php if ($fWhy !== ''): ?><input type="hidden" name="why" value="<?= e($fWhy) ?>"><?php endif; ?>
-    <?php if ($fVoid): ?><input type="hidden" name="void" value="1"><?php endif; ?>
+    <input class="input adm-q" type="search" id="fq" name="q" value="<?php echo e($fQ) ?>" placeholder="ค้นชื่อสินค้า / SKU / เลขที่ใบ">
+    <?php if ($fWhy !== '') { ?><input type="hidden" name="why" value="<?php echo e($fWhy) ?>"><?php } ?>
+    <?php if ($fVoid) { ?><input type="hidden" name="void" value="1"><?php } ?>
     <button class="btn btn-ghost btn-sm" type="submit"><svg class="ico"><use href="#i-search"/></svg> ค้นหา</button>
   </form>
 </section>
 
 <!-- ==================== สรุป ==================== -->
 <section class="mini num adm-kpi" aria-label="สรุปการเบิก / ตัดออก">
-  <div class="m"><div class="lb">ใบเบิก / ตัดออก</div><div class="nm"><?= number_format(count($sum['docs'])) ?></div>
-    <div class="sb"><?= number_format($sum['qty']) ?> ชิ้น<?= $sum['void'] ? ' · ยกเลิก ' . number_format($sum['void']) . ' รายการ' : '' ?></div></div>
-  <div class="m"><div class="lb">มูลค่าทุนที่ออกจากสต๊อก</div><div class="nm"><?= e(money2($sum['value'])) ?></div>
-    <div class="sb">ถ้าขายได้ตามราคาขาย <?= e(money2($sum['sale'])) ?> บาท</div></div>
+  <div class="m"><div class="lb">ใบเบิก / ตัดออก</div><div class="nm"><?php echo number_format(count($sum['docs'])) ?></div>
+    <div class="sb"><?php echo number_format($sum['qty']) ?> ชิ้น<?php echo $sum['void'] ? ' · ยกเลิก ' . number_format($sum['void']) . ' รายการ' : '' ?></div></div>
+  <div class="m"><div class="lb">มูลค่าทุนที่ออกจากสต๊อก</div><div class="nm"><?php echo e(money2($sum['value'])) ?></div>
+    <div class="sb">ถ้าขายได้ตามราคาขาย <?php echo e(money2($sum['sale'])) ?> บาท</div></div>
   <div class="m"><div class="lb">แยกสาขา (มูลค่าทุน)</div>
-    <div class="sb adm-perb"><?php if (!$sum['perB']): ?>ไม่มีรายการ<?php else: arsort($sum['perB']); foreach ($sum['perB'] as $c => $v): ?>
-      <span><b><?= e($brAll[$c]['short']) ?></b> <?= e(money2($v)) ?></span>
-    <?php endforeach; endif; ?></div></div>
+    <div class="sb adm-perb"><?php if (!$sum['perB']) { ?>ไม่มีรายการ<?php } else { arsort($sum['perB']); foreach ($sum['perB'] as $c => $v) { ?>
+      <span><b><?php echo e($brAll[$c]['short']) ?></b> <?php echo e(money2($v)) ?></span>
+    <?php } } ?></div></div>
 </section>
 
 <!-- ==================== รายการ ==================== -->
 <section class="card">
   <div class="card-head">
     <div>
-      <h2><?= $fB === 'ALL' ? 'ทุกสาขา' : e($brAll[$fB]['name']) ?> · <?= e($rangeTxt) ?></h2>
+      <h2><?php echo $fB === 'ALL' ? 'ทุกสาขา' : e($brAll[$fB]['name']) ?> · <?php echo e($rangeTxt) ?></h2>
       <span class="sub">แถวละ 1 สินค้า · เบิก / ตัดออกทำโดยพนักงานที่ได้รับสิทธิ์ · กดหัวคอลัมน์เพื่อเรียง</span>
     </div>
-    <a class="btn btn-ghost btn-sm" href="<?= e($aq(array('void' => $fVoid ? '' : '1'))) ?>"><?= $fVoid ? 'ซ่อนใบที่ยกเลิก' : 'แสดงใบที่ยกเลิกด้วย' ?></a>
+    <a class="btn btn-ghost btn-sm" href="<?php echo e($aq(array('void' => $fVoid ? '' : '1'))) ?>"><?php echo $fVoid ? 'ซ่อนใบที่ยกเลิก' : 'แสดงใบที่ยกเลิกด้วย' ?></a>
   </div>
 
   <div class="cats tabbar" role="tablist">
-    <a class="cat<?= $fWhy === '' ? ' on' : '' ?>" href="<?= e($aq(array('why' => ''))) ?>">ทุกเหตุผล <i><?= number_format($allCount) ?></i></a>
-    <?php foreach ($reasons as $k => $x): ?>
+    <a class="cat<?php echo $fWhy === '' ? ' on' : '' ?>" href="<?php echo e($aq(array('why' => ''))) ?>">ทุกเหตุผล <i><?php echo number_format($allCount) ?></i></a>
+    <?php foreach ($reasons as $k => $x) { ?>
       <?php if (empty($byWhy[$k]) && $fWhy !== $k) { continue; } ?>
-      <a class="cat<?= $fWhy === $k ? ' on' : '' ?>" href="<?= e($aq(array('why' => $k))) ?>"><?= e($x['label']) ?> <i><?= number_format(isset($byWhy[$k]) ? $byWhy[$k] : 0) ?></i></a>
-    <?php endforeach; ?>
+      <a class="cat<?php echo $fWhy === $k ? ' on' : '' ?>" href="<?php echo e($aq(array('why' => $k))) ?>"><?php echo e($x['label']) ?> <i><?php echo number_format(isset($byWhy[$k]) ? $byWhy[$k] : 0) ?></i></a>
+    <?php } ?>
   </div>
 
-  <?php if (!$show): ?>
+  <?php if (!$show) { ?>
     <p class="empty"><svg class="ico"><use href="#i-out"/></svg>ไม่มีการเบิก / ตัดออกในช่วงที่เลือก<br><small>ลองเปลี่ยนวัน สาขา เหตุผล หรือคำค้น</small></p>
-  <?php else: ?>
+  <?php } else { ?>
     <div class="tbl-wrap">
       <table class="tbl hist-all adm-iss">
         <thead>
           <tr>
-            <?= $th('time', $fMode === 'day' ? 'เวลา' : 'วันที่ · เวลา') ?>
+            <?php echo $th('time', $fMode === 'day' ? 'เวลา' : 'วันที่ · เวลา') ?>
             <th>สาขา</th>
             <th>สินค้า</th>
-            <?= $th('qty', 'จำนวน', 'r') ?>
-            <?= $th('price', 'ราคาทุน / ชิ้น', 'r') ?>
-            <?= $th('value', 'มูลค่ารวม', 'r') ?>
+            <?php echo $th('qty', 'จำนวน', 'r') ?>
+            <?php echo $th('price', 'ราคาทุน / ชิ้น', 'r') ?>
+            <?php echo $th('value', 'มูลค่ารวม', 'r') ?>
             <th>เหตุผล</th>
             <th>ผู้ทำ</th>
           </tr>
         </thead>
         <tbody>
-          <?php foreach ($show as $r): ?>
-            <tr<?= $r['void'] ? ' class="is-void"' : '' ?>>
-              <td data-label="เวลา" class="num nowrap"><?php if ($fMode !== 'day'): ?><?= e(thai_day_month(strtotime($r['date']))) ?> · <?php endif; ?><?= e($r['time']) ?>
-                <small class="hist-n"><?= e($r['no']) ?></small></td>
-              <td data-label="สาขา"><span class="hist-br"><?= e($brAll[$r['branch']]['short']) ?></span></td>
+          <?php foreach ($show as $r) { ?>
+            <tr<?php echo $r['void'] ? ' class="is-void"' : '' ?>>
+              <td data-label="เวลา" class="num nowrap"><?php if ($fMode !== 'day') { ?><?php echo e(thai_day_month(strtotime($r['date']))) ?> · <?php } ?><?php echo e($r['time']) ?>
+                <small class="hist-n"><?php echo e($r['no']) ?></small></td>
+              <td data-label="สาขา"><span class="hist-br"><?php echo e($brAll[$r['branch']]['short']) ?></span></td>
               <td data-label="สินค้า">
-                <b class="hist-t"><?= e($r['name']) ?></b>
-                <small class="hist-n"><?= e($r['sku']) ?><?= $r['cat'] !== '' ? ' · ' . e($r['cat']) : '' ?></small>
-                <?php if ($r['void']): ?><small class="hist-n hist-void">ยกเลิกโดย <?= e($r['void_by']) ?><?= $r['void_reason'] !== '' ? ' — ' . e($r['void_reason']) : '' ?></small><?php endif; ?>
+                <b class="hist-t"><?php echo e($r['name']) ?></b>
+                <small class="hist-n"><?php echo e($r['sku']) ?><?php echo $r['cat'] !== '' ? ' · ' . e($r['cat']) : '' ?></small>
+                <?php if ($r['void']) { ?><small class="hist-n hist-void">ยกเลิกโดย <?php echo e($r['void_by']) ?><?php echo $r['void_reason'] !== '' ? ' — ' . e($r['void_reason']) : '' ?></small><?php } ?>
               </td>
-              <td data-label="จำนวน" class="r num nowrap"><?= number_format($r['qty']) ?> <?= e($r['unit']) ?></td>
-              <td data-label="ราคาทุน / ชิ้น" class="r num nowrap"><?= e(money2($r['cost'])) ?><small class="hist-n">ขาย <?= e(money2($r['price'])) ?></small></td>
-              <td data-label="มูลค่ารวม" class="r num nowrap"><b><?= e(money2($r['value'])) ?></b></td>
+              <td data-label="จำนวน" class="r num nowrap"><?php echo number_format($r['qty']) ?> <?php echo e($r['unit']) ?></td>
+              <td data-label="ราคาทุน / ชิ้น" class="r num nowrap"><?php echo e(money2($r['cost'])) ?><small class="hist-n">ขาย <?php echo e(money2($r['price'])) ?></small></td>
+              <td data-label="มูลค่ารวม" class="r num nowrap"><b><?php echo e(money2($r['value'])) ?></b></td>
               <td data-label="เหตุผล">
-                <span class="bdg <?= in_array($r['reason'], array('lost', 'damaged', 'expired'), true) ? 'bdg-out' : 'bdg-adj' ?>"><?= e(issue_reason_label($r['reason'])) ?></span>
-                <?php if ($r['note'] !== ''): ?><small class="hist-n"><?= e($r['note']) ?></small><?php endif; ?>
-                <?php if ($r['ref'] !== ''): ?><small class="hist-n">อ้างอิง <?= e($r['ref']) ?></small><?php endif; ?>
+                <span class="bdg <?php echo in_array($r['reason'], array('lost', 'damaged', 'expired'), true) ? 'bdg-out' : 'bdg-adj' ?>"><?php echo e(issue_reason_label($r['reason'])) ?></span>
+                <?php if ($r['note'] !== '') { ?><small class="hist-n"><?php echo e($r['note']) ?></small><?php } ?>
+                <?php if ($r['ref'] !== '') { ?><small class="hist-n">อ้างอิง <?php echo e($r['ref']) ?></small><?php } ?>
               </td>
-              <td data-label="ผู้ทำ" class="nowrap"><?= e($r['by']) ?></td>
+              <td data-label="ผู้ทำ" class="nowrap"><?php echo e($r['by']) ?></td>
             </tr>
-          <?php endforeach; ?>
+          <?php } ?>
         </tbody>
       </table>
     </div>
-    <?php if ($pages > 1): ?>
+    <?php if ($pages > 1) { ?>
       <nav class="hist-pager" aria-label="หน้า">
-        <?php if ($pg > 1): ?><a class="btn btn-ghost btn-sm" href="<?= e($aq(array('p' => $pg - 1))) ?>">‹ ก่อนหน้า</a><?php endif; ?>
-        <span>หน้า <?= $pg ?> / <?= $pages ?> · <?= number_format($total) ?> รายการ</span>
-        <?php if ($pg < $pages): ?><a class="btn btn-ghost btn-sm" href="<?= e($aq(array('p' => $pg + 1))) ?>">ถัดไป ›</a><?php endif; ?>
+        <?php if ($pg > 1) { ?><a class="btn btn-ghost btn-sm" href="<?php echo e($aq(array('p' => $pg - 1))) ?>">‹ ก่อนหน้า</a><?php } ?>
+        <span>หน้า <?php echo $pg ?> / <?php echo $pages ?> · <?php echo number_format($total) ?> รายการ</span>
+        <?php if ($pg < $pages) { ?><a class="btn btn-ghost btn-sm" href="<?php echo e($aq(array('p' => $pg + 1))) ?>">ถัดไป ›</a><?php } ?>
       </nav>
-    <?php endif; ?>
-  <?php endif; ?>
+    <?php } ?>
+  <?php } ?>
 </section>
 
 <?php require dirname(__FILE__) . '/inc/footer.php'; ?>

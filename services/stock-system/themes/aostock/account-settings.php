@@ -7,6 +7,7 @@
  * TODO:
  *   - [x] ย้ายจาก demo/ เข้า themes/aostock/ (วิ่งผ่าน router ของ admweb)
  *   - [x] ค่าตั้งเลขที่บิล / หัวบิลเก็บใน ao_stock_branch (ช่วงที่ 5)
+ *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -125,15 +126,15 @@ $NAV_ACTIVE = 'account-settings.php';
 require dirname(__FILE__) . '/inc/header.php';
 ?>
 
-<?php if ($err !== ''): ?>
-  <div class="alert alert-error" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span><?= e($err) ?></span></div>
-<?php endif; ?>
+<?php if ($err !== '') { ?>
+  <div class="alert alert-error" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span><?php echo e($err) ?></span></div>
+<?php } ?>
 
 <?php
 /* แสดงแบบแอคคอร์เดียน — เปิดสาขาแรกไว้ · ถ้าเพิ่งบันทึก / บันทึกไม่ผ่าน ให้เปิดสาขานั้นแทน */
 $openB = $okB !== '' && isset($br[$okB]) ? $okB : ($old ? key($old) : key($br));
 ?>
-<?php foreach ($br as $bc => $b):
+<?php foreach ($br as $bc => $b) {
     if (isset($old[$bc])) {
         $v = $old[$bc];
     } else {
@@ -143,59 +144,59 @@ $openB = $okB !== '' && isset($br[$okB]) ? $okB : ($old ? key($old) : key($br));
             $v[$k] = acct_setting($bc, $k);
         }
     } ?>
-  <details class="card acc-item" id="b-<?= e($bc) ?>"<?= $bc === $openB ? ' open' : '' ?>>
+  <details class="card acc-item" id="b-<?php echo e($bc) ?>"<?php echo $bc === $openB ? ' open' : '' ?>>
     <summary class="card-head">
       <div>
-        <h2><?= e($b['name']) ?></h2>
-        <span class="sub">VAT <b><?= e(acct_setting($bc, 'prefix_vat')) ?></b> · ไม่ VAT <b><?= e(acct_setting($bc, 'prefix_novat')) ?></b>
-          · บิลใบถัดไป <?= e(bill_next_no_series($bc, true)) ?> / <?= e(bill_next_no_series($bc, false)) ?></span>
+        <h2><?php echo e($b['name']) ?></h2>
+        <span class="sub">VAT <b><?php echo e(acct_setting($bc, 'prefix_vat')) ?></b> · ไม่ VAT <b><?php echo e(acct_setting($bc, 'prefix_novat')) ?></b>
+          · บิลใบถัดไป <?php echo e(bill_next_no_series($bc, true)) ?> / <?php echo e(bill_next_no_series($bc, false)) ?></span>
       </div>
       <svg class="ico acc-chev" aria-hidden="true"><use href="#i-arrow"/></svg>
     </summary>
 
-    <?php if ($okB === $bc): ?>
+    <?php if ($okB === $bc) { ?>
       <div class="alert alert-ok adm-ok" role="status"><svg class="ico"><use href="#i-check"/></svg><span>บันทึกแล้ว — ใช้กับบิลใบถัดไปทันที</span></div>
-    <?php endif; ?>
+    <?php } ?>
 
-    <form class="adm-sec" method="post" action="account-settings.php#b-<?= e($bc) ?>">
-      <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
-      <input type="hidden" name="b" value="<?= e($bc) ?>">
+    <form class="adm-sec" method="post" action="account-settings.php#b-<?php echo e($bc) ?>">
+      <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
+      <input type="hidden" name="b" value="<?php echo e($bc) ?>">
       <!-- ---------- 1) หัวบิล ---------- -->
       <h3 class="bs-h">หัวบิล <small>พิมพ์บนบิลทั้งสองชุด</small></h3>
       <div class="adm-fields">
         <div class="field">
-          <label for="<?= e($bc) ?>-co">ชื่อร้าน / ชื่อบริษัท</label>
-          <input class="input" type="text" id="<?= e($bc) ?>-co" name="company" value="<?= e($v['company']) ?>" maxlength="120" required>
+          <label for="<?php echo e($bc) ?>-co">ชื่อร้าน / ชื่อบริษัท</label>
+          <input class="input" type="text" id="<?php echo e($bc) ?>-co" name="company" value="<?php echo e($v['company']) ?>" maxlength="120" required>
           <small class="adm-hint">บรรทัดแรกของบิล · บิล VAT ควรตรงกับชื่อที่จดทะเบียน ภ.พ.20</small>
         </div>
         <div class="field">
-          <label for="<?= e($bc) ?>-ph">เบอร์โทร</label>
-          <input class="input" type="text" id="<?= e($bc) ?>-ph" name="bill_phone" value="<?= e($v['bill_phone']) ?>" maxlength="40"
-                 placeholder="<?= e($b['phone']) ?>" inputmode="tel">
-          <small class="adm-hint">ว่าง = ใช้เบอร์ของสาขา<?= $b['phone'] !== '' ? ' (' . e($b['phone']) . ')' : '' ?></small>
+          <label for="<?php echo e($bc) ?>-ph">เบอร์โทร</label>
+          <input class="input" type="text" id="<?php echo e($bc) ?>-ph" name="bill_phone" value="<?php echo e($v['bill_phone']) ?>" maxlength="40"
+                 placeholder="<?php echo e($b['phone']) ?>" inputmode="tel">
+          <small class="adm-hint">ว่าง = ใช้เบอร์ของสาขา<?php echo $b['phone'] !== '' ? ' (' . e($b['phone']) . ')' : '' ?></small>
         </div>
         <div class="field bs-wide">
-          <label for="<?= e($bc) ?>-ad">ที่อยู่</label>
-          <textarea class="input" id="<?= e($bc) ?>-ad" name="bill_address" rows="2" maxlength="255"
-                    placeholder="<?= e($b['address']) ?>"><?= e($v['bill_address']) ?></textarea>
+          <label for="<?php echo e($bc) ?>-ad">ที่อยู่</label>
+          <textarea class="input" id="<?php echo e($bc) ?>-ad" name="bill_address" rows="2" maxlength="255"
+                    placeholder="<?php echo e($b['address']) ?>"><?php echo e($v['bill_address']) ?></textarea>
           <small class="adm-hint">ว่าง = ใช้ที่อยู่ของสาขาจากหน้า “จัดการสาขา” · บิล VAT ต้องเป็นที่อยู่ตามที่จดทะเบียน</small>
         </div>
         <div class="field">
-          <label for="<?= e($bc) ?>-ex">บรรทัดเสริม <small>(ไม่บังคับ)</small></label>
-          <input class="input" type="text" id="<?= e($bc) ?>-ex" name="bill_extra" value="<?= e($v['bill_extra']) ?>" maxlength="120"
+          <label for="<?php echo e($bc) ?>-ex">บรรทัดเสริม <small>(ไม่บังคับ)</small></label>
+          <input class="input" type="text" id="<?php echo e($bc) ?>-ex" name="bill_extra" value="<?php echo e($v['bill_extra']) ?>" maxlength="120"
                  placeholder="เช่น LINE: @ร้านของคุณ · www.example.com">
         </div>
         <div class="field">
           <span class="lbl">ขนาดกระดาษเริ่มต้น</span>
           <div class="segs bs-paper">
-            <label class="seg<?= $v['paper'] !== 'a4' ? ' on' : '' ?>"><input type="radio" name="paper" value="80" <?= $v['paper'] !== 'a4' ? 'checked' : '' ?>> ใบเสร็จ 80 มม.</label>
-            <label class="seg<?= $v['paper'] === 'a4' ? ' on' : '' ?>"><input type="radio" name="paper" value="a4" <?= $v['paper'] === 'a4' ? 'checked' : '' ?>> A4</label>
+            <label class="seg<?php echo $v['paper'] !== 'a4' ? ' on' : '' ?>"><input type="radio" name="paper" value="80" <?php echo $v['paper'] !== 'a4' ? 'checked' : '' ?>> ใบเสร็จ 80 มม.</label>
+            <label class="seg<?php echo $v['paper'] === 'a4' ? ' on' : '' ?>"><input type="radio" name="paper" value="a4" <?php echo $v['paper'] === 'a4' ? 'checked' : '' ?>> A4</label>
           </div>
           <small class="adm-hint">ตอนเปิดดูบิลเปลี่ยนขนาดได้ทุกครั้ง</small>
         </div>
         <div class="field bs-wide">
-          <label for="<?= e($bc) ?>-ft">ข้อความท้ายบิล</label>
-          <textarea class="input" id="<?= e($bc) ?>-ft" name="footer" rows="2" maxlength="300"><?= e($v['footer']) ?></textarea>
+          <label for="<?php echo e($bc) ?>-ft">ข้อความท้ายบิล</label>
+          <textarea class="input" id="<?php echo e($bc) ?>-ft" name="footer" rows="2" maxlength="300"><?php echo e($v['footer']) ?></textarea>
           <small class="adm-hint">ขึ้นบรรทัดใหม่ได้ · เช่น ขอบคุณที่ใช้บริการ / เงื่อนไขการเปลี่ยนคืนสินค้า</small>
         </div>
       </div>
@@ -205,63 +206,63 @@ $openB = $okB !== '' && isset($br[$okB]) ? $okB : ($old ? key($old) : key($br));
         <fieldset class="bs-set bs-vat">
           <legend><span class="bdg bdg-move">VAT</span> ชุดบิล VAT</legend>
           <div class="field">
-            <label for="<?= e($bc) ?>-pv">รหัสนำหน้าเลขที่</label>
+            <label for="<?php echo e($bc) ?>-pv">รหัสนำหน้าเลขที่</label>
             <div class="adm-unit">
-              <input class="input acct-prefix" type="text" id="<?= e($bc) ?>-pv" name="prefix_vat" value="<?= e($v['prefix_vat']) ?>"
-                     maxlength="6" pattern="[A-Za-z0-9]{1,6}" required autocomplete="off" data-demo="<?= e(date('Y-m')) ?>">
-              <span class="acct-eg"><?= e($v['prefix_vat'] . date('Y-m') . '-0001') ?></span>
+              <input class="input acct-prefix" type="text" id="<?php echo e($bc) ?>-pv" name="prefix_vat" value="<?php echo e($v['prefix_vat']) ?>"
+                     maxlength="6" pattern="[A-Za-z0-9]{1,6}" required autocomplete="off" data-demo="<?php echo e(date('Y-m')) ?>">
+              <span class="acct-eg"><?php echo e($v['prefix_vat'] . date('Y-m') . '-0001') ?></span>
             </div>
             <small class="adm-hint">ภาษาอังกฤษพิมพ์ใหญ่หรือตัวเลข 1–6 ตัว · ห้ามซ้ำกับชุดอื่น · เลขรันแยกจากบิลไม่ VAT</small>
           </div>
           <div class="field">
-            <label for="<?= e($bc) ?>-tv">หัวกระดาษ</label>
-            <input class="input" type="text" id="<?= e($bc) ?>-tv" name="title_vat" value="<?= e($v['title_vat']) ?>" maxlength="60" required>
+            <label for="<?php echo e($bc) ?>-tv">หัวกระดาษ</label>
+            <input class="input" type="text" id="<?php echo e($bc) ?>-tv" name="title_vat" value="<?php echo e($v['title_vat']) ?>" maxlength="60" required>
             <small class="adm-hint">ต้องมีคำว่า “ใบกำกับภาษี” ตามประมวลรัษฎากร</small>
           </div>
           <div class="field">
-            <label for="<?= e($bc) ?>-tx">เลขประจำตัวผู้เสียภาษี</label>
-            <input class="input" type="text" id="<?= e($bc) ?>-tx" name="tax_id" value="<?= e($v['tax_id']) ?>"
+            <label for="<?php echo e($bc) ?>-tx">เลขประจำตัวผู้เสียภาษี</label>
+            <input class="input" type="text" id="<?php echo e($bc) ?>-tx" name="tax_id" value="<?php echo e($v['tax_id']) ?>"
                    inputmode="numeric" maxlength="13" required autocomplete="off">
             <small class="adm-hint">13 หลัก</small>
           </div>
           <div class="field">
-            <label for="<?= e($bc) ?>-tb">เลขที่สาขา (ตามที่จดทะเบียน VAT)</label>
-            <input class="input" type="text" id="<?= e($bc) ?>-tb" name="tax_branch" value="<?= e($v['tax_branch']) ?>"
+            <label for="<?php echo e($bc) ?>-tb">เลขที่สาขา (ตามที่จดทะเบียน VAT)</label>
+            <input class="input" type="text" id="<?php echo e($bc) ?>-tb" name="tax_branch" value="<?php echo e($v['tax_branch']) ?>"
                    inputmode="numeric" maxlength="5" required autocomplete="off">
             <small class="adm-hint">5 หลัก · สำนักงานใหญ่ = 00000</small>
           </div>
-          <button type="button" class="btn btn-ghost btn-sm" data-bill-print="bill-print.php?b=<?= e(rawurlencode($bc)) ?>&amp;sample=vat"
-                  data-bill-no="ตัวอย่างบิล VAT · <?= e($b['name']) ?>"><svg class="ico"><use href="#i-print"/></svg> ดูตัวอย่างบิล VAT</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-bill-print="bill-print.php?b=<?php echo e(rawurlencode($bc)) ?>&amp;sample=vat"
+                  data-bill-no="ตัวอย่างบิล VAT · <?php echo e($b['name']) ?>"><svg class="ico"><use href="#i-print"/></svg> ดูตัวอย่างบิล VAT</button>
         </fieldset>
 
         <!-- ---------- 3) ชุดบิลไม่ VAT ---------- -->
         <fieldset class="bs-set">
           <legend><span class="bdg bdg-adj">ไม่ VAT</span> ชุดบิลไม่ VAT (บิลขายทั่วไป)</legend>
           <div class="field">
-            <label for="<?= e($bc) ?>-pn">รหัสนำหน้าเลขที่</label>
+            <label for="<?php echo e($bc) ?>-pn">รหัสนำหน้าเลขที่</label>
             <div class="adm-unit">
-              <input class="input acct-prefix" type="text" id="<?= e($bc) ?>-pn" name="prefix_novat" value="<?= e($v['prefix_novat']) ?>"
-                     maxlength="6" pattern="[A-Za-z0-9]{1,6}" required autocomplete="off" data-demo="<?= e(date('Y-m')) ?>">
-              <span class="acct-eg"><?= e($v['prefix_novat'] . date('Y-m') . '-0001') ?></span>
+              <input class="input acct-prefix" type="text" id="<?php echo e($bc) ?>-pn" name="prefix_novat" value="<?php echo e($v['prefix_novat']) ?>"
+                     maxlength="6" pattern="[A-Za-z0-9]{1,6}" required autocomplete="off" data-demo="<?php echo e(date('Y-m')) ?>">
+              <span class="acct-eg"><?php echo e($v['prefix_novat'] . date('Y-m') . '-0001') ?></span>
             </div>
-            <small class="adm-hint">เช่น BP → BP<?= e(date('Y-m')) ?>-0001 · เลขรันแยกจากบิล VAT</small>
+            <small class="adm-hint">เช่น BP → BP<?php echo e(date('Y-m')) ?>-0001 · เลขรันแยกจากบิล VAT</small>
           </div>
           <div class="field">
-            <label for="<?= e($bc) ?>-tn">หัวกระดาษ</label>
-            <input class="input" type="text" id="<?= e($bc) ?>-tn" name="title_novat" value="<?= e($v['title_novat']) ?>" maxlength="60" required>
+            <label for="<?php echo e($bc) ?>-tn">หัวกระดาษ</label>
+            <input class="input" type="text" id="<?php echo e($bc) ?>-tn" name="title_novat" value="<?php echo e($v['title_novat']) ?>" maxlength="60" required>
             <small class="adm-hint">ห้ามใช้คำว่า “ใบกำกับภาษี” — บิลนี้ไม่แยก VAT</small>
           </div>
-          <label class="bs-check"><input type="checkbox" name="novat_tax" value="1" <?= $v['novat_tax'] === '1' ? 'checked' : '' ?>>
+          <label class="bs-check"><input type="checkbox" name="novat_tax" value="1" <?php echo $v['novat_tax'] === '1' ? 'checked' : '' ?>>
             พิมพ์เลขผู้เสียภาษีบนบิลไม่ VAT ด้วย</label>
-          <button type="button" class="btn btn-ghost btn-sm" data-bill-print="bill-print.php?b=<?= e(rawurlencode($bc)) ?>&amp;sample=novat"
-                  data-bill-no="ตัวอย่างบิลไม่ VAT · <?= e($b['name']) ?>"><svg class="ico"><use href="#i-print"/></svg> ดูตัวอย่างบิลไม่ VAT</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-bill-print="bill-print.php?b=<?php echo e(rawurlencode($bc)) ?>&amp;sample=novat"
+                  data-bill-no="ตัวอย่างบิลไม่ VAT · <?php echo e($b['name']) ?>"><svg class="ico"><use href="#i-print"/></svg> ดูตัวอย่างบิลไม่ VAT</button>
         </fieldset>
       </div>
       <p class="adm-hint bs-note">ตัวอย่างบิลแสดงตามค่าที่บันทึกแล้ว — แก้แล้วกดบันทึกก่อนจึงเห็นผล</p>
-      <button class="btn btn-primary" type="submit"><svg class="ico"><use href="#i-check"/></svg> บันทึก<?= e($b['name']) ?></button>
+      <button class="btn btn-primary" type="submit"><svg class="ico"><use href="#i-check"/></svg> บันทึก<?php echo e($b['name']) ?></button>
     </form>
   </details>
-<?php endforeach; ?>
+<?php } ?>
 
 <script>
 /* ปุ่มเลือกขนาดกระดาษ */

@@ -10,6 +10,7 @@
  *   - [x] ช่วงที่ 8: ลบโค้ดล้าง $_SESSION['log'] หลังลบสาขา (ประวัติอยู่ในตารางแล้ว branch_delete ลบให้)
  *   - [x] ช่วงที่ 10: ค่าตั้ง "เป้าต่อคนต่อวัน" (daily_goal) ของภาพรวมพนักงาน
  *   - [x] ช่วงที่ 12: เลือกผู้จัดการสาขารายสาขา (act=managers · staff_act_set_manager) · หัวการ์ดบอกชื่อผู้จัดการ
+ *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -226,9 +227,9 @@ $v = function ($bc, $k, $def) use ($old) {
 };
 ?>
 
-<?php if ($err !== '' && $errB === ''): ?>
-  <div class="alert alert-error" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span><?= e($err) ?></span></div>
-<?php endif; ?>
+<?php if ($err !== '' && $errB === '') { ?>
+  <div class="alert alert-error" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span><?php echo e($err) ?></span></div>
+<?php } ?>
 
 <!-- ==================== เพิ่มสาขา (ปุ่ม → popup) ==================== -->
 <section class="card br-add">
@@ -238,45 +239,45 @@ $v = function ($bc, $k, $def) use ($old) {
   </div>
 </section>
 
-<dialog class="fm-modal" id="br-add-modal" aria-labelledby="br-add-t"<?= $errB === 'new' ? ' data-fm-auto' : '' ?>>
+<dialog class="fm-modal" id="br-add-modal" aria-labelledby="br-add-t"<?php echo $errB === 'new' ? ' data-fm-auto' : '' ?>>
   <div class="fm-head">
     <div><h2 id="br-add-t">เพิ่มสาขาใหม่</h2><span class="sub">รหัสสาขาตั้งครั้งเดียว เปลี่ยนภายหลังไม่ได้</span></div>
     <button type="button" class="icon-btn" data-fm-close aria-label="ปิด"><svg class="ico"><use href="#i-x"/></svg></button>
   </div>
-  <?php if ($errB === 'new'): ?>
-    <div class="alert alert-error adm-ok" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span><?= e($err) ?></span></div>
-  <?php endif; ?>
+  <?php if ($errB === 'new') { ?>
+    <div class="alert alert-error adm-ok" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span><?php echo e($err) ?></span></div>
+  <?php } ?>
   <form class="adm-sec" method="post" action="adm-branches.php">
-    <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+    <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
     <input type="hidden" name="act" value="add">
     <div class="adm-fields">
       <div class="field">
         <label for="new-b">รหัสสาขา</label>
-        <input class="input acct-prefix" type="text" id="new-b" name="b" value="<?= e($v('new', 'b', '')) ?>" maxlength="6"
+        <input class="input acct-prefix" type="text" id="new-b" name="b" value="<?php echo e($v('new', 'b', '')) ?>" maxlength="6"
                pattern="[A-Za-z0-9]{2,6}" required autocomplete="off" placeholder="เช่น WG">
         <small class="adm-hint">ภาษาอังกฤษ/ตัวเลข 2–6 ตัว · เลขที่บิลเริ่มต้นจะเป็น <b id="new-eg">{รหัส}V</b> (VAT) และ {รหัส} (ไม่ VAT)</small>
       </div>
-      <?php foreach ($info as $k => $f): ?>
-        <div class="field<?= $k === 'address' ? ' br-wide' : '' ?>">
-          <label for="new-<?= e($k) ?>"><?= e($f['label']) ?><?= $f['req'] ? '' : ' <small class="adm-none">(ไม่บังคับ)</small>' ?></label>
-          <input class="input" type="text" id="new-<?= e($k) ?>" name="<?= e($k) ?>" value="<?= e($v('new', $k, '')) ?>"
-                 maxlength="<?= (int) $f['max'] ?>" placeholder="<?= e($f['ph']) ?>" autocomplete="off"<?= $f['req'] ? ' required' : '' ?>>
+      <?php foreach ($info as $k => $f) { ?>
+        <div class="field<?php echo $k === 'address' ? ' br-wide' : '' ?>">
+          <label for="new-<?php echo e($k) ?>"><?php echo e($f['label']) ?><?php echo $f['req'] ? '' : ' <small class="adm-none">(ไม่บังคับ)</small>' ?></label>
+          <input class="input" type="text" id="new-<?php echo e($k) ?>" name="<?php echo e($k) ?>" value="<?php echo e($v('new', $k, '')) ?>"
+                 maxlength="<?php echo (int) $f['max'] ?>" placeholder="<?php echo e($f['ph']) ?>" autocomplete="off"<?php echo $f['req'] ? ' required' : '' ?>>
         </div>
-      <?php endforeach; ?>
+      <?php } ?>
     </div>
     <h3 class="br-sub">ค่าตั้งของสาขา</h3>
     <div class="adm-fields">
       <?php $r = branch_setting_rules(); $nd = array('count_day' => 1, 'backdate_days' => 7, 'count_open_limit' => 1, 'default_float' => 2000, 'daily_goal' => 0); ?>
-      <?php foreach ($fields as $k => $f): ?>
+      <?php foreach ($fields as $k => $f) { ?>
         <div class="field">
-          <label for="new-<?= e($k) ?>"><?= e($f['label']) ?></label>
+          <label for="new-<?php echo e($k) ?>"><?php echo e($f['label']) ?></label>
           <div class="adm-unit">
-            <input class="input" type="number" id="new-<?= e($k) ?>" name="<?= e($k) ?>" value="<?= (int) $v('new', $k, $nd[$k]) ?>"
-                   min="<?= (int) $r[$k][0] ?>" max="<?= (int) $r[$k][1] ?>" step="<?= $k === 'default_float' ? 100 : 1 ?>" inputmode="numeric" required>
-            <span><?= e($f['unit']) ?></span>
+            <input class="input" type="number" id="new-<?php echo e($k) ?>" name="<?php echo e($k) ?>" value="<?php echo (int) $v('new', $k, $nd[$k]) ?>"
+                   min="<?php echo (int) $r[$k][0] ?>" max="<?php echo (int) $r[$k][1] ?>" step="<?php echo $k === 'default_float' ? 100 : 1 ?>" inputmode="numeric" required>
+            <span><?php echo e($f['unit']) ?></span>
           </div>
         </div>
-      <?php endforeach; ?>
+      <?php } ?>
     </div>
     <div class="fm-foot">
       <button class="btn btn-ghost" type="button" data-fm-close>ยกเลิก</button>
@@ -290,7 +291,7 @@ $v = function ($bc, $k, $def) use ($old) {
 /* เปิดสาขาแรกไว้ · ถ้าเพิ่งบันทึก / มีข้อผิดพลาดของสาขาไหน ให้เปิดสาขานั้นแทน */
 $openB = ($okB !== '' && isset($list[$okB])) ? $okB : (($errB !== '' && isset($list[$errB])) ? $errB : key($list));
 ?>
-<?php foreach ($list as $bc => $b):
+<?php foreach ($list as $bc => $b) {
     $on     = !empty($b['active']);
     $staff  = branch_staff($bc);
     $reason = branch_data_reason($bc);
@@ -300,123 +301,123 @@ $openB = ($okB !== '' && isset($list[$okB])) ? $okB : (($errB !== '' && isset($l
             $mgrs[] = $s['name'];
         }
     } ?>
-  <details class="card acc-item<?= $on ? '' : ' br-off' ?>" id="b-<?= e($bc) ?>"<?= $bc === $openB ? ' open' : '' ?>>
+  <details class="card acc-item<?php echo $on ? '' : ' br-off' ?>" id="b-<?php echo e($bc) ?>"<?php echo $bc === $openB ? ' open' : '' ?>>
     <summary class="card-head">
       <div>
-        <h2><?= e($b['name']) ?> <span class="bdg bdg-adj"><?= e($bc) ?></span>
-          <?php if (!$on): ?><span class="bdg bdg-out">ปิดใช้งาน</span><?php endif; ?></h2>
-        <span class="sub">พนักงาน <?= count($staff) ?> คน ·
-          ผู้จัดการ <?= $mgrs ? e(implode(', ', $mgrs)) : 'ยังไม่มี' ?> ·
-          <?= $on ? (store_is_open($bc) ? 'ร้านเปิดอยู่' : (store_is_closed($bc) ? 'ปิดร้านแล้ววันนี้' : 'ยังไม่เปิดร้านวันนี้')) : 'ซ่อนจากการใช้งาน ประวัติยังอยู่ครบ' ?>
-          · เลขที่บิล <?= e(acct_setting($bc, 'prefix_vat')) ?> / <?= e(acct_setting($bc, 'prefix_novat')) ?></span>
+        <h2><?php echo e($b['name']) ?> <span class="bdg bdg-adj"><?php echo e($bc) ?></span>
+          <?php if (!$on) { ?><span class="bdg bdg-out">ปิดใช้งาน</span><?php } ?></h2>
+        <span class="sub">พนักงาน <?php echo count($staff) ?> คน ·
+          ผู้จัดการ <?php echo $mgrs ? e(implode(', ', $mgrs)) : 'ยังไม่มี' ?> ·
+          <?php echo $on ? (store_is_open($bc) ? 'ร้านเปิดอยู่' : (store_is_closed($bc) ? 'ปิดร้านแล้ววันนี้' : 'ยังไม่เปิดร้านวันนี้')) : 'ซ่อนจากการใช้งาน ประวัติยังอยู่ครบ' ?>
+          · เลขที่บิล <?php echo e(acct_setting($bc, 'prefix_vat')) ?> / <?php echo e(acct_setting($bc, 'prefix_novat')) ?></span>
       </div>
       <span class="acc-right">
-        <a class="btn btn-ghost btn-sm" href="adm-users.php#g-<?= e($bc) ?>"><svg class="ico"><use href="#i-users"/></svg> จัดการพนักงาน</a>
+        <a class="btn btn-ghost btn-sm" href="adm-users.php#g-<?php echo e($bc) ?>"><svg class="ico"><use href="#i-users"/></svg> จัดการพนักงาน</a>
         <svg class="ico acc-chev" aria-hidden="true"><use href="#i-arrow"/></svg>
       </span>
     </summary>
 
-    <?php if ($okB === $bc): ?>
-      <div class="alert alert-ok adm-ok" role="status"><svg class="ico"><use href="#i-check"/></svg><span><?= e($okMsg[$okDo]) ?></span></div>
-    <?php endif; ?>
-    <?php if ($errB === $bc && $err !== ''): ?>
-      <div class="alert alert-error adm-ok" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span><?= e($err) ?></span></div>
-    <?php endif; ?>
+    <?php if ($okB === $bc) { ?>
+      <div class="alert alert-ok adm-ok" role="status"><svg class="ico"><use href="#i-check"/></svg><span><?php echo e($okMsg[$okDo]) ?></span></div>
+    <?php } ?>
+    <?php if ($errB === $bc && $err !== '') { ?>
+      <div class="alert alert-error adm-ok" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span><?php echo e($err) ?></span></div>
+    <?php } ?>
 
-    <?php if ($on): ?>
-    <form class="adm-sec" method="post" action="adm-branches.php#b-<?= e($bc) ?>">
-      <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+    <?php if ($on) { ?>
+    <form class="adm-sec" method="post" action="adm-branches.php#b-<?php echo e($bc) ?>">
+      <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
       <input type="hidden" name="act" value="save">
-      <input type="hidden" name="b" value="<?= e($bc) ?>">
+      <input type="hidden" name="b" value="<?php echo e($bc) ?>">
       <div class="adm-fields">
-        <?php foreach ($info as $k => $f): ?>
-          <div class="field<?= $k === 'address' ? ' br-wide' : '' ?>">
-            <label for="<?= e($bc . '-' . $k) ?>"><?= e($f['label']) ?></label>
-            <input class="input" type="text" id="<?= e($bc . '-' . $k) ?>" name="<?= e($k) ?>" value="<?= e($v($bc, $k, $b[$k])) ?>"
-                   maxlength="<?= (int) $f['max'] ?>" placeholder="<?= e($f['ph']) ?>" autocomplete="off"<?= $f['req'] ? ' required' : '' ?>>
+        <?php foreach ($info as $k => $f) { ?>
+          <div class="field<?php echo $k === 'address' ? ' br-wide' : '' ?>">
+            <label for="<?php echo e($bc . '-' . $k) ?>"><?php echo e($f['label']) ?></label>
+            <input class="input" type="text" id="<?php echo e($bc . '-' . $k) ?>" name="<?php echo e($k) ?>" value="<?php echo e($v($bc, $k, $b[$k])) ?>"
+                   maxlength="<?php echo (int) $f['max'] ?>" placeholder="<?php echo e($f['ph']) ?>" autocomplete="off"<?php echo $f['req'] ? ' required' : '' ?>>
           </div>
-        <?php endforeach; ?>
+        <?php } ?>
       </div>
       <h3 class="br-sub">ค่าตั้งของสาขา</h3>
       <div class="adm-fields">
-        <?php foreach ($fields as $k => $f): $r = branch_setting_rules(); ?>
+        <?php foreach ($fields as $k => $f) { $r = branch_setting_rules(); ?>
           <div class="field">
-            <label for="<?= e($bc . '-' . $k) ?>"><?= e($f['label']) ?></label>
+            <label for="<?php echo e($bc . '-' . $k) ?>"><?php echo e($f['label']) ?></label>
             <div class="adm-unit">
-              <input class="input" type="number" id="<?= e($bc . '-' . $k) ?>" name="<?= e($k) ?>"
-                     value="<?= (int) $v($bc, $k, branch_setting($bc, $k)) ?>" min="<?= (int) $r[$k][0] ?>" max="<?= (int) $r[$k][1] ?>"
-                     step="<?= $k === 'default_float' ? 100 : 1 ?>" inputmode="numeric" required>
-              <span><?= e($f['unit']) ?></span>
+              <input class="input" type="number" id="<?php echo e($bc . '-' . $k) ?>" name="<?php echo e($k) ?>"
+                     value="<?php echo (int) $v($bc, $k, branch_setting($bc, $k)) ?>" min="<?php echo (int) $r[$k][0] ?>" max="<?php echo (int) $r[$k][1] ?>"
+                     step="<?php echo $k === 'default_float' ? 100 : 1 ?>" inputmode="numeric" required>
+              <span><?php echo e($f['unit']) ?></span>
             </div>
-            <small class="adm-hint"><?= e($f['hint']) ?></small>
+            <small class="adm-hint"><?php echo e($f['hint']) ?></small>
           </div>
-        <?php endforeach; ?>
+        <?php } ?>
       </div>
-      <button class="btn btn-primary" type="submit"><svg class="ico"><use href="#i-check"/></svg> บันทึก<?= e($b['name']) ?></button>
+      <button class="btn btn-primary" type="submit"><svg class="ico"><use href="#i-check"/></svg> บันทึก<?php echo e($b['name']) ?></button>
     </form>
 
     <!-- ผู้จัดการสาขา (ช่วงที่ 12) — เลือกจากพนักงานที่ประจำสาขานี้ · มีได้หลายคน -->
-    <form class="adm-sec" method="post" action="adm-branches.php#b-<?= e($bc) ?>">
-      <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+    <form class="adm-sec" method="post" action="adm-branches.php#b-<?php echo e($bc) ?>">
+      <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
       <input type="hidden" name="act" value="managers">
-      <input type="hidden" name="b" value="<?= e($bc) ?>">
+      <input type="hidden" name="b" value="<?php echo e($bc) ?>">
       <h3>ผู้จัดการสาขา</h3>
       <p class="adm-hint">เห็นทุกอย่างในสาขา + ได้สิทธิ์ดูข้อมูลและสิทธิ์เสริมทุกตัวอัตโนมัติ · เพิ่ม / แก้ / รีเซ็ต PIN / พักงานพนักงานในสาขาเองได้ (เมนู “พนักงานในสาขา”) · เลือกได้หลายคน</p>
-      <?php if (!$staff): ?>
+      <?php if (!$staff) { ?>
         <p class="adm-hint">ยังไม่มีพนักงานประจำสาขานี้ — เพิ่มพนักงานที่หน้าจัดการพนักงานก่อน</p>
-      <?php else: ?>
+      <?php } else { ?>
         <div class="perm-grid">
-          <?php foreach ($staff as $k => $s): ?>
-            <label class="perm-o"><input type="checkbox" name="mgr[]" value="<?= e($k) ?>"<?= in_array('manager', $s['perms'], true) ? ' checked' : '' ?>>
-              <span><svg class="ico"><use href="#i-check"/></svg><b><?= e($s['name']) ?></b><small><?= e($k) ?></small></span></label>
-          <?php endforeach; ?>
+          <?php foreach ($staff as $k => $s) { ?>
+            <label class="perm-o"><input type="checkbox" name="mgr[]" value="<?php echo e($k) ?>"<?php echo in_array('manager', $s['perms'], true) ? ' checked' : '' ?>>
+              <span><svg class="ico"><use href="#i-check"/></svg><b><?php echo e($s['name']) ?></b><small><?php echo e($k) ?></small></span></label>
+          <?php } ?>
         </div>
         <button class="btn btn-primary" type="submit"><svg class="ico"><use href="#i-check"/></svg> บันทึกผู้จัดการ</button>
-      <?php endif; ?>
+      <?php } ?>
     </form>
-    <?php endif; ?>
+    <?php } ?>
 
     <!-- ปิด / เปิดใช้งาน · ลบ -->
     <div class="adm-row br-danger">
-      <?php if ($on): ?>
-        <form class="adm-sec" method="post" action="adm-branches.php#b-<?= e($bc) ?>">
-          <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+      <?php if ($on) { ?>
+        <form class="adm-sec" method="post" action="adm-branches.php#b-<?php echo e($bc) ?>">
+          <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
           <input type="hidden" name="act" value="close">
-          <input type="hidden" name="b" value="<?= e($bc) ?>">
+          <input type="hidden" name="b" value="<?php echo e($bc) ?>">
           <h3>ปิดใช้งานสาขา</h3>
-          <p class="adm-hint">ซ่อนจากการขายและงานคลัง ประวัติ บิล และรายงานยังอยู่ครบ · ต้องย้ายพนักงานออกให้หมดก่อน<?= $staff ? ' (ตอนนี้มี ' . count($staff) . ' คน)' : '' ?></p>
+          <p class="adm-hint">ซ่อนจากการขายและงานคลัง ประวัติ บิล และรายงานยังอยู่ครบ · ต้องย้ายพนักงานออกให้หมดก่อน<?php echo $staff ? ' (ตอนนี้มี ' . count($staff) . ' คน)' : '' ?></p>
           <div class="adm-inline">
             <input class="input" type="text" name="why" placeholder="เหตุผล เช่น ปิดสาขาถาวร / ย้ายทำเล" autocomplete="off">
-            <button class="btn btn-ghost" type="submit"<?= $staff ? ' disabled' : '' ?>><svg class="ico"><use href="#i-ban"/></svg> ปิดใช้งาน</button>
+            <button class="btn btn-ghost" type="submit"<?php echo $staff ? ' disabled' : '' ?>><svg class="ico"><use href="#i-ban"/></svg> ปิดใช้งาน</button>
           </div>
         </form>
-      <?php else: ?>
-        <form class="adm-sec" method="post" action="adm-branches.php#b-<?= e($bc) ?>">
-          <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+      <?php } else { ?>
+        <form class="adm-sec" method="post" action="adm-branches.php#b-<?php echo e($bc) ?>">
+          <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
           <input type="hidden" name="act" value="open">
-          <input type="hidden" name="b" value="<?= e($bc) ?>">
+          <input type="hidden" name="b" value="<?php echo e($bc) ?>">
           <h3>เปิดใช้งานอีกครั้ง</h3>
           <p class="adm-hint">สาขากลับมาใช้งานได้ตามเดิม ข้อมูลและค่าตั้งเดิมยังอยู่</p>
           <button class="btn btn-ghost" type="submit"><svg class="ico"><use href="#i-check"/></svg> เปิดใช้งาน</button>
         </form>
-      <?php endif; ?>
+      <?php } ?>
 
-      <form class="adm-sec" method="post" action="adm-branches.php#b-<?= e($bc) ?>">
-        <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+      <form class="adm-sec" method="post" action="adm-branches.php#b-<?php echo e($bc) ?>">
+        <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
         <input type="hidden" name="act" value="delete">
-        <input type="hidden" name="b" value="<?= e($bc) ?>">
+        <input type="hidden" name="b" value="<?php echo e($bc) ?>">
         <h3>ลบสาขา</h3>
-        <?php if ($reason !== ''): ?>
-          <p class="adm-hint">ลบไม่ได้ เพราะ<?= e($reason) ?> — ใช้ปิดใช้งานแทน เพื่อไม่ให้ยอดเก่าหาย</p>
-        <?php else: ?>
+        <?php if ($reason !== '') { ?>
+          <p class="adm-hint">ลบไม่ได้ เพราะ<?php echo e($reason) ?> — ใช้ปิดใช้งานแทน เพื่อไม่ให้ยอดเก่าหาย</p>
+        <?php } else { ?>
           <p class="adm-hint">สาขานี้ยังไม่มีข้อมูล ลบได้ · ลบแล้วกู้คืนไม่ได้</p>
-          <label class="br-sure"><input type="checkbox" name="sure" value="1" required> ยืนยันลบ <?= e($b['name']) ?> (<?= e($bc) ?>)</label>
+          <label class="br-sure"><input type="checkbox" name="sure" value="1" required> ยืนยันลบ <?php echo e($b['name']) ?> (<?php echo e($bc) ?>)</label>
           <button class="btn btn-ghost br-del" type="submit"><svg class="ico"><use href="#i-trash"/></svg> ลบสาขา</button>
-        <?php endif; ?>
+        <?php } ?>
       </form>
     </div>
   </details>
-<?php endforeach; ?>
+<?php } ?>
 
 <script>
 /* popup ฟอร์มเพิ่มสาขา · บันทึกไม่ผ่าน → เปิด popup ค้างไว้พร้อมข้อความผิดพลาดและค่าที่กรอก */

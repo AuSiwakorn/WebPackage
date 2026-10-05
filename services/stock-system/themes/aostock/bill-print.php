@@ -7,6 +7,7 @@
  * TODO:
  *   - [x] ย้ายจาก demo/ เข้า themes/aostock/ (วิ่งผ่าน router ของ admweb)
  *   - [x] ช่วงที่ 7: บิลอ่านจากตาราง (bill_find)
+ *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -74,7 +75,7 @@ $selfQs  = function ($o) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= e($bill['no']) ?> · <?= e($title) ?></title>
+<title><?php echo e($bill['no']) ?> · <?php echo e($title) ?></title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -141,128 +142,128 @@ $selfQs  = function ($o) {
     .stamp{background:transparent}
     th{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   }
-  <?php if ($size === '80'): ?>@page{size:80mm auto;margin:0}<?php else: ?>@page{size:A4;margin:0}<?php endif; ?>
+  <?php if ($size === '80') { ?>@page{size:80mm auto;margin:0}<?php } else { ?>@page{size:A4;margin:0}<?php } ?>
 </style>
 </head>
-<body class="<?= $embed ? 'embed' : '' ?>">
+<body class="<?php echo $embed ? 'embed' : '' ?>">
 
-<?php if (!$embed): ?>
+<?php if (!$embed) { ?>
   <div class="bar">
-    <a class="<?= $size === '80' ? 'on' : '' ?>" href="<?= e($selfQs(array('size' => '80', 'print' => null))) ?>">ใบเสร็จ 80 มม.</a>
-    <a class="<?= $size === 'a4' ? 'on' : '' ?>" href="<?= e($selfQs(array('size' => 'a4', 'print' => null))) ?>">กระดาษ A4</a>
+    <a class="<?php echo $size === '80' ? 'on' : '' ?>" href="<?php echo e($selfQs(array('size' => '80', 'print' => null))) ?>">ใบเสร็จ 80 มม.</a>
+    <a class="<?php echo $size === 'a4' ? 'on' : '' ?>" href="<?php echo e($selfQs(array('size' => 'a4', 'print' => null))) ?>">กระดาษ A4</a>
     <button type="button" class="go" onclick="window.print()">พิมพ์บิล</button>
   </div>
-<?php endif; ?>
+<?php } ?>
 
-<?php if ($size === '80'): ?>
+<?php if ($size === '80') { ?>
 <!-- ==================== ใบเสร็จ 80 มม. ==================== -->
 <div class="sheet s80">
   <div class="hd">
-    <div class="co"><?= e($h['company']) ?></div>
-    <div class="sm"><?= e($h['branch_name']) ?></div>
-    <?php if ($h['bill_address'] !== ''): ?><div class="sm"><?= e($h['bill_address']) ?></div><?php endif; ?>
-    <?php if ($h['bill_phone'] !== ''): ?><div class="sm">โทร <?= e($h['bill_phone']) ?></div><?php endif; ?>
-    <?php if ($h['bill_extra'] !== ''): ?><div class="sm"><?= e($h['bill_extra']) ?></div><?php endif; ?>
-    <?php if ($showTax): ?>
-      <div class="sm">เลขประจำตัวผู้เสียภาษี <?= e(tax_id_format($h['tax_id'])) ?></div>
-      <div class="sm">(<?= e(tax_branch_label($h['tax_branch'])) ?>)</div>
-    <?php endif; ?>
+    <div class="co"><?php echo e($h['company']) ?></div>
+    <div class="sm"><?php echo e($h['branch_name']) ?></div>
+    <?php if ($h['bill_address'] !== '') { ?><div class="sm"><?php echo e($h['bill_address']) ?></div><?php } ?>
+    <?php if ($h['bill_phone'] !== '') { ?><div class="sm">โทร <?php echo e($h['bill_phone']) ?></div><?php } ?>
+    <?php if ($h['bill_extra'] !== '') { ?><div class="sm"><?php echo e($h['bill_extra']) ?></div><?php } ?>
+    <?php if ($showTax) { ?>
+      <div class="sm">เลขประจำตัวผู้เสียภาษี <?php echo e(tax_id_format($h['tax_id'])) ?></div>
+      <div class="sm">(<?php echo e(tax_branch_label($h['tax_branch'])) ?>)</div>
+    <?php } ?>
   </div>
   <hr>
-  <div class="tt"><?= e($title) ?></div>
-  <div class="kv"><span>เลขที่</span><b class="num"><?= e($bill['no']) ?></b></div>
-  <div class="kv"><span>วันที่</span><span class="num"><?= e($when) ?></span></div>
-  <div class="kv"><span>พนักงาน</span><span><?= e($bill['by']) ?></span></div>
+  <div class="tt"><?php echo e($title) ?></div>
+  <div class="kv"><span>เลขที่</span><b class="num"><?php echo e($bill['no']) ?></b></div>
+  <div class="kv"><span>วันที่</span><span class="num"><?php echo e($when) ?></span></div>
+  <div class="kv"><span>พนักงาน</span><span><?php echo e($bill['by']) ?></span></div>
   <hr>
-  <?php foreach ($bill['lines'] as $l): ?>
+  <?php foreach ($bill['lines'] as $l) { ?>
     <div class="ln">
-      <div class="nm"><?= e($l['name']) ?></div>
-      <div class="kv"><span class="num"><?= number_format($l['qty']) ?> <?= e($l['unit']) ?> × <?= e(money2($l['price'])) ?></span><span class="num"><?= e(money2($l['sum'])) ?></span></div>
+      <div class="nm"><?php echo e($l['name']) ?></div>
+      <div class="kv"><span class="num"><?php echo number_format($l['qty']) ?> <?php echo e($l['unit']) ?> × <?php echo e(money2($l['price'])) ?></span><span class="num"><?php echo e(money2($l['sum'])) ?></span></div>
     </div>
-  <?php endforeach; ?>
+  <?php } ?>
   <hr>
-  <div class="kv"><span>รวม <?= number_format($bill['qty']) ?> ชิ้น</span><span class="num"><?= e(money2($bill['subtotal'])) ?></span></div>
-  <?php if ($bill['discount'] > 0): ?>
-    <div class="kv"><span>ส่วนลด</span><span class="num">−<?= e(money2($bill['discount'])) ?></span></div>
-  <?php endif; ?>
-  <div class="kv tot"><span>ยอดสุทธิ</span><span class="num"><?= e(money2($bill['total'])) ?></span></div>
-  <?php if ($vat): ?>
-    <div class="kv sm"><span>มูลค่าสินค้าก่อนภาษี</span><span class="num"><?= e(money2($vs[0])) ?></span></div>
-    <div class="kv sm"><span>ภาษีมูลค่าเพิ่ม <?= e(VAT_RATE) ?>%</span><span class="num"><?= e(money2($vs[1])) ?></span></div>
+  <div class="kv"><span>รวม <?php echo number_format($bill['qty']) ?> ชิ้น</span><span class="num"><?php echo e(money2($bill['subtotal'])) ?></span></div>
+  <?php if ($bill['discount'] > 0) { ?>
+    <div class="kv"><span>ส่วนลด</span><span class="num">−<?php echo e(money2($bill['discount'])) ?></span></div>
+  <?php } ?>
+  <div class="kv tot"><span>ยอดสุทธิ</span><span class="num"><?php echo e(money2($bill['total'])) ?></span></div>
+  <?php if ($vat) { ?>
+    <div class="kv sm"><span>มูลค่าสินค้าก่อนภาษี</span><span class="num"><?php echo e(money2($vs[0])) ?></span></div>
+    <div class="kv sm"><span>ภาษีมูลค่าเพิ่ม <?php echo e(VAT_RATE) ?>%</span><span class="num"><?php echo e(money2($vs[1])) ?></span></div>
     <div class="sm c">(ราคารวมภาษีมูลค่าเพิ่มแล้ว)</div>
-  <?php endif; ?>
+  <?php } ?>
   <hr>
-  <div class="kv"><span>ชำระโดย</span><span><?= $bill['method'] === 'cash' ? 'เงินสด' : 'โอน / พร้อมเพย์' ?></span></div>
-  <?php if ($bill['method'] === 'cash'): ?>
-    <div class="kv"><span>รับเงิน</span><span class="num"><?= e(money2($bill['received'])) ?></span></div>
-    <div class="kv"><span>เงินทอน</span><span class="num"><?= e(money2($bill['change'])) ?></span></div>
-  <?php endif; ?>
-  <?php if (trim($h['footer']) !== ''): ?><hr><div class="ft"><?= e($h['footer']) ?></div><?php endif; ?>
-  <?php if ($void): ?><div class="stamp">ยกเลิก<small>บิลนี้ถูกยกเลิกแล้ว</small></div>
-  <?php elseif (!empty($bill['sample'])): ?><div class="stamp smp">ตัวอย่าง</div><?php endif; ?>
+  <div class="kv"><span>ชำระโดย</span><span><?php echo $bill['method'] === 'cash' ? 'เงินสด' : 'โอน / พร้อมเพย์' ?></span></div>
+  <?php if ($bill['method'] === 'cash') { ?>
+    <div class="kv"><span>รับเงิน</span><span class="num"><?php echo e(money2($bill['received'])) ?></span></div>
+    <div class="kv"><span>เงินทอน</span><span class="num"><?php echo e(money2($bill['change'])) ?></span></div>
+  <?php } ?>
+  <?php if (trim($h['footer']) !== '') { ?><hr><div class="ft"><?php echo e($h['footer']) ?></div><?php } ?>
+  <?php if ($void) { ?><div class="stamp">ยกเลิก<small>บิลนี้ถูกยกเลิกแล้ว</small></div>
+  <?php } elseif (!empty($bill['sample'])) { ?><div class="stamp smp">ตัวอย่าง</div><?php } ?>
 </div>
 
-<?php else: ?>
+<?php } else { ?>
 <!-- ==================== กระดาษ A4 ==================== -->
 <div class="sheet sa4">
   <div class="top">
     <div>
-      <div class="co"><?= e($h['company']) ?></div>
-      <div class="sm"><?= e($h['branch_name']) ?><?= $h['bill_address'] !== '' ? ' · ' . e($h['bill_address']) : '' ?></div>
-      <?php if ($h['bill_phone'] !== '' || $h['bill_extra'] !== ''): ?>
-        <div class="sm"><?= $h['bill_phone'] !== '' ? 'โทร ' . e($h['bill_phone']) : '' ?><?= $h['bill_phone'] !== '' && $h['bill_extra'] !== '' ? ' · ' : '' ?><?= e($h['bill_extra']) ?></div>
-      <?php endif; ?>
-      <?php if ($showTax): ?>
-        <div class="sm">เลขประจำตัวผู้เสียภาษี <?= e(tax_id_format($h['tax_id'])) ?> (<?= e(tax_branch_label($h['tax_branch'])) ?>)</div>
-      <?php endif; ?>
+      <div class="co"><?php echo e($h['company']) ?></div>
+      <div class="sm"><?php echo e($h['branch_name']) ?><?php echo $h['bill_address'] !== '' ? ' · ' . e($h['bill_address']) : '' ?></div>
+      <?php if ($h['bill_phone'] !== '' || $h['bill_extra'] !== '') { ?>
+        <div class="sm"><?php echo $h['bill_phone'] !== '' ? 'โทร ' . e($h['bill_phone']) : '' ?><?php echo $h['bill_phone'] !== '' && $h['bill_extra'] !== '' ? ' · ' : '' ?><?php echo e($h['bill_extra']) ?></div>
+      <?php } ?>
+      <?php if ($showTax) { ?>
+        <div class="sm">เลขประจำตัวผู้เสียภาษี <?php echo e(tax_id_format($h['tax_id'])) ?> (<?php echo e(tax_branch_label($h['tax_branch'])) ?>)</div>
+      <?php } ?>
     </div>
     <div class="tbox">
-      <h1><?= e($title) ?></h1>
-      <div class="kv"><span>เลขที่</span><b class="num"><?= e($bill['no']) ?></b></div>
-      <div class="kv"><span>วันที่</span><span class="num"><?= e($when) ?></span></div>
-      <div class="kv"><span>พนักงานขาย</span><span><?= e($bill['by']) ?></span></div>
+      <h1><?php echo e($title) ?></h1>
+      <div class="kv"><span>เลขที่</span><b class="num"><?php echo e($bill['no']) ?></b></div>
+      <div class="kv"><span>วันที่</span><span class="num"><?php echo e($when) ?></span></div>
+      <div class="kv"><span>พนักงานขาย</span><span><?php echo e($bill['by']) ?></span></div>
     </div>
   </div>
 
   <table>
     <thead><tr><th class="c" style="width:12mm">ลำดับ</th><th>รายการ</th><th class="r">จำนวน</th><th class="r">ราคาต่อหน่วย</th><th class="r">จำนวนเงิน</th></tr></thead>
     <tbody>
-      <?php $i = 0; foreach ($bill['lines'] as $l): $i++; ?>
-        <tr><td class="c"><?= $i ?></td>
-            <td><?= e($l['name']) ?><br><small><?= e($l['sku']) ?></small></td>
-            <td class="r num"><?= number_format($l['qty']) ?> <?= e($l['unit']) ?></td>
-            <td class="r num"><?= e(money2($l['price'])) ?></td>
-            <td class="r num"><?= e(money2($l['sum'])) ?></td></tr>
-      <?php endforeach; ?>
+      <?php $i = 0; foreach ($bill['lines'] as $l) { $i++; ?>
+        <tr><td class="c"><?php echo $i ?></td>
+            <td><?php echo e($l['name']) ?><br><small><?php echo e($l['sku']) ?></small></td>
+            <td class="r num"><?php echo number_format($l['qty']) ?> <?php echo e($l['unit']) ?></td>
+            <td class="r num"><?php echo e(money2($l['price'])) ?></td>
+            <td class="r num"><?php echo e(money2($l['sum'])) ?></td></tr>
+      <?php } ?>
     </tbody>
   </table>
 
   <div class="sum">
-    <div class="words"><small>จำนวนเงิน (ตัวอักษร)</small><br><b>(<?= e(thai_baht_text($bill['total'])) ?>)</b></div>
+    <div class="words"><small>จำนวนเงิน (ตัวอักษร)</small><br><b>(<?php echo e(thai_baht_text($bill['total'])) ?>)</b></div>
     <div class="sumt">
-      <div class="kv"><span>รวมเป็นเงิน</span><span class="num"><?= e(money2($bill['subtotal'])) ?></span></div>
-      <?php if ($bill['discount'] > 0): ?>
-        <div class="kv"><span>ส่วนลด</span><span class="num">−<?= e(money2($bill['discount'])) ?></span></div>
-      <?php endif; ?>
-      <?php if ($vat): ?>
-        <div class="kv"><span>มูลค่าสินค้าก่อนภาษี</span><span class="num"><?= e(money2($vs[0])) ?></span></div>
-        <div class="kv"><span>ภาษีมูลค่าเพิ่ม <?= e(VAT_RATE) ?>%</span><span class="num"><?= e(money2($vs[1])) ?></span></div>
-      <?php endif; ?>
-      <div class="kv tot"><span>ยอดสุทธิ<?= $vat ? ' (รวม VAT)' : '' ?></span><span class="num"><?= e(money2($bill['total'])) ?></span></div>
+      <div class="kv"><span>รวมเป็นเงิน</span><span class="num"><?php echo e(money2($bill['subtotal'])) ?></span></div>
+      <?php if ($bill['discount'] > 0) { ?>
+        <div class="kv"><span>ส่วนลด</span><span class="num">−<?php echo e(money2($bill['discount'])) ?></span></div>
+      <?php } ?>
+      <?php if ($vat) { ?>
+        <div class="kv"><span>มูลค่าสินค้าก่อนภาษี</span><span class="num"><?php echo e(money2($vs[0])) ?></span></div>
+        <div class="kv"><span>ภาษีมูลค่าเพิ่ม <?php echo e(VAT_RATE) ?>%</span><span class="num"><?php echo e(money2($vs[1])) ?></span></div>
+      <?php } ?>
+      <div class="kv tot"><span>ยอดสุทธิ<?php echo $vat ? ' (รวม VAT)' : '' ?></span><span class="num"><?php echo e(money2($bill['total'])) ?></span></div>
     </div>
   </div>
 
-  <div class="pay">ชำระโดย <?= $bill['method'] === 'cash' ? 'เงินสด · รับเงิน ' . e(money2($bill['received'])) . ' · เงินทอน ' . e(money2($bill['change'])) : 'โอน / พร้อมเพย์' ?> บาท</div>
+  <div class="pay">ชำระโดย <?php echo $bill['method'] === 'cash' ? 'เงินสด · รับเงิน ' . e(money2($bill['received'])) . ' · เงินทอน ' . e(money2($bill['change'])) : 'โอน / พร้อมเพย์' ?> บาท</div>
 
   <div class="sign"><div>ผู้รับเงิน</div><div>ผู้ซื้อ / ลูกค้า</div></div>
-  <?php if (trim($h['footer']) !== ''): ?><div class="ft"><?= e($h['footer']) ?></div><?php endif; ?>
-  <?php if ($void): ?><div class="stamp">ยกเลิก<small>บิลนี้ถูกยกเลิกแล้ว</small></div>
-  <?php elseif (!empty($bill['sample'])): ?><div class="stamp smp">ตัวอย่าง</div><?php endif; ?>
+  <?php if (trim($h['footer']) !== '') { ?><div class="ft"><?php echo e($h['footer']) ?></div><?php } ?>
+  <?php if ($void) { ?><div class="stamp">ยกเลิก<small>บิลนี้ถูกยกเลิกแล้ว</small></div>
+  <?php } elseif (!empty($bill['sample'])) { ?><div class="stamp smp">ตัวอย่าง</div><?php } ?>
 </div>
-<?php endif; ?>
+<?php } ?>
 
-<?php if (!empty($_GET['print'])): ?>
+<?php if (!empty($_GET['print'])) { ?>
 <script>window.addEventListener('load', function () { setTimeout(function () { window.print(); }, 300); });</script>
-<?php endif; ?>
+<?php } ?>
 </body>
 </html>

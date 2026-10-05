@@ -7,6 +7,7 @@
  * TODO:
  *   - [x] เพิ่มสินค้าใหม่ · แก้ไข (SKU เปลี่ยนไม่ได้) · รูปสินค้า (UpFile → uploads/stock/products/) · เปิด / เลิกขาย
  *   - [ ] ยอดยกมาของสินค้าใหม่ = ทำใบรับเข้า (หน้า "นำเข้าสินค้า" ของพนักงาน)
+ *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -88,82 +89,82 @@ require dirname(__FILE__) . '/inc/header.php';
 
 <p class="hist-back"><a class="btn btn-ghost btn-sm" href="adm-products.php">‹ กลับไปสินค้าในสต๊อก</a></p>
 
-<?php if ($err !== ''): ?>
-  <div class="alert alert-error" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span><?= e($err) ?></span></div>
-<?php elseif ($ok !== ''): ?>
-  <div class="alert alert-ok" role="status"><svg class="ico"><use href="#i-check"/></svg><span><?= e($okMsg[$ok]) ?></span></div>
-<?php endif; ?>
+<?php if ($err !== '') { ?>
+  <div class="alert alert-error" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span><?php echo e($err) ?></span></div>
+<?php } elseif ($ok !== '') { ?>
+  <div class="alert alert-ok" role="status"><svg class="ico"><use href="#i-check"/></svg><span><?php echo e($okMsg[$ok]) ?></span></div>
+<?php } ?>
 
-<?php if (!$cats): ?>
+<?php if (!$cats) { ?>
   <div class="alert alert-error" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span>ยังไม่มีหมวดสินค้า — เพิ่มหมวดก่อนที่หน้า <a href="adm-categories.php">หมวดสินค้า</a> (หรือให้พนักงานที่มีสิทธิ์เพิ่ม)</span></div>
-<?php endif; ?>
+<?php } ?>
 
 <section class="card">
   <div class="card-head">
     <div>
-      <h2><?= $isNew ? 'ข้อมูลสินค้าใหม่' : 'ข้อมูลสินค้า' ?></h2>
-      <span class="sub"><?= $isNew ? 'SKU ตั้งครั้งเดียว เปลี่ยนภายหลังไม่ได้' : ($p['active'] ? 'ขายอยู่' : 'เลิกขายแล้ว') . ' · ยอดคงเหลือแก้ที่นี่ไม่ได้ (ใช้ใบรับเข้า / เบิก / ตรวจนับ)' ?></span>
+      <h2><?php echo $isNew ? 'ข้อมูลสินค้าใหม่' : 'ข้อมูลสินค้า' ?></h2>
+      <span class="sub"><?php echo $isNew ? 'SKU ตั้งครั้งเดียว เปลี่ยนภายหลังไม่ได้' : ($p['active'] ? 'ขายอยู่' : 'เลิกขายแล้ว') . ' · ยอดคงเหลือแก้ที่นี่ไม่ได้ (ใช้ใบรับเข้า / เบิก / ตรวจนับ)' ?></span>
     </div>
   </div>
-  <form class="adm-sec" method="post" action="adm-product-edit.php<?= $isNew ? '' : '?sku=' . e(rawurlencode($sku)) ?>" enctype="multipart/form-data">
-    <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+  <form class="adm-sec" method="post" action="adm-product-edit.php<?php echo $isNew ? '' : '?sku=' . e(rawurlencode($sku)) ?>" enctype="multipart/form-data">
+    <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
     <input type="hidden" name="act" value="save">
     <div class="adm-fields">
       <div class="field">
         <label for="p-sku">SKU</label>
-        <?php if ($isNew): ?>
-          <input class="input" type="text" id="p-sku" name="sku" value="<?= e($v('sku', '')) ?>" maxlength="40" required autocomplete="off" autocapitalize="characters" placeholder="เช่น CS-010">
+        <?php if ($isNew) { ?>
+          <input class="input" type="text" id="p-sku" name="sku" value="<?php echo e($v('sku', '')) ?>" maxlength="40" required autocomplete="off" autocapitalize="characters" placeholder="เช่น CS-010">
           <small class="adm-hint">A–Z 0–9 . _ - · 1 สี / รุ่น = 1 SKU</small>
-        <?php else: ?>
-          <input class="input" type="text" id="p-sku" value="<?= e($sku) ?>" disabled>
-        <?php endif; ?>
+        <?php } else { ?>
+          <input class="input" type="text" id="p-sku" value="<?php echo e($sku) ?>" disabled>
+        <?php } ?>
       </div>
       <div class="field">
         <label for="p-name">ชื่อสินค้า</label>
-        <input class="input" type="text" id="p-name" name="name" value="<?= e($v('name', $p ? $p['name'] : '')) ?>" maxlength="200" required autocomplete="off">
+        <input class="input" type="text" id="p-name" name="name" value="<?php echo e($v('name', $p ? $p['name'] : '')) ?>" maxlength="200" required autocomplete="off">
       </div>
       <div class="field">
         <label for="p-cat">หมวด</label>
         <select class="input" id="p-cat" name="cat" required>
           <option value="">— เลือกหมวด —</option>
-          <?php $cv = $v('cat', $p ? $p['cat'] : ''); foreach ($cats as $c => $x): ?>
-            <option value="<?= e($c) ?>" <?= $cv === $c ? 'selected' : '' ?>><?= e($c) ?></option>
-          <?php endforeach; ?>
+          <?php $cv = $v('cat', $p ? $p['cat'] : ''); foreach ($cats as $c => $x) { ?>
+            <option value="<?php echo e($c) ?>" <?php echo $cv === $c ? 'selected' : '' ?>><?php echo e($c) ?></option>
+          <?php } ?>
         </select>
       </div>
       <div class="field">
         <label for="p-unit">หน่วย</label>
-        <input class="input" type="text" id="p-unit" name="unit" value="<?= e($v('unit', $p ? $p['unit'] : 'ชิ้น')) ?>" maxlength="20" list="p-units" autocomplete="off">
-        <datalist id="p-units"><?php foreach ($units as $u): ?><option value="<?= e($u) ?>"><?php endforeach; ?></datalist>
+        <input class="input" type="text" id="p-unit" name="unit" value="<?php echo e($v('unit', $p ? $p['unit'] : 'ชิ้น')) ?>" maxlength="20" list="p-units" autocomplete="off">
+        <datalist id="p-units"><?php foreach ($units as $u) { ?><option value="<?php echo e($u) ?>"><?php } ?></datalist>
       </div>
       <div class="field">
         <label for="p-cost">ทุนต่อหน่วย (บาท)</label>
-        <input class="input" type="text" id="p-cost" name="cost" value="<?= e($v('cost', $p ? $num($p['cost']) : '')) ?>" inputmode="decimal" autocomplete="off" placeholder="0.00">
+        <input class="input" type="text" id="p-cost" name="cost" value="<?php echo e($v('cost', $p ? $num($p['cost']) : '')) ?>" inputmode="decimal" autocomplete="off" placeholder="0.00">
       </div>
       <div class="field">
         <label for="p-price">ราคาขาย (บาท · รวม VAT)</label>
-        <input class="input" type="text" id="p-price" name="price" value="<?= e($v('price', $p ? $num($p['price']) : '')) ?>" inputmode="decimal" autocomplete="off" placeholder="0.00">
+        <input class="input" type="text" id="p-price" name="price" value="<?php echo e($v('price', $p ? $num($p['price']) : '')) ?>" inputmode="decimal" autocomplete="off" placeholder="0.00">
       </div>
       <div class="field">
         <label for="p-reorder">จุดสั่งซื้อ</label>
-        <input class="input" type="text" id="p-reorder" name="reorder" value="<?= e($v('reorder', $p ? $p['reorder'] : '')) ?>" inputmode="numeric" autocomplete="off" placeholder="0">
+        <input class="input" type="text" id="p-reorder" name="reorder" value="<?php echo e($v('reorder', $p ? $p['reorder'] : '')) ?>" inputmode="numeric" autocomplete="off" placeholder="0">
         <small class="adm-hint">เหลือเท่านี้หรือน้อยกว่า = ใกล้หมด (ใช้ทุกสาขา)</small>
       </div>
       <div class="field">
         <label for="p-barcode">บาร์โค้ด <small class="adm-none">(ไม่บังคับ)</small></label>
-        <input class="input" type="text" id="p-barcode" name="barcode" value="<?= e($v('barcode', $p ? $p['barcode'] : '')) ?>" maxlength="40" autocomplete="off">
+        <input class="input" type="text" id="p-barcode" name="barcode" value="<?php echo e($v('barcode', $p ? $p['barcode'] : '')) ?>" maxlength="40" autocomplete="off">
       </div>
       <div class="field">
         <label for="p-image">รูปสินค้า <small class="adm-none">(ไม่บังคับ · JPG / PNG / WEBP ไม่เกิน 2 MB)</small></label>
         <input class="input" type="file" id="p-image" name="image" accept="image/jpeg,image/png,image/webp">
-        <?php if ($img !== ''): ?><small class="adm-hint">มีรูปอยู่แล้ว — เลือกไฟล์ใหม่เพื่อแทนที่</small><?php endif; ?>
+        <?php if ($img !== '') { ?><small class="adm-hint">มีรูปอยู่แล้ว — เลือกไฟล์ใหม่เพื่อแทนที่</small><?php } ?>
       </div>
     </div>
-    <button class="btn btn-primary" type="submit"<?= $cats ? '' : ' disabled' ?>><svg class="ico"><use href="#i-<?= $isNew ? 'plus' : 'check' ?>"/></svg> <?= $isNew ? 'เพิ่มสินค้า' : 'บันทึก' ?></button>
+    <button class="btn btn-primary" type="submit"<?php echo $cats ? '' : ' disabled' ?>><svg class="ico"><use href="#i-<?php echo $isNew ? 'plus' : 'check' ?>"/></svg> <?php echo $isNew ? 'เพิ่มสินค้า' : 'บันทึก' ?></button>
   </form>
 </section>
 
-<?php if (!$isNew): ?>
+<?php if (!$isNew) { ?>
 <section class="card">
   <div class="card-head"><div><h2>รูปและสถานะ</h2><span class="sub">ยอดคงเหลือ: <?php
       $parts = array();
@@ -173,26 +174,26 @@ require dirname(__FILE__) . '/inc/header.php';
       echo e($parts ? implode(' · ', $parts) : '—');
   ?></span></div></div>
   <div class="adm-sec">
-    <?php if ($img !== ''): ?>
-      <p><img class="prod-edit-img" src="<?= e($img) ?>" alt="<?= e($p['name']) ?>" loading="lazy"></p>
-      <?php if ($p['image'] !== ''): ?>
-        <form method="post" action="adm-product-edit.php?sku=<?= e(rawurlencode($sku)) ?>">
-          <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+    <?php if ($img !== '') { ?>
+      <p><img class="prod-edit-img" src="<?php echo e($img) ?>" alt="<?php echo e($p['name']) ?>" loading="lazy"></p>
+      <?php if ($p['image'] !== '') { ?>
+        <form method="post" action="adm-product-edit.php?sku=<?php echo e(rawurlencode($sku)) ?>">
+          <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
           <input type="hidden" name="act" value="noimg">
           <button class="btn btn-ghost btn-sm" type="submit">ลบรูป</button>
         </form>
-      <?php endif; ?>
-    <?php else: ?>
+      <?php } ?>
+    <?php } else { ?>
       <p class="adm-hint">ยังไม่มีรูป — หน้าขายจะแสดงไอคอนตามหมวดแทน</p>
-    <?php endif; ?>
-    <form method="post" action="adm-product-edit.php?sku=<?= e(rawurlencode($sku)) ?>">
-      <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
-      <input type="hidden" name="act" value="<?= $p['active'] ? 'off' : 'on' ?>">
-      <button class="btn <?= $p['active'] ? 'btn-ghost' : 'btn-primary' ?> btn-sm" type="submit"><?= $p['active'] ? 'เลิกขายสินค้านี้' : 'เปิดขายอีกครั้ง' ?></button>
-      <small class="adm-hint"><?= $p['active'] ? 'ซ่อนจากหน้าขาย / นำเข้า / ตรวจนับ · ประวัติและรายงานยังอยู่ครบ' : 'กลับมาขาย / นำเข้า / ตรวจนับได้ตามปกติ' ?></small>
+    <?php } ?>
+    <form method="post" action="adm-product-edit.php?sku=<?php echo e(rawurlencode($sku)) ?>">
+      <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
+      <input type="hidden" name="act" value="<?php echo $p['active'] ? 'off' : 'on' ?>">
+      <button class="btn <?php echo $p['active'] ? 'btn-ghost' : 'btn-primary' ?> btn-sm" type="submit"><?php echo $p['active'] ? 'เลิกขายสินค้านี้' : 'เปิดขายอีกครั้ง' ?></button>
+      <small class="adm-hint"><?php echo $p['active'] ? 'ซ่อนจากหน้าขาย / นำเข้า / ตรวจนับ · ประวัติและรายงานยังอยู่ครบ' : 'กลับมาขาย / นำเข้า / ตรวจนับได้ตามปกติ' ?></small>
     </form>
   </div>
 </section>
-<?php endif; ?>
+<?php } ?>
 
 <?php require dirname(__FILE__) . '/inc/footer.php'; ?>

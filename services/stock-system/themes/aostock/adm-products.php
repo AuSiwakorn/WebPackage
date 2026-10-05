@@ -8,6 +8,7 @@
  *   - [x] ย้ายจาก demo/ เข้า themes/aostock/ (วิ่งผ่าน router ของ admweb)
  *   - [x] อ่าน / เขียนข้อมูลจากตาราง ao_stock_* ผ่าน api.php (ช่วงที่ 5–9)
  *   - [x] ช่วงที่ 10: แก้ File Header ให้ตรงกับระบบจริง
+ *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -172,34 +173,34 @@ require dirname(__FILE__) . '/inc/header.php';
 <section class="card acct-filter hist-filter">
   <form method="get" action="adm-products.php" class="acct-row">
     <label class="sr-only" for="pq">ค้นหา</label>
-    <input class="input adm-q" type="search" id="pq" name="q" value="<?= e($fQ) ?>" placeholder="ค้นชื่อสินค้า / SKU">
+    <input class="input adm-q" type="search" id="pq" name="q" value="<?php echo e($fQ) ?>" placeholder="ค้นชื่อสินค้า / SKU">
     <label class="sr-only" for="pc">หมวด</label>
     <select class="input acct-branch" id="pc" name="cat" onchange="this.form.submit()">
       <option value="">ทุกหมวด</option>
-      <?php foreach ($cats as $c): ?>
-        <option value="<?= e($c) ?>" <?= $fCat === $c ? 'selected' : '' ?>><?= e($c) ?></option>
-      <?php endforeach; ?>
+      <?php foreach ($cats as $c) { ?>
+        <option value="<?php echo e($c) ?>" <?php echo $fCat === $c ? 'selected' : '' ?>><?php echo e($c) ?></option>
+      <?php } ?>
     </select>
     <label class="sr-only" for="pb">ดูสถานะของสาขา</label>
     <select class="input acct-branch" id="pb" name="b" onchange="this.form.submit()">
       <option value="">สถานะ: ทุกสาขารวมกัน</option>
-      <?php foreach ($br as $c => $x): ?>
-        <option value="<?= e($c) ?>" <?= $fB === $c ? 'selected' : '' ?>>สถานะของ<?= e($x['name']) ?></option>
-      <?php endforeach; ?>
+      <?php foreach ($br as $c => $x) { ?>
+        <option value="<?php echo e($c) ?>" <?php echo $fB === $c ? 'selected' : '' ?>>สถานะของ<?php echo e($x['name']) ?></option>
+      <?php } ?>
     </select>
-    <?php if ($fSt !== ''): ?><input type="hidden" name="st" value="<?= e($fSt) ?>"><?php endif; ?>
-    <?php if ($fSort !== 'urgent'): ?><input type="hidden" name="sort" value="<?= e($fSort) ?>"><input type="hidden" name="dir" value="<?= e($fDir) ?>"><?php endif; ?>
+    <?php if ($fSt !== '') { ?><input type="hidden" name="st" value="<?php echo e($fSt) ?>"><?php } ?>
+    <?php if ($fSort !== 'urgent') { ?><input type="hidden" name="sort" value="<?php echo e($fSort) ?>"><input type="hidden" name="dir" value="<?php echo e($fDir) ?>"><?php } ?>
     <button class="btn btn-ghost btn-sm" type="submit"><svg class="ico"><use href="#i-search"/></svg> ค้นหา</button>
   </form>
 </section>
 
 <!-- ==================== สรุป ==================== -->
 <section class="mini num adm-kpi" aria-label="สรุปสต๊อก">
-  <div class="m"><div class="lb">สินค้า</div><div class="nm"><?= number_format($sum['skus']) ?></div>
-    <div class="sb">คงเหลือ <?= number_format($sum['qty']) ?> ชิ้น · ขายไป <?= number_format($sum['sold']) ?> ชิ้นใน <?= $flowDays ?> วัน</div></div>
-  <div class="m"><div class="lb">มูลค่าสต๊อก (ทุน)</div><div class="nm"><?= e(money2($sum['value'])) ?></div>
-    <div class="sb">ตามราคาขาย <?= e(money2($sum['sale'])) ?> บาท</div></div>
-  <div class="m"><div class="lb">ต้องเติมของ</div><div class="nm"><?= number_format($sum['out']) ?> / <?= number_format($sum['low']) ?></div>
+  <div class="m"><div class="lb">สินค้า</div><div class="nm"><?php echo number_format($sum['skus']) ?></div>
+    <div class="sb">คงเหลือ <?php echo number_format($sum['qty']) ?> ชิ้น · ขายไป <?php echo number_format($sum['sold']) ?> ชิ้นใน <?php echo $flowDays ?> วัน</div></div>
+  <div class="m"><div class="lb">มูลค่าสต๊อก (ทุน)</div><div class="nm"><?php echo e(money2($sum['value'])) ?></div>
+    <div class="sb">ตามราคาขาย <?php echo e(money2($sum['sale'])) ?> บาท</div></div>
+  <div class="m"><div class="lb">ต้องเติมของ</div><div class="nm"><?php echo number_format($sum['out']) ?> / <?php echo number_format($sum['low']) ?></div>
     <div class="sb">หมดอย่างน้อย 1 สาขา / ใกล้หมด</div></div>
 </section>
 
@@ -210,15 +211,15 @@ require dirname(__FILE__) . '/inc/header.php';
     <table class="tbl num">
       <thead><tr><th>สาขา</th><th class="r">จำนวน</th><th class="r">มูลค่า (ทุน)</th><th class="r">ใกล้หมด</th><th class="r">หมด</th></tr></thead>
       <tbody>
-        <?php foreach ($perB as $c => $x): ?>
+        <?php foreach ($perB as $c => $x) { ?>
           <tr>
-            <td data-label="สาขา"><a href="<?= e($pq(array('b' => $c))) ?>"><?= e($br[$c]['name']) ?></a></td>
-            <td data-label="จำนวน" class="r"><?= number_format($x['qty']) ?></td>
-            <td data-label="มูลค่า (ทุน)" class="r"><?= e(money2($x['value'])) ?></td>
-            <td data-label="ใกล้หมด" class="r"><?= $x['low'] ? '<span class="bdg bdg-adj">' . number_format($x['low']) . '</span>' : '—' ?></td>
-            <td data-label="หมด" class="r"><?= $x['out'] ? '<span class="bdg bdg-out">' . number_format($x['out']) . '</span>' : '—' ?></td>
+            <td data-label="สาขา"><a href="<?php echo e($pq(array('b' => $c))) ?>"><?php echo e($br[$c]['name']) ?></a></td>
+            <td data-label="จำนวน" class="r"><?php echo number_format($x['qty']) ?></td>
+            <td data-label="มูลค่า (ทุน)" class="r"><?php echo e(money2($x['value'])) ?></td>
+            <td data-label="ใกล้หมด" class="r"><?php echo $x['low'] ? '<span class="bdg bdg-adj">' . number_format($x['low']) . '</span>' : '—' ?></td>
+            <td data-label="หมด" class="r"><?php echo $x['out'] ? '<span class="bdg bdg-out">' . number_format($x['out']) . '</span>' : '—' ?></td>
           </tr>
-        <?php endforeach; ?>
+        <?php } ?>
       </tbody>
     </table>
   </div>
@@ -229,51 +230,51 @@ require dirname(__FILE__) . '/inc/header.php';
   <div class="card-head">
     <div>
       <h2>ยอดคงเหลือรายสินค้า</h2>
-      <span class="sub"><?= $fB !== '' ? 'สถานะและการเรียงจำนวนใช้ของ' . e($br[$fB]['name']) : 'สถานะ = สาขาที่แย่ที่สุด' ?> · ช่องสีแดง = หมด · สีเหลือง = ต่ำกว่าจุดสั่งซื้อ · รับเข้าล่าสุดนับย้อนหลัง <?= $flowDays ?> วัน</span>
+      <span class="sub"><?php echo $fB !== '' ? 'สถานะและการเรียงจำนวนใช้ของ' . e($br[$fB]['name']) : 'สถานะ = สาขาที่แย่ที่สุด' ?> · ช่องสีแดง = หมด · สีเหลือง = ต่ำกว่าจุดสั่งซื้อ · รับเข้าล่าสุดนับย้อนหลัง <?php echo $flowDays ?> วัน</span>
     </div>
     <div class="segs head-tabs">
-      <a class="seg<?= $fSt === '' ? ' on' : '' ?>" href="<?= e($pq(array('st' => ''))) ?>">ทั้งหมด</a>
-      <a class="seg<?= $fSt === 'low' ? ' on' : '' ?>" href="<?= e($pq(array('st' => 'low'))) ?>">ต้องเติม (ใกล้หมด + หมด)</a>
-      <a class="seg<?= $fSt === 'out' ? ' on' : '' ?>" href="<?= e($pq(array('st' => 'out'))) ?>">หมดแล้ว</a>
-      <a class="seg<?= $fSt === 'off' ? ' on' : '' ?>" href="<?= e($pq(array('st' => 'off'))) ?>">เลิกขาย</a>
+      <a class="seg<?php echo $fSt === '' ? ' on' : '' ?>" href="<?php echo e($pq(array('st' => ''))) ?>">ทั้งหมด</a>
+      <a class="seg<?php echo $fSt === 'low' ? ' on' : '' ?>" href="<?php echo e($pq(array('st' => 'low'))) ?>">ต้องเติม (ใกล้หมด + หมด)</a>
+      <a class="seg<?php echo $fSt === 'out' ? ' on' : '' ?>" href="<?php echo e($pq(array('st' => 'out'))) ?>">หมดแล้ว</a>
+      <a class="seg<?php echo $fSt === 'off' ? ' on' : '' ?>" href="<?php echo e($pq(array('st' => 'off'))) ?>">เลิกขาย</a>
     </div>
     <a class="btn btn-primary btn-sm" href="adm-product-edit.php"><svg class="ico"><use href="#i-plus"/></svg> เพิ่มสินค้า</a>
   </div>
-  <?php if (!$rows): ?>
+  <?php if (!$rows) { ?>
     <p class="empty"><svg class="ico"><use href="#i-boxes"/></svg>ไม่พบสินค้าตามตัวกรอง</p>
-  <?php else: ?>
+  <?php } else { ?>
     <div class="tbl-wrap">
       <table class="tbl hist-all adm-stock">
         <thead>
           <tr>
-            <?= $th('name', 'สินค้า') ?>
-            <?php foreach ($br as $c => $x): ?><th class="r<?= $fB === $c ? ' is-focus' : '' ?>"><?= e($x['short']) ?></th><?php endforeach; ?>
-            <?= $th('qty', $fB !== '' ? 'จำนวน (' . $br[$fB]['short'] . ')' : 'รวม', 'r') ?>
+            <?php echo $th('name', 'สินค้า') ?>
+            <?php foreach ($br as $c => $x) { ?><th class="r<?php echo $fB === $c ? ' is-focus' : '' ?>"><?php echo e($x['short']) ?></th><?php } ?>
+            <?php echo $th('qty', $fB !== '' ? 'จำนวน (' . $br[$fB]['short'] . ')' : 'รวม', 'r') ?>
             <th>รับเข้าล่าสุด</th>
-            <?= $th('value', 'มูลค่า (ทุน)', 'r') ?>
-            <?= $th('urgent', 'สถานะ') ?>
+            <?php echo $th('value', 'มูลค่า (ทุน)', 'r') ?>
+            <?php echo $th('urgent', 'สถานะ') ?>
           </tr>
         </thead>
         <tbody>
-          <?php foreach ($rows as $r): $p = $r['p']; ?>
-            <tr<?= $p['active'] ? '' : ' class="prod-off"' ?>>
+          <?php foreach ($rows as $r) { $p = $r['p']; ?>
+            <tr<?php echo $p['active'] ? '' : ' class="prod-off"' ?>>
               <td data-label="สินค้า">
-                <b class="hist-t"><a href="adm-product-edit.php?sku=<?= e(rawurlencode($p['sku'])) ?>" title="แก้ไขสินค้า"><?= e($p['name']) ?></a></b>
-                <small class="hist-n"><?= e($p['sku']) ?> · <?= e($p['cat']) ?><?= $p['active'] ? '' : ' · เลิกขาย' ?></small>
+                <b class="hist-t"><a href="adm-product-edit.php?sku=<?php echo e(rawurlencode($p['sku'])) ?>" title="แก้ไขสินค้า"><?php echo e($p['name']) ?></a></b>
+                <small class="hist-n"><?php echo e($p['sku']) ?> · <?php echo e($p['cat']) ?><?php echo $p['active'] ? '' : ' · เลิกขาย' ?></small>
               </td>
-              <?php foreach ($r['cells'] as $c => $x): ?>
-                <td data-label="<?= e($br[$c]['short']) ?>" class="r num nowrap"><span class="stk stk-<?= e($x['st']) ?>"><?= number_format($x['qty']) ?></span></td>
-              <?php endforeach; ?>
-              <td data-label="รวม" class="r num nowrap"><b><?= number_format($r['sortqty']) ?></b> <small><?= e($p['unit']) ?></small></td>
-              <td data-label="รับเข้าล่าสุด" class="nowrap"><?= $r['last'] !== '' ? e(thai_day_month(strtotime($r['last']))) . ' <small>(' . (int) round((strtotime(date('Y-m-d')) - strtotime($r['last'])) / 86400) . ' วันก่อน)</small>' : '<small>เกิน ' . $flowDays . ' วัน</small>' ?></td>
-              <td data-label="มูลค่า (ทุน)" class="r num nowrap"><?= e(money2($r['value'])) ?></td>
-              <td data-label="สถานะ"><span class="bdg <?= $r['focus'] === 'out' ? 'bdg-out' : ($r['focus'] === 'low' ? 'bdg-adj' : 'bdg-ok') ?>"><?= e(stock_label($r['focus'])) ?></span></td>
+              <?php foreach ($r['cells'] as $c => $x) { ?>
+                <td data-label="<?php echo e($br[$c]['short']) ?>" class="r num nowrap"><span class="stk stk-<?php echo e($x['st']) ?>"><?php echo number_format($x['qty']) ?></span></td>
+              <?php } ?>
+              <td data-label="รวม" class="r num nowrap"><b><?php echo number_format($r['sortqty']) ?></b> <small><?php echo e($p['unit']) ?></small></td>
+              <td data-label="รับเข้าล่าสุด" class="nowrap"><?php echo $r['last'] !== '' ? e(thai_day_month(strtotime($r['last']))) . ' <small>(' . (int) round((strtotime(date('Y-m-d')) - strtotime($r['last'])) / 86400) . ' วันก่อน)</small>' : '<small>เกิน ' . $flowDays . ' วัน</small>' ?></td>
+              <td data-label="มูลค่า (ทุน)" class="r num nowrap"><?php echo e(money2($r['value'])) ?></td>
+              <td data-label="สถานะ"><span class="bdg <?php echo $r['focus'] === 'out' ? 'bdg-out' : ($r['focus'] === 'low' ? 'bdg-adj' : 'bdg-ok') ?>"><?php echo e(stock_label($r['focus'])) ?></span></td>
             </tr>
-          <?php endforeach; ?>
+          <?php } ?>
         </tbody>
       </table>
     </div>
-  <?php endif; ?>
+  <?php } ?>
 </section>
 
 <?php require dirname(__FILE__) . '/inc/footer.php'; ?>

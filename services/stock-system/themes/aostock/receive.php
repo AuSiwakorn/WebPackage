@@ -8,6 +8,7 @@
  *   - [x] ย้ายจาก demo/ เข้า themes/aostock/ (วิ่งผ่าน router ของ admweb)
  *   - [x] ใบที่บันทึกแล้วเก็บในตาราง ao_stock_* (ช่วงที่ 6) · บันทึกไม่ผ่านแสดงข้อความแทนหน้า error
  *   - [x] ช่วงที่ 11: แก้ / ยกเลิกใบของตัวเองต้องมีสิทธิ์ doc_fix · ปุ่มแก้ / ยกเลิกและลิงก์ยอดคงเหลือแสดงตามสิทธิ์
+ *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -157,36 +158,36 @@ $NAV_ACTIVE = 'receive.php';
 require dirname(__FILE__) . '/inc/header.php';
 ?>
 
-<?php if ($err !== ''): ?>
+<?php if ($err !== '') { ?>
   <div class="alert alert-error" role="alert">
-    <svg class="ico"><use href="#i-alert"/></svg><span><?= e($err) ?></span>
+    <svg class="ico"><use href="#i-alert"/></svg><span><?php echo e($err) ?></span>
   </div>
-<?php endif; ?>
+<?php } ?>
 
-<?php if ($voided !== null): ?>
+<?php if ($voided !== null) { ?>
   <?php $isEdit = (isset($voided['void_mode']) && $voided['void_mode'] === 'edit'); ?>
-  <div class="alert <?= $isEdit ? 'alert-info' : 'alert-warn' ?>" role="status">
-    <svg class="ico"><use href="#<?= $isEdit ? 'i-arrow' : 'i-ban' ?>"/></svg>
+  <div class="alert <?php echo $isEdit ? 'alert-info' : 'alert-warn' ?>" role="status">
+    <svg class="ico"><use href="#<?php echo $isEdit ? 'i-arrow' : 'i-ban' ?>"/></svg>
     <span>
-      <?php if ($isEdit): ?>
-        ยกเลิกใบ <b><?= e($voided['no']) ?></b> และดึง <?= (int) $voided['items'] ?> รายการกลับเข้าใบให้แล้ว —
+      <?php if ($isEdit) { ?>
+        ยกเลิกใบ <b><?php echo e($voided['no']) ?></b> และดึง <?php echo (int) $voided['items'] ?> รายการกลับเข้าใบให้แล้ว —
         แก้จำนวนที่ผิดแล้วบันทึกใหม่ได้เลย ระบบจะออกเลขใบใหม่ให้
-      <?php else: ?>
-        ยกเลิกใบรับเข้า <b><?= e($voided['no']) ?></b> แล้ว ·
-        ถอนออกจากสต๊อก <b class="num"><?= number_format($voided['qty']) ?></b> ชิ้น ·
-        เหตุผล: <?= e($voided['void_reason']) ?>
-      <?php endif; ?>
+      <?php } else { ?>
+        ยกเลิกใบรับเข้า <b><?php echo e($voided['no']) ?></b> แล้ว ·
+        ถอนออกจากสต๊อก <b class="num"><?php echo number_format($voided['qty']) ?></b> ชิ้น ·
+        เหตุผล: <?php echo e($voided['void_reason']) ?>
+      <?php } ?>
     </span>
   </div>
-<?php endif; ?>
+<?php } ?>
 
-<?php if ($done !== null && empty($done['void'])): ?>
+<?php if ($done !== null && empty($done['void'])) { ?>
   <div class="alert alert-ok" role="status">
     <svg class="ico"><use href="#i-check"/></svg>
     <span>
-      รับเข้าเรียบร้อย เอกสาร <b><?= e($done['no']) ?></b> ·
-      <?= (int) $done['items'] ?> รายการ · <b class="num"><?= number_format($done['qty']) ?></b> ชิ้น ·
-      อ้างอิง <?= e($done['ref']) ?>
+      รับเข้าเรียบร้อย เอกสาร <b><?php echo e($done['no']) ?></b> ·
+      <?php echo (int) $done['items'] ?> รายการ · <b class="num"><?php echo number_format($done['qty']) ?></b> ชิ้น ·
+      อ้างอิง <?php echo e($done['ref']) ?>
     </span>
     <?php
     /* รับเข้าเกิน/ผิด แก้ได้ทันทีจากตรงนี้ ทั้งสองทางต้องกรอกหมายเหตุก่อน */
@@ -197,29 +198,29 @@ require dirname(__FILE__) . '/inc/header.php';
       <?php foreach ((can_void_doc($user, $done) ? array(
           array('edit', 'แก้ไขใบนี้',  'i-arrow', 'หมายเหตุการแก้ไขใบรับเข้า'),
           array('void', 'ยกเลิกใบนี้', 'i-ban',   'หมายเหตุการยกเลิกใบรับเข้า'),
-      ) : array()) as $b): ?>
-        <form method="post" action="receive.php" data-confirm="<?= e($b[0]) ?>"<?= $dat ?>>
-          <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
-          <input type="hidden" name="act" value="<?= e($b[0]) ?>">
-          <input type="hidden" name="no" value="<?= e($done['no']) ?>">
+      ) : array()) as $b) { ?>
+        <form method="post" action="receive.php" data-confirm="<?php echo e($b[0]) ?>"<?php echo $dat ?>>
+          <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
+          <input type="hidden" name="act" value="<?php echo e($b[0]) ?>">
+          <input type="hidden" name="no" value="<?php echo e($done['no']) ?>">
           <input class="reason-fb" type="text" name="reason" value=""
-                 placeholder="หมายเหตุ (จำเป็น)" aria-label="<?= e($b[3]) ?>">
+                 placeholder="หมายเหตุ (จำเป็น)" aria-label="<?php echo e($b[3]) ?>">
           <button class="btn btn-ghost btn-sm" type="submit">
-            <svg class="ico"><use href="#<?= e($b[2]) ?>"/></svg> <?= e($b[1]) ?>
+            <svg class="ico"><use href="#<?php echo e($b[2]) ?>"/></svg> <?php echo e($b[1]) ?>
           </button>
         </form>
-      <?php endforeach; ?>
-      <?php if (page_ok($user, 'products.php')): ?>
+      <?php } ?>
+      <?php if (page_ok($user, 'products.php')) { ?>
       <a class="btn btn-ghost btn-sm" href="products.php">
         <svg class="ico"><use href="#i-boxes"/></svg> ดูยอดคงเหลือ
       </a>
-      <?php endif; ?>
+      <?php } ?>
     </div>
   </div>
-<?php endif; ?>
+<?php } ?>
 
 <form method="post" action="receive.php" id="recv-form" data-confirm="receive">
-  <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
+  <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
   <input type="hidden" name="act" value="save">
 
   <!-- ===== หัวเอกสาร ===== -->
@@ -234,17 +235,17 @@ require dirname(__FILE__) . '/inc/header.php';
       <div class="field">
         <label for="ref">เลขที่เอกสารอ้างอิง <i class="req">จำเป็น</i></label>
         <input class="input" type="text" id="ref" name="ref" autocomplete="off"
-               value="<?= e($oldRef) ?>" placeholder="เช่น INV-2609-0142 หรือเลขใบส่งของ">
+               value="<?php echo e($oldRef) ?>" placeholder="เช่น INV-2609-0142 หรือเลขใบส่งของ">
       </div>
 
       <?php /* ผู้รับเข้าและสาขา ดึงจากบัญชีที่ล็อกอินอยู่ ไม่ต้องกรอกซ้ำ */ ?>
       <div class="field">
         <label>ผู้รับเข้า</label>
         <div class="who-box">
-          <span class="av"><?= e($user['initials']) ?></span>
+          <span class="av"><?php echo e($user['initials']) ?></span>
           <div>
-            <b><?= e($user['name']) ?></b>
-            <small><?= e(role_name($user['role'])) ?> · <?= e(branch_name($code)) ?></small>
+            <b><?php echo e($user['name']) ?></b>
+            <small><?php echo e(role_name($user['role'])) ?> · <?php echo e(branch_name($code)) ?></small>
           </div>
         </div>
       </div>
@@ -252,7 +253,7 @@ require dirname(__FILE__) . '/inc/header.php';
       <div class="field field-wide">
         <label for="note">หมายเหตุ</label>
         <input class="input" type="text" id="note" name="note" autocomplete="off"
-               value="<?= e($oldNote) ?>" placeholder="เช่น ของมาไม่ครบ 3 ชิ้น รอส่งตามภายหลัง">
+               value="<?php echo e($oldNote) ?>" placeholder="เช่น ของมาไม่ครบ 3 ชิ้น รอส่งตามภายหลัง">
       </div>
     </div>
   </section>

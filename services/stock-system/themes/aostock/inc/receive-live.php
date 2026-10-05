@@ -7,6 +7,7 @@
  * TODO:
  *   - [x] ย้ายจาก demo/ เข้า themes/aostock/ (วิ่งผ่าน router ของ admweb)
  *   - [x] ใบที่บันทึกแล้วอยู่ในตาราง (ช่วงที่ 6) — ไฟล์นี้แสดงเฉพาะร่าง
+ *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -36,7 +37,7 @@ $csrf  = csrf_token();
     <div class="card-head">
       <div>
         <h2>เลือกสินค้าที่รับเข้า</h2>
-        <span class="sub">ค้นหาแล้วแตะเพื่อเพิ่มเข้าใบ · <?= count($list) ?> รายการที่ตรงเงื่อนไข</span>
+        <span class="sub">ค้นหาแล้วแตะเพื่อเพิ่มเข้าใบ · <?php echo count($list) ?> รายการที่ตรงเงื่อนไข</span>
       </div>
     </div>
 
@@ -45,9 +46,9 @@ $csrf  = csrf_token();
         <div class="find-in">
           <svg class="ico"><use href="#i-search"/></svg>
           <label class="sr-only" for="rq">ค้นหาสินค้า</label>
-          <input type="search" id="rq" name="q" value="<?= e($q) ?>" placeholder="ชื่อสินค้า หรือ SKU"
+          <input type="search" id="rq" name="q" value="<?php echo e($q) ?>" placeholder="ชื่อสินค้า หรือ SKU"
                  hx-get="receive.php" hx-trigger="input changed delay:350ms, search"
-                 hx-vals='<?= e(json_encode(array('cat' => $cat))) ?>'
+                 hx-vals='<?php echo e(json_encode(array('cat' => $cat))) ?>'
                  hx-target="#recv-live" hx-swap="outerHTML"
                  hx-sync="this:replace" hx-push-url="true" hx-preserve="true">
         </div>
@@ -55,34 +56,34 @@ $csrf  = csrf_token();
 
       <div class="cats" hx-target="#recv-live" hx-swap="outerHTML" hx-push-url="true">
         <?php $u = 'receive.php' . ($q !== '' ? '?q=' . rawurlencode($q) : ''); ?>
-        <a class="cat<?= $cat === '' ? ' on' : '' ?>" href="<?= e($u) ?>" hx-get="<?= e($u) ?>">ทั้งหมด</a>
-        <?php foreach (product_cats() as $c): ?>
+        <a class="cat<?php echo $cat === '' ? ' on' : '' ?>" href="<?php echo e($u) ?>" hx-get="<?php echo e($u) ?>">ทั้งหมด</a>
+        <?php foreach (product_cats() as $c) { ?>
           <?php $u = 'receive.php?cat=' . rawurlencode($c) . ($q !== '' ? '&q=' . rawurlencode($q) : ''); ?>
-          <a class="cat<?= $cat === $c ? ' on' : '' ?>" href="<?= e($u) ?>" hx-get="<?= e($u) ?>"><?= e($c) ?></a>
-        <?php endforeach; ?>
+          <a class="cat<?php echo $cat === $c ? ' on' : '' ?>" href="<?php echo e($u) ?>" hx-get="<?php echo e($u) ?>"><?php echo e($c) ?></a>
+        <?php } ?>
       </div>
 
-      <?php if (!$list): ?>
+      <?php if (!$list) { ?>
         <p class="empty">
           <svg class="ico"><use href="#i-search"/></svg>
           ไม่พบสินค้าที่ตรงกับคำค้น<br><small>ลองพิมพ์ชื่อสั้นลง หรือเลือกหมวด “ทั้งหมด”</small>
         </p>
-      <?php else: ?>
+      <?php } else { ?>
         <div class="goods">
-          <?php foreach ($list as $p): ?>
+          <?php foreach ($list as $p) { ?>
             <?php $inDoc = isset($_SESSION['recv_draft'][$p['sku']]) ? (int) $_SESSION['recv_draft'][$p['sku']] : 0; ?>
-            <button class="good<?= $inDoc > 0 ? ' is-in' : '' ?>" type="button"
-                    hx-post="<?= e($base) ?>" hx-target="#recv-live" hx-swap="outerHTML"
-                    hx-vals='<?= e(json_encode(array('csrf' => $csrf, 'act' => 'add', 'sku' => $p['sku']))) ?>'>
-              <?php if ($inDoc > 0): ?><i class="g-bdg"><?= $inDoc ?></i><?php endif; ?>
-              <?= thumb_html($p, 'thumb--lg') ?>
-              <span class="g-cat"><?= e($p['cat']) ?></span>
-              <span class="g-nm"><?= e($p['name']) ?></span>
-              <span class="g-qty">คงเหลือ <?= number_format($p['qty']) ?> <?= e($p['unit']) ?></span>
+            <button class="good<?php echo $inDoc > 0 ? ' is-in' : '' ?>" type="button"
+                    hx-post="<?php echo e($base) ?>" hx-target="#recv-live" hx-swap="outerHTML"
+                    hx-vals='<?php echo e(json_encode(array('csrf' => $csrf, 'act' => 'add', 'sku' => $p['sku']))) ?>'>
+              <?php if ($inDoc > 0) { ?><i class="g-bdg"><?php echo $inDoc ?></i><?php } ?>
+              <?php echo thumb_html($p, 'thumb--lg') ?>
+              <span class="g-cat"><?php echo e($p['cat']) ?></span>
+              <span class="g-nm"><?php echo e($p['name']) ?></span>
+              <span class="g-qty">คงเหลือ <?php echo number_format($p['qty']) ?> <?php echo e($p['unit']) ?></span>
             </button>
-          <?php endforeach; ?>
+          <?php } ?>
         </div>
-      <?php endif; ?>
+      <?php } ?>
     </div>
   </section>
 
@@ -92,68 +93,68 @@ $csrf  = csrf_token();
       <div class="card-head">
         <div>
           <h2>รายการในใบนี้</h2>
-          <span class="sub"><?= count($lines) ?> รายการ · <?= number_format($sum) ?> ชิ้น</span>
+          <span class="sub"><?php echo count($lines) ?> รายการ · <?php echo number_format($sum) ?> ชิ้น</span>
         </div>
-        <?php if ($lines): ?>
+        <?php if ($lines) { ?>
           <button class="icon-btn" type="button" title="ล้างทั้งใบ" aria-label="ล้างทั้งใบ"
-                  hx-post="<?= e($base) ?>" hx-target="#recv-live" hx-swap="outerHTML"
-                  hx-vals='<?= e(json_encode(array('csrf' => $csrf, 'act' => 'clear'))) ?>'>
+                  hx-post="<?php echo e($base) ?>" hx-target="#recv-live" hx-swap="outerHTML"
+                  hx-vals='<?php echo e(json_encode(array('csrf' => $csrf, 'act' => 'clear'))) ?>'>
             <svg class="ico"><use href="#i-trash"/></svg>
           </button>
-        <?php endif; ?>
+        <?php } ?>
       </div>
 
-      <?php if (!$lines): ?>
+      <?php if (!$lines) { ?>
         <p class="empty empty-cart">
           <svg class="ico"><use href="#i-in"/></svg>
           ยังไม่ได้เลือกสินค้า<br><small>แตะสินค้าทางซ้ายเพื่อเพิ่มเข้าใบ</small>
         </p>
-      <?php else: ?>
+      <?php } else { ?>
         <ul class="cart-list recv-list">
-          <?php foreach ($lines as $l): ?>
+          <?php foreach ($lines as $l) { ?>
             <li>
               <div class="cl-t">
-                <b><?= e($l['name']) ?></b>
-                <small>คงเหลือ <?= number_format($l['have']) ?> →
-                       <span class="up"><?= number_format($l['after']) ?></span> <?= e($l['unit']) ?></small>
+                <b><?php echo e($l['name']) ?></b>
+                <small>คงเหลือ <?php echo number_format($l['have']) ?> →
+                       <span class="up"><?php echo number_format($l['after']) ?></span> <?php echo e($l['unit']) ?></small>
               </div>
               <div class="cl-q">
                 <button type="button" aria-label="ลดจำนวน"
-                        hx-post="<?= e($base) ?>" hx-target="#recv-live" hx-swap="outerHTML"
-                        hx-vals='<?= e(json_encode(array('csrf' => $csrf, 'act' => 'minus', 'sku' => $l['sku']))) ?>'>
+                        hx-post="<?php echo e($base) ?>" hx-target="#recv-live" hx-swap="outerHTML"
+                        hx-vals='<?php echo e(json_encode(array('csrf' => $csrf, 'act' => 'minus', 'sku' => $l['sku']))) ?>'>
                   <svg class="ico"><use href="#i-minus"/></svg>
                 </button>
                 <?php /* ชื่อต้องไม่ซ้ำกัน เพราะ htmx ส่งค่าทั้งฟอร์มไปด้วย
                          ถ้าทุกแถวชื่อ qty เหมือนกัน PHP จะอ่านได้แค่แถวสุดท้าย */ ?>
-                <input class="num rq-set" type="text" inputmode="numeric" value="<?= $l['qty'] ?>"
-                       autocomplete="off" aria-label="จำนวนที่รับเข้าของ <?= e($l['name']) ?>"
-                       name="rq_<?= e($l['sku']) ?>"
-                       hx-post="<?= e($base) ?>" hx-trigger="change" hx-target="#recv-live" hx-swap="outerHTML"
-                       hx-vals='<?= e(json_encode(array('csrf' => $csrf, 'act' => 'set', 'sku' => $l['sku']))) ?>'>
+                <input class="num rq-set" type="text" inputmode="numeric" value="<?php echo $l['qty'] ?>"
+                       autocomplete="off" aria-label="จำนวนที่รับเข้าของ <?php echo e($l['name']) ?>"
+                       name="rq_<?php echo e($l['sku']) ?>"
+                       hx-post="<?php echo e($base) ?>" hx-trigger="change" hx-target="#recv-live" hx-swap="outerHTML"
+                       hx-vals='<?php echo e(json_encode(array('csrf' => $csrf, 'act' => 'set', 'sku' => $l['sku']))) ?>'>
                 <button type="button" aria-label="เพิ่มจำนวน"
-                        hx-post="<?= e($base) ?>" hx-target="#recv-live" hx-swap="outerHTML"
-                        hx-vals='<?= e(json_encode(array('csrf' => $csrf, 'act' => 'add', 'sku' => $l['sku']))) ?>'>
+                        hx-post="<?php echo e($base) ?>" hx-target="#recv-live" hx-swap="outerHTML"
+                        hx-vals='<?php echo e(json_encode(array('csrf' => $csrf, 'act' => 'add', 'sku' => $l['sku']))) ?>'>
                   <svg class="ico"><use href="#i-plus"/></svg>
                 </button>
               </div>
-              <div class="cl-s"><?= e($l['unit']) ?></div>
+              <div class="cl-s"><?php echo e($l['unit']) ?></div>
               <button class="cl-x" type="button" title="เอาออกจากใบ"
-                      aria-label="เอา <?= e($l['name']) ?> ออกจากใบ"
-                      hx-post="<?= e($base) ?>" hx-target="#recv-live" hx-swap="outerHTML"
-                      hx-vals='<?= e(json_encode(array('csrf' => $csrf, 'act' => 'del', 'sku' => $l['sku']))) ?>'>
+                      aria-label="เอา <?php echo e($l['name']) ?> ออกจากใบ"
+                      hx-post="<?php echo e($base) ?>" hx-target="#recv-live" hx-swap="outerHTML"
+                      hx-vals='<?php echo e(json_encode(array('csrf' => $csrf, 'act' => 'del', 'sku' => $l['sku']))) ?>'>
                 <svg class="ico"><use href="#i-x"/></svg>
               </button>
             </li>
-          <?php endforeach; ?>
+          <?php } ?>
         </ul>
 
         <div class="pay recv-total">
           <div class="pay-tot">
             <span>รวมที่รับเข้า</span>
-            <b class="num" id="recv-sum" data-v="<?= (int) $sum ?>"><?= number_format($sum) ?><small>ชิ้น</small></b>
+            <b class="num" id="recv-sum" data-v="<?php echo (int) $sum ?>"><?php echo number_format($sum) ?><small>ชิ้น</small></b>
           </div>
         </div>
-      <?php endif; ?>
+      <?php } ?>
     </div>
   </aside>
 

@@ -12,6 +12,7 @@
  *   - [x] ช่วงที่ 9: ซ่อนปุ่มไปรายงานยอดขายเมื่อเมนูนั้นถูกปิดจากหลังบ้าน
  *   - [x] ช่วงที่ 12: พนักงานทั่วไปไม่เห็นรายการ "ตั้งค่า" (เพิ่ม / แก้พนักงาน รีเซ็ต PIN แก้สาขา ฯลฯ) · ผู้จัดการสาขาเห็นครบ
  *   - [x] ช่วงที่ 11: ปุ่มแก้ / ยกเลิกตามสิทธิ์ใหม่ (บิล = bill_fix + แก้ไขต้องขายได้ · เอกสารคลัง = doc_fix + สิทธิ์หน้างานนั้น) · ลิงก์ตามสิทธิ์ (page_ok)
+ *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -128,46 +129,46 @@ require dirname(__FILE__) . '/inc/header.php';
 ?>
 
 
-<?php if ($notOpened): ?>
+<?php if ($notOpened) { ?>
   <div class="alert alert-info" role="status">
     <svg class="ico"><use href="#i-info"/></svg>
     <span>ยังไม่ได้เปิดร้านวันนี้ — ดูประวัติได้ตามปกติ งานคลัง (รับเข้า / ตัดออก / ตรวจนับ) ทำได้เลย ส่วนการขายต้องเปิดร้านก่อน</span>
     <div class="alert-act">
-      <?php if (page_ok($user, 'store.php')): ?>
+      <?php if (page_ok($user, 'store.php')) { ?>
       <a class="btn btn-ghost btn-sm" href="store.php"><svg class="ico"><use href="#i-store"/></svg> ไปเปิดร้าน</a>
-      <?php endif; ?>
-      <?php if (page_ok($user, 'report-sales.php')): ?>
+      <?php } ?>
+      <?php if (page_ok($user, 'report-sales.php')) { ?>
       <a class="btn btn-ghost btn-sm" href="report-sales.php"><svg class="ico"><use href="#i-chart"/></svg> ดูยอดขายย้อนหลัง</a>
-      <?php endif; ?>
+      <?php } ?>
     </div>
   </div>
-<?php endif; ?>
+<?php } ?>
 
-<?php if ($err !== ''): ?>
+<?php if ($err !== '') { ?>
   <div class="alert alert-error" role="alert">
-    <svg class="ico"><use href="#i-alert"/></svg><span><?= e($err) ?></span>
+    <svg class="ico"><use href="#i-alert"/></svg><span><?php echo e($err) ?></span>
   </div>
-<?php endif; ?>
+<?php } ?>
 
-<?php if ($pastLimit > 0): ?>
+<?php if ($pastLimit > 0) { ?>
   <!-- เลือกวัน — เห็นเฉพาะคนที่มีสิทธิ์แก้ย้อนหลัง (ผู้ดูแลย้อนได้ทุกวันที่มีข้อมูล) -->
   <nav class="cats day-pick" aria-label="เลือกวันที่">
-    <a class="cat<?= $pastTs ? '' : ' on' ?>" href="<?= e(hist_url()) ?>">วันนี้</a>
-    <?php for ($i = 1; $i <= $pastLimit; $i++): $dts = strtotime('-' . $i . ' day', strtotime(date('Y-m-d'))); ?>
-      <a class="cat<?= ($pastTs && date('Ymd', $dts) === $pastDay) ? ' on' : '' ?>" href="<?= e(hist_url('d=' . date('Ymd', $dts))) ?>"><?= e(thai_day_month($dts)) ?></a>
-    <?php endfor; ?>
+    <a class="cat<?php echo $pastTs ? '' : ' on' ?>" href="<?php echo e(hist_url()) ?>">วันนี้</a>
+    <?php for ($i = 1; $i <= $pastLimit; $i++) { $dts = strtotime('-' . $i . ' day', strtotime(date('Y-m-d'))); ?>
+      <a class="cat<?php echo ($pastTs && date('Ymd', $dts) === $pastDay) ? ' on' : '' ?>" href="<?php echo e(hist_url('d=' . date('Ymd', $dts))) ?>"><?php echo e(thai_day_month($dts)) ?></a>
+    <?php } ?>
   </nav>
-<?php endif; ?>
+<?php } ?>
 
-<?php if ($pastTs): ?>
+<?php if ($pastTs) { ?>
   <?php require dirname(__FILE__) . '/inc/history-past.php'; ?>
   <?php require dirname(__FILE__) . '/inc/footer.php'; exit; ?>
-<?php endif; ?>
+<?php } ?>
 
 <section class="mini num" aria-label="สรุปรายการวันนี้">
-  <div class="m"><div class="lb">รายการทั้งหมด</div><div class="nm"><?= number_format(count($all)) ?></div><div class="sb">ของสาขาวันนี้</div></div>
-  <div class="m"><div class="lb">ของฉัน</div><div class="nm"><?= number_format($mine) ?></div><div class="sb">ที่ฉันเป็นคนทำ</div></div>
-  <div class="m"><div class="lb">บิลขาย</div><div class="nm"><?= number_format($counts['sale']) ?></div><div class="sb">ใบ</div></div>
+  <div class="m"><div class="lb">รายการทั้งหมด</div><div class="nm"><?php echo number_format(count($all)) ?></div><div class="sb">ของสาขาวันนี้</div></div>
+  <div class="m"><div class="lb">ของฉัน</div><div class="nm"><?php echo number_format($mine) ?></div><div class="sb">ที่ฉันเป็นคนทำ</div></div>
+  <div class="m"><div class="lb">บิลขาย</div><div class="nm"><?php echo number_format($counts['sale']) ?></div><div class="sb">ใบ</div></div>
 </section>
 
 <section class="card">
@@ -179,38 +180,38 @@ require dirname(__FILE__) . '/inc/header.php';
   </div>
 
   <div class="cats">
-    <a class="cat<?= $t === '' ? ' on' : '' ?>" href="<?= e(hist_url()) ?>">ทั้งหมด <i><?= count($all) ?></i></a>
-    <?php foreach (log_types() as $k => $meta): ?>
+    <a class="cat<?php echo $t === '' ? ' on' : '' ?>" href="<?php echo e(hist_url()) ?>">ทั้งหมด <i><?php echo count($all) ?></i></a>
+    <?php foreach (log_types() as $k => $meta) { ?>
       <?php if ($counts[$k] === 0) { continue; } ?>
-      <a class="cat<?= $t === $k ? ' on' : '' ?>" href="<?= e(hist_url('t=' . rawurlencode($k))) ?>">
-        <?= e($meta['label']) ?> <i><?= $counts[$k] ?></i>
+      <a class="cat<?php echo $t === $k ? ' on' : '' ?>" href="<?php echo e(hist_url('t=' . rawurlencode($k))) ?>">
+        <?php echo e($meta['label']) ?> <i><?php echo $counts[$k] ?></i>
       </a>
-    <?php endforeach; ?>
+    <?php } ?>
   </div>
 
-  <?php if (!$rows): ?>
+  <?php if (!$rows) { ?>
     <p class="empty">
       <svg class="ico"><use href="#i-history"/></svg>
-      <?= $notOpened ? 'วันนี้ยังไม่มีรายการ' : 'ยังไม่มีรายการในหมวดนี้' ?><br><small>รายการจะถูกบันทึกอัตโนมัติเมื่อเปิดร้าน ขาย รับเข้า ตัดออก หรือปิดร้าน</small>
+      <?php echo $notOpened ? 'วันนี้ยังไม่มีรายการ' : 'ยังไม่มีรายการในหมวดนี้' ?><br><small>รายการจะถูกบันทึกอัตโนมัติเมื่อเปิดร้าน ขาย รับเข้า ตัดออก หรือปิดร้าน</small>
     </p>
-  <?php else: ?>
+  <?php } else { ?>
     <ol class="tl">
-      <?php foreach ($rows as $r): ?>
+      <?php foreach ($rows as $r) { ?>
         <?php $m = log_type_of($r['type']); ?>
-        <li class="tl-i tone-<?= e($m['tone']) ?><?= $r['by_user'] === $user['username'] ? ' me' : '' ?>">
-          <span class="tl-ic"><svg class="ico"><use href="#<?= e($m['icon']) ?>"/></svg></span>
+        <li class="tl-i tone-<?php echo e($m['tone']) ?><?php echo $r['by_user'] === $user['username'] ? ' me' : '' ?>">
+          <span class="tl-ic"><svg class="ico"><use href="#<?php echo e($m['icon']) ?>"/></svg></span>
           <div class="tl-b">
             <div class="tl-h">
-              <b><?= e($r['title']) ?></b>
-              <span class="badge b-<?= e($m['tone']) ?>"><?= e($m['label']) ?></span>
-              <?php if ($r['amount'] !== null && in_array($r['type'], array('receive', 'rvoid'), true)): ?>
+              <b><?php echo e($r['title']) ?></b>
+              <span class="badge b-<?php echo e($m['tone']) ?>"><?php echo e($m['label']) ?></span>
+              <?php if ($r['amount'] !== null && in_array($r['type'], array('receive', 'rvoid'), true)) { ?>
                 <?php /* รับเข้าเก็บ amount เป็นจำนวนชิ้น ไม่ใช่เงิน */ ?>
-                <span class="tl-amt num"><?= $r['type'] === 'receive' ? '+' : '−' ?><?= number_format($r['amount']) ?> ชิ้น</span>
-              <?php elseif ($r['amount'] !== null): ?>
-                <span class="tl-amt num"><?= money2($r['amount']) ?> ฿</span>
-              <?php endif; ?>
+                <span class="tl-amt num"><?php echo $r['type'] === 'receive' ? '+' : '−' ?><?php echo number_format($r['amount']) ?> ชิ้น</span>
+              <?php } elseif ($r['amount'] !== null) { ?>
+                <span class="tl-amt num"><?php echo money2($r['amount']) ?> ฿</span>
+              <?php } ?>
             </div>
-            <div class="tl-m"><?= e($r['time']) ?> น. · <?= e($r['by']) ?></div>
+            <div class="tl-m"><?php echo e($r['time']) ?> น. · <?php echo e($r['by']) ?></div>
 
             <?php
             /* บิลขาย / ใบรับเข้า ที่ยังไม่ถูกยกเลิก — แก้หรือยกเลิกได้จากตรงนี้
@@ -221,92 +222,92 @@ require dirname(__FILE__) . '/inc/header.php';
             $adoc = ($r['type'] === 'adjust' && $r['ref'] !== '') ? adj_by_no($code, $r['ref']) : null;
             ?>
 
-            <?php if ($adoc !== null && empty($adoc['void']) && can_void_doc($user, $adoc) && can($user, 'stocktake')): ?>
+            <?php if ($adoc !== null && empty($adoc['void']) && can_void_doc($user, $adoc) && can($user, 'stocktake')) { ?>
               <?php $dat = ' data-bill="' . e($adoc['no']) . '" data-items="' . (int) $adoc['items'] . '"'; ?>
               <div class="tl-act">
                 <?php foreach (array(
                     array('edit', 'แก้ไขใบนี้',  'i-arrow'),
                     array('void', 'ยกเลิกใบนี้', 'i-ban'),
-                ) as $b): ?>
-                  <form method="post" action="stocktake.php" data-confirm="<?= e($b[0]) ?>"<?= $dat ?>>
-                    <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
-                    <input type="hidden" name="act" value="<?= e($b[0]) ?>">
-                    <input type="hidden" name="no" value="<?= e($adoc['no']) ?>">
+                ) as $b) { ?>
+                  <form method="post" action="stocktake.php" data-confirm="<?php echo e($b[0]) ?>"<?php echo $dat ?>>
+                    <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
+                    <input type="hidden" name="act" value="<?php echo e($b[0]) ?>">
+                    <input type="hidden" name="no" value="<?php echo e($adoc['no']) ?>">
                     <input class="reason-fb" type="text" name="reason" value=""
-                           placeholder="หมายเหตุ (จำเป็น)" aria-label="หมายเหตุ <?= e($adoc['no']) ?>">
+                           placeholder="หมายเหตุ (จำเป็น)" aria-label="หมายเหตุ <?php echo e($adoc['no']) ?>">
                     <button class="btn btn-ghost btn-sm" type="submit">
-                      <svg class="ico"><use href="#<?= e($b[2]) ?>"/></svg> <?= e($b[1]) ?>
+                      <svg class="ico"><use href="#<?php echo e($b[2]) ?>"/></svg> <?php echo e($b[1]) ?>
                     </button>
                   </form>
-                <?php endforeach; ?>
+                <?php } ?>
               </div>
-            <?php elseif ($adoc !== null && !empty($adoc['void'])): ?>
+            <?php } elseif ($adoc !== null && !empty($adoc['void'])) { ?>
               <p class="tl-voided">
                 <svg class="ico"><use href="#i-ban"/></svg>
-                ใบนี้ถูก<?= (isset($adoc['void_mode']) && $adoc['void_mode'] === 'edit') ? 'ยกเลิกเพื่อแก้ไข' : 'ยกเลิก' ?>
-                เมื่อ <?= e($adoc['void_at']) ?> น. โดย <?= e($adoc['void_by']) ?>
-                — <?= e($adoc['void_reason']) ?>
+                ใบนี้ถูก<?php echo (isset($adoc['void_mode']) && $adoc['void_mode'] === 'edit') ? 'ยกเลิกเพื่อแก้ไข' : 'ยกเลิก' ?>
+                เมื่อ <?php echo e($adoc['void_at']) ?> น. โดย <?php echo e($adoc['void_by']) ?>
+                — <?php echo e($adoc['void_reason']) ?>
               </p>
-            <?php endif; ?>
+            <?php } ?>
 
-            <?php if ($idoc !== null && empty($idoc['void']) && can_void_doc($user, $idoc) && can($user, 'issue')): ?>
+            <?php if ($idoc !== null && empty($idoc['void']) && can_void_doc($user, $idoc) && can($user, 'issue')) { ?>
               <?php $dat = ' data-bill="' . e($idoc['no']) . '" data-qty="' . (int) $idoc['qty']
                          . '" data-items="' . (int) $idoc['items'] . '"'; ?>
               <div class="tl-act">
                 <?php foreach (array(
                     array('edit', 'แก้ไขใบนี้',  'i-arrow'),
                     array('void', 'ยกเลิกใบนี้', 'i-ban'),
-                ) as $b): ?>
-                  <form method="post" action="issue.php" data-confirm="<?= e($b[0]) ?>"<?= $dat ?>>
-                    <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
-                    <input type="hidden" name="act" value="<?= e($b[0]) ?>">
-                    <input type="hidden" name="no" value="<?= e($idoc['no']) ?>">
+                ) as $b) { ?>
+                  <form method="post" action="issue.php" data-confirm="<?php echo e($b[0]) ?>"<?php echo $dat ?>>
+                    <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
+                    <input type="hidden" name="act" value="<?php echo e($b[0]) ?>">
+                    <input type="hidden" name="no" value="<?php echo e($idoc['no']) ?>">
                     <input class="reason-fb" type="text" name="reason" value=""
-                           placeholder="หมายเหตุ (จำเป็น)" aria-label="หมายเหตุ <?= e($idoc['no']) ?>">
+                           placeholder="หมายเหตุ (จำเป็น)" aria-label="หมายเหตุ <?php echo e($idoc['no']) ?>">
                     <button class="btn btn-ghost btn-sm" type="submit">
-                      <svg class="ico"><use href="#<?= e($b[2]) ?>"/></svg> <?= e($b[1]) ?>
+                      <svg class="ico"><use href="#<?php echo e($b[2]) ?>"/></svg> <?php echo e($b[1]) ?>
                     </button>
                   </form>
-                <?php endforeach; ?>
+                <?php } ?>
               </div>
-            <?php elseif ($idoc !== null && !empty($idoc['void'])): ?>
+            <?php } elseif ($idoc !== null && !empty($idoc['void'])) { ?>
               <p class="tl-voided">
                 <svg class="ico"><use href="#i-ban"/></svg>
-                ใบนี้ถูก<?= (isset($idoc['void_mode']) && $idoc['void_mode'] === 'edit') ? 'ยกเลิกเพื่อแก้ไข' : 'ยกเลิก' ?>
-                เมื่อ <?= e($idoc['void_at']) ?> น. โดย <?= e($idoc['void_by']) ?>
-                — <?= e($idoc['void_reason']) ?>
+                ใบนี้ถูก<?php echo (isset($idoc['void_mode']) && $idoc['void_mode'] === 'edit') ? 'ยกเลิกเพื่อแก้ไข' : 'ยกเลิก' ?>
+                เมื่อ <?php echo e($idoc['void_at']) ?> น. โดย <?php echo e($idoc['void_by']) ?>
+                — <?php echo e($idoc['void_reason']) ?>
               </p>
-            <?php endif; ?>
+            <?php } ?>
 
-            <?php if ($rdoc !== null && empty($rdoc['void']) && can_void_doc($user, $rdoc) && can($user, 'receive')): ?>
+            <?php if ($rdoc !== null && empty($rdoc['void']) && can_void_doc($user, $rdoc) && can($user, 'receive')) { ?>
               <?php $dat = ' data-bill="' . e($rdoc['no']) . '" data-qty="' . (int) $rdoc['qty']
                          . '" data-items="' . (int) $rdoc['items'] . '"'; ?>
               <div class="tl-act">
                 <?php foreach (array(
                     array('edit', 'แก้ไขใบนี้',  'i-arrow'),
                     array('void', 'ยกเลิกใบนี้', 'i-ban'),
-                ) as $b): ?>
-                  <form method="post" action="receive.php" data-confirm="<?= e($b[0]) ?>"<?= $dat ?>>
-                    <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
-                    <input type="hidden" name="act" value="<?= e($b[0]) ?>">
-                    <input type="hidden" name="no" value="<?= e($rdoc['no']) ?>">
+                ) as $b) { ?>
+                  <form method="post" action="receive.php" data-confirm="<?php echo e($b[0]) ?>"<?php echo $dat ?>>
+                    <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
+                    <input type="hidden" name="act" value="<?php echo e($b[0]) ?>">
+                    <input type="hidden" name="no" value="<?php echo e($rdoc['no']) ?>">
                     <input class="reason-fb" type="text" name="reason" value=""
-                           placeholder="หมายเหตุ (จำเป็น)" aria-label="หมายเหตุ <?= e($rdoc['no']) ?>">
+                           placeholder="หมายเหตุ (จำเป็น)" aria-label="หมายเหตุ <?php echo e($rdoc['no']) ?>">
                     <button class="btn btn-ghost btn-sm" type="submit">
-                      <svg class="ico"><use href="#<?= e($b[2]) ?>"/></svg> <?= e($b[1]) ?>
+                      <svg class="ico"><use href="#<?php echo e($b[2]) ?>"/></svg> <?php echo e($b[1]) ?>
                     </button>
                   </form>
-                <?php endforeach; ?>
+                <?php } ?>
               </div>
-            <?php elseif ($rdoc !== null && !empty($rdoc['void'])): ?>
+            <?php } elseif ($rdoc !== null && !empty($rdoc['void'])) { ?>
               <p class="tl-voided">
                 <svg class="ico"><use href="#i-ban"/></svg>
-                ใบนี้ถูก<?= (isset($rdoc['void_mode']) && $rdoc['void_mode'] === 'edit') ? 'ยกเลิกเพื่อแก้ไข' : 'ยกเลิก' ?>
-                เมื่อ <?= e($rdoc['void_at']) ?> น. โดย <?= e($rdoc['void_by']) ?>
-                — <?= e($rdoc['void_reason']) ?>
+                ใบนี้ถูก<?php echo (isset($rdoc['void_mode']) && $rdoc['void_mode'] === 'edit') ? 'ยกเลิกเพื่อแก้ไข' : 'ยกเลิก' ?>
+                เมื่อ <?php echo e($rdoc['void_at']) ?> น. โดย <?php echo e($rdoc['void_by']) ?>
+                — <?php echo e($rdoc['void_reason']) ?>
               </p>
-            <?php endif; ?>
-            <?php if ($bill !== null && empty($bill['void']) && can_void_doc($user, $bill, 'bill') && !bill_returned_any($bill['no'])): ?>
+            <?php } ?>
+            <?php if ($bill !== null && empty($bill['void']) && can_void_doc($user, $bill, 'bill') && !bill_returned_any($bill['no'])) { ?>
               <?php
               $act = hist_url($t !== '' ? 't=' . rawurlencode($t) : '');
               $dat = ' data-bill="' . e($bill['no']) . '" data-total="' . e(money2($bill['total']))
@@ -316,40 +317,40 @@ require dirname(__FILE__) . '/inc/header.php';
                 <?php foreach (array(
                     array('edit', 'แก้ไขบิลนี้',  'i-arrow', 'หมายเหตุการแก้ไขบิล'),
                     array('void', 'ยกเลิกบิลนี้', 'i-ban',   'หมายเหตุการยกเลิกบิล'),
-                ) as $b): if ($b[0] === 'edit' && !can($user, 'sale')) { continue; } ?>
-                  <form method="post" action="<?= e($act) ?>" data-confirm="<?= e($b[0]) ?>"<?= $dat ?>>
-                    <input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>">
-                    <input type="hidden" name="act" value="<?= e($b[0]) ?>">
-                    <input type="hidden" name="no" value="<?= e($bill['no']) ?>">
+                ) as $b) { if ($b[0] === 'edit' && !can($user, 'sale')) { continue; } ?>
+                  <form method="post" action="<?php echo e($act) ?>" data-confirm="<?php echo e($b[0]) ?>"<?php echo $dat ?>>
+                    <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
+                    <input type="hidden" name="act" value="<?php echo e($b[0]) ?>">
+                    <input type="hidden" name="no" value="<?php echo e($bill['no']) ?>">
                     <input class="reason-fb" type="text" name="reason" value=""
                            placeholder="หมายเหตุ (จำเป็น)"
-                           aria-label="<?= e($b[3]) ?> <?= e($bill['no']) ?>">
+                           aria-label="<?php echo e($b[3]) ?> <?php echo e($bill['no']) ?>">
                     <button class="btn btn-ghost btn-sm" type="submit">
-                      <svg class="ico"><use href="#<?= e($b[2]) ?>"/></svg> <?= e($b[1]) ?>
+                      <svg class="ico"><use href="#<?php echo e($b[2]) ?>"/></svg> <?php echo e($b[1]) ?>
                     </button>
                   </form>
-                <?php endforeach; ?>
+                <?php } ?>
               </div>
-            <?php elseif ($bill !== null && !empty($bill['void'])): ?>
+            <?php } elseif ($bill !== null && !empty($bill['void'])) { ?>
               <p class="tl-voided">
                 <svg class="ico"><use href="#i-ban"/></svg>
-                บิลนี้ถูก<?= (isset($bill['void_mode']) && $bill['void_mode'] === 'edit') ? 'ยกเลิกเพื่อแก้ไข' : 'ยกเลิก' ?>
-                เมื่อ <?= e($bill['void_at']) ?> น. โดย <?= e($bill['void_by']) ?>
-                — <?= e($bill['void_reason']) ?>
+                บิลนี้ถูก<?php echo (isset($bill['void_mode']) && $bill['void_mode'] === 'edit') ? 'ยกเลิกเพื่อแก้ไข' : 'ยกเลิก' ?>
+                เมื่อ <?php echo e($bill['void_at']) ?> น. โดย <?php echo e($bill['void_by']) ?>
+                — <?php echo e($bill['void_reason']) ?>
               </p>
-            <?php endif; ?>
-            <?php if ($r['detail']): ?>
+            <?php } ?>
+            <?php if ($r['detail']) { ?>
               <dl class="tl-d">
-                <?php foreach ($r['detail'] as $k => $v): ?>
-                  <div><dt><?= e($k) ?></dt><dd class="num"><?= e($v) ?></dd></div>
-                <?php endforeach; ?>
+                <?php foreach ($r['detail'] as $k => $v) { ?>
+                  <div><dt><?php echo e($k) ?></dt><dd class="num"><?php echo e($v) ?></dd></div>
+                <?php } ?>
               </dl>
-            <?php endif; ?>
+            <?php } ?>
           </div>
         </li>
-      <?php endforeach; ?>
+      <?php } ?>
     </ol>
-  <?php endif; ?>
+  <?php } ?>
 </section>
 
 <?php require dirname(__FILE__) . '/inc/footer.php'; ?>

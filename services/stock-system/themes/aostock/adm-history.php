@@ -10,6 +10,7 @@
  *   - [x] ช่วงที่ 8: ทุกวันอ่านจาก ao_stock_log ช่วงวันที่ — นับ / แบ่งหน้าใน SQL (log_range)
  *   - [x] ช่วงที่ 9: แถวรับคืนลิงก์ไปหน้ารายละเอียดของวันแทน เมื่อเมนูรับคืนถูกปิดจากหลังบ้าน
  *   - [x] ช่วงที่ 10: คืนหมายเหตุแบบเดโมเดิม — บิลที่ "มีรับคืน" · ใบรับคืน "กลับเข้าสต๊อก / ไม่เข้าสต๊อก"
+ *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -152,64 +153,64 @@ require dirname(__FILE__) . '/inc/header.php';
 <section class="card acct-filter hist-filter">
   <form method="get" action="adm-history.php" class="acct-row">
     <div class="segs">
-      <?php foreach (array('recent' => '30 วัน', 'day' => 'รายวัน', 'month' => 'รายเดือน', 'year' => 'รายปี') as $md => $lb): ?>
-        <a class="seg<?= $fMode === $md ? ' on' : '' ?>" href="<?= e($hq(array('mode' => $md))) ?>"><?= e($lb) ?></a>
-      <?php endforeach; ?>
+      <?php foreach (array('recent' => '30 วัน', 'day' => 'รายวัน', 'month' => 'รายเดือน', 'year' => 'รายปี') as $md => $lb) { ?>
+        <a class="seg<?php echo $fMode === $md ? ' on' : '' ?>" href="<?php echo e($hq(array('mode' => $md))) ?>"><?php echo e($lb) ?></a>
+      <?php } ?>
     </div>
-    <input type="hidden" name="mode" value="<?= e($fMode) ?>">
+    <input type="hidden" name="mode" value="<?php echo e($fMode) ?>">
 
-    <?php if ($fMode === 'day'): ?>
-      <a class="btn btn-ghost btn-sm" href="<?= e($hq(array('d' => date('Y-m-d', strtotime('-1 day', $dayTs))))) ?>" aria-label="วันก่อนหน้า">‹</a>
+    <?php if ($fMode === 'day') { ?>
+      <a class="btn btn-ghost btn-sm" href="<?php echo e($hq(array('d' => date('Y-m-d', strtotime('-1 day', $dayTs))))) ?>" aria-label="วันก่อนหน้า">‹</a>
       <label class="sr-only" for="hd">วันที่</label>
-      <input class="input acct-date" type="date" id="hd" name="d" value="<?= e(date('Y-m-d', $dayTs)) ?>"
-             max="<?= e(date('Y-m-d')) ?>" onchange="this.form.submit()">
-      <?php if ($dayTs < $today): ?>
-        <a class="btn btn-ghost btn-sm" href="<?= e($hq(array('d' => date('Y-m-d', strtotime('+1 day', $dayTs))))) ?>" aria-label="วันถัดไป">›</a>
-        <a class="btn btn-ghost btn-sm" href="<?= e($hq(array('d' => date('Y-m-d')))) ?>">วันนี้</a>
-      <?php endif; ?>
-    <?php elseif ($fMode === 'month'): ?>
-      <a class="btn btn-ghost btn-sm" href="<?= e($hq(array('m' => date('Y-m', strtotime('-1 month', $monTs))))) ?>" aria-label="เดือนก่อนหน้า">‹</a>
+      <input class="input acct-date" type="date" id="hd" name="d" value="<?php echo e(date('Y-m-d', $dayTs)) ?>"
+             max="<?php echo e(date('Y-m-d')) ?>" onchange="this.form.submit()">
+      <?php if ($dayTs < $today) { ?>
+        <a class="btn btn-ghost btn-sm" href="<?php echo e($hq(array('d' => date('Y-m-d', strtotime('+1 day', $dayTs))))) ?>" aria-label="วันถัดไป">›</a>
+        <a class="btn btn-ghost btn-sm" href="<?php echo e($hq(array('d' => date('Y-m-d')))) ?>">วันนี้</a>
+      <?php } ?>
+    <?php } elseif ($fMode === 'month') { ?>
+      <a class="btn btn-ghost btn-sm" href="<?php echo e($hq(array('m' => date('Y-m', strtotime('-1 month', $monTs))))) ?>" aria-label="เดือนก่อนหน้า">‹</a>
       <label class="sr-only" for="hm">เดือน</label>
-      <input class="input acct-date" type="month" id="hm" name="m" value="<?= e(date('Y-m', $monTs)) ?>"
-             max="<?= e(date('Y-m')) ?>" onchange="this.form.submit()">
-      <?php if ($monTs < strtotime(date('Y-m-01'))): ?>
-        <a class="btn btn-ghost btn-sm" href="<?= e($hq(array('m' => date('Y-m', strtotime('+1 month', $monTs))))) ?>" aria-label="เดือนถัดไป">›</a>
-        <a class="btn btn-ghost btn-sm" href="<?= e($hq(array('m' => date('Y-m')))) ?>">เดือนนี้</a>
-      <?php endif; ?>
-    <?php elseif ($fMode === 'year'): ?>
+      <input class="input acct-date" type="month" id="hm" name="m" value="<?php echo e(date('Y-m', $monTs)) ?>"
+             max="<?php echo e(date('Y-m')) ?>" onchange="this.form.submit()">
+      <?php if ($monTs < strtotime(date('Y-m-01'))) { ?>
+        <a class="btn btn-ghost btn-sm" href="<?php echo e($hq(array('m' => date('Y-m', strtotime('+1 month', $monTs))))) ?>" aria-label="เดือนถัดไป">›</a>
+        <a class="btn btn-ghost btn-sm" href="<?php echo e($hq(array('m' => date('Y-m')))) ?>">เดือนนี้</a>
+      <?php } ?>
+    <?php } elseif ($fMode === 'year') { ?>
       <label class="sr-only" for="hy">ปี</label>
       <select class="input acct-date" id="hy" name="y" onchange="this.form.submit()">
-        <?php for ($y = (int) date('Y'); $y >= 2026; $y--): ?>
-          <option value="<?= $y ?>" <?= $y === $year ? 'selected' : '' ?>>ปี <?= $y + 543 ?></option>
-        <?php endfor; ?>
+        <?php for ($y = (int) date('Y'); $y >= 2026; $y--) { ?>
+          <option value="<?php echo $y ?>" <?php echo $y === $year ? 'selected' : '' ?>>ปี <?php echo $y + 543 ?></option>
+        <?php } ?>
       </select>
-    <?php endif; ?>
+    <?php } ?>
 
     <label class="sr-only" for="hb">สาขา</label>
     <select class="input acct-branch" id="hb" name="b" onchange="this.form.submit()">
       <option value="ALL">ทุกสาขา</option>
-      <?php foreach ($brAll as $c => $x): ?>
-        <option value="<?= e($c) ?>" <?= $fB === $c ? 'selected' : '' ?>><?= e($x['name']) ?><?= empty($x['active']) ? ' (ปิดใช้งาน)' : '' ?></option>
-      <?php endforeach; ?>
+      <?php foreach ($brAll as $c => $x) { ?>
+        <option value="<?php echo e($c) ?>" <?php echo $fB === $c ? 'selected' : '' ?>><?php echo e($x['name']) ?><?php echo empty($x['active']) ? ' (ปิดใช้งาน)' : '' ?></option>
+      <?php } ?>
     </select>
 
     <label class="sr-only" for="hs">เรียงลำดับ</label>
     <select class="input acct-branch" id="hs" name="sort" onchange="this.form.submit()">
-      <option value="desc" <?= $fSort === 'desc' ? 'selected' : '' ?>>เวลา: ใหม่ → เก่า</option>
-      <option value="asc" <?= $fSort === 'asc' ? 'selected' : '' ?>>เวลา: เก่า → ใหม่</option>
+      <option value="desc" <?php echo $fSort === 'desc' ? 'selected' : '' ?>>เวลา: ใหม่ → เก่า</option>
+      <option value="asc" <?php echo $fSort === 'asc' ? 'selected' : '' ?>>เวลา: เก่า → ใหม่</option>
     </select>
-    <?php if ($fT !== ''): ?><input type="hidden" name="t" value="<?= e($fT) ?>"><?php endif; ?>
+    <?php if ($fT !== '') { ?><input type="hidden" name="t" value="<?php echo e($fT) ?>"><?php } ?>
     <noscript><button class="btn btn-ghost btn-sm" type="submit">ดู</button></noscript>
   </form>
 </section>
 
 <!-- ==================== สรุป ==================== -->
 <section class="mini num adm-kpi" aria-label="สรุปช่วงที่เลือก">
-  <div class="m"><div class="lb">รายการทั้งหมด</div><div class="nm"><?= number_format($sum['all']) ?></div>
+  <div class="m"><div class="lb">รายการทั้งหมด</div><div class="nm"><?php echo number_format($sum['all']) ?></div>
     <div class="sb"><?php $px = array(); foreach ($sum['perB'] as $c => $n) { $px[] = $brAll[$c]['short'] . ' ' . number_format($n); } echo e($px ? implode(' · ', $px) : 'ไม่มีรายการ'); ?></div></div>
-  <div class="m"><div class="lb">บิลขาย</div><div class="nm"><?= number_format($sum['bills']) ?></div>
-    <div class="sb">ยอดขาย <?= e(money2($sum['sales'])) ?> บาท (ไม่รวมบิลยกเลิก)</div></div>
-  <div class="m"><div class="lb">เอกสารคลัง</div><div class="nm"><?= number_format($sum['docs']) ?></div>
+  <div class="m"><div class="lb">บิลขาย</div><div class="nm"><?php echo number_format($sum['bills']) ?></div>
+    <div class="sb">ยอดขาย <?php echo e(money2($sum['sales'])) ?> บาท (ไม่รวมบิลยกเลิก)</div></div>
+  <div class="m"><div class="lb">เอกสารคลัง</div><div class="nm"><?php echo number_format($sum['docs']) ?></div>
     <div class="sb">รับเข้า · ตัดออก · ตรวจนับ</div></div>
 </section>
 
@@ -217,34 +218,34 @@ require dirname(__FILE__) . '/inc/header.php';
 <section class="card">
   <div class="card-head">
     <div>
-      <h2><?= $fB === 'ALL' ? 'ทุกสาขา' : e($brAll[$fB]['name']) ?> · <?= e($rangeTxt) ?></h2>
-      <span class="sub">เรียงตามเวลา<?= $fSort === 'asc' ? 'จากเก่าไปใหม่' : 'จากใหม่ไปเก่า' ?>
+      <h2><?php echo $fB === 'ALL' ? 'ทุกสาขา' : e($brAll[$fB]['name']) ?> · <?php echo e($rangeTxt) ?></h2>
+      <span class="sub">เรียงตามเวลา<?php echo $fSort === 'asc' ? 'จากเก่าไปใหม่' : 'จากใหม่ไปเก่า' ?>
         · ทุกรายการที่บันทึกในระบบ · บิลหรือเอกสารที่ถูกยกเลิกภายหลังมีขีดฆ่า</span>
     </div>
   </div>
 
   <div class="cats tabbar" role="tablist">
-    <a class="cat<?= $fT === '' ? ' on' : '' ?>" href="<?= e($hq(array('t' => ''))) ?>">ทั้งหมด <i><?= number_format($sum['all']) ?></i></a>
-    <?php foreach (log_types() as $k => $meta): ?>
+    <a class="cat<?php echo $fT === '' ? ' on' : '' ?>" href="<?php echo e($hq(array('t' => ''))) ?>">ทั้งหมด <i><?php echo number_format($sum['all']) ?></i></a>
+    <?php foreach (log_types() as $k => $meta) { ?>
       <?php if ($counts[$k] === 0 && $fT !== $k) { continue; } ?>
-      <a class="cat<?= $fT === $k ? ' on' : '' ?>" href="<?= e($hq(array('t' => $k))) ?>"><?= e($meta['label']) ?> <i><?= number_format($counts[$k]) ?></i></a>
-    <?php endforeach; ?>
+      <a class="cat<?php echo $fT === $k ? ' on' : '' ?>" href="<?php echo e($hq(array('t' => $k))) ?>"><?php echo e($meta['label']) ?> <i><?php echo number_format($counts[$k]) ?></i></a>
+    <?php } ?>
   </div>
 
-  <?php if (!$show): ?>
+  <?php if (!$show) { ?>
     <p class="empty"><svg class="ico"><use href="#i-history"/></svg>ไม่มีรายการในช่วงที่เลือก<br><small>ลองเปลี่ยนวัน สาขา หรือชนิดรายการ</small>
-      <?php if ($fMode === 'day' && $dayTs === $today): ?>
-        <br><a class="btn btn-ghost btn-sm" href="<?= e($hq(array('d' => date('Y-m-d', strtotime('-1 day', $today))))) ?>">ดูของเมื่อวาน</a>
-      <?php elseif ($fMode === 'month' && $monTs === strtotime(date('Y-m-01'))): ?>
-        <br><a class="btn btn-ghost btn-sm" href="<?= e($hq(array('m' => date('Y-m', strtotime('-1 month', $monTs))))) ?>">ดูเดือนก่อน</a>
-      <?php endif; ?>
+      <?php if ($fMode === 'day' && $dayTs === $today) { ?>
+        <br><a class="btn btn-ghost btn-sm" href="<?php echo e($hq(array('d' => date('Y-m-d', strtotime('-1 day', $today))))) ?>">ดูของเมื่อวาน</a>
+      <?php } elseif ($fMode === 'month' && $monTs === strtotime(date('Y-m-01'))) { ?>
+        <br><a class="btn btn-ghost btn-sm" href="<?php echo e($hq(array('m' => date('Y-m', strtotime('-1 month', $monTs))))) ?>">ดูเดือนก่อน</a>
+      <?php } ?>
     </p>
-  <?php else: ?>
+  <?php } else { ?>
     <div class="tbl-wrap">
       <table class="tbl hist-all">
         <thead>
           <tr>
-            <th><?= $fMode !== 'day' ? 'วันที่ · เวลา' : 'เวลา' ?></th>
+            <th><?php echo $fMode !== 'day' ? 'วันที่ · เวลา' : 'เวลา' ?></th>
             <th>สาขา</th>
             <th>ชนิด</th>
             <th>รายการ</th>
@@ -254,41 +255,41 @@ require dirname(__FILE__) . '/inc/header.php';
           </tr>
         </thead>
         <tbody>
-          <?php foreach ($show as $r): $m = log_type_of($r['type']); ?>
-            <tr<?= $r['void'] ? ' class="is-void"' : '' ?>>
-              <td data-label="เวลา" class="num nowrap"><?php if ($fMode !== 'day'): ?><?= e(thai_day_month(strtotime($r['date']))) ?> · <?php endif; ?><?= e($r['time']) ?></td>
-              <td data-label="สาขา"><span class="hist-br"><?= e($brAll[$r['branch']]['short']) ?></span></td>
-              <td data-label="ชนิด"><span class="badge b-<?= e($m['tone']) ?>"><?= e($m['label']) ?></span></td>
+          <?php foreach ($show as $r) { $m = log_type_of($r['type']); ?>
+            <tr<?php echo $r['void'] ? ' class="is-void"' : '' ?>>
+              <td data-label="เวลา" class="num nowrap"><?php if ($fMode !== 'day') { ?><?php echo e(thai_day_month(strtotime($r['date']))) ?> · <?php } ?><?php echo e($r['time']) ?></td>
+              <td data-label="สาขา"><span class="hist-br"><?php echo e($brAll[$r['branch']]['short']) ?></span></td>
+              <td data-label="ชนิด"><span class="badge b-<?php echo e($m['tone']) ?>"><?php echo e($m['label']) ?></span></td>
               <td data-label="รายการ">
-                <b class="hist-t"><?= e($r['title']) ?></b>
-                <?php if ($r['void']): ?><small class="hist-n hist-void">ยกเลิกแล้ว</small><?php endif; ?>
-                <?php if ($r['note'] !== ''): ?><small class="hist-n"><?= e($r['note']) ?></small><?php endif; ?>
+                <b class="hist-t"><?php echo e($r['title']) ?></b>
+                <?php if ($r['void']) { ?><small class="hist-n hist-void">ยกเลิกแล้ว</small><?php } ?>
+                <?php if ($r['note'] !== '') { ?><small class="hist-n"><?php echo e($r['note']) ?></small><?php } ?>
               </td>
-              <td data-label="ผู้ทำ" class="nowrap"><?= e($r['by']) ?></td>
+              <td data-label="ผู้ทำ" class="nowrap"><?php echo e($r['by']) ?></td>
               <td data-label="จำนวน" class="r num nowrap">
-                <?php if ($r['amount'] === null): ?>—
-                <?php elseif ($r['kind'] === 'qty'): ?><?= $r['amount'] > 0 ? '+' : ($r['amount'] < 0 ? '−' : '') ?><?= number_format(abs($r['amount'])) ?> ชิ้น
-                <?php else: ?><?= e(money2($r['amount'])) ?> ฿<?php endif; ?>
+                <?php if ($r['amount'] === null) { ?>—
+                <?php } elseif ($r['kind'] === 'qty') { ?><?php echo $r['amount'] > 0 ? '+' : ($r['amount'] < 0 ? '−' : '') ?><?php echo number_format(abs($r['amount'])) ?> ชิ้น
+                <?php } else { ?><?php echo e(money2($r['amount'])) ?> ฿<?php } ?>
               </td>
               <td data-label="" class="r">
-                <?php if ($r['link'] !== ''): ?>
-                  <a class="btn btn-ghost btn-sm" href="<?= e($r['link']) ?>" title="เปิดรายการของสาขานี้ในวันนั้น">ดู</a>
-                <?php endif; ?>
+                <?php if ($r['link'] !== '') { ?>
+                  <a class="btn btn-ghost btn-sm" href="<?php echo e($r['link']) ?>" title="เปิดรายการของสาขานี้ในวันนั้น">ดู</a>
+                <?php } ?>
               </td>
             </tr>
-          <?php endforeach; ?>
+          <?php } ?>
         </tbody>
       </table>
     </div>
 
-    <?php if ($pages > 1): ?>
+    <?php if ($pages > 1) { ?>
       <nav class="hist-pager" aria-label="หน้า">
-        <?php if ($pg > 1): ?><a class="btn btn-ghost btn-sm" href="<?= e($hq(array('p' => $pg - 1))) ?>">‹ ก่อนหน้า</a><?php endif; ?>
-        <span>หน้า <?= $pg ?> / <?= $pages ?> · <?= number_format($total) ?> รายการ</span>
-        <?php if ($pg < $pages): ?><a class="btn btn-ghost btn-sm" href="<?= e($hq(array('p' => $pg + 1))) ?>">ถัดไป ›</a><?php endif; ?>
+        <?php if ($pg > 1) { ?><a class="btn btn-ghost btn-sm" href="<?php echo e($hq(array('p' => $pg - 1))) ?>">‹ ก่อนหน้า</a><?php } ?>
+        <span>หน้า <?php echo $pg ?> / <?php echo $pages ?> · <?php echo number_format($total) ?> รายการ</span>
+        <?php if ($pg < $pages) { ?><a class="btn btn-ghost btn-sm" href="<?php echo e($hq(array('p' => $pg + 1))) ?>">ถัดไป ›</a><?php } ?>
       </nav>
-    <?php endif; ?>
-  <?php endif; ?>
+    <?php } ?>
+  <?php } ?>
 </section>
 
 <?php require dirname(__FILE__) . '/inc/footer.php'; ?>

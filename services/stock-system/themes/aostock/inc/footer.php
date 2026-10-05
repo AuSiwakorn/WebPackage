@@ -9,6 +9,7 @@
  *   - [x] อ่าน / เขียนข้อมูลจากตาราง ao_stock_* ผ่าน api.php (ช่วงที่ 5–9)
  *   - [x] ช่วงที่ 10: แก้ File Header ให้ตรงกับระบบจริง · กัน XSS — ค่าทุกตัวในกล่องยืนยันผ่าน esc() · ทูลทิปกราฟใช้ textContent
  *   - [x] ช่วงที่ 11: ช่องติ๊กสิทธิ์ที่พ่วงกัน (data-needs) ปิด / เปิดตามตัวหลัก
+ *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -19,7 +20,7 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
   </div><!-- /.main -->
 </div><!-- /.app -->
 
-<?php if (in_array($NAV_ACTIVE, array('sale.php', 'history.php', 'receive.php', 'issue.php', 'stocktake.php', 'adm-history.php'), true)): ?>
+<?php if (in_array($NAV_ACTIVE, array('sale.php', 'history.php', 'receive.php', 'issue.php', 'stocktake.php', 'adm-history.php'), true)) { ?>
 <!-- ===== กล่องยืนยัน — ใช้ทั้งรับเงินและยกเลิกบิล ===== -->
 <div class="modal" id="confirm-modal" hidden>
   <div class="modal-back" data-close></div>
@@ -42,7 +43,7 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
     </div>
   </div>
 </div>
-<?php endif; ?>
+<?php } ?>
 
 <!-- ===== ดู / พิมพ์บิล — ปุ่มที่มี data-bill-print="bill-print.php?…" ทุกหน้า (รวมเนื้อหาที่โหลดเข้า popup ภายหลัง) ===== -->
 <dialog class="bill-modal" id="bill-modal" aria-label="ดูบิล">
@@ -106,7 +107,7 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
 </script>
 
 <!-- htmx: สลับเฉพาะส่วนที่เปลี่ยน ไม่ต้องโหลดหน้าใหม่ (เก็บไฟล์ไว้ในเครื่อง ไม่พึ่ง CDN) -->
-<script src="<?= e(asset_url('htmx.min.js')) ?>"></script>
+<script src="<?php echo e(asset_url('htmx.min.js')) ?>"></script>
 <script>
 (function () {
   /* เมนูด้านข้างบนจอเล็ก */
@@ -550,7 +551,7 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
   });
 })();
 </script>
-<?php if (strpos($NAV_ACTIVE, 'adm-report') === 0): ?>
+<?php if (strpos($NAV_ACTIVE, 'adm-report') === 0) { ?>
 <!-- ===== popup รายละเอียดยอดขายของวัน — ปุ่มที่มี data-day-sales="สาขา|ปปปปดดวว" ===== -->
 <dialog class="ds-modal" id="ds-modal" aria-label="รายละเอียดยอดขาย">
   <button type="button" class="icon-btn ds-close" data-ds-close aria-label="ปิด"><svg class="ico"><use href="#i-x"/></svg></button>
@@ -584,6 +585,6 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
   });
 })();
 </script>
-<?php endif; ?>
+<?php } ?>
 </body>
 </html>

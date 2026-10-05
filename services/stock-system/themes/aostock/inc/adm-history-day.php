@@ -8,6 +8,7 @@
  *   - [x] ย้ายจาก demo/ เข้า themes/aostock/ (วิ่งผ่าน router ของ admweb)
  *   - [x] ประวัติวันนี้ + เอกสารคลังวันก่อนจากตาราง (ช่วงที่ 6)
  *   - [x] ช่วงที่ 8: วันก่อนมีลำดับเหตุการณ์ทั้งวัน (inc/history-past.php)
+ *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -69,59 +70,59 @@ require dirname(__FILE__) . '/header.php';
 ?>
 
 <p class="hist-back">
-  <a class="btn btn-ghost btn-sm" href="<?= e($back) ?>">‹ กลับไปประวัติรวมทุกสาขา</a>
+  <a class="btn btn-ghost btn-sm" href="<?php echo e($back) ?>">‹ กลับไปประวัติรวมทุกสาขา</a>
   <span>วันอื่นของสาขานี้:</span>
-  <a class="btn btn-ghost btn-sm" href="<?= e(hist_url('d=' . date('Ymd', strtotime('-1 day', $ts)))) ?>">‹ วันก่อน</a>
-  <?php if (!$isToday): ?>
-    <a class="btn btn-ghost btn-sm" href="<?= e(hist_url('d=' . date('Ymd', strtotime('+1 day', $ts)))) ?>">วันถัดไป ›</a>
-  <?php endif; ?>
+  <a class="btn btn-ghost btn-sm" href="<?php echo e(hist_url('d=' . date('Ymd', strtotime('-1 day', $ts)))) ?>">‹ วันก่อน</a>
+  <?php if (!$isToday) { ?>
+    <a class="btn btn-ghost btn-sm" href="<?php echo e(hist_url('d=' . date('Ymd', strtotime('+1 day', $ts)))) ?>">วันถัดไป ›</a>
+  <?php } ?>
 </p>
 
-<?php if ($err !== ''): ?>
-  <div class="alert alert-error" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span><?= e($err) ?></span></div>
-<?php endif; ?>
+<?php if ($err !== '') { ?>
+  <div class="alert alert-error" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span><?php echo e($err) ?></span></div>
+<?php } ?>
 
-<?php if (!$isToday): ?>
+<?php if (!$isToday) { ?>
   <?php require dirname(__FILE__) . '/history-past.php'; ?>
-<?php else: ?>
+<?php } else { ?>
   <section class="card">
     <div class="card-head">
       <div>
-        <h2>รายการวันนี้ของ<?= e($brAll[$code]['name']) ?></h2>
+        <h2>รายการวันนี้ของ<?php echo e($brAll[$code]['name']) ?></h2>
         <span class="sub">เรียงจากใหม่ไปเก่า · ดูอย่างเดียว — แก้ / ยกเลิกเอกสารของวันนี้เป็นงานของพนักงานที่มีสิทธิ์</span>
       </div>
     </div>
-    <?php if (!$rows): ?>
+    <?php if (!$rows) { ?>
       <p class="empty"><svg class="ico"><use href="#i-history"/></svg>วันนี้ยังไม่มีรายการ</p>
-    <?php else: ?>
+    <?php } else { ?>
       <ol class="tl">
-        <?php foreach ($rows as $r): $m = log_type_of($r['type']); ?>
-          <li class="tl-i tone-<?= e($m['tone']) ?>">
-            <span class="tl-ic"><svg class="ico"><use href="#<?= e($m['icon']) ?>"/></svg></span>
+        <?php foreach ($rows as $r) { $m = log_type_of($r['type']); ?>
+          <li class="tl-i tone-<?php echo e($m['tone']) ?>">
+            <span class="tl-ic"><svg class="ico"><use href="#<?php echo e($m['icon']) ?>"/></svg></span>
             <div class="tl-b">
               <div class="tl-h">
-                <b><?= e($r['title']) ?></b>
-                <span class="badge b-<?= e($m['tone']) ?>"><?= e($m['label']) ?></span>
-                <?php if ($r['amount'] !== null && in_array($r['type'], array('receive', 'rvoid'), true)): ?>
-                  <span class="tl-amt num"><?= $r['type'] === 'receive' ? '+' : '−' ?><?= number_format($r['amount']) ?> ชิ้น</span>
-                <?php elseif ($r['amount'] !== null): ?>
-                  <span class="tl-amt num"><?= money2($r['amount']) ?> ฿</span>
-                <?php endif; ?>
+                <b><?php echo e($r['title']) ?></b>
+                <span class="badge b-<?php echo e($m['tone']) ?>"><?php echo e($m['label']) ?></span>
+                <?php if ($r['amount'] !== null && in_array($r['type'], array('receive', 'rvoid'), true)) { ?>
+                  <span class="tl-amt num"><?php echo $r['type'] === 'receive' ? '+' : '−' ?><?php echo number_format($r['amount']) ?> ชิ้น</span>
+                <?php } elseif ($r['amount'] !== null) { ?>
+                  <span class="tl-amt num"><?php echo money2($r['amount']) ?> ฿</span>
+                <?php } ?>
               </div>
-              <div class="tl-m"><?= e($r['time']) ?> น. · <?= e($r['by']) ?></div>
-              <?php if ($r['detail']): ?>
+              <div class="tl-m"><?php echo e($r['time']) ?> น. · <?php echo e($r['by']) ?></div>
+              <?php if ($r['detail']) { ?>
                 <dl class="tl-d">
-                  <?php foreach ($r['detail'] as $k => $v): ?>
-                    <div><dt><?= e($k) ?></dt><dd class="num"><?= e($v) ?></dd></div>
-                  <?php endforeach; ?>
+                  <?php foreach ($r['detail'] as $k => $v) { ?>
+                    <div><dt><?php echo e($k) ?></dt><dd class="num"><?php echo e($v) ?></dd></div>
+                  <?php } ?>
                 </dl>
-              <?php endif; ?>
+              <?php } ?>
             </div>
           </li>
-        <?php endforeach; ?>
+        <?php } ?>
       </ol>
-    <?php endif; ?>
+    <?php } ?>
   </section>
-<?php endif; ?>
+<?php } ?>
 
 <?php require dirname(__FILE__) . '/footer.php'; ?>

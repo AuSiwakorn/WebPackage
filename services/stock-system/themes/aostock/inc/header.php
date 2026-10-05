@@ -9,6 +9,7 @@
  *   - [x] ช่วงที่ 8: เอาข้อความ "ข้อมูลสมมติทั้งหมด ยังไม่เชื่อมฐานข้อมูล" ท้ายเมนูออก (ข้อมูลจริงทั้งหมดแล้ว)
  *   - [x] ช่วงที่ 11: เมนูแสดงตามสิทธิ์ของหน้า (page_ok) · ป้ายสถานะร้านกดไปหน้าเปิดร้านได้เฉพาะคนที่มีสิทธิ์
  *   - [x] ช่วงที่ 12: เมนู "พนักงานในสาขา" (เฉพาะผู้จัดการสาขา) · ใต้ชื่อแสดง "ผู้จัดการสาขา" (user_role_label)
+ *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -121,7 +122,7 @@ $branches = visible_branches($user);
 <meta charset="UTF-8">
 <script>document.documentElement.className += ' js';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title><?= e($PAGE_TITLE) ?> | <?= e(APP_NAME) ?></title>
+<title><?php echo e($PAGE_TITLE) ?> | <?php echo e(APP_NAME) ?></title>
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#07211B">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2064%2064'%3E%3Crect%20width='64'%20height='64'%20rx='14'%20fill='%2307211B'/%3E%3Cpath%20d='M14%2024l18-9%2018%209-18%209z'%20fill='%23C9A86A'/%3E%3Cpath%20d='M14%2024v16l18%209V33z'%20fill='%230E7A5F'/%3E%3Cpath%20d='M50%2024v16l-18%209V33z'%20fill='%2312946F'/%3E%3C/svg%3E">
@@ -129,7 +130,7 @@ $branches = visible_branches($user);
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
 <?php /* ต่อท้ายด้วยเวลาแก้ไฟล์ล่าสุด แก้ CSS เมื่อไรเบราว์เซอร์จะโหลดใหม่เอง ไม่ติดแคชเก่า */ ?>
-<link rel="stylesheet" href="<?= e(asset_url('app.css')) ?>?v=<?= (int) @filemtime(dirname(__FILE__) . '/../assets/app.css') ?>">
+<link rel="stylesheet" href="<?php echo e(asset_url('app.css')) ?>?v=<?php echo (int) @filemtime(dirname(__FILE__) . '/../assets/app.css') ?>">
 </head>
 <body>
 
@@ -177,7 +178,7 @@ $branches = visible_branches($user);
   </defs>
 </svg>
 
-<div class="app<?= $navMode === 'rail' ? ' app--rail' : '' ?>" id="app">
+<div class="app<?php echo $navMode === 'rail' ? ' app--rail' : '' ?>" id="app">
 
   <!-- ===== SIDEBAR ===== -->
   <aside class="side" id="side">
@@ -185,27 +186,27 @@ $branches = visible_branches($user);
       <svg class="ico"><use href="#i-x"/></svg>
     </button>
     <div class="side-head">
-      <a class="side-brand" href="<?= e(home_page($user)) ?>" aria-label="<?= e(APP_NAME) ?> หน้าแรก">
+      <a class="side-brand" href="<?php echo e(home_page($user)) ?>" aria-label="<?php echo e(APP_NAME) ?> หน้าแรก">
         <span class="logo logo--light logo-full"><span class="logo-ao">AO</span><span class="logo-sk">STOCK</span></span>
         <span class="logo-mark">AO</span>
       </a>
-      <small class="side-sub"><?= e(APP_TITLE) ?></small>
+      <small class="side-sub"><?php echo e(APP_TITLE) ?></small>
     </div>
 
     <nav class="side-nav" aria-label="เมนูหลัก">
-      <?php foreach ($NAV as $group => $items): ?>
-        <?php if (count($NAV) > 1): ?><div class="side-group"><?= e($group) ?></div><?php endif; ?>
+      <?php foreach ($NAV as $group => $items) { ?>
+        <?php if (count($NAV) > 1) { ?><div class="side-group"><?php echo e($group) ?></div><?php } ?>
         <ul>
-          <?php foreach ($items as $it): ?>
+          <?php foreach ($items as $it) { ?>
             <li>
-              <a href="<?= e($it['file']) ?>" class="<?= $NAV_ACTIVE === $it['file'] ? 'on' : '' ?>"
-                 data-t="<?= e($it['label']) ?>" aria-label="<?= e($it['label']) ?>">
-                <svg class="ico"><use href="#<?= e($it['icon']) ?>"/></svg><span class="lbl"><?= e($it['label']) ?></span>
+              <a href="<?php echo e($it['file']) ?>" class="<?php echo $NAV_ACTIVE === $it['file'] ? 'on' : '' ?>"
+                 data-t="<?php echo e($it['label']) ?>" aria-label="<?php echo e($it['label']) ?>">
+                <svg class="ico"><use href="#<?php echo e($it['icon']) ?>"/></svg><span class="lbl"><?php echo e($it['label']) ?></span>
               </a>
             </li>
-          <?php endforeach; ?>
+          <?php } ?>
         </ul>
-      <?php endforeach; ?>
+      <?php } ?>
     </nav>
 
   </aside>
@@ -224,8 +225,8 @@ $branches = visible_branches($user);
       </button>
 
       <div class="top-title">
-        <h1><?= e($PAGE_TITLE) ?></h1>
-        <?php if ($PAGE_SUB !== ''): ?><span class="top-sub"><?= e($PAGE_SUB) ?></span><?php endif; ?>
+        <h1><?php echo e($PAGE_TITLE) ?></h1>
+        <?php if ($PAGE_SUB !== '') { ?><span class="top-sub"><?php echo e($PAGE_SUB) ?></span><?php } ?>
       </div>
 
       <?php
@@ -234,77 +235,77 @@ $branches = visible_branches($user);
       $__shut  = store_is_closed($__code);
       $__state = store_state($__code);
       ?>
-      <?php if (can($user, 'sale') || page_perm_ok($user, 'store.php')): ?>
-      <a class="store-chip <?= $__open ? 'is-open' : ($__shut ? 'is-shut' : 'is-wait') ?>"<?= page_ok($user, 'store.php') ? ' href="store.php"' : '' ?>>
+      <?php if (can($user, 'sale') || page_perm_ok($user, 'store.php')) { ?>
+      <a class="store-chip <?php echo $__open ? 'is-open' : ($__shut ? 'is-shut' : 'is-wait') ?>"<?php echo page_ok($user, 'store.php') ? ' href="store.php"' : '' ?>>
         <span class="dot"></span>
         <span class="sc-t">
-        <?php if ($__open): ?>
-          เปิดแล้ว <?= e($__state['opened_at']) ?> น.
-        <?php elseif ($__shut): ?>
+        <?php if ($__open) { ?>
+          เปิดแล้ว <?php echo e($__state['opened_at']) ?> น.
+        <?php } elseif ($__shut) { ?>
           ปิดร้านแล้ว
-        <?php else: ?>
+        <?php } else { ?>
           ยังไม่เปิดร้าน
-        <?php endif; ?>
+        <?php } ?>
         </span>
       </a>
-      <?php endif; ?>
+      <?php } ?>
 
       <div class="top-spacer"></div>
 
       <div class="top-tools">
         <?php /* พนักงานผูกกับสาขาเดียวตั้งแต่ตอนสร้างรหัส จึงไม่ต้องมีตัวเลือกสาขา
                  ช่องนี้จะโผล่เฉพาะสิทธิ์ที่เห็นได้หลายสาขาเท่านั้น */ ?>
-        <?php if (empty($NO_BRANCH_PICK) && (($user['role'] === 'admin' && $NAV_ACTIVE === 'adm-dashboard.php') || ($user['role'] !== 'admin' && feature_enabled('branch_pick') && count($branches) > 1))): ?>
+        <?php if (empty($NO_BRANCH_PICK) && (($user['role'] === 'admin' && $NAV_ACTIVE === 'adm-dashboard.php') || ($user['role'] !== 'admin' && feature_enabled('branch_pick') && count($branches) > 1))) { ?>
         <?php /* ผู้ดูแล: ตัวเลือกสาขาบนแถบบนมีเฉพาะหน้าภาพรวม — หน้า adm- อื่นมีตัวกรองสาขาในหน้าเอง */ ?>
-        <form class="branch-pick" method="get" action="<?= e($NAV_ACTIVE) ?>">
-          <?php if (!empty($PICK_HIDDEN)) { foreach ($PICK_HIDDEN as $hk => $hv): ?>
-            <input type="hidden" name="<?= e($hk) ?>" value="<?= e($hv) ?>">
-          <?php endforeach; } ?>
+        <form class="branch-pick" method="get" action="<?php echo e($NAV_ACTIVE) ?>">
+          <?php if (!empty($PICK_HIDDEN)) { foreach ($PICK_HIDDEN as $hk => $hv) { ?>
+            <input type="hidden" name="<?php echo e($hk) ?>" value="<?php echo e($hv) ?>">
+          <?php } } ?>
           <label class="sr-only" for="branch">สาขาที่กำลังดู</label>
           <select class="select" name="branch" id="branch" onchange="this.form.submit()">
-            <?php foreach ($branches as $bcode => $b): ?>
+            <?php foreach ($branches as $bcode => $b) { ?>
               <?php if ($bcode === 'ALL' && $NAV_ACTIVE !== 'adm-dashboard.php') { continue; } ?>
-              <option value="<?= e($bcode) ?>" <?= $branch === $bcode ? 'selected' : '' ?>><?= e($b['name']) ?></option>
-            <?php endforeach; ?>
+              <option value="<?php echo e($bcode) ?>" <?php echo $branch === $bcode ? 'selected' : '' ?>><?php echo e($b['name']) ?></option>
+            <?php } ?>
           </select>
         </form>
-        <?php endif; ?>
+        <?php } ?>
 
-        <?php if (feature_enabled('search')): ?>
+        <?php if (feature_enabled('search')) { ?>
         <div class="top-search">
           <svg class="ico"><use href="#i-search"/></svg>
           <label class="sr-only" for="q">ค้นหาสินค้า</label>
           <input type="search" id="q" placeholder="ค้นหาสินค้า / บาร์โค้ด">
         </div>
-        <?php endif; ?>
+        <?php } ?>
 
         <div class="who">
-          <span class="av"><?= e($user['initials']) ?></span>
+          <span class="av"><?php echo e($user['initials']) ?></span>
           <span class="who-t">
-            <b><?= e($user['name']) ?></b>
-            <small><?= e(user_role_label($user)) ?> · <?= e(branch_name($user['branch'])) ?></small>
+            <b><?php echo e($user['name']) ?></b>
+            <small><?php echo e(user_role_label($user)) ?> · <?php echo e(branch_name($user['branch'])) ?></small>
           </span>
           <a class="icon-btn" href="logout.php" title="ออกจากระบบ" aria-label="ออกจากระบบ">
             <svg class="ico"><use href="#i-logout"/></svg>
           </a>
         </div>
 
-        <?php if (menu_enabled('sale.php') && can($user, 'sale')): ?>
+        <?php if (menu_enabled('sale.php') && can($user, 'sale')) { ?>
           <?php $__cart = cart_count(); ?>
-          <a class="btn-sale<?= $__open ? '' : ' is-lock' ?>"
-             href="<?= ($__open || !page_ok($user, 'store.php')) ? 'sale.php' : 'store.php' ?>"
-             title="<?= $__open ? 'เปิดหน้าขายสินค้า' : 'ต้องเปิดร้านก่อนจึงจะขายได้' ?>">
+          <a class="btn-sale<?php echo $__open ? '' : ' is-lock' ?>"
+             href="<?php echo ($__open || !page_ok($user, 'store.php')) ? 'sale.php' : 'store.php' ?>"
+             title="<?php echo $__open ? 'เปิดหน้าขายสินค้า' : 'ต้องเปิดร้านก่อนจึงจะขายได้' ?>">
             <svg class="ico"><use href="#i-cart"/></svg>
             <span class="t-full">ขายสินค้า</span>
             <span class="t-min">ขาย</span>
-            <i id="cart-bdg" class="bdg<?= $__cart > 0 ? '' : ' none' ?>"><?= $__cart > 0 ? (int) $__cart : '' ?></i>
+            <i id="cart-bdg" class="bdg<?php echo $__cart > 0 ? '' : ' none' ?>"><?php echo $__cart > 0 ? (int) $__cart : '' ?></i>
           </a>
-        <?php endif; ?>
+        <?php } ?>
       </div>
     </header>
 
     <main class="page">
-    <?php if (!empty($_SESSION['flash'])): ?>
-      <div class="alert alert-info" role="status"><svg class="ico"><use href="#i-info"/></svg><span><?= e($_SESSION['flash']) ?></span></div>
+    <?php if (!empty($_SESSION['flash'])) { ?>
+      <div class="alert alert-info" role="status"><svg class="ico"><use href="#i-info"/></svg><span><?php echo e($_SESSION['flash']) ?></span></div>
       <?php unset($_SESSION['flash']); ?>
-    <?php endif; ?>
+    <?php } ?>

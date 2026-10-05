@@ -7,6 +7,7 @@
  * TODO:
  *   - [x] ย้ายจาก demo/ เข้า themes/aostock/ (วิ่งผ่าน router ของ admweb)
  *   - [x] ช่วงที่ 8: ยอดจาก SQL ทั้งเดือน · เอาโหมด "ดูตัวอย่าง 10 สาขา" (สาขาจำลอง) ออก · เดือนแรก = เดือนที่มีบิลแรก
+ *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -102,46 +103,46 @@ require dirname(__FILE__) . '/inc/header.php';
 <!-- ==================== ตัวกรอง ==================== -->
 <section class="card acct-filter hist-filter">
   <form method="get" action="adm-report-daily.php" class="acct-row">
-    <?php if ($monTs > $minTs): ?>
-      <a class="btn btn-ghost btn-sm" href="<?= e($rq(array('m' => date('Y-m', strtotime('-1 month', $monTs))))) ?>" aria-label="เดือนก่อนหน้า">‹</a>
-    <?php endif; ?>
+    <?php if ($monTs > $minTs) { ?>
+      <a class="btn btn-ghost btn-sm" href="<?php echo e($rq(array('m' => date('Y-m', strtotime('-1 month', $monTs))))) ?>" aria-label="เดือนก่อนหน้า">‹</a>
+    <?php } ?>
     <label class="sr-only" for="dm">เดือน</label>
-    <input class="input acct-date" type="month" id="dm" name="m" value="<?= e(date('Y-m', $monTs)) ?>"
-           min="<?= e(date('Y-m', $minTs)) ?>" max="<?= e(date('Y-m')) ?>" onchange="this.form.submit()">
-    <?php if ($monTs < strtotime(date('Y-m-01'))): ?>
-      <a class="btn btn-ghost btn-sm" href="<?= e($rq(array('m' => date('Y-m', strtotime('+1 month', $monTs))))) ?>" aria-label="เดือนถัดไป">›</a>
-      <a class="btn btn-ghost btn-sm" href="<?= e($rq(array('m' => date('Y-m')))) ?>">เดือนนี้</a>
-    <?php endif; ?>
-    <?php if ($fV !== 'total'): ?><input type="hidden" name="v" value="<?= e($fV) ?>"><?php endif; ?>
+    <input class="input acct-date" type="month" id="dm" name="m" value="<?php echo e(date('Y-m', $monTs)) ?>"
+           min="<?php echo e(date('Y-m', $minTs)) ?>" max="<?php echo e(date('Y-m')) ?>" onchange="this.form.submit()">
+    <?php if ($monTs < strtotime(date('Y-m-01'))) { ?>
+      <a class="btn btn-ghost btn-sm" href="<?php echo e($rq(array('m' => date('Y-m', strtotime('+1 month', $monTs))))) ?>" aria-label="เดือนถัดไป">›</a>
+      <a class="btn btn-ghost btn-sm" href="<?php echo e($rq(array('m' => date('Y-m')))) ?>">เดือนนี้</a>
+    <?php } ?>
+    <?php if ($fV !== 'total') { ?><input type="hidden" name="v" value="<?php echo e($fV) ?>"><?php } ?>
     <div class="segs">
-      <?php foreach (array('total' => 'ยอดขาย', 'bills' => 'บิล', 'qty' => 'ชิ้น') as $k => $lb): ?>
-        <a class="seg<?= $fV === $k ? ' on' : '' ?>" href="<?= e($rq(array('v' => $k))) ?>"><?= e($lb) ?></a>
-      <?php endforeach; ?>
+      <?php foreach (array('total' => 'ยอดขาย', 'bills' => 'บิล', 'qty' => 'ชิ้น') as $k => $lb) { ?>
+        <a class="seg<?php echo $fV === $k ? ' on' : '' ?>" href="<?php echo e($rq(array('v' => $k))) ?>"><?php echo e($lb) ?></a>
+      <?php } ?>
     </div>
-    <a class="btn btn-ghost btn-sm rep-csv" href="<?= e($rq(array('export' => 'csv'))) ?>"><svg class="ico"><use href="#i-in"/></svg> ดาวน์โหลด CSV</a>
+    <a class="btn btn-ghost btn-sm rep-csv" href="<?php echo e($rq(array('export' => 'csv'))) ?>"><svg class="ico"><use href="#i-in"/></svg> ดาวน์โหลด CSV</a>
   </form>
 </section>
 
 <!-- ==================== ตัวเลขสรุปของเดือน ==================== -->
 <section class="mini num adm-kpi dly-kpi" aria-label="สรุปของเดือน">
-  <div class="m"><div class="lb">รวมทั้งเดือน · <?= count($codes) ?> สาขา</div><div class="nm"><?= e($fmt($mx['grand'])) ?></div>
-    <div class="sb">ขาย <?= number_format($opened) ?> วัน</div></div>
-  <div class="m"><div class="lb">เฉลี่ยต่อวันที่ขาย</div><div class="nm"><?= e($fmt($opened ? $mx['grand'] / $opened : 0)) ?></div>
+  <div class="m"><div class="lb">รวมทั้งเดือน · <?php echo count($codes) ?> สาขา</div><div class="nm"><?php echo e($fmt($mx['grand'])) ?></div>
+    <div class="sb">ขาย <?php echo number_format($opened) ?> วัน</div></div>
+  <div class="m"><div class="lb">เฉลี่ยต่อวันที่ขาย</div><div class="nm"><?php echo e($fmt($opened ? $mx['grand'] / $opened : 0)) ?></div>
     <div class="sb">รวมทุกสาขา</div></div>
-  <div class="m"><div class="lb">สาขาที่ทำได้มากสุด</div><div class="nm"><?= $mx['grand'] > 0 ? e($branches[$topC]['short']) : '—' ?></div>
-    <div class="sb"><?= $mx['grand'] > 0 ? e($fmt($rank[$topC])) . ' · ' . number_format($rank[$topC] / $mx['grand'] * 100, 1) . '%' : 'ยังไม่มียอด' ?></div></div>
+  <div class="m"><div class="lb">สาขาที่ทำได้มากสุด</div><div class="nm"><?php echo $mx['grand'] > 0 ? e($branches[$topC]['short']) : '—' ?></div>
+    <div class="sb"><?php echo $mx['grand'] > 0 ? e($fmt($rank[$topC])) . ' · ' . number_format($rank[$topC] / $mx['grand'] * 100, 1) . '%' : 'ยังไม่มียอด' ?></div></div>
   <div class="m"><div class="lb">วันที่ยอดรวมสูงสุด</div>
-    <div class="nm"><?= $mx['bestDay'][1] !== '' ? e(thai_dow_short(strtotime($mx['bestDay'][1])) . ' ' . thai_day_month(strtotime($mx['bestDay'][1]))) : '—' ?></div>
-    <div class="sb"><?= $mx['bestDay'][1] !== '' ? e($fmt($mx['bestDay'][0])) : '' ?></div></div>
+    <div class="nm"><?php echo $mx['bestDay'][1] !== '' ? e(thai_dow_short(strtotime($mx['bestDay'][1])) . ' ' . thai_day_month(strtotime($mx['bestDay'][1]))) : '—' ?></div>
+    <div class="sb"><?php echo $mx['bestDay'][1] !== '' ? e($fmt($mx['bestDay'][0])) : '' ?></div></div>
 </section>
 
 <!-- ==================== ตาราง ==================== -->
 <section class="card">
   <div class="card-head">
     <div>
-      <h2><?= e($vLabel[$fV]) ?> รายวัน · <?= e(thai_month_full($monTs)) ?></h2>
+      <h2><?php echo e($vLabel[$fV]) ?> รายวัน · <?php echo e(thai_month_full($monTs)) ?></h2>
       <span class="sub">สีพื้นเข้ม = ยอดมาก (เทียบทั้งเดือน) · <b class="dly-k">ตัวหนาสีเขียว</b> = สาขาที่สูงสุดของวันนั้น
-        · กดที่ยอดเพื่อดูบิลและสินค้าที่ขาย<?= count($codes) > 5 ? ' · เลื่อนตารางซ้าย–ขวาเพื่อดูสาขาอื่น' : '' ?></span>
+        · กดที่ยอดเพื่อดูบิลและสินค้าที่ขาย<?php echo count($codes) > 5 ? ' · เลื่อนตารางซ้าย–ขวาเพื่อดูสาขาอื่น' : '' ?></span>
     </div>
   </div>
   <div class="dly-wrap">
@@ -149,62 +150,62 @@ require dirname(__FILE__) . '/inc/header.php';
       <thead>
         <tr>
           <th class="dly-d">วันที่</th>
-          <?php foreach ($codes as $c): ?>
-            <th class="r" title="<?= e($branches[$c]['name']) ?>"><?= e($branches[$c]['short']) ?></th>
-          <?php endforeach; ?>
+          <?php foreach ($codes as $c) { ?>
+            <th class="r" title="<?php echo e($branches[$c]['name']) ?>"><?php echo e($branches[$c]['short']) ?></th>
+          <?php } ?>
           <th class="r dly-t">รวมทุกสาขา</th>
         </tr>
       </thead>
       <tbody>
-        <?php foreach ($mx['rows'] as $k => $r):
+        <?php foreach ($mx['rows'] as $k => $r) {
             $sun = (int) date('w', $r['ts']) === 0;
             $max = 0;
             foreach ($codes as $c) { $max = max($max, $r['cells'][$c]); } ?>
-          <tr class="<?= $sun ? 'dly-sun' : '' ?><?= $r['future'] ? ' dly-fut' : '' ?><?= $k === date('Ymd') ? ' dly-today' : '' ?>">
-            <th class="dly-d" scope="row"><b><?= (int) date('j', $r['ts']) ?></b> <small><?= e(thai_dow_short($r['ts'])) ?></small></th>
-            <?php foreach ($codes as $c): $v = $r['cells'][$c];
+          <tr class="<?php echo $sun ? 'dly-sun' : '' ?><?php echo $r['future'] ? ' dly-fut' : '' ?><?php echo $k === date('Ymd') ? ' dly-today' : '' ?>">
+            <th class="dly-d" scope="row"><b><?php echo (int) date('j', $r['ts']) ?></b> <small><?php echo e(thai_dow_short($r['ts'])) ?></small></th>
+            <?php foreach ($codes as $c) { $v = $r['cells'][$c];
                 $heat = ($v > 0 && $mx['cellMax'] > 0) ? round(0.05 + 0.30 * $v / $mx['cellMax'], 3) : 0; ?>
-              <td class="r<?= ($v > 0 && $v == $max && count($codes) > 1) ? ' dly-top' : '' ?>"<?= $heat ? ' style="--h:' . $heat . '"' : '' ?>>
-                <?php if ($r['future']): ?><span class="dly-0"></span>
-                <?php elseif ($v > 0): ?>
-                  <button type="button" class="cell-link" data-day-sales="<?= e($c . '|' . $k) ?>" title="<?= e($branches[$c]['name']) ?> · ดูบิลและสินค้าที่ขาย"><?= e($fmt($v)) ?></button>
-                <?php else: ?><span class="<?= $v ? '' : 'dly-0' ?>"><?= $v ? e($fmt($v)) : '—' ?></span><?php endif; ?>
+              <td class="r<?php echo ($v > 0 && $v == $max && count($codes) > 1) ? ' dly-top' : '' ?>"<?php echo $heat ? ' style="--h:' . $heat . '"' : '' ?>>
+                <?php if ($r['future']) { ?><span class="dly-0"></span>
+                <?php } elseif ($v > 0) { ?>
+                  <button type="button" class="cell-link" data-day-sales="<?php echo e($c . '|' . $k) ?>" title="<?php echo e($branches[$c]['name']) ?> · ดูบิลและสินค้าที่ขาย"><?php echo e($fmt($v)) ?></button>
+                <?php } else { ?><span class="<?php echo $v ? '' : 'dly-0' ?>"><?php echo $v ? e($fmt($v)) : '—' ?></span><?php } ?>
               </td>
-            <?php endforeach; ?>
+            <?php } ?>
             <td class="r dly-t">
-              <?php if ($r['future']): ?><span class="dly-0"></span>
-              <?php elseif ($r['sum'] > 0): ?>
-                <button type="button" class="cell-link" data-day-sales="<?= e('ALL|' . $k) ?>" title="ดูบิลและสินค้าที่ขายของทุกสาขาวันนี้"><b><?= e($fmt($r['sum'])) ?></b></button>
-              <?php else: ?><b class="<?= $r['sum'] ? '' : 'dly-0' ?>"><?= $r['sum'] ? e($fmt($r['sum'])) : '—' ?></b><?php endif; ?>
+              <?php if ($r['future']) { ?><span class="dly-0"></span>
+              <?php } elseif ($r['sum'] > 0) { ?>
+                <button type="button" class="cell-link" data-day-sales="<?php echo e('ALL|' . $k) ?>" title="ดูบิลและสินค้าที่ขายของทุกสาขาวันนี้"><b><?php echo e($fmt($r['sum'])) ?></b></button>
+              <?php } else { ?><b class="<?php echo $r['sum'] ? '' : 'dly-0' ?>"><?php echo $r['sum'] ? e($fmt($r['sum'])) : '—' ?></b><?php } ?>
             </td>
           </tr>
-        <?php endforeach; ?>
+        <?php } ?>
       </tbody>
       <tfoot>
         <tr class="dly-sum">
           <th class="dly-d" scope="row">รวมทั้งเดือน</th>
-          <?php foreach ($codes as $c): ?><td class="r"><b><?= e($fmt($mx['col'][$c])) ?></b></td><?php endforeach; ?>
-          <td class="r dly-t"><b><?= e($fmt($mx['grand'])) ?></b></td>
+          <?php foreach ($codes as $c) { ?><td class="r"><b><?php echo e($fmt($mx['col'][$c])) ?></b></td><?php } ?>
+          <td class="r dly-t"><b><?php echo e($fmt($mx['grand'])) ?></b></td>
         </tr>
         <tr>
           <th class="dly-d" scope="row">เฉลี่ย / วันที่ขาย</th>
-          <?php foreach ($codes as $c): ?>
-            <td class="r"><?= $mx['open'][$c] ? e($fmt($mx['col'][$c] / $mx['open'][$c])) : '—' ?><small><?= number_format($mx['open'][$c]) ?> วัน</small></td>
-          <?php endforeach; ?>
-          <td class="r dly-t"><?= $opened ? e($fmt($mx['grand'] / $opened)) : '—' ?><small><?= number_format($opened) ?> วัน</small></td>
+          <?php foreach ($codes as $c) { ?>
+            <td class="r"><?php echo $mx['open'][$c] ? e($fmt($mx['col'][$c] / $mx['open'][$c])) : '—' ?><small><?php echo number_format($mx['open'][$c]) ?> วัน</small></td>
+          <?php } ?>
+          <td class="r dly-t"><?php echo $opened ? e($fmt($mx['grand'] / $opened)) : '—' ?><small><?php echo number_format($opened) ?> วัน</small></td>
         </tr>
         <tr>
           <th class="dly-d" scope="row">วันที่ขายได้มากสุด</th>
-          <?php foreach ($codes as $c): $bst = $mx['best'][$c]; ?>
-            <td class="r"><?= $bst[1] !== '' ? e($fmt($bst[0])) . '<small>' . e(thai_dow_short(strtotime($bst[1])) . ' ' . thai_day_month(strtotime($bst[1]))) . '</small>' : '—' ?></td>
-          <?php endforeach; ?>
-          <td class="r dly-t"><?= $mx['bestDay'][1] !== '' ? e($fmt($mx['bestDay'][0])) . '<small>' . e(thai_dow_short(strtotime($mx['bestDay'][1])) . ' ' . thai_day_month(strtotime($mx['bestDay'][1]))) . '</small>' : '—' ?></td>
+          <?php foreach ($codes as $c) { $bst = $mx['best'][$c]; ?>
+            <td class="r"><?php echo $bst[1] !== '' ? e($fmt($bst[0])) . '<small>' . e(thai_dow_short(strtotime($bst[1])) . ' ' . thai_day_month(strtotime($bst[1]))) . '</small>' : '—' ?></td>
+          <?php } ?>
+          <td class="r dly-t"><?php echo $mx['bestDay'][1] !== '' ? e($fmt($mx['bestDay'][0])) . '<small>' . e(thai_dow_short(strtotime($mx['bestDay'][1])) . ' ' . thai_day_month(strtotime($mx['bestDay'][1]))) . '</small>' : '—' ?></td>
         </tr>
         <tr>
           <th class="dly-d" scope="row">สัดส่วนของทั้งหมด</th>
-          <?php foreach ($codes as $c): ?>
-            <td class="r"><?= $mx['grand'] > 0 ? number_format($mx['col'][$c] / $mx['grand'] * 100, 1) : '0.0' ?>%</td>
-          <?php endforeach; ?>
+          <?php foreach ($codes as $c) { ?>
+            <td class="r"><?php echo $mx['grand'] > 0 ? number_format($mx['col'][$c] / $mx['grand'] * 100, 1) : '0.0' ?>%</td>
+          <?php } ?>
           <td class="r dly-t">100%</td>
         </tr>
       </tfoot>

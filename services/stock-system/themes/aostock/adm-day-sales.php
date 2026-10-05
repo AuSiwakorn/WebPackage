@@ -7,6 +7,7 @@
  * TODO:
  *   - [x] ย้ายจาก demo/ เข้า themes/aostock/ (วิ่งผ่าน router ของ admweb)
  *   - [x] ช่วงที่ 7: บิลของวันอ่านจากตาราง
+ *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -66,65 +67,65 @@ uasort($prods, function ($x, $y) { return $x['qty'] == $y['qty'] ? ($x['total'] 
 $where = $b === 'ALL' ? 'ทุกสาขา' : $brAll[$b]['name'];
 ?>
 <div class="ds-head">
-  <h2><?= e($where) ?> · <?= e(thai_date_full($ts)) ?></h2>
-  <p class="sub">ยอดขาย <b><?= e(money2($sum['total'])) ?></b> บาท · <?= number_format($sum['bills']) ?> บิล · <?= number_format($sum['qty']) ?> ชิ้น
-    · เงินสด <?= e(money2($sum['cash'])) ?> · โอน <?= e(money2($sum['total'] - $sum['cash'])) ?>
-    <?= $sum['disc'] > 0 ? ' · ส่วนลด ' . e(money2($sum['disc'])) : '' ?><?= $sum['void'] ? ' · ยกเลิก ' . $sum['void'] . ' ใบ' : '' ?></p>
+  <h2><?php echo e($where) ?> · <?php echo e(thai_date_full($ts)) ?></h2>
+  <p class="sub">ยอดขาย <b><?php echo e(money2($sum['total'])) ?></b> บาท · <?php echo number_format($sum['bills']) ?> บิล · <?php echo number_format($sum['qty']) ?> ชิ้น
+    · เงินสด <?php echo e(money2($sum['cash'])) ?> · โอน <?php echo e(money2($sum['total'] - $sum['cash'])) ?>
+    <?php echo $sum['disc'] > 0 ? ' · ส่วนลด ' . e(money2($sum['disc'])) : '' ?><?php echo $sum['void'] ? ' · ยกเลิก ' . $sum['void'] . ' ใบ' : '' ?></p>
 </div>
 
 <div class="cats tabbar ds-tabs" role="tablist">
-  <button type="button" class="cat on" data-ds-tab="bills" role="tab" aria-selected="true">บิล <i><?= count($bills) ?></i></button>
-  <button type="button" class="cat" data-ds-tab="prods" role="tab" aria-selected="false">สินค้าที่ขาย <i><?= count($prods) ?></i></button>
+  <button type="button" class="cat on" data-ds-tab="bills" role="tab" aria-selected="true">บิล <i><?php echo count($bills) ?></i></button>
+  <button type="button" class="cat" data-ds-tab="prods" role="tab" aria-selected="false">สินค้าที่ขาย <i><?php echo count($prods) ?></i></button>
 </div>
 
 <div class="ds-pane" data-ds-pane="bills">
-  <?php if (!$bills): ?>
+  <?php if (!$bills) { ?>
     <p class="empty">ไม่มีบิลในวันนี้</p>
-  <?php else: ?>
+  <?php } else { ?>
     <ul class="ds-bills">
-      <?php foreach ($bills as $bl): $void = !empty($bl['void']); ?>
+      <?php foreach ($bills as $bl) { $void = !empty($bl['void']); ?>
         <li>
-          <details<?= $void ? ' class="is-void"' : '' ?>>
+          <details<?php echo $void ? ' class="is-void"' : '' ?>>
             <summary>
-              <span class="ds-t num"><?= e($bl['time']) ?></span>
-              <span class="ds-no"><b><?= e($bl['no']) ?></b>
-                <small><?= $b === 'ALL' ? e($brAll[$bl['branch']]['short']) . ' · ' : '' ?><?= e($bl['by']) ?> · <?= $bl['method'] === 'cash' ? 'เงินสด' : 'โอน' ?> · <?= !empty($bl['vat']) ? 'VAT' : 'ไม่ VAT' ?><?= $void ? ' · ยกเลิกแล้ว' : '' ?></small></span>
-              <span class="ds-amt num"><?= (int) $bl['items'] ?> รายการ · <b><?= e(money2($bl['total'])) ?></b></span>
+              <span class="ds-t num"><?php echo e($bl['time']) ?></span>
+              <span class="ds-no"><b><?php echo e($bl['no']) ?></b>
+                <small><?php echo $b === 'ALL' ? e($brAll[$bl['branch']]['short']) . ' · ' : '' ?><?php echo e($bl['by']) ?> · <?php echo $bl['method'] === 'cash' ? 'เงินสด' : 'โอน' ?> · <?php echo !empty($bl['vat']) ? 'VAT' : 'ไม่ VAT' ?><?php echo $void ? ' · ยกเลิกแล้ว' : '' ?></small></span>
+              <span class="ds-amt num"><?php echo (int) $bl['items'] ?> รายการ · <b><?php echo e(money2($bl['total'])) ?></b></span>
             </summary>
             <table class="ds-lines">
-              <?php foreach ($bl['lines'] as $l): ?>
-                <tr><td><?= e($l['name']) ?> <small><?= e($l['sku']) ?></small></td>
-                    <td class="r num"><?= number_format($l['qty']) ?> × <?= e(money2($l['price'])) ?></td>
-                    <td class="r num"><?= e(money2($l['sum'])) ?></td></tr>
-              <?php endforeach; ?>
-              <?php if (!empty($bl['discount'])): ?>
-                <tr><td colspan="2" class="r">ส่วนลดท้ายบิล</td><td class="r num">−<?= e(money2($bl['discount'])) ?></td></tr>
-              <?php endif; ?>
-              <tr class="ds-tot"><td colspan="2" class="r">รวม</td><td class="r num"><b><?= e(money2($bl['total'])) ?></b></td></tr>
+              <?php foreach ($bl['lines'] as $l) { ?>
+                <tr><td><?php echo e($l['name']) ?> <small><?php echo e($l['sku']) ?></small></td>
+                    <td class="r num"><?php echo number_format($l['qty']) ?> × <?php echo e(money2($l['price'])) ?></td>
+                    <td class="r num"><?php echo e(money2($l['sum'])) ?></td></tr>
+              <?php } ?>
+              <?php if (!empty($bl['discount'])) { ?>
+                <tr><td colspan="2" class="r">ส่วนลดท้ายบิล</td><td class="r num">−<?php echo e(money2($bl['discount'])) ?></td></tr>
+              <?php } ?>
+              <tr class="ds-tot"><td colspan="2" class="r">รวม</td><td class="r num"><b><?php echo e(money2($bl['total'])) ?></b></td></tr>
             </table>
-            <p class="ds-pr"><button type="button" class="btn btn-ghost btn-sm" data-bill-print="<?= e(bill_print_url($bl['branch'], $ts, $bl['no'])) ?>"
-               data-bill-no="<?= e($bl['no']) ?>"><svg class="ico"><use href="#i-print"/></svg> ดู / พิมพ์บิล</button></p>
+            <p class="ds-pr"><button type="button" class="btn btn-ghost btn-sm" data-bill-print="<?php echo e(bill_print_url($bl['branch'], $ts, $bl['no'])) ?>"
+               data-bill-no="<?php echo e($bl['no']) ?>"><svg class="ico"><use href="#i-print"/></svg> ดู / พิมพ์บิล</button></p>
           </details>
         </li>
-      <?php endforeach; ?>
+      <?php } ?>
     </ul>
-  <?php endif; ?>
+  <?php } ?>
 </div>
 
 <div class="ds-pane" data-ds-pane="prods" hidden>
-  <?php if (!$prods): ?>
+  <?php if (!$prods) { ?>
     <p class="empty">ไม่มีสินค้าที่ขายในวันนี้</p>
-  <?php else: ?>
+  <?php } else { ?>
     <table class="ds-lines ds-prods">
       <thead><tr><th>สินค้า</th><th class="r">จำนวน</th><th class="r">บิล</th><th class="r">ยอดขาย</th></tr></thead>
       <tbody>
-        <?php $i = 0; foreach ($prods as $sku => $p): $i++; ?>
-          <tr><td><span class="rep-rank"><?= $i ?></span><?= e($p['name']) ?> <small><?= e($sku) ?></small></td>
-              <td class="r num"><?= number_format($p['qty']) ?> <?= e($p['unit']) ?></td>
-              <td class="r num"><?= number_format($p['bills']) ?></td>
-              <td class="r num"><?= e(money2($p['total'])) ?></td></tr>
-        <?php endforeach; ?>
+        <?php $i = 0; foreach ($prods as $sku => $p) { $i++; ?>
+          <tr><td><span class="rep-rank"><?php echo $i ?></span><?php echo e($p['name']) ?> <small><?php echo e($sku) ?></small></td>
+              <td class="r num"><?php echo number_format($p['qty']) ?> <?php echo e($p['unit']) ?></td>
+              <td class="r num"><?php echo number_format($p['bills']) ?></td>
+              <td class="r num"><?php echo e(money2($p['total'])) ?></td></tr>
+        <?php } ?>
       </tbody>
     </table>
-  <?php endif; ?>
+  <?php } ?>
 </div>
