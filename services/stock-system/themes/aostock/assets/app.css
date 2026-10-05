@@ -949,6 +949,24 @@ button,a,summary,input,select{-webkit-tap-highlight-color:rgba(14,122,95,.15)}
 .staff-perm b{font-weight:700}
 .staff .st small{max-width:none}
 
+/* ---------- ช่วงที่ 13: ปุ่มชื่อที่เครื่องจำไว้ (มี × เอาออก) · ช่องพิมพ์ชื่อผู้ใช้ ---------- */
+.staff-wrap{position:relative;flex:0 0 auto;display:flex}
+.staff-wrap .staff{padding-right:46px}
+.staff-x{
+  position:absolute;right:8px;top:50%;transform:translateY(-50%);
+  width:32px;height:32px;border-radius:50%;border:0;background:transparent;color:var(--ink-3);
+  display:grid;place-items:center;cursor:pointer;
+}
+.staff-x .ico{width:16px;height:16px}
+.staff-x:hover,.staff-x:focus-visible{background:var(--bg-soft);color:var(--deep-900)}
+.lg-link{
+  display:inline-block;margin-top:12px;background:none;border:0;padding:4px 0;
+  font:inherit;font-size:.88rem;font-weight:500;color:var(--brand);cursor:pointer;
+}
+.lg-link:hover{text-decoration:underline}
+.lg-keep{margin-top:12px;font-size:.88rem}
+#who-type .staff-perm{margin-top:14px}
+
 /* ==========================================================
    ขายสินค้า — ปุ่มบนแถบบน / หน้าขาย / ประวัติการทำรายการ
    สีส้มใช้เฉพาะปุ่ม "ขาย" เพื่อให้หาเจอเร็วที่สุดบนหน้าจอ

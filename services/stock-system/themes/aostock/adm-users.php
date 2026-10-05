@@ -12,6 +12,7 @@
  *   - [x] ช่วงที่ 12: แก้ข้อมูล / PIN / พักงาน / ลบ ย้ายไปใช้ staff_act_* (ใช้ร่วมกับ team.php ของผู้จัดการสาขา — ข้อความเดิมทุกคำ)
  *         · ตั้ง / ปลด "ผู้จัดการสาขา" ที่ช่อง "ตำแหน่ง" บนสุดของฟอร์ม (หรือที่หน้าจัดการสาขา) · ป้ายผู้จัดการข้างชื่อ · ย้ายสาขายังอยู่ในหน้านี้ (เฉพาะผู้ดูแล)
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
+ *   - [x] ช่วงที่ 13: เปลี่ยนชื่อผู้ใช้ได้ (ช่องในฟอร์มแก้ไข — พนักงานใช้คู่กับ PIN ตอนเข้าระบบ) · ข้อความหลังเพิ่มบอกชื่อผู้ใช้ที่ต้องแจ้งพนักงาน
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -71,9 +72,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $name  = trim(preg_replace('/\s+/u', ' ', isset($_POST['name']) ? $_POST['name'] : ''));
             $ini   = trim(isset($_POST['initials']) ? $_POST['initials'] : '');
             $perms = perm_set_manager(read_perms(), isset($_POST['position']) && $_POST['position'] === 'manager');   // ตำแหน่ง (ช่วงที่ 12)
-            $old[$sel] = array('name' => $name, 'initials' => $ini, 'perms' => $perms);
-            $err = staff_act_save($sel, $name, $ini, $perms, $user);
-            $go  = 'adm-users.php?u=' . rawurlencode($sel) . '&ok=save';
+            $uname = strtolower(trim(isset($_POST['username']) ? (string) $_POST['username'] : $sel));          // ช่วงที่ 13: เปลี่ยนชื่อผู้ใช้ได้
+            $old[$sel] = array('name' => $name, 'username' => $uname, 'initials' => $ini, 'perms' => $perms);
+            $err = staff_act_save($sel, $name, $ini, $perms, $user, $uname);
+            $go  = 'adm-users.php?u=' . rawurlencode($uname) . '&ok=' . ($uname !== $sel ? 'rename' : 'save');
 
         } elseif ($act === 'pin') {
             $err = staff_act_pin($sel, isset($_POST['pin']) ? $_POST['pin'] : '', $user);
@@ -122,12 +124,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $staff  = staff_all();
 $picked = isset($staff[$sel]) ? $staff[$sel] : null;
 $okMsg  = array(
-    'add'  => 'เพิ่มพนักงานแล้ว — เข้าระบบด้วยการแตะชื่อ + PIN ได้ทันที',
-    'save' => 'บันทึกแล้ว สิทธิ์มีผลทันที',
-    'pin'  => 'รีเซ็ต PIN แล้ว — แจ้ง PIN ใหม่ให้พนักงานโดยตรง',
-    'move' => 'ย้ายสาขาแล้ว มีผลตั้งแต่วันนี้ ยอดเก่ายังอยู่ที่สาขาเดิม',
-    'off'  => 'พักงานแล้ว — เข้าระบบไม่ได้ แต่ชื่อในเอกสารเก่ายังอยู่',
-    'on'   => 'เปิดใช้งานอีกครั้งแล้ว',
+    'add'    => 'เพิ่มพนักงานแล้ว — แจ้งชื่อผู้ใช้ “' . $sel . '” และ PIN ให้พนักงานใช้เข้าระบบครั้งแรก (ครั้งต่อไปเครื่องจะจำชื่อไว้ให้แตะ)',
+    'save'   => 'บันทึกแล้ว สิทธิ์มีผลทันที',
+    'rename' => 'บันทึกแล้ว — ชื่อผู้ใช้ใหม่คือ “' . $sel . '” แจ้งพนักงานให้ใช้ชื่อนี้เข้าระบบ (ถ้ากำลังเข้าระบบอยู่จะถูกพาออกให้เข้าใหม่) · ปุ่มชื่อบนเครื่องที่จำไว้ยังใช้ได้',
+    'pin'    => 'รีเซ็ต PIN แล้ว — แจ้ง PIN ใหม่ให้พนักงานโดยตรง',
+    'move'   => 'ย้ายสาขาแล้ว มีผลตั้งแต่วันนี้ ยอดเก่ายังอยู่ที่สาขาเดิม',
+    'off'    => 'พักงานแล้ว — เข้าระบบไม่ได้ แต่ชื่อในเอกสารเก่ายังอยู่',
+    'on'     => 'เปิดใช้งานอีกครั้งแล้ว',
 );
 $ok = (isset($_GET['ok']) && isset($okMsg[$_GET['ok']])) ? $okMsg[$_GET['ok']] : '';
 $nActive = 0;
@@ -152,7 +155,7 @@ require dirname(__FILE__) . '/inc/header.php';
 <!-- ==================== เพิ่มพนักงาน (หน้าแยก adm-user-add.php) ==================== -->
 <section class="card br-add">
   <div class="card-head">
-    <div><h2>เพิ่มพนักงาน</h2><span class="sub">พนักงานเข้าระบบด้วยการแตะชื่อ + PIN 4 หลัก</span></div>
+    <div><h2>เพิ่มพนักงาน</h2><span class="sub">พนักงานเข้าระบบด้วยชื่อผู้ใช้ + PIN 4 หลัก</span></div>
     <a class="btn btn-primary btn-sm" href="adm-user-add.php"><svg class="ico"><use href="#i-plus"/></svg> เพิ่มพนักงาน</a>
   </div>
 </section>
@@ -163,7 +166,7 @@ require dirname(__FILE__) . '/inc/header.php';
 <?php } ?>
 
 <?php if ($picked !== null) {
-    $pv     = isset($old[$sel]) ? $old[$sel] : array('name' => $picked['name'], 'initials' => $picked['initials'],
+    $pv     = isset($old[$sel]) ? $old[$sel] : array('name' => $picked['name'], 'username' => $sel, 'initials' => $picked['initials'],
                                                       'perms' => isset($picked['perms']) ? $picked['perms'] : array());
     $active = user_active($picked);
     $reason = staff_data_reason($sel); ?>
@@ -195,6 +198,11 @@ require dirname(__FILE__) . '/inc/header.php';
         <div class="field">
           <label for="e-name">ชื่อ–นามสกุล</label>
           <input class="input" type="text" id="e-name" name="name" value="<?php echo e($pv['name']) ?>" maxlength="60" required autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="e-user">ชื่อผู้ใช้</label>
+          <input class="input" type="text" id="e-user" name="username" value="<?php echo e($pv['username']) ?>" maxlength="40" required autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="เช่น nipa">
+          <small class="adm-hint">ใช้คู่กับ PIN ตอนเข้าระบบ · เปลี่ยนแล้วแจ้งพนักงานด้วย · a–z 0–9 _ ยาว 3–20 ตัว</small>
         </div>
         <div class="field">
           <label for="e-ini">อักษรย่อ</label>

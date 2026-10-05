@@ -1,9 +1,10 @@
 <?php
 /**
  * FILE: themes/aostock/login.php
- * ROLE: หน้าเข้าสู่ระบบ — พนักงานเลือกชื่อ + PIN · ผู้ดูแล / ฝ่ายบัญชีใช้ชื่อผู้ใช้ + รหัสผ่าน
+ * ROLE: หน้าเข้าสู่ระบบ — พนักงานใช้ชื่อผู้ใช้ + PIN (เครื่องที่เคยเข้าแล้วแตะปุ่มชื่อ) · ผู้ดูแล / ฝ่ายบัญชีใช้ชื่อผู้ใช้ + รหัสผ่าน
  * DEPENDS: themes/aostock/include/function.php
- * TABLES: ao_stock_staff (PIN / รหัสผ่าน · ล็อกเมื่อกรอกผิด) · ao_stock_branch · ao_stock_remember (จดจำการเข้าสู่ระบบ) — ผ่าน api.php
+ * TABLES: ao_stock_staff (PIN / รหัสผ่าน · ล็อกเมื่อกรอกผิด) · ao_stock_branch · ao_stock_remember (จดจำการเข้าสู่ระบบ)
+ *         · ao_stock_login_ip (ล็อกตาม IP) — ผ่าน api.php
  * TODO:
  *   - [x] ย้ายจาก demo/ เข้า themes/aostock/ (วิ่งผ่าน router ของ admweb)
  *   - [x] ช่วงที่ 5: ตรวจ PIN / รหัสผ่านกับตาราง (password_hash)
@@ -11,6 +12,8 @@
  *         · ข้อความสิทธิ์ของพนักงานสร้างด้วย textContent (กัน XSS จากชื่อสาขา)
  *   - [x] ช่วงที่ 12: ปุ่มเลือกชื่อแสดง "ผู้จัดการสาขา" แทน "พนักงาน" (user_role_label)
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
+ *   - [x] ช่วงที่ 13: ไม่แสดงรายชื่อพนักงานทั้งหมดแล้ว — พิมพ์ชื่อผู้ใช้ + PIN · เครื่องจำชื่อคนที่เคยเข้า (ปุ่มชื่อ + × เอาออก)
+ *         · ติ๊ก "จำชื่อฉันไว้บนเครื่องนี้" ไว้ให้ก่อน · ข้อความผิดไม่บอกว่าชื่อผู้ใช้มีจริงไหม · ล็อกตาม IP ทั้ง 2 แท็บ
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -26,7 +29,20 @@ if (is_logged_in() || remember_login() !== null) {            // จดจำก
 $error     = '';
 $mode      = 'pin';                      // แท็บที่เปิดอยู่: pin | admin
 $username  = '';
-$staffPick = '';
+$known     = known_staffs();             // คนที่เครื่องนี้จำไว้ (ช่วงที่ 13) — คนล่าสุดก่อน
+$via       = $known ? 'pick' : 'type';   // แท็บ PIN: pick = แตะปุ่มชื่อ · type = พิมพ์ชื่อผู้ใช้
+$staffPick = '';                         // ปุ่มชื่อที่เลือก
+$typed     = '';                         // ชื่อผู้ใช้ที่พิมพ์
+$keep      = true;                       // "จำชื่อฉันไว้บนเครื่องนี้" ติ๊กไว้ให้ก่อน (ข้อ 3ก)
+
+/* ---- เอาชื่อออกจากเครื่องนี้ (ปุ่ม × บนปุ่มชื่อ) ---- */
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mode'] === 'forget') {
+    if (csrf_check(isset($_POST['csrf']) ? $_POST['csrf'] : null) && isset($_POST['forget'])) {
+        known_forget((int) $_POST['forget']);
+    }
+    header('Location: ' . url('login.php'));
+    exit;
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $mode = (isset($_POST['mode']) && $_POST['mode'] === 'admin') ? 'admin' : 'pin';
@@ -39,25 +55,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'เซสชันหมดอายุ กรุณาลองเข้าสู่ระบบอีกครั้ง';
     } elseif ($lock > 0) {
         $error = 'กรอกผิดหลายครั้งเกินไป กรุณารออีก ' . $lock . ' วินาที';
+    } elseif (($ipLeft = ip_locked_left()) > 0) {            // ช่วงที่ 13: ทุกบัญชีรวมกันผิดเกินกำหนดจาก IP นี้
+        $error = 'มีการกรอกผิดจากเครือข่ายนี้หลายครั้งเกินไป — ลองใหม่ในอีก ' . (int) ceil($ipLeft / 60) . ' นาที';
     } elseif ($mode === 'pin') {
-        $staffPick = isset($_POST['staff']) ? trim($_POST['staff']) : '';
+        $via       = (isset($_POST['via']) && $_POST['via'] === 'type') ? 'type' : 'pick';
+        $typed     = isset($_POST['staff_typed']) ? strtolower(trim((string) $_POST['staff_typed'])) : '';
+        $keep      = !empty($_POST['keep']);
+        $staffPick = isset($_POST['staff']) ? strtolower(trim((string) $_POST['staff'])) : '';
+        $who       = ($via === 'type') ? $typed : $staffPick;
         $pin       = isset($_POST['pin']) ? trim($_POST['pin']) : '';
 
-        if ($staffPick === '') {
-            $error = 'กรุณาเลือกชื่อของคุณก่อน';
+        if ($who === '') {
+            $error = ($via === 'type') ? 'กรุณากรอกชื่อผู้ใช้' : 'กรุณาเลือกชื่อของคุณก่อน';
         } elseif (strlen(preg_replace('/\D/', '', $pin)) !== 4) {
             $error = 'กรุณากรอก PIN ให้ครบ 4 หลัก';
-        } elseif (($left = staff_locked_left($staffPick)) > 0) {
-            $error = 'กรอก PIN ผิดหลายครั้ง บัญชีนี้ถูกล็อกชั่วคราว — ลองใหม่ในอีก ' . (int) ceil($left / 60) . ' นาที หรือให้ผู้ดูแลรีเซ็ต PIN';
+        } elseif (($left = staff_locked_left($who)) > 0) {
+            $error = 'กรอก PIN ผิดหลายครั้ง บัญชีนี้ถูกล็อกชั่วคราว — ลองใหม่ในอีก ' . (int) ceil($left / 60) . ' นาที หรือให้ผู้จัดการสาขา / ผู้ดูแลรีเซ็ต PIN';
         } else {
-            $user = attempt_pin_login($staffPick, $pin);
+            $user = attempt_pin_login($who, $pin);
             if ($user === null) {
                 login_failed();
-                staff_login_failed($staffPick);
-                $error = 'PIN ไม่ถูกต้อง';
+                staff_login_failed($who);
+                ip_login_failed();
+                /* ชื่อที่เครื่องนี้จำไว้อยู่แล้ว บอกตรง ๆ ได้ · ชื่อที่พิมพ์มา ไม่บอกว่ามีชื่อนี้จริงไหม (กันไล่เดาชื่อผู้ใช้) */
+                $error = isset($known[$who]) ? 'PIN ไม่ถูกต้อง' : 'ชื่อผู้ใช้หรือ PIN ไม่ถูกต้อง';
             } else {
-                staff_login_ok($staffPick);
+                staff_login_ok($who);
                 login_user($user);
+                if ($via === 'pick' || $keep) {
+                    known_add($user);                            // จำชื่อไว้บนเครื่องนี้ / เลื่อนขึ้นเป็นคนแรก
+                }
                 header('Location: ' . url(home_page($user)));
                 exit;
             }
@@ -77,6 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($user === null) {
                 login_failed();
                 staff_login_failed($uKey);
+                ip_login_failed();
                 $error = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
             } else {
                 staff_login_ok($uKey);
@@ -91,15 +119,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$staffs = array();
-foreach (users_active() as $k => $u) {
-    if ($u['role'] === 'staff') {                 // ผู้ดูแล / บัญชี ใช้แท็บชื่อผู้ใช้ + รหัสผ่าน
-        $staffs[$k] = $u;
-    }
+/* ปุ่มชื่อ: เฉพาะคนที่เครื่องนี้จำไว้ (ไม่มีใคร = พิมพ์ชื่อผู้ใช้) · เลือกคนล่าสุดไว้ให้ก่อน */
+if (!$known) {
+    $via = 'type';
 }
-if ($staffPick === '' || !isset($staffs[$staffPick])) {
-    $keys      = array_keys($staffs);
-    $staffPick = $keys ? $keys[0] : '';          // ระบบใหม่ยังไม่มีพนักงาน
+if ($staffPick === '' || !isset($known[$staffPick])) {
+    $keys      = array_keys($known);
+    $staffPick = $keys ? $keys[0] : '';
+}
+$hasStaff = false;                               // ระบบใหม่ยังไม่มีพนักงาน → บอกวิธีเพิ่ม
+foreach (users_active() as $u) {
+    if ($u['role'] === 'staff') {
+        $hasStaff = true;
+        break;
+    }
 }
 ?><!DOCTYPE html>
 <html lang="th">
@@ -128,6 +161,7 @@ if ($staffPick === '' || !isset($staffs[$staffPick])) {
     <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol>
     <symbol id="i-back" viewBox="0 0 24 24"><path d="M20 6H9.5L3 12l6.5 6H20a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1z"/><path d="M12.5 9.5l5 5M17.5 9.5l-5 5"/></symbol>
     <symbol id="i-login" viewBox="0 0 24 24"><path d="M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4"/><path d="M15 8l4 4-4 4M19 12H9"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
   </defs>
 </svg>
 
@@ -142,7 +176,7 @@ if ($staffPick === '' || !isset($staffs[$staffPick])) {
 
     <div class="login-brand-mid">
       <h1>ระบบสำหรับพนักงาน<br>บริหารสต๊อกทุกสาขาในที่เดียว</h1>
-      <p>แตะชื่อของคุณแล้วกด PIN 4 หลัก ระบบจะเปิดเฉพาะสาขาและเมนูที่คุณมีสิทธิ์เข้าถึง</p>
+      <p>เข้าครั้งแรกบนเครื่องนี้ พิมพ์ชื่อผู้ใช้แล้วกด PIN 4 หลัก ครั้งต่อไปแตะชื่อได้เลย ระบบจะเปิดเฉพาะสาขาและเมนูที่คุณมีสิทธิ์เข้าถึง</p>
 
       <ul class="login-points">
         <li>
@@ -193,32 +227,55 @@ if ($staffPick === '' || !isset($staffs[$staffPick])) {
             method="post" action="login.php" autocomplete="off">
         <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
         <input type="hidden" name="mode" value="pin">
+        <input type="hidden" name="via" id="via" value="<?php echo e($via) ?>">
         <input type="hidden" name="staff" id="staff" value="<?php echo e($staffPick) ?>">
         <input type="hidden" name="pin" id="pin" value="">
 
-        <span class="lbl">เลือกชื่อของคุณ</span>
-        <div class="staffs" id="staffs">
-          <?php if (!$staffs) { ?>
+        <?php if ($known) { /* ช่วงที่ 13: ปุ่มชื่อเฉพาะคนที่เคยเข้าบนเครื่องนี้ */ ?>
+        <div id="who-pick"<?php echo $via === 'type' ? ' hidden' : '' ?>>
+          <span class="lbl">เลือกชื่อของคุณ</span>
+          <div class="staffs" id="staffs">
+            <?php foreach ($known as $uname => $u) { $role = user_role_label(array('role' => $u['role'], 'username' => $uname)); ?>
+              <div class="staff-wrap">
+                <button class="staff<?php echo $uname === $staffPick ? ' on' : '' ?>" type="button" data-user="<?php echo e($uname) ?>"
+                        data-role="<?php echo e($role) ?>"
+                        data-scope="<?php echo e(role_scope($u['role'])) ?>"
+                        data-branch="<?php echo e(branch_name($u['branch'])) ?>">
+                  <span class="av"><?php echo e(user_initial($u)) ?></span>
+                  <span class="st">
+                    <b><?php echo e($u['name']) ?></b>
+                    <small><?php echo e($role) ?> · <?php echo e(branch_name($u['branch'])) ?></small>
+                  </span>
+                </button>
+                <button class="staff-x" type="submit" form="forget-form" name="forget" value="<?php echo (int) $u['id'] ?>"
+                        data-ask="<?php echo e('เอาชื่อ ' . $u['name'] . ' ออกจากเครื่องนี้? ครั้งหน้าต้องพิมพ์ชื่อผู้ใช้เอง') ?>"
+                        aria-label="<?php echo e('เอาชื่อ ' . $u['name'] . ' ออกจากเครื่องนี้') ?>" title="เอาชื่อออกจากเครื่องนี้">
+                  <svg class="ico"><use href="#i-x"/></svg>
+                </button>
+              </div>
+            <?php } ?>
+          </div>
+
+          <p class="staff-perm" id="staff-perm">
+            <svg class="ico"><use href="#i-shield"/></svg>
+            <span id="perm-txt"></span>
+          </p>
+          <button type="button" class="lg-link" data-who="type">ไม่มีชื่อคุณ? พิมพ์ชื่อผู้ใช้</button>
+        </div>
+        <?php } ?>
+
+        <div id="who-type"<?php echo $via === 'type' ? '' : ' hidden' ?>>
+          <label class="lbl" for="staff-user">ชื่อผู้ใช้</label>
+          <input class="input" type="text" id="staff-user" name="staff_typed" value="<?php echo e($typed) ?>" maxlength="20"
+                 placeholder="เช่น nipa" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="next">
+          <label class="check lg-keep"><input type="checkbox" name="keep" value="1"<?php echo $keep ? ' checked' : '' ?>> จำชื่อฉันไว้บนเครื่องนี้ (ครั้งหน้าแตะชื่อได้เลย)</label>
+          <?php if ($known) { ?>
+            <button type="button" class="lg-link" data-who="pick">‹ เลือกจากรายชื่อบนเครื่องนี้</button>
+          <?php } ?>
+          <?php if (!$hasStaff) { ?>
             <p class="staff-perm">ยังไม่มีพนักงานในระบบ — ผู้ดูแลเพิ่มพนักงานได้ที่เมนู "จัดการพนักงาน" (เข้าระบบที่แท็บผู้ดูแล)</p>
           <?php } ?>
-          <?php foreach ($staffs as $uname => $u) { ?>
-            <button class="staff<?php echo $uname === $staffPick ? ' on' : '' ?>" type="button" data-user="<?php echo e($uname) ?>"
-                      data-role="<?php echo e(user_role_label(array('role' => $u['role'], 'username' => $uname))) ?>"
-                      data-scope="<?php echo e(role_scope($u['role'])) ?>"
-                      data-branch="<?php echo e(branch_name($u['branch'])) ?>">
-              <span class="av"><?php echo e(user_initial($u)) ?></span>
-              <span class="st">
-                <b><?php echo e($u['name']) ?></b>
-                <small><?php echo e(user_role_label(array('role' => $u['role'], 'username' => $uname))) ?> · <?php echo e(branch_name($u['branch'])) ?></small>
-              </span>
-            </button>
-          <?php } ?>
         </div>
-
-        <p class="staff-perm" id="staff-perm">
-          <svg class="ico"><use href="#i-shield"/></svg>
-          <span id="perm-txt"></span>
-        </p>
 
         <span class="lbl lbl-mt">กรอก PIN 4 หลัก</span>
         <div class="dots" id="dots" aria-live="polite" aria-label="จำนวนหลักที่กรอกแล้ว">
@@ -242,6 +299,12 @@ if ($staffPick === '' || !isset($staffs[$staffPick])) {
           </button>
         </div>
       </form>
+      <?php if ($known) { /* ปุ่ม × บนปุ่มชื่อส่งฟอร์มนี้ (form="forget-form") — ฟอร์มซ้อนในฟอร์ม PIN ไม่ได้ */ ?>
+      <form id="forget-form" method="post" action="login.php" hidden>
+        <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
+        <input type="hidden" name="mode" value="forget">
+      </form>
+      <?php } ?>
 
       <!-- ===== แท็บ 2: ผู้ดูแล ===== -->
       <?php if (role_enabled('admin')) { ?>
@@ -285,7 +348,7 @@ if ($staffPick === '' || !isset($staffs[$staffPick])) {
       </form>
       <?php } ?>
 
-      <p class="login-foot">ลืม PIN หรือรหัสผ่าน / ถูกล็อก — ติดต่อผู้ดูแลระบบเพื่อรีเซ็ต</p>
+      <p class="login-foot">ลืมชื่อผู้ใช้ / PIN หรือถูกล็อก — ติดต่อผู้จัดการสาขาหรือผู้ดูแลระบบ</p>
     </div>
   </section>
 
@@ -343,6 +406,44 @@ if ($staffPick === '' || !isset($staffs[$staffPick])) {
     if (staffBtns[q].className.indexOf('on') !== -1) { showPerm(staffBtns[q]); }
   }
 
+  /* ---- แตะปุ่มชื่อ / พิมพ์ชื่อผู้ใช้ (ช่วงที่ 13) ---- */
+  var via     = document.getElementById('via');
+  var whoPick = document.getElementById('who-pick');
+  var whoType = document.getElementById('who-type');
+  var typed   = document.getElementById('staff-user');
+  function setWho(k) {
+    via.value = k;
+    if (whoPick) { whoPick.hidden = (k !== 'pick'); }
+    whoType.hidden = (k !== 'type');
+    clearPin();
+    if (k === 'type') { typed.focus(); }
+  }
+  var whoBtns = document.querySelectorAll('[data-who]');
+  for (var w = 0; w < whoBtns.length; w++) {
+    whoBtns[w].addEventListener('click', function () { setWho(this.getAttribute('data-who')); });
+  }
+  /* Enter ในช่องชื่อผู้ใช้ = ไปกด PIN ต่อ (ไม่ส่งฟอร์มทั้งที่ยังไม่มี PIN · มือถือปิดแป้นพิมพ์ให้เห็นแป้น PIN) */
+  typed.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Enter') { ev.preventDefault(); typed.blur(); }
+  });
+  typed.addEventListener('input', function () { typed.setCustomValidity(''); });
+  function needName() {
+    if (via.value !== 'type' || typed.value.trim() !== '') { return false; }
+    typed.setCustomValidity('กรุณากรอกชื่อผู้ใช้ก่อน');
+    typed.reportValidity();
+    typed.focus();
+    return true;
+  }
+  if (via.value === 'type' && typed.value === '') { typed.focus(); }
+
+  /* ---- ปุ่ม × เอาชื่อออกจากเครื่องนี้ ---- */
+  var xs = document.querySelectorAll('.staff-x');
+  for (var x = 0; x < xs.length; x++) {
+    xs[x].addEventListener('click', function (ev) {
+      if (!confirm(this.getAttribute('data-ask'))) { ev.preventDefault(); }
+    });
+  }
+
   /* ---- แป้น PIN ---- */
   var pinInput = document.getElementById('pin');
   var dots     = document.querySelectorAll('#dots i');
@@ -360,6 +461,7 @@ if ($staffPick === '' || !isset($staffs[$staffPick])) {
     if (k === 'clear') { clearPin(); return; }
     if (k === 'back')  { buf = buf.slice(0, -1); paint(); return; }
     if (buf.length >= 4) { return; }
+    if (needName()) { return; }                            // พิมพ์ชื่อผู้ใช้ก่อนค่อยกด PIN
     buf += k;
     paint();
     if (buf.length === 4) {
@@ -375,6 +477,7 @@ if ($staffPick === '' || !isset($staffs[$staffPick])) {
   /* พิมพ์จากคีย์บอร์ดได้ด้วย (สำหรับโน้ตบุ๊ก) */
   document.addEventListener('keydown', function (ev) {
     if (paneP.className.indexOf('on') === -1) { return; }
+    if (ev.target === typed) { return; }                  // กำลังพิมพ์ชื่อผู้ใช้ — ตัวเลขไม่ลงช่อง PIN
     if (ev.key >= '0' && ev.key <= '9') { press(ev.key); }
     else if (ev.key === 'Backspace')    { ev.preventDefault(); press('back'); }
     else if (ev.key === 'Escape')       { press('clear'); }

@@ -3,7 +3,7 @@
  * FILE: admweb/aowebdata/modules/stock/database.php
  * ROLE: โครงสร้างฐานข้อมูล AOSTOCK (ระบบบริหารสต๊อก + POS) — inc_install.php ของ admweb โหลดไฟล์นี้อัตโนมัติ
  * DEPENDS: - (ถูก include โดย admweb/plugins/db/inc_install.php · ต้องมี 'stock' ใน $aModuleUse)
- * TABLES: ao_stock_* 24 ตาราง (รายชื่อเดียวกับ $aTablename ใน aModuleConfig.php)
+ * TABLES: ao_stock_* 25 ตาราง (รายชื่อเดียวกับ $aTablename ใน aModuleConfig.php)
  * TODO:
  *   - [x] ย้ายจาก database/database.php เข้าโมดูล stock
  *   - [x] utf8mb4 ทุกตาราง (การเชื่อมต่อตั้ง charset=utf8mb4 ที่ plugins/db/function/php_v8.php)
@@ -11,6 +11,7 @@
  *   - [x] ช่วงที่ 7: stock_store_day.reopen_count ($sqlAlter) · เงินคืนลูกค้าไม่ลง stock_cash_move
  *   - [x] ช่วงที่ 10: stock_branch.daily_goal + stock_staff.pin_fp ($sqlAlter) · ตารางใหม่ stock_remember (จดจำการเข้าสู่ระบบ) — ต้องกด Reinstall
  *   - [x] ช่วงที่ 11: สิทธิ์พนักงานชุดใหม่ใน stock_staff.perms (อธิบายด้านล่าง) — โครงสร้างไม่เปลี่ยน ไม่ต้อง Reinstall
+ *   - [x] ช่วงที่ 13: ตารางใหม่ stock_login_ip (นับการกรอก PIN / รหัสผ่านผิดตาม IP) — ต้องกด Reinstall · พนักงานเข้าระบบด้วยชื่อผู้ใช้ + PIN
  *   - [ ] เพิ่มคอลัมน์ทีหลัง: ใส่ $sqlAlter[ตาราง][คอลัมน์] = "ALTER TABLE ... ADD COLUMN ..." (ไม่ต้องใส่ IF NOT EXISTS — ตัวติดตั้งเช็กคอลัมน์ให้เอง)
  */
 /* ==========================================================
@@ -81,7 +82,7 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_branch` (
 /* เพิ่ม 5 ต.ค. 2026 (ช่วงที่ 10) — ฐานข้อมูลที่ติดตั้งก่อนหน้านี้ กด Reinstall อีกครั้งเพื่อเพิ่มคอลัมน์ */
 $sqlAlter[_DBPREFIX_ . 'stock_branch']['daily_goal'] = "ALTER TABLE `" . _DBPREFIX_ . "stock_branch` ADD COLUMN `daily_goal` int UNSIGNED NOT NULL DEFAULT 0 COMMENT 'เป้าชิ้นต่อคนต่อวัน (ภาพรวมพนักงาน) 0 = ไม่ตั้งเป้า' AFTER `backdate_days`";
 
-/* 2) ผู้ใช้ระบบ — พนักงาน (PIN 4 หลัก + เลือกชื่อ) และผู้ดูแล (username/password) อยู่ตารางเดียวกัน
+/* 2) ผู้ใช้ระบบ — พนักงาน (ชื่อผู้ใช้ + PIN 4 หลัก · ช่วงที่ 13) และผู้ดูแล (username/password) อยู่ตารางเดียวกัน
       role: staff=พนักงาน (เมนูตามที่ติ๊กใน perms เฉพาะสาขาตนเอง) · admin=ผู้ดูแล (ทุกสาขา ไม่ขาย)
       ไม่มีบทบาทหัวหน้าคลัง — ใช้สิทธิ์เสริม perms ติ๊กให้พนักงานรายคนแทน
       ผู้ดูแลเพิ่ม / แก้ / พักงาน / ลบ พนักงานได้ที่หน้า "จัดการพนักงาน" (ลบได้เฉพาะคนที่ยังไม่เคยทำรายการ)
@@ -101,9 +102,9 @@ $sqlArray[_DBPREFIX_ . 'stock_staff'] = "
 CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_staff` (
 	`staff_id`      int UNSIGNED AUTO_INCREMENT PRIMARY KEY,
 	`branch_id`     int UNSIGNED NOT NULL DEFAULT 0 COMMENT 'สาขาปัจจุบัน',
-	`username`      varchar(40)  NOT NULL COMMENT 'ใช้ภายใน/ผู้ดูแลใช้ login',
+	`username`      varchar(40)  NOT NULL COMMENT 'ชื่อผู้ใช้ตอนเข้าระบบ (พนักงานใช้คู่กับ PIN)',
 	`name`          varchar(60)  NOT NULL COMMENT 'ชื่อที่แสดงบนรายการ/เอกสาร',
-	`initials`      varchar(6)   NOT NULL DEFAULT '' COMMENT 'อักษรย่อบนปุ่มเลือกชื่อ',
+	`initials`      varchar(6)   NOT NULL DEFAULT '' COMMENT 'อักษรย่อบนปุ่มชื่อหน้าเข้าระบบ',
 	`role`          enum('staff','admin','account') NOT NULL DEFAULT 'staff' COMMENT 'account = ฝ่ายบัญชี: ดูบิล/เงินเข้าทุกสาขา + ตั้งเลขที่บิล',
 	`perms`         varchar(255) NOT NULL DEFAULT '' COMMENT 'เมนู + สิทธิ์เสริม คั่นด้วย , (admin ได้ทุกสิทธิ์ ยกเว้น sale)',
 	`pin_hash`      varchar(255) NOT NULL DEFAULT '' COMMENT 'password_hash ของ PIN 4 หลัก',
@@ -138,6 +139,22 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_remember` (
 	UNIQUE KEY `uq_selector` (`selector`),
 	KEY `idx_staff` (`staff_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AOSTOCK จดจำการเข้าสู่ระบบ';
+";
+
+/* 2c) นับการกรอก PIN / รหัสผ่านผิดตาม IP (ช่วงที่ 13) — 1 แถว / 1 IP
+       ล็อกรายบัญชี (fail_count ของ stock_staff) กันการสุ่ม PIN ของคนเดียว · ตารางนี้กันการสุ่มหลายบัญชีจากที่เดียว
+       ผิดครบ IP_LOCK_FAILS ครั้งภายใน IP_LOCK_MINUTES นาทีนับจากครั้งแรก → IP นั้นเข้าระบบไม่ได้ IP_LOCK_MINUTES นาที (ค่าใน api/auth.php)
+       ip = IP จริงของผู้ใช้ (client_ip — หลัง Cloudflare อ่าน CF-Connecting-IP เฉพาะคำขอที่มาจาก Cloudflare) · IPv6 นับรวมทั้งวง /64
+       เข้าระบบสำเร็จไม่ล้างตัวนับ (หมดรอบเอง) · แถวที่ไม่มีการกรอกผิดเกิน 1 วันลบทิ้งตอนมีการกรอกผิดครั้งถัดไป */
+$sqlArray[_DBPREFIX_ . 'stock_login_ip'] = "
+CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_login_ip` (
+	`ip`           varchar(45) NOT NULL PRIMARY KEY COMMENT 'IPv4 หรือวง IPv6 /64',
+	`fail_count`   smallint UNSIGNED NOT NULL DEFAULT 0 COMMENT 'จำนวนครั้งที่ผิดในรอบนี้',
+	`first_fail`   datetime NOT NULL COMMENT 'เวลาที่ผิดครั้งแรกของรอบนี้',
+	`last_fail`    datetime NOT NULL,
+	`locked_until` datetime NULL COMMENT 'NULL = ไม่ล็อก',
+	KEY `idx_last` (`last_fail`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AOSTOCK นับการกรอกผิดตาม IP';
 ";
 
 /* 3) ประวัติการประจำสาขาของพนักงาน — ใช้ตอบ "พนักงานคนนี้อยู่สาขาไหน ณ วันที่ X"

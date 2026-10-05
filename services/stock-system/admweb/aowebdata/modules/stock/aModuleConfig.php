@@ -3,10 +3,11 @@
  * FILE: admweb/aowebdata/modules/stock/aModuleConfig.php
  * ROLE: ลงทะเบียนตารางและโฟลเดอร์ที่ต้องเขียนได้ของโมดูล stock (AOSTOCK) — inc_install.php อ่านไฟล์นี้
  * DEPENDS: database.php (schema ของตารางด้านล่าง)
- * TABLES: ao_stock_* 24 ตาราง
+ * TABLES: ao_stock_* 25 ตาราง
  * TODO:
  *   - [x] ลงทะเบียน 23 ตารางตาม database.php
  *   - [x] ช่วงที่ 10: เพิ่ม stock_remember (จดจำการเข้าสู่ระบบ)
+ *   - [x] ช่วงที่ 13: เพิ่ม stock_login_ip (นับการกรอกผิดตาม IP)
  *   - [ ] เพิ่มตารางใหม่ใน database.php เมื่อไร ต้องเติมชื่อในนี้ด้วย
  */
 
@@ -17,6 +18,7 @@ $aTablename = array(
 	_DBPREFIX_ . 'stock_staff',
 	_DBPREFIX_ . 'stock_staff_branch',
 	_DBPREFIX_ . 'stock_remember',
+	_DBPREFIX_ . 'stock_login_ip',
 	_DBPREFIX_ . 'stock_category',
 	_DBPREFIX_ . 'stock_product',
 	// แกน AOSTOCK — สต๊อกและเอกสารคลัง

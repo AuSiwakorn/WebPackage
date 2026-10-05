@@ -3,19 +3,21 @@
  * FILE: admweb/aowebdata/modules/stock/api/auth.php
  * ROLE: เข้าระบบ / ออกจากระบบ / CSRF / จดจำการเข้าสู่ระบบ 30 วัน · กันหน้าตามบทบาท สิทธิ์ และเมนูที่ปิด (require_login)
  * DEPENDS: โหลดโดย admweb/aowebdata/modules/stock/api.php (ตัวโหลด — ห้าม include ไฟล์นี้ตรง ๆ) · ใช้ function จากไฟล์อื่นใน api/ ได้ทุกตัว
- * TABLES: ao_stock_staff, ao_stock_remember
+ * TABLES: ao_stock_staff, ao_stock_remember, ao_stock_login_ip
  * TODO:
  *   - [x] ช่วงที่ 10: แยกจาก api.php เดิม (ย้ายโค้ดทั้งก้อน ไม่แก้ตรรกะ) · จัดฟังก์ชันที่เคยปนอยู่หมวดอื่นให้มาอยู่หมวดนี้
  *   - [x] ช่วงที่ 11: เช็กสิทธิ์เข้าหน้าด้วย page_perm_ok (หน้าเดียวใช้ได้หลายสิทธิ์)
  *   - [x] ช่วงที่ 12: ผู้ดูแลเปิด team.php → ไปหน้าจัดการพนักงาน
+ *   - [x] ช่วงที่ 13: พนักงานเข้าด้วยชื่อผู้ใช้ + PIN · เครื่องจำชื่อคนที่เคยเข้า (known_*) · จำกัดการกรอกผิดตาม IP (ip_* / client_ip หลัง Cloudflare)
  *
  * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
  */
 
 /* ==========================================================
    เข้าระบบ — ตรวจกับ ao_stock_staff (PIN / รหัสผ่านเก็บเป็น password_hash)
-   - พนักงาน: แตะชื่อ + PIN 4 หลัก · ผู้ดูแล / ฝ่ายบัญชี: ชื่อผู้ใช้ + รหัสผ่าน
+   - พนักงาน: ชื่อผู้ใช้ + PIN 4 หลัก (เครื่องที่เคยเข้าแล้วแตะปุ่มชื่อแทนการพิมพ์ — known_*) · ผู้ดูแล / ฝ่ายบัญชี: ชื่อผู้ใช้ + รหัสผ่าน
    - กรอกผิด 5 ครั้งล็อกบัญชี 15 นาที (staff_login_failed — ในตาราง) + ล็อก session 1 นาที (login_failed)
+     + ทุกบัญชีรวมกันผิด 20 ครั้งใน 15 นาทีจาก IP เดียว ล็อก IP นั้น 15 นาที (ip_login_failed · ช่วงที่ 13)
    - จดจำการเข้าสู่ระบบ 30 วัน เฉพาะผู้ดูแล / ฝ่ายบัญชี (ตาราง ao_stock_remember · remember_*)
    - session เก็บเฉพาะผู้ใช้ที่เข้าระบบอยู่ + ของที่ทำค้าง (ตะกร้า / ใบร่าง) — ข้อมูลร้านอยู่ในฐานข้อมูลทั้งหมด
    ========================================================== */
@@ -167,21 +169,30 @@ function logout_user()
 define('REMEMBER_DAYS', 30);
 define('REMEMBER_COOKIE', 'aostock_rm');
 
-/** ตั้ง / ลบ cookie จดจำ ($value = '' คือลบ)
+/** ตั้ง / ลบ cookie ของ POS ($value = '' คือลบ) — httponly · SameSite=Lax · secure เมื่อเป็น https · path = โฟลเดอร์ของเว็บ
     TODO:
-      - [x] ช่วงที่ 10 */
-function remember_cookie($value, $expires)
+      - [x] ช่วงที่ 13: แยกจาก remember_cookie ให้ cookie เครื่องจำชื่อ (known_save) ใช้ด้วย */
+function pos_cookie($name, $value, $expires)
 {
     if (headers_sent()) {
         return;
     }
     $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
           || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && strtolower((string) $_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https');
-    setcookie(REMEMBER_COOKIE, $value, array('expires' => $expires, 'path' => APP_BASE . '/', 'secure' => $https,
-                                             'httponly' => true, 'samesite' => 'Lax'));
+    setcookie($name, $value, array('expires' => $expires, 'path' => APP_BASE . '/', 'secure' => $https,
+                                   'httponly' => true, 'samesite' => 'Lax'));
     if ($value === '') {
-        unset($_COOKIE[REMEMBER_COOKIE]);
+        unset($_COOKIE[$name]);
     }
+}
+
+/** ตั้ง / ลบ cookie จดจำ ($value = '' คือลบ)
+    TODO:
+      - [x] ช่วงที่ 10
+      - [x] ช่วงที่ 13: ใช้ pos_cookie */
+function remember_cookie($value, $expires)
+{
+    pos_cookie(REMEMBER_COOKIE, $value, $expires);
 }
 
 /** เริ่มจดจำเครื่องนี้ให้ผู้ใช้ที่เพิ่งเข้าระบบ (เรียกหลัง login_user)
@@ -274,6 +285,240 @@ function remember_forget_staff($username)
     if ($r !== null) {
         sdb_q('DELETE FROM ' . sdb_tb('remember') . ' WHERE staff_id = ?', array((int) $r['staff_id']));
     }
+}
+
+/* ---------- จำกัดการกรอกผิดตาม IP (ช่วงที่ 13) ----------
+   ล็อกรายบัญชี (staff_login_failed) กันการสุ่ม PIN ของคนเดียว แต่คนนอกยังสุ่มบัญชีละไม่กี่ครั้งกับหลายบัญชีได้
+   → นับการกรอกผิดของทุกบัญชีรวมกันต่อ IP (ตาราง ao_stock_login_ip) · ผิดครบ IP_LOCK_FAILS ครั้งภายใน IP_LOCK_MINUTES นาที
+     = IP นั้นเข้าระบบไม่ได้ IP_LOCK_MINUTES นาที (ทั้งแท็บ PIN และแท็บผู้ดูแล) · เข้าระบบสำเร็จไม่ล้างตัวนับ (หมดรอบเอง)
+   ยังไม่ได้กด Reinstall (ยังไม่มีตาราง) = ข้ามการจำกัดตาม IP ไม่ทำให้เข้าระบบไม่ได้ */
+define('IP_LOCK_FAILS', 20);
+define('IP_LOCK_MINUTES', 15);
+
+/** ช่วง IP ของ Cloudflare (https://www.cloudflare.com/ips/) — เว็บอยู่หลัง Cloudflare: REMOTE_ADDR เป็นเครื่องของ Cloudflare ไม่ใช่ผู้ใช้
+    TODO:
+      - [x] ช่วงที่ 13
+      - [ ] Cloudflare ประกาศช่วงใหม่เมื่อไร เติมที่นี่ (ไม่เติม = ผู้ใช้ที่ผ่านช่วงใหม่ถูกนับรวมเป็น IP ของ Cloudflare) */
+function cf_ip_ranges()
+{
+    return array(
+        '173.245.48.0/20', '103.21.244.0/22', '103.22.200.0/22', '103.31.4.0/22', '141.101.64.0/18',
+        '108.162.192.0/18', '190.93.240.0/20', '188.114.96.0/20', '197.234.240.0/22', '198.41.128.0/17',
+        '162.158.0.0/15', '104.16.0.0/13', '104.24.0.0/14', '172.64.0.0/13', '131.0.72.0/22',
+        '2400:cb00::/32', '2606:4700::/32', '2803:f800::/32', '2405:b500::/32', '2405:8100::/32',
+        '2a06:98c0::/29', '2c0f:f248::/32',
+    );
+}
+
+/** $ip อยู่ในช่วง $cidr ไหม (IPv4 / IPv6)
+    TODO:
+      - [x] ช่วงที่ 13 */
+function ip_in_cidr($ip, $cidr)
+{
+    $p = explode('/', $cidr, 2);
+    $a = @inet_pton((string) $ip);
+    $b = @inet_pton($p[0]);
+    if ($a === false || $b === false || strlen($a) !== strlen($b)) {
+        return false;
+    }
+    $bits  = isset($p[1]) ? (int) $p[1] : strlen($b) * 8;
+    $bytes = intdiv($bits, 8);
+    if (substr($a, 0, $bytes) !== substr($b, 0, $bytes)) {
+        return false;
+    }
+    $rest = $bits % 8;
+    if ($rest === 0) {
+        return true;
+    }
+    $mask = (0xFF << (8 - $rest)) & 0xFF;
+    return (ord($a[$bytes]) & $mask) === (ord($b[$bytes]) & $mask);
+}
+
+/** IP ของผู้ใช้ที่ส่งคำขอนี้
+    - ผ่านเครื่องตัวกลางในวงภายใน (REMOTE_ADDR เป็น 127.x / 10.x / 192.168.x ฯลฯ) → ใช้ IP ท้ายสุดใน X-Forwarded-For (ตัวกลางเติมให้)
+    - เครื่องที่ต่อเข้ามาเป็นของ Cloudflare → ใช้ CF-Connecting-IP
+    - นอกนั้นใช้ REMOTE_ADDR — header ที่คนนอกปลอมส่งตรงเข้าเซิร์ฟเวอร์ไม่มีผล
+    TODO:
+      - [x] ช่วงที่ 13 */
+function client_ip()
+{
+    $ip = isset($_SERVER['REMOTE_ADDR']) ? trim((string) $_SERVER['REMOTE_ADDR']) : '';
+    if (stripos($ip, '::ffff:') === 0 && strpos($ip, '.') !== false) {
+        $ip = substr($ip, 7);                                  // IPv4 ที่เขียนในรูป IPv6
+    }
+    $local = filter_var($ip, FILTER_VALIDATE_IP) && !filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE);
+    if ($local && !empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+        $xff  = array_map('trim', explode(',', (string) $_SERVER['HTTP_X_FORWARDED_FOR']));
+        $last = end($xff);
+        if (filter_var($last, FILTER_VALIDATE_IP)) {
+            $ip = $last;
+        }
+    }
+    $cf = isset($_SERVER['HTTP_CF_CONNECTING_IP']) ? trim((string) $_SERVER['HTTP_CF_CONNECTING_IP']) : '';
+    if ($cf !== '' && filter_var($cf, FILTER_VALIDATE_IP)) {
+        foreach (cf_ip_ranges() as $r) {
+            if (ip_in_cidr($ip, $r)) {
+                return $cf;
+            }
+        }
+    }
+    return filter_var($ip, FILTER_VALIDATE_IP) ? $ip : '0.0.0.0';
+}
+
+/** คีย์ของ IP ในตาราง — IPv6 นับรวมทั้งวง /64 (เครื่องเดียวเปลี่ยน IPv6 ในวงเดียวกันได้เรื่อย ๆ)
+    TODO:
+      - [x] ช่วงที่ 13 */
+function ip_key($ip)
+{
+    $bin = @inet_pton((string) $ip);
+    if ($bin !== false && strlen($bin) === 16) {
+        return inet_ntop(substr($bin, 0, 8) . str_repeat("\0", 8)) . '/64';
+    }
+    return (string) $ip;
+}
+
+/** มีตาราง ao_stock_login_ip แล้วหรือยัง (ยังไม่ได้กด Reinstall = ยังไม่มี) — เช็กครั้งเดียวต่อ request ไม่ให้ error_log เต็ม
+    TODO:
+      - [x] ช่วงที่ 13 */
+function ip_table_ok()
+{
+    static $ok = null;
+    if ($ok === null) {
+        $ok = (sdb_val('SHOW TABLES LIKE ?', array(str_replace('_', '\_', _DBPREFIX_ . 'stock_login_ip'))) !== null);
+    }
+    return $ok;
+}
+
+/** IP นี้ถูกล็อกจากการกรอกผิดอยู่ไหม — คืนจำนวนวินาทีที่เหลือ (0 = ไม่ล็อก)
+    TODO:
+      - [x] ช่วงที่ 13 */
+function ip_locked_left()
+{
+    if (!ip_table_ok()) {
+        return 0;
+    }
+    $until = sdb_val('SELECT locked_until FROM ' . sdb_tb('login_ip') . ' WHERE ip = ?', array(ip_key(client_ip())));
+    $left  = ($until !== null) ? strtotime($until) - time() : 0;
+    return $left > 0 ? $left : 0;
+}
+
+/** กรอกผิด 1 ครั้งจาก IP นี้ (บัญชีไหนก็ได้ รวมชื่อผู้ใช้ที่ไม่มีจริง) — รอบละ IP_LOCK_MINUTES นาทีนับจากครั้งแรก
+    ครบ IP_LOCK_FAILS ครั้งในรอบเดียว = ล็อก IP_LOCK_MINUTES นาที แล้วเริ่มนับใหม่
+    TODO:
+      - [x] ช่วงที่ 13 */
+function ip_login_failed()
+{
+    if (!ip_table_ok()) {
+        return;
+    }
+    $tb  = sdb_tb('login_ip');
+    $ip  = ip_key(client_ip());
+    $now = date('Y-m-d H:i:s');
+    $old = date('Y-m-d H:i:s', time() - IP_LOCK_MINUTES * 60);
+    sdb_q('DELETE FROM ' . $tb . ' WHERE last_fail < ? AND (locked_until IS NULL OR locked_until < ?)',
+          array(date('Y-m-d H:i:s', time() - 86400), $now));                       // เก็บกวาดแถวเก่า
+    sdb_q('INSERT INTO ' . $tb . ' (ip, fail_count, first_fail, last_fail) VALUES (?, 1, ?, ?)'
+        . ' ON DUPLICATE KEY UPDATE fail_count = IF(first_fail < ?, 1, fail_count + 1),'
+        . ' first_fail = IF(first_fail < ?, ?, first_fail), last_fail = ?',
+          array($ip, $now, $now, $old, $old, $now, $now));
+    if ((int) sdb_val('SELECT fail_count FROM ' . $tb . ' WHERE ip = ?', array($ip)) >= IP_LOCK_FAILS) {
+        sdb_q('UPDATE ' . $tb . ' SET fail_count = 0, first_fail = ?, locked_until = ? WHERE ip = ?',
+              array($now, date('Y-m-d H:i:s', time() + IP_LOCK_MINUTES * 60), $ip));
+    }
+}
+
+/* ---------- เครื่องจำชื่อพนักงาน (ช่วงที่ 13) ----------
+   หน้าเข้าระบบไม่แสดงรายชื่อพนักงานทั้งหมดแล้ว — เครื่องที่ยังไม่เคยมีใครเข้า ต้องพิมพ์ชื่อผู้ใช้ + PIN
+   เข้าสำเร็จ (ติ๊ก "จำชื่อฉันไว้บนเครื่องนี้" หรือแตะปุ่มชื่อ) → cookie aostock_known เก็บ staff_id ของคนที่เคยเข้าบนเครื่องนี้
+   (คนล่าสุดก่อน · สูงสุด KNOWN_MAX คน · KNOWN_DAYS วันนับจากเข้าครั้งล่าสุด) → ครั้งต่อไปขึ้นเป็นปุ่มชื่อให้แตะ
+   ลงลายเซ็น HMAC ด้วย AOSTOCK_SECRET_KEY — แก้ cookie เองเพื่อดูชื่อคนอื่นไม่ได้ · ไม่มีกุญแจ = ไม่จำ (พิมพ์ชื่อผู้ใช้ทุกครั้ง)
+   ออกจากระบบไม่ลบ (เป็นของเครื่อง ไม่ใช่ของ session) · ลบรายคนได้ที่ปุ่ม × บนหน้าเข้าระบบ */
+define('KNOWN_COOKIE', 'aostock_known');
+define('KNOWN_MAX', 12);
+define('KNOWN_DAYS', 180);
+
+/** ลายเซ็นของรายการ id ใน cookie (null = ไม่มีกุญแจ)
+    TODO:
+      - [x] ช่วงที่ 13 */
+function known_sign($raw)
+{
+    if (!defined('AOSTOCK_SECRET_KEY') || strlen((string) AOSTOCK_SECRET_KEY) < 16) {
+        return null;
+    }
+    return hash_hmac('sha256', 'known|' . $raw, (string) AOSTOCK_SECRET_KEY);
+}
+
+/** staff_id ที่เครื่องนี้จำไว้ (คนล่าสุดก่อน) — cookie ผิดรูป / ลายเซ็นไม่ตรง = ไม่มี
+    TODO:
+      - [x] ช่วงที่ 13 */
+function known_ids()
+{
+    $c = isset($_COOKIE[KNOWN_COOKIE]) ? (string) $_COOKIE[KNOWN_COOKIE] : '';
+    if (!preg_match('/^(\d{1,10}(?:-\d{1,10}){0,' . (KNOWN_MAX - 1) . '})\.([a-f0-9]{64})$/', $c, $m)) {
+        return array();
+    }
+    $sig = known_sign($m[1]);
+    if ($sig === null || !hash_equals($sig, $m[2])) {
+        return array();
+    }
+    return array_map('intval', explode('-', $m[1]));
+}
+
+/** เขียนรายการ id ลง cookie (ว่าง = ลบ cookie)
+    TODO:
+      - [x] ช่วงที่ 13 */
+function known_save($ids)
+{
+    $ids = array_slice(array_values(array_unique(array_filter(array_map('intval', $ids)))), 0, KNOWN_MAX);
+    $raw = implode('-', $ids);
+    $sig = known_sign($raw);
+    if (!$ids || $sig === null) {
+        pos_cookie(KNOWN_COOKIE, '', time() - 3600);
+        return;
+    }
+    $_COOKIE[KNOWN_COOKIE] = $raw . '.' . $sig;
+    pos_cookie(KNOWN_COOKIE, $_COOKIE[KNOWN_COOKIE], time() + KNOWN_DAYS * 86400);
+}
+
+/** จำคนนี้ไว้บนเครื่อง (ขึ้นเป็นคนแรก) — เรียกหลังเข้าระบบด้วย PIN สำเร็จ
+    TODO:
+      - [x] ช่วงที่ 13 */
+function known_add($user)
+{
+    $id = isset($user['id']) ? (int) $user['id'] : 0;
+    if ($id > 0) {
+        known_save(array_merge(array($id), array_diff(known_ids(), array($id))));
+    }
+}
+
+/** เอาชื่อนี้ออกจากเครื่อง
+    TODO:
+      - [x] ช่วงที่ 13 */
+function known_forget($id)
+{
+    known_save(array_diff(known_ids(), array((int) $id)));
+}
+
+/** พนักงานที่เครื่องนี้จำไว้และยังเข้าระบบด้วย PIN ได้ — array( username => ข้อมูล ) คนล่าสุดก่อน
+    คนที่พักงาน / ถูกลบ / ไม่ใช่บทบาทพนักงานแล้ว ไม่แสดง (ไม่ต้องแก้ cookie) · เปลี่ยนชื่อผู้ใช้แล้วยังขึ้น (จำด้วย staff_id)
+    TODO:
+      - [x] ช่วงที่ 13 */
+function known_staffs()
+{
+    $all  = users_active();
+    $byId = array();
+    foreach ($all as $k => $u) {
+        if ($u['role'] === 'staff') {
+            $byId[(int) $u['id']] = $k;
+        }
+    }
+    $out = array();
+    foreach (known_ids() as $id) {
+        if (isset($byId[$id])) {
+            $out[$byId[$id]] = $all[$byId[$id]];
+        }
+    }
+    return $out;
 }
 
 /** ชื่อไฟล์ของหน้าที่กำลังเปิด เช่น sale.php

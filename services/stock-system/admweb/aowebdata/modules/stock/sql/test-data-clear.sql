@@ -29,3 +29,4 @@ TRUNCATE TABLE `ao_stock_return_item`;
 TRUNCATE TABLE `ao_stock_setting`;
 TRUNCATE TABLE `ao_stock_notify_log`;
 TRUNCATE TABLE `ao_stock_remember`;
+TRUNCATE TABLE `ao_stock_login_ip`;

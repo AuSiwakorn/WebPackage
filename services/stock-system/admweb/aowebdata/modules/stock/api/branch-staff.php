@@ -8,6 +8,7 @@
  *   - [x] ช่วงที่ 10: แยกจาก api.php เดิม (ย้ายโค้ดทั้งก้อน ไม่แก้ตรรกะ) · จัดฟังก์ชันที่เคยปนอยู่หมวดอื่นให้มาอยู่หมวดนี้
  *   - [x] ช่วงที่ 11: สิทธิ์ในคอลัมน์ perms มีตัวบอกรุ่น (perm_csv) · แปลงสิทธิ์ชุดเดิมตอนอ่าน · ช่องติ๊กสิทธิ์แบ่งหมวด · สรุป / ประวัติการเปลี่ยนสิทธิ์
  *   - [x] ช่วงที่ 12: งานจัดการพนักงานใช้ร่วมกัน (staff_act_*) ระหว่างผู้ดูแลกับผู้จัดการสาขา · ยืนยัน PIN ของผู้จัดการ · ประวัติชนิด category ไม่นับเป็นข้อมูลสาขา
+ *   - [x] ช่วงที่ 13: ชื่อผู้ใช้ของพนักงานต้องกรอก (staff_username_error — เลิกตั้ง staffN ให้อัตโนมัติ) · เปลี่ยนชื่อผู้ใช้ได้ (staff_act_save + staff_rename)
  *
  * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
  */
@@ -207,7 +208,7 @@ function backdate_days($code = null)
 
 /* ---------- ผู้ใช้ระบบ (ตาราง ao_stock_staff + ao_stock_staff_branch) ----------
    - username คือตัวอ้างอิงหลักในหน้าเว็บ · staff_id ใช้ในเอกสาร (created_by)
-   - พนักงาน (staff) เข้าด้วยการแตะชื่อ + PIN 4 หลัก · ผู้ดูแล (admin) / ฝ่ายบัญชี (account) เข้าด้วยชื่อผู้ใช้ + รหัสผ่าน
+   - พนักงาน (staff) เข้าด้วยชื่อผู้ใช้ + PIN 4 หลัก (เครื่องที่เคยเข้าแล้วแตะปุ่มชื่อได้ · ช่วงที่ 13) · ผู้ดูแล (admin) / ฝ่ายบัญชี (account) เข้าด้วยชื่อผู้ใช้ + รหัสผ่าน
    - PIN / รหัสผ่านเก็บเป็น password_hash() · กรอกผิด STAFF_LOCK_FAILS ครั้ง ล็อก STAFF_LOCK_MINUTES นาที (ต่อคน)
    - พนักงานจัดการที่หน้า "จัดการพนักงาน" ของ POS · ผู้ดูแล / บัญชี จัดการที่หลังบ้าน admweb (โมดูล stock → ผู้ดูแล POS)
    - ประวัติการประจำสาขาอยู่ใน ao_stock_staff_branch (แถวปัจจุบัน date_to = NULL) — ยอดเก่าผูกกับสาขาเดิมเสมอ */
@@ -369,6 +370,16 @@ function staff_update($username, $name, $initials, $perms)
         'initials' => ($initials !== '') ? $initials : auto_initials($name),
         'perms'    => perm_csv($perms),
     ), array('username' => $username));
+    staff_db_reset();
+}
+
+/** เปลี่ยนชื่อผู้ใช้ (ตรวจด้วย staff_username_error ก่อนเรียก) — เอกสาร / ประวัติ / การจดจำเครื่อง ผูกกับ staff_id จึงไม่ต้องแก้ที่อื่น
+    คนที่กำลังเข้าระบบอยู่ด้วยชื่อเดิมถูกพาออกจากระบบที่หน้าถัดไป (require_login หาชื่อเดิมไม่เจอ) แล้วเข้าใหม่ด้วยชื่อใหม่
+    TODO:
+      - [x] ช่วงที่ 13 */
+function staff_rename($username, $new)
+{
+    sdb_update('staff', array('username' => $new), array('username' => $username));
     staff_db_reset();
 }
 
@@ -922,10 +933,33 @@ function actor_label($user)
     return user_role_label($user);
 }
 
+/** ตรวจชื่อผู้ใช้ของพนักงาน — '' = ใช้ได้ · $except = ชื่อเดิมของคนที่กำลังแก้ (ไม่เปลี่ยน = ผ่านเสมอ แม้รูปแบบเก่าจะไม่ตรงกติกา)
+    พนักงานพิมพ์ชื่อนี้คู่กับ PIN ตอนเข้าระบบบนเครื่องใหม่ (ช่วงที่ 13) จึงต้องกรอกเองทุกครั้ง
+    TODO:
+      - [x] ช่วงที่ 13 */
+function staff_username_error($uname, $except = '')
+{
+    if ($except !== '' && $uname === $except) {
+        return '';
+    }
+    if ($uname === '') {
+        return 'กรุณากรอกชื่อผู้ใช้ — พนักงานใช้ชื่อนี้คู่กับ PIN ตอนเข้าระบบ';
+    }
+    if (!preg_match('/^[a-z0-9_]{3,20}$/', $uname)) {
+        return 'ชื่อผู้ใช้ต้องเป็นภาษาอังกฤษพิมพ์เล็ก ตัวเลข หรือ _ ยาว 3–20 ตัว';
+    }
+    $everyone = users_all();
+    if (isset($everyone[$uname])) {
+        return 'ชื่อผู้ใช้ ' . $uname . ' มีคนใช้แล้ว';
+    }
+    return '';
+}
+
 /** เพิ่มพนักงาน — $in: name username initials branch pin perms
     คืน array('username' => ชื่อผู้ใช้ที่ได้) หรือ array('error' => ข้อความ)
     TODO:
-      - [x] ช่วงที่ 12: ย้ายจาก adm-user-add.php ให้ team.php ใช้ด้วย */
+      - [x] ช่วงที่ 12: ย้ายจาก adm-user-add.php ให้ team.php ใช้ด้วย
+      - [x] ช่วงที่ 13: ชื่อผู้ใช้ต้องกรอก (staff_username_error) */
 function staff_act_add($in, $actor)
 {
     $br    = branches_active();
@@ -936,20 +970,10 @@ function staff_act_add($in, $actor)
     $pin   = preg_replace('/\D/', '', (string) $in['pin']);
     $perms = perm_clean($in['perms']);
 
-    $everyone = users_all();
-    if ($uname === '') {                                 // ไม่กรอก → ตั้งให้อัตโนมัติ
-        $n = 1;
-        while (array_key_exists('staff' . $n, $everyone)) {
-            $n++;
-        }
-        $uname = 'staff' . $n;
-    }
     if ($name === '') {
         return array('error' => 'กรุณากรอกชื่อพนักงาน');
-    } elseif (!preg_match('/^[a-z0-9_]{3,20}$/', $uname)) {
-        return array('error' => 'ชื่อผู้ใช้ต้องเป็นภาษาอังกฤษพิมพ์เล็ก ตัวเลข หรือ _ ยาว 3–20 ตัว');
-    } elseif (isset($everyone[$uname])) {
-        return array('error' => 'ชื่อผู้ใช้ ' . $uname . ' มีคนใช้แล้ว');
+    } elseif (($ue = staff_username_error($uname)) !== '') {      // ช่วงที่ 13: ต้องกรอก (เลิกตั้ง staffN ให้อัตโนมัติ)
+        return array('error' => $ue);
     } elseif (!isset($br[$bc])) {
         return array('error' => 'กรุณาเลือกสาขาที่ประจำ');
     } elseif (strlen($pin) !== 4) {
@@ -971,29 +995,37 @@ function staff_act_add($in, $actor)
     return array('username' => $uname);
 }
 
-/** แก้ชื่อ / อักษรย่อ / สิทธิ์ ($name ตัดช่องว่างซ้ำแล้ว)
+/** แก้ชื่อ / อักษรย่อ / สิทธิ์ / ชื่อผู้ใช้ ($name ตัดช่องว่างซ้ำแล้ว · $newUser = null คือไม่เปลี่ยนชื่อผู้ใช้)
     TODO:
-      - [x] ช่วงที่ 12: ย้ายจาก adm-users.php (act=save) */
-function staff_act_save($username, $name, $ini, $perms, $actor)
+      - [x] ช่วงที่ 12: ย้ายจาก adm-users.php (act=save)
+      - [x] ช่วงที่ 13: เปลี่ยนชื่อผู้ใช้ได้ (ผู้ดูแล / ผู้จัดการสาขา) — ตรวจครบก่อนเขียน · ลงประวัติรายการเดียวกัน */
+function staff_act_save($username, $name, $ini, $perms, $actor, $newUser = null)
 {
     $all = staff_all();
     if (!isset($all[$username])) {
         return 'ไม่พบพนักงานคนนี้';
     }
-    $u     = $all[$username];
-    $perms = perm_clean($perms);
+    $u       = $all[$username];
+    $perms   = perm_clean($perms);
+    $newUser = ($newUser === null) ? $username : strtolower(trim((string) $newUser));
     if ($name === '') {
         return 'กรุณากรอกชื่อพนักงาน';
+    } elseif (($ue = staff_username_error($newUser, $username)) !== '') {
+        return $ue;
     } elseif (!$perms) {
         return 'กรุณาเลือกสิทธิ์อย่างน้อย 1 อย่าง — ถ้าไม่ให้ใช้งานแล้ว ใช้ “พักงาน / ลาออก” แทน';
     }
     $before  = isset($u['perms']) ? $u['perms'] : array();
     $changes = array();
+    if ($newUser !== $username) {
+        $changes['ชื่อผู้ใช้'] = $username . ' → ' . $newUser;
+        staff_rename($username, $newUser);
+    }
     if ($name !== $u['name']) {
         $changes['ชื่อ'] = $u['name'] . ' → ' . $name;
     }
     $changes = array_merge($changes, perm_changes($before, $perms));     // ช่วงที่ 11: บอกเฉพาะที่เพิ่ม / เอาออก
-    staff_update($username, $name, $ini, $perms);
+    staff_update($newUser, $name, $ini, $perms);
     if ($changes) {
         $changes['แก้โดย'] = $actor['name'] . ' (' . actor_label($actor) . ')';
         log_add($u['branch'], 'setting', $actor, 'แก้ข้อมูลพนักงาน ' . $name, $changes);

@@ -12,6 +12,7 @@
  *   - [x] ช่วงที่ 12: ตรวจ / เพิ่ม / ลงประวัติ ย้ายไป staff_act_add (ใช้ร่วมกับ team.php ของผู้จัดการสาขา — ข้อความเดิมทุกคำ)
  *         · ช่อง "ตำแหน่ง" (พนักงาน / ผู้จัดการสาขา) บนสุดของฟอร์ม
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
+ *   - [x] ช่วงที่ 13: ชื่อผู้ใช้ต้องกรอก (พนักงานใช้คู่กับ PIN ตอนเข้าระบบ — เลิกตั้ง staffN ให้อัตโนมัติ) · ย้ายช่องขึ้นมาต่อจากชื่อ
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -22,7 +23,7 @@ if (!defined('ALLOW_DIRECT_ACCESS')) {
    ----------------------------------------------------------
    กรอกชื่อ สาขา PIN และสิทธิ์ → บันทึกแล้วกลับไปหน้าจัดการพนักงาน (เปิดคนที่เพิ่งเพิ่ม)
    ?b=รหัสสาขา = เลือกสาขาไว้ให้ก่อน
-   กติกา: PIN 4 หลักห้ามซ้ำในสาขาเดียวกัน · ชื่อผู้ใช้เว้นว่าง = ตั้งให้อัตโนมัติ (staffN) · ต้องมีสิทธิ์อย่างน้อย 1 อย่าง
+   กติกา: PIN 4 หลักห้ามซ้ำในสาขาเดียวกัน · ชื่อผู้ใช้ต้องกรอก (พนักงานพิมพ์คู่กับ PIN ตอนเข้าระบบบนเครื่องใหม่ · ช่วงที่ 13) · ต้องมีสิทธิ์อย่างน้อย 1 อย่าง
    เก็บในตาราง ao_stock_staff + ao_stock_staff_branch (staff_create ใน api.php) · PIN เก็บเป็น password_hash
    ========================================================== */
 
@@ -68,7 +69,7 @@ $nv = isset($old['new']) ? $old['new'] : array('name' => '', 'username' => '', '
 $branch         = 'ALL';
 $NO_BRANCH_PICK = true;
 $PAGE_TITLE     = 'เพิ่มพนักงาน';
-$PAGE_SUB       = 'พนักงานเข้าระบบด้วยการแตะชื่อ + PIN 4 หลัก';
+$PAGE_SUB       = 'พนักงานเข้าระบบด้วยชื่อผู้ใช้ + PIN 4 หลัก';
 $NAV_ACTIVE     = 'adm-users.php';
 require dirname(__FILE__) . '/inc/header.php';
 ?>
@@ -93,6 +94,11 @@ require dirname(__FILE__) . '/inc/header.php';
         <input class="input" type="text" id="n-name" name="name" value="<?php echo e($nv['name']) ?>" maxlength="60" required autocomplete="off" placeholder="เช่น ปิยะ ขยันดี">
       </div>
       <div class="field">
+        <label for="n-user">ชื่อผู้ใช้</label>
+        <input class="input" type="text" id="n-user" name="username" value="<?php echo e($nv['username']) ?>" maxlength="20" required pattern="[A-Za-z0-9_]{3,20}" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="เช่น nipa">
+        <small class="adm-hint">พนักงานใช้คู่กับ PIN ตอนเข้าระบบ · ตั้งให้จำง่าย เช่น ชื่อเล่นภาษาอังกฤษ · a–z 0–9 _ ยาว 3–20 ตัว</small>
+      </div>
+      <div class="field">
         <label for="n-branch">สาขาที่ประจำ</label>
         <select class="input" id="n-branch" name="branch" required>
           <?php foreach (branches_active() as $bc => $b) { ?>
@@ -104,11 +110,6 @@ require dirname(__FILE__) . '/inc/header.php';
         <label for="n-pin">PIN 4 หลัก</label>
         <input class="input adm-pin" type="text" id="n-pin" name="pin" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required autocomplete="off" placeholder="••••">
         <small class="adm-hint">ห้ามซ้ำกับคนอื่นในสาขาเดียวกัน</small>
-      </div>
-      <div class="field">
-        <label for="n-user">ชื่อผู้ใช้ <small class="adm-none">(ไม่บังคับ)</small></label>
-        <input class="input" type="text" id="n-user" name="username" value="<?php echo e($nv['username']) ?>" maxlength="20" autocomplete="off" placeholder="เว้นว่าง = ตั้งให้อัตโนมัติ">
-        <small class="adm-hint">ใช้อ้างอิงภายใน · a–z 0–9 _</small>
       </div>
       <div class="field">
         <label for="n-ini">อักษรย่อบนปุ่มเลือกชื่อ <small class="adm-none">(ไม่บังคับ)</small></label>

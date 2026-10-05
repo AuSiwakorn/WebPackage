@@ -7,6 +7,7 @@
  * TODO:
  *   - [x] ช่วงที่ 12: หน้าใหม่ของผู้จัดการสาขา (ข้อ 1ก หน้าแยกฝั่งพนักงาน · 2ก ติ๊กได้เฉพาะสิทธิ์ที่ไม่ใช่สิทธิ์เสริม · 3ก ยืนยัน PIN ทุกครั้งที่บันทึก)
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
+ *   - [x] ช่วงที่ 13: ชื่อผู้ใช้ต้องกรอกตอนเพิ่ม · เปลี่ยนชื่อผู้ใช้ของพนักงานในสาขาได้ (ข้อ 1ก — ช่องในฟอร์มแก้ไข)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -17,7 +18,7 @@ if (!defined('ALLOW_DIRECT_ACCESS')) {
    ----------------------------------------------------------
    เข้าได้เฉพาะพนักงานที่ผู้ดูแลติ๊ก "ผู้จัดการสาขา" (page_perm team.php = manager) · ผู้ดูแลเปิดหน้านี้ → adm-users.php
    - เห็นพนักงานทุกคนที่ประจำสาขาตัวเอง (รวมคนที่พักงาน)
-   - เพิ่มพนักงานเข้าสาขาตัวเอง · แก้ชื่อ / อักษรย่อ / สิทธิ์ · รีเซ็ต PIN · พักงาน / เปิดใช้งาน · ลบ (เฉพาะคนที่ยังไม่เคยทำรายการ)
+   - เพิ่มพนักงานเข้าสาขาตัวเอง · แก้ชื่อ / ชื่อผู้ใช้ / อักษรย่อ / สิทธิ์ · รีเซ็ต PIN · พักงาน / เปิดใช้งาน · ลบ (เฉพาะคนที่ยังไม่เคยทำรายการ)
    - ติ๊กได้เฉพาะสิทธิ์หมวดหน้าร้าน / งานคลัง / รับคืน / หมวดสินค้า / ดูข้อมูล — สิทธิ์เสริมที่ผู้ดูแลให้ไว้เดิมไม่หาย (perm_merge_by_manager)
    - ผู้จัดการคนอื่น (รวมตัวเอง) / ย้ายสาขา / ตั้งหรือปลดผู้จัดการ = ผู้ดูแลเท่านั้น (manager_target_error)
    - ทุกครั้งที่กดบันทึกต้องใส่ PIN ของตัวเอง (เครื่อง POS ใช้ร่วมกัน) · กรอกผิด 5 ครั้งล็อก 15 นาที (staff_pin_confirm)
@@ -66,7 +67,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $name  = trim(preg_replace('/\s+/u', ' ', isset($_POST['name']) ? $_POST['name'] : ''));
             $ini   = trim(isset($_POST['initials']) ? $_POST['initials'] : '');
             $ticked = array_values(array_intersect(read_perms(), $grant));
-            $old[$sel] = array('name' => $name, 'initials' => $ini, 'perms' => $ticked);
+            $uname  = strtolower(trim(isset($_POST['username']) ? (string) $_POST['username'] : $sel));    // ช่วงที่ 13: เปลี่ยนชื่อผู้ใช้ได้
+            $old[$sel] = array('name' => $name, 'username' => $uname, 'initials' => $ini, 'perms' => $ticked);
         }
 
         /* 1) ยืนยัน PIN ของผู้จัดการ  2) แก้คนนี้ได้ไหม  3) ทำงาน */
@@ -84,8 +86,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             } elseif ($act === 'save') {
                 $all = staff_all();
-                $err = staff_act_save($sel, $name, $ini, perm_merge_by_manager($ticked, $all[$sel]['perms']), $user);
-                $go  = 'team.php?u=' . rawurlencode($sel) . '&ok=save';
+                $err = staff_act_save($sel, $name, $ini, perm_merge_by_manager($ticked, $all[$sel]['perms']), $user, $uname);
+                $go  = 'team.php?u=' . rawurlencode($uname) . '&ok=' . ($uname !== $sel ? 'rename' : 'save');
             } elseif ($act === 'pin') {
                 $err = staff_act_pin($sel, isset($_POST['pin']) ? $_POST['pin'] : '', $user);
                 $go  = 'team.php?u=' . rawurlencode($sel) . '&ok=pin';
@@ -120,11 +122,12 @@ foreach (staff_all() as $k => $u) {
 $picked  = (!$add && isset($staff[$sel])) ? $staff[$sel] : null;
 $canEdit = ($picked !== null && manager_target_error($user, $sel) === '');
 $okMsg   = array(
-    'add'  => 'เพิ่มพนักงานแล้ว — เข้าระบบด้วยการแตะชื่อ + PIN ได้ทันที',
-    'save' => 'บันทึกแล้ว สิทธิ์มีผลทันที',
-    'pin'  => 'รีเซ็ต PIN แล้ว — แจ้ง PIN ใหม่ให้พนักงานโดยตรง',
-    'off'  => 'พักงานแล้ว — เข้าระบบไม่ได้ แต่ชื่อในเอกสารเก่ายังอยู่',
-    'on'   => 'เปิดใช้งานอีกครั้งแล้ว',
+    'add'    => 'เพิ่มพนักงานแล้ว — แจ้งชื่อผู้ใช้ “' . $sel . '” และ PIN ให้พนักงานใช้เข้าระบบครั้งแรก (ครั้งต่อไปเครื่องจะจำชื่อไว้ให้แตะ)',
+    'save'   => 'บันทึกแล้ว สิทธิ์มีผลทันที',
+    'rename' => 'บันทึกแล้ว — ชื่อผู้ใช้ใหม่คือ “' . $sel . '” แจ้งพนักงานให้ใช้ชื่อนี้เข้าระบบ (ถ้ากำลังเข้าระบบอยู่จะถูกพาออกให้เข้าใหม่) · ปุ่มชื่อบนเครื่องที่จำไว้ยังใช้ได้',
+    'pin'    => 'รีเซ็ต PIN แล้ว — แจ้ง PIN ใหม่ให้พนักงานโดยตรง',
+    'off'    => 'พักงานแล้ว — เข้าระบบไม่ได้ แต่ชื่อในเอกสารเก่ายังอยู่',
+    'on'     => 'เปิดใช้งานอีกครั้งแล้ว',
 );
 $ok = (isset($_GET['ok']) && isset($okMsg[$_GET['ok']])) ? $okMsg[$_GET['ok']] : '';
 $nActive = 0;
@@ -161,7 +164,7 @@ require dirname(__FILE__) . '/inc/header.php';
 <p class="hist-back"><a class="btn btn-ghost btn-sm" href="team.php">‹ กลับไปรายชื่อพนักงาน</a></p>
 <section class="card">
   <div class="card-head">
-    <div><h2>เพิ่มพนักงานเข้า<?php echo e(branch_name($code)) ?></h2><span class="sub">พนักงานเข้าระบบด้วยการแตะชื่อ + PIN 4 หลัก · สิทธิ์แก้ภายหลังได้</span></div>
+    <div><h2>เพิ่มพนักงานเข้า<?php echo e(branch_name($code)) ?></h2><span class="sub">พนักงานเข้าระบบด้วยชื่อผู้ใช้ + PIN 4 หลัก · สิทธิ์แก้ภายหลังได้</span></div>
   </div>
   <?php if ($errAt === 'new' && $err !== '') { ?>
     <div class="alert alert-error adm-ok" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span><?php echo e($err) ?></span></div>
@@ -175,14 +178,14 @@ require dirname(__FILE__) . '/inc/header.php';
         <input class="input" type="text" id="n-name" name="name" value="<?php echo e($nv['name']) ?>" maxlength="60" required autocomplete="off" placeholder="เช่น ปิยะ ขยันดี">
       </div>
       <div class="field">
+        <label for="n-user">ชื่อผู้ใช้</label>
+        <input class="input" type="text" id="n-user" name="username" value="<?php echo e($nv['username']) ?>" maxlength="20" required pattern="[A-Za-z0-9_]{3,20}" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="เช่น nipa">
+        <small class="adm-hint">พนักงานใช้คู่กับ PIN ตอนเข้าระบบ · ตั้งให้จำง่าย เช่น ชื่อเล่นภาษาอังกฤษ · a–z 0–9 _ ยาว 3–20 ตัว</small>
+      </div>
+      <div class="field">
         <label for="n-pin">PIN 4 หลักของพนักงานใหม่</label>
         <input class="input adm-pin" type="text" id="n-pin" name="pin" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required autocomplete="off" placeholder="••••">
         <small class="adm-hint">ห้ามซ้ำกับคนอื่นในสาขาเดียวกัน</small>
-      </div>
-      <div class="field">
-        <label for="n-user">ชื่อผู้ใช้ <small class="adm-none">(ไม่บังคับ)</small></label>
-        <input class="input" type="text" id="n-user" name="username" value="<?php echo e($nv['username']) ?>" maxlength="20" autocomplete="off" placeholder="เว้นว่าง = ตั้งให้อัตโนมัติ">
-        <small class="adm-hint">ใช้อ้างอิงภายใน · a–z 0–9 _</small>
       </div>
       <div class="field">
         <label for="n-ini">อักษรย่อบนปุ่มเลือกชื่อ <small class="adm-none">(ไม่บังคับ)</small></label>
@@ -200,7 +203,7 @@ require dirname(__FILE__) . '/inc/header.php';
 <?php } else { ?>
 
 <?php if ($picked !== null) {
-    $pv     = isset($old[$sel]) ? $old[$sel] : array('name' => $picked['name'], 'initials' => $picked['initials'], 'perms' => $picked['perms']);
+    $pv     = isset($old[$sel]) ? $old[$sel] : array('name' => $picked['name'], 'username' => $sel, 'initials' => $picked['initials'], 'perms' => $picked['perms']);
     $active = user_active($picked);
     $reason = $canEdit ? staff_data_reason($sel) : '';
     $extra  = array_values(array_diff($picked['perms'], $grant)); ?>
@@ -240,6 +243,11 @@ require dirname(__FILE__) . '/inc/header.php';
         <div class="field">
           <label for="e-name">ชื่อ–นามสกุล</label>
           <input class="input" type="text" id="e-name" name="name" value="<?php echo e($pv['name']) ?>" maxlength="60" required autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="e-user">ชื่อผู้ใช้</label>
+          <input class="input" type="text" id="e-user" name="username" value="<?php echo e($pv['username']) ?>" maxlength="40" required autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="เช่น nipa">
+          <small class="adm-hint">ใช้คู่กับ PIN ตอนเข้าระบบ · เปลี่ยนแล้วแจ้งพนักงานด้วย · a–z 0–9 _ ยาว 3–20 ตัว</small>
         </div>
         <div class="field">
           <label for="e-ini">อักษรย่อ</label>
