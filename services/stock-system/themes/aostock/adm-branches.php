@@ -11,6 +11,7 @@
  *   - [x] ช่วงที่ 10: ค่าตั้ง "เป้าต่อคนต่อวัน" (daily_goal) ของภาพรวมพนักงาน
  *   - [x] ช่วงที่ 12: เลือกผู้จัดการสาขารายสาขา (act=managers · staff_act_set_manager) · หัวการ์ดบอกชื่อผู้จัดการ
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
+ *   - [x] ช่วงที่ 14: จำนวนสาขาสูงสุดตามที่หลังบ้าน admweb กำหนด (นับรวมสาขาที่ปิดใช้งาน) — ครบแล้วปุ่มเพิ่มกดไม่ได้ + เซิร์ฟเวอร์ปฏิเสธ
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -27,6 +28,7 @@ if (!defined('ALLOW_DIRECT_ACCESS')) {
    - ลบ: ได้เฉพาะสาขาที่ยังไม่มีข้อมูลเลย (ไม่มีพนักงาน ไม่มีบิล/เอกสาร/สต๊อก)
        สาขาที่มีข้อมูลแล้วให้ "ปิดใช้งาน" แทน เพื่อไม่ให้ยอดเก่าหาย
    - สาขาใหม่ได้รหัสเลขที่บิลอัตโนมัติ ({รหัส}V = VAT, {รหัส} = ไม่ VAT) ฝ่ายบัญชีแก้ทีหลังได้
+   - จำนวนสาขาสูงสุด: ผู้ดูแลระบบตั้งที่หลังบ้าน admweb (ช่วงที่ 14) · นับรวมสาขาที่ปิดใช้งาน · ครบแล้วเพิ่มไม่ได้ (เปิดสาขาเดิมกลับได้)
    ทุกการเปลี่ยนแปลงบันทึกลงประวัติของสาขานั้น
 
    เก็บในตาราง ao_stock_branch (branch_create / branch_update_info / branch_set_active / branch_delete ใน api.php)
@@ -82,6 +84,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errB = 'new';
         list($in, $err) = read_info($info);
         $old['new'] = array_merge($in, $_POST);
+        if (($le = branch_limit_error()) !== '') {             // ช่วงที่ 14: ครบจำนวนสาขาที่หลังบ้านกำหนดแล้ว
+            $err = $le;
+        }
         if ($err === '') {
             list($set, $err) = read_settings($fields);
         }
@@ -96,13 +101,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         if ($err === '') {
             /* เลขที่บิลเริ่มต้น + ข้อมูลภาษีตั้งให้ใน branch_create (ฝ่ายบัญชีแก้ได้ที่หน้าตั้งค่าเลขที่บิล) */
-            branch_create($bc, $in, $set);
-            log_add($bc, 'setting', $user, 'เพิ่มสาขาใหม่ ' . $in['name'], array(
-                'รหัสสาขา'   => $bc,
-                'เลขที่บิล'   => $bc . 'V… (VAT) · ' . $bc . '… (ไม่ VAT)',
-                'เพิ่มโดย'    => $user['name'] . ' (ผู้ดูแล)',
-            ));
-            $go = 'adm-branches.php?ok=' . rawurlencode($bc) . '&do=add#b-' . $bc;
+            if (branch_create($bc, $in, $set) <= 0) {        // มีคนเพิ่มสาขาพร้อมกันจนครบจำนวนก่อน
+                $err = branch_limit_error();
+            } else {
+                log_add($bc, 'setting', $user, 'เพิ่มสาขาใหม่ ' . $in['name'], array(
+                    'รหัสสาขา'   => $bc,
+                    'เลขที่บิล'   => $bc . 'V… (VAT) · ' . $bc . '… (ไม่ VAT)',
+                    'เพิ่มโดย'    => $user['name'] . ' (ผู้ดูแล)',
+                ));
+                $go = 'adm-branches.php?ok=' . rawurlencode($bc) . '&do=add#b-' . $bc;
+            }
         }
 
     } elseif (!isset($all[$bc])) {
@@ -214,6 +222,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $list = branches_all();
 uasort($list, 'branch_list_cmp');
 $nOn = count(branches_active());
+$max = branch_limit();                   // จำนวนสาขาสูงสุดจากหลังบ้าน (0 = ไม่จำกัด · ช่วงที่ 14)
+$full = (branch_limit_error() !== '');
 
 $branch     = work_branch($user);
 $PAGE_TITLE = 'จัดการสาขา';
@@ -234,9 +244,12 @@ $v = function ($bc, $k, $def) use ($old) {
 <!-- ==================== เพิ่มสาขา (ปุ่ม → popup) ==================== -->
 <section class="card br-add">
   <div class="card-head">
-    <div><h2>เพิ่มสาขาใหม่</h2><span class="sub">รหัสสาขาตั้งครั้งเดียว เปลี่ยนภายหลังไม่ได้</span></div>
-    <button type="button" class="btn btn-primary btn-sm" data-fm-open="br-add-modal"><svg class="ico"><use href="#i-plus"/></svg> เพิ่มสาขา</button>
+    <div><h2>เพิ่มสาขาใหม่</h2><span class="sub">รหัสสาขาตั้งครั้งเดียว เปลี่ยนภายหลังไม่ได้<?php if ($max > 0) { ?> · ใช้อยู่ <b class="br-quota<?php echo $full ? ' is-full' : '' ?>"><?php echo count($list) ?> / <?php echo number_format($max) ?> สาขา</b> (นับรวมที่ปิดใช้งาน)<?php } ?></span></div>
+    <button type="button" class="btn btn-primary btn-sm" data-fm-open="br-add-modal"<?php echo $full ? ' disabled' : '' ?>><svg class="ico"><use href="#i-plus"/></svg> เพิ่มสาขา</button>
   </div>
+  <?php if ($full) { ?>
+    <p class="br-full"><svg class="ico"><use href="#i-info"/></svg><?php echo e(branch_limit_error()) ?></p>
+  <?php } ?>
 </section>
 
 <dialog class="fm-modal" id="br-add-modal" aria-labelledby="br-add-t"<?php echo $errB === 'new' ? ' data-fm-auto' : '' ?>>

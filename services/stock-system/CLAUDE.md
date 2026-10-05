@@ -39,6 +39,12 @@
 1. ต้องมี TODO comment กำกับทุก function ใหม่
 2. ยึด naming/style/pattern ของ function เดิมในระบบ
 3. ไม่แน่ใจว่าเขียนที่ไหน → **ถามก่อน** ห้ามสร้างไฟล์ใหม่หรือวางเองโดยพลการ
+4. **ตั้งชื่อ function ตามมาตรฐาน** — กันชื่อซ้ำ และให้ทั้งทีมใช้มาตรฐานเดียวกัน
+   - ขึ้นต้นด้วยชื่อ module ตัวแรกพิมพ์ใหญ่ ตามด้วย `_` เช่น module `stock` → `Stock_`
+   - ชื่อหลัง `_` ขึ้นต้นด้วยกริยาตัวเล็ก คำถัดไปขึ้นต้นตัวใหญ่ ไม่มี `_` เพิ่ม เช่น `Stock_getBranchLimit`, `Stock_saveBill`
+     (แบบเดียวกับ `Seo_ensureScriptsTable`, `SiteConfig_getCustomName` ของ admweb)
+   - ตั้งให้อ่านแล้วรู้ว่าทำอะไร · ชื่อ function ของ PHP ไม่สนตัวพิมพ์ ห้ามตั้งชื่อที่ต่างกันแค่ตัวเล็ก / ใหญ่
+   - module stock (AOSTOCK): กริยาที่ใช้ซ้ำและรายชื่อทั้งหมดดูที่ [`admweb/aowebdata/modules/stock/FUNCTIONS.md`](./admweb/aowebdata/modules/stock/FUNCTIONS.md) — เพิ่ม function ใหม่ต้องเติมในไฟล์นั้นด้วย
 
 ---
 

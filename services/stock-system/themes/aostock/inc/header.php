@@ -10,6 +10,7 @@
  *   - [x] ช่วงที่ 11: เมนูแสดงตามสิทธิ์ของหน้า (page_ok) · ป้ายสถานะร้านกดไปหน้าเปิดร้านได้เฉพาะคนที่มีสิทธิ์
  *   - [x] ช่วงที่ 12: เมนู "พนักงานในสาขา" (เฉพาะผู้จัดการสาขา) · ใต้ชื่อแสดง "ผู้จัดการสาขา" (user_role_label)
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
+ *   - [x] ป้ายบนเมนูข้างที่ยังเข้าไม่ได้เพราะร้านยังไม่เปิด / ปิดแล้ว (ภาพรวมของฉัน · ขายสินค้า) · โหมดย่อแสดงเป็นจุด · ปุ่มขายบนแถบบนผ่าน sale.php ให้ได้ข้อความด้วย
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -105,6 +106,24 @@ foreach ($NAV_ALL as $group => $items) {
     }
 }
 
+/* สถานะร้านของสาขาที่ทำงาน — ใช้ทั้งป้ายบนเมนูข้าง ป้ายสถานะร้าน และปุ่มขายบนแถบบน */
+$__code  = work_branch($user);
+$__open  = store_is_open($__code);
+$__shut  = store_is_closed($__code);
+$__state = store_state($__code);
+
+/* ป้ายบนเมนูที่ยังเข้าไม่ได้ (ร้านยังไม่เปิด / ปิดแล้ว) — กดแล้วถูกพาไปหน้าเปิดร้านหรือหน้าแรกพร้อมข้อความ ผู้ใช้จะได้ไม่นึกว่าเป็นบั๊ก
+   เงื่อนไขเดียวกับที่ dashboard.php / sale.php ใช้พาไป */
+$NAV_FLAG = array();
+if ($user['role'] === 'staff') {
+    if (!$__open) {
+        $NAV_FLAG['sale.php'] = $__shut ? 'ปิดร้านแล้ว' : (page_ok($user, 'store.php') ? 'เปิดร้านก่อน' : 'ร้านยังไม่เปิด');
+    }
+    if ($__state === null && can($user, 'store')) {
+        $NAV_FLAG['dashboard.php'] = 'เปิดร้านก่อน';
+    }
+}
+
 /* โหมดเมนูด้านข้าง
    - พนักงาน              : ย่อเป็นแถบไอคอน (rail) เป็นค่าเริ่มต้น
    - ผู้ดูแลระบบ           : กางเต็มเป็นค่าเริ่มต้น
@@ -197,11 +216,12 @@ $branches = visible_branches($user);
       <?php foreach ($NAV as $group => $items) { ?>
         <?php if (count($NAV) > 1) { ?><div class="side-group"><?php echo e($group) ?></div><?php } ?>
         <ul>
-          <?php foreach ($items as $it) { ?>
+          <?php foreach ($items as $it) { $flag = isset($NAV_FLAG[$it['file']]) ? $NAV_FLAG[$it['file']] : ''; $tip = $it['label'] . ($flag !== '' ? ' — ' . $flag : ''); ?>
             <li>
-              <a href="<?php echo e($it['file']) ?>" class="<?php echo $NAV_ACTIVE === $it['file'] ? 'on' : '' ?>"
-                 data-t="<?php echo e($it['label']) ?>" aria-label="<?php echo e($it['label']) ?>">
+              <a href="<?php echo e($it['file']) ?>" class="<?php echo trim(($NAV_ACTIVE === $it['file'] ? 'on' : '') . ($flag !== '' ? ' has-flag' : '')) ?>"
+                 data-t="<?php echo e($tip) ?>" aria-label="<?php echo e($tip) ?>">
                 <svg class="ico"><use href="#<?php echo e($it['icon']) ?>"/></svg><span class="lbl"><?php echo e($it['label']) ?></span>
+                <?php if ($flag !== '') { ?><span class="nav-flag" aria-hidden="true"><span class="nf-t"><?php echo e($flag) ?></span></span><?php } ?>
               </a>
             </li>
           <?php } ?>
@@ -229,12 +249,6 @@ $branches = visible_branches($user);
         <?php if ($PAGE_SUB !== '') { ?><span class="top-sub"><?php echo e($PAGE_SUB) ?></span><?php } ?>
       </div>
 
-      <?php
-      $__code  = work_branch($user);
-      $__open  = store_is_open($__code);
-      $__shut  = store_is_closed($__code);
-      $__state = store_state($__code);
-      ?>
       <?php if (can($user, 'sale') || page_perm_ok($user, 'store.php')) { ?>
       <a class="store-chip <?php echo $__open ? 'is-open' : ($__shut ? 'is-shut' : 'is-wait') ?>"<?php echo page_ok($user, 'store.php') ? ' href="store.php"' : '' ?>>
         <span class="dot"></span>
@@ -292,8 +306,9 @@ $branches = visible_branches($user);
 
         <?php if (menu_enabled('sale.php') && can($user, 'sale')) { ?>
           <?php $__cart = cart_count(); ?>
+          <?php /* ไปที่ sale.php เสมอ — ร้านยังไม่เปิด / ปิดแล้ว sale.php พาไปหน้าเปิดร้านพร้อมบอกเหตุผลเอง */ ?>
           <a class="btn-sale<?php echo $__open ? '' : ' is-lock' ?>"
-             href="<?php echo ($__open || !page_ok($user, 'store.php')) ? 'sale.php' : 'store.php' ?>"
+             href="sale.php"
              title="<?php echo $__open ? 'เปิดหน้าขายสินค้า' : 'ต้องเปิดร้านก่อนจึงจะขายได้' ?>">
             <svg class="ico"><use href="#i-cart"/></svg>
             <span class="t-full">ขายสินค้า</span>

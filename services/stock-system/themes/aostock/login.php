@@ -14,6 +14,7 @@
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  *   - [x] ช่วงที่ 13: ไม่แสดงรายชื่อพนักงานทั้งหมดแล้ว — พิมพ์ชื่อผู้ใช้ + PIN · เครื่องจำชื่อคนที่เคยเข้า (ปุ่มชื่อ + × เอาออก)
  *         · ติ๊ก "จำชื่อฉันไว้บนเครื่องนี้" ไว้ให้ก่อน · ข้อความผิดไม่บอกว่าชื่อผู้ใช้มีจริงไหม · ล็อกตาม IP ทั้ง 2 แท็บ
+ *   - [x] วงหมุนกลางจอ "กำลังเข้าสู่ระบบ…" ทันทีที่ส่ง PIN / รหัสผ่าน (ข้อ ก) · กันกดซ้ำระหว่างส่ง · กดย้อนกลับมาแล้วซ่อนให้
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -354,6 +355,14 @@ foreach (users_active() as $u) {
 
 </main>
 
+<!-- ===== กำลังเข้าสู่ระบบ: วงหมุนกลางจอ (แสดงตอนกดส่ง PIN / รหัสผ่าน) ===== -->
+<div class="lg-busy" id="lg-busy" role="status" aria-live="polite" hidden>
+  <div class="lg-busy-box">
+    <span class="lg-spin" aria-hidden="true"></span>
+    <b>กำลังเข้าสู่ระบบ…</b>
+  </div>
+</div>
+
 <script>
 (function () {
   /* ---- สลับแท็บ ---- */
@@ -457,7 +466,27 @@ foreach (users_active() as $u) {
   }
   function clearPin() { buf = ''; paint(); }
 
+  /* ---- วงหมุนกลางจอระหว่างส่งไปตรวจ (ข้อ ก: ขึ้นทันทีที่ส่ง · ผิด = หน้าโหลดใหม่พร้อมข้อความเหมือนเดิม) ---- */
+  var busy    = document.getElementById('lg-busy');
+  var sending = false;
+  function showBusy() {
+    sending = true;
+    if (busy) { busy.hidden = false; }
+  }
+  /* กดย้อนกลับมาหน้านี้ (เบราว์เซอร์เก็บหน้าไว้ทั้งหน้า) → ซ่อนวงหมุน ล้าง PIN ให้กรอกใหม่ได้ */
+  window.addEventListener('pageshow', function (ev) {
+    if (ev.persisted) {
+      sending = false;
+      if (busy) { busy.hidden = true; }
+      clearPin();
+    }
+  });
+  if (paneA) {
+    paneA.addEventListener('submit', function () { showBusy(); });
+  }
+
   function press(k) {
+    if (sending) { return; }                               // กำลังส่งอยู่ — กันกดซ้ำ
     if (k === 'clear') { clearPin(); return; }
     if (k === 'back')  { buf = buf.slice(0, -1); paint(); return; }
     if (buf.length >= 4) { return; }
@@ -465,6 +494,7 @@ foreach (users_active() as $u) {
     buf += k;
     paint();
     if (buf.length === 4) {
+      showBusy();
       setTimeout(function () { paneP.submit(); }, 140);   // ครบ 4 หลักส่งทันที
     }
   }

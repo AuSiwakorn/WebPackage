@@ -8,6 +8,7 @@
  *   - [x] แสดงตารางที่ติดตั้งแล้ว / ยังขาด + ลิงก์ไปหน้า Reinstall
  *   - [x] แสดง charset ของการเชื่อมต่อ (ต้องเป็น utf8mb4)
  *   - [ ] สรุปจำนวนสาขา / พนักงาน / สินค้า เมื่อมีหน้าจัดการข้อมูล (ช่วงที่ 5)
+ *   - [x] ช่วงที่ 14: บรรทัดสาขา — มีอยู่กี่สาขา / จำนวนสาขาสูงสุดที่ตั้งไว้ (ลิงก์ไปหน้าตั้งค่า POS)
  *   - [x] ช่วงที่ 9: สถานะการแจ้งเตือน — กุญแจเข้ารหัส · Telegram · อีเมลรายวัน · cron ทำงานล่าสุด + คำสั่งที่ต้องตั้ง · เมนูที่ปิดอยู่
  */
 PERMIT::_PERMIT(_MODULE_, 'module|mp', 'สามารถเปิด สถานะระบบ AOSTOCK ได้', 'redirect', 'SET');
@@ -32,6 +33,13 @@ $numTotal = count($aTablename);
 $isAllOk = ($numInstalled === $numTotal);
 
 $linkInstall = _admin_buil_link('index.php?module=siteconfig&mp=db');
+
+// ---- สาขา / จำนวนสาขาสูงสุด (ช่วงที่ 14) — ตารางยังไม่ครบ = ข้าม ----
+$aBr = null;
+if (in_array(_DBPREFIX_ . 'stock_branch', $aAllTables, true) && in_array(_DBPREFIX_ . 'stock_setting', $aAllTables, true)) {
+	$aBr = array('all' => count(branches_all()), 'on' => count(branches_active()), 'max' => branch_limit());
+}
+$linkSettings = 'index.php?module=' . _MODULE_ . '&mp=settings';
 
 // ---- การแจ้งเตือน / cron (ช่วงที่ 9) — ตารางยังไม่ครบ = ข้าม ----
 $aNt = null;
@@ -95,6 +103,15 @@ $linkPos = rtrim(URL_WEB_ROOT, '/') . '/';
 							— ควรเป็น utf8mb4 (ตั้งด้วย SET NAMES ใน sdb() ของ modules/stock/api.php)
 						<?php } ?>
 					</p>
+					<?php if ($aBr !== null) { ?>
+						<p>
+							สาขา: มีอยู่
+							<span class="text-semibold <?php echo ($aBr['max'] > 0 && $aBr['all'] >= $aBr['max']) ? 'text-danger' : 'text-success'; ?>"><?php echo $aBr['all']; ?><?php echo ($aBr['max'] > 0) ? ' / ' . $aBr['max'] : ''; ?></span>
+							สาขา (เปิดใช้งาน <?php echo $aBr['on']; ?> · ปิดใช้งาน <?php echo $aBr['all'] - $aBr['on']; ?>)
+							· จำนวนสาขาสูงสุด <?php echo htmlspecialchars(branch_limit_label($aBr['max']), ENT_QUOTES, 'UTF-8'); ?>
+							— ตั้งได้ที่ <a href="<?php echo htmlspecialchars($linkSettings, ENT_QUOTES, 'UTF-8'); ?>">ตั้งค่า POS</a>
+						</p>
+					<?php } ?>
 					<p>
 						<a class="btn btn-primary" href="<?php echo htmlspecialchars($linkPos, ENT_QUOTES, 'UTF-8'); ?>" target="_blank" rel="noopener">เปิดหน้า AOSTOCK</a>
 					</p>
@@ -137,7 +154,7 @@ $linkPos = rtrim(URL_WEB_ROOT, '/') . '/';
 							<?php } ?>
 						</p>
 						<?php if (!$aNt['enabled']) { ?>
-							<p class="text-danger text-semibold">การแจ้งเตือนถูกปิดอยู่ที่หน้า "เปิด–ปิดเมนู POS" — ไม่ส่งทั้ง Telegram และอีเมล</p>
+							<p class="text-danger text-semibold">การแจ้งเตือนถูกปิดอยู่ที่หน้า "ตั้งค่า POS" — ไม่ส่งทั้ง Telegram และอีเมล</p>
 						<?php } ?>
 						<p>
 							Telegram:

@@ -8,6 +8,7 @@
  *   - [x] เมนูสถานะระบบ (ช่วงที่ 4)
  *   - [x] เมนูผู้ดูแล POS (ช่วงที่ 5)
  *   - [x] ช่วงที่ 9: เมนูเปิด–ปิดเมนูของ POS (main_settings.php) — การแจ้งเตือนตั้งในหน้า POS ของผู้ดูแล (ตกลงไว้ ข้อ 1ก)
+ *   - [x] ช่วงที่ 14: เปลี่ยนชื่อเมนูเป็น "ตั้งค่า POS" (หน้าเดียวกันมีจำนวนสาขาสูงสุดด้วย)
  */
 $title = 'AOSTOCK';
 $_aMenuList = array();
@@ -43,11 +44,11 @@ $_aMenuList['subhead'][$subname] = array(
 
 $subname = 'stocksettings';
 $_aMenuList['subhead'][$subname] = array(
-	'name' => 'เปิด–ปิดเมนู POS',
+	'name' => 'ตั้งค่า POS',
 	'headertitle' => '',
 	'link' => $link_settings,
 	'target' => '',
 	'openPermission' => array('admin'),
-	'class' => 'fa fa-toggle-on',
+	'class' => 'fa fa-sliders-h',
 	'menu' => array(),
 );

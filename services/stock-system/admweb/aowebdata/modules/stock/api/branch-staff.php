@@ -9,6 +9,7 @@
  *   - [x] ช่วงที่ 11: สิทธิ์ในคอลัมน์ perms มีตัวบอกรุ่น (perm_csv) · แปลงสิทธิ์ชุดเดิมตอนอ่าน · ช่องติ๊กสิทธิ์แบ่งหมวด · สรุป / ประวัติการเปลี่ยนสิทธิ์
  *   - [x] ช่วงที่ 12: งานจัดการพนักงานใช้ร่วมกัน (staff_act_*) ระหว่างผู้ดูแลกับผู้จัดการสาขา · ยืนยัน PIN ของผู้จัดการ · ประวัติชนิด category ไม่นับเป็นข้อมูลสาขา
  *   - [x] ช่วงที่ 13: ชื่อผู้ใช้ของพนักงานต้องกรอก (staff_username_error — เลิกตั้ง staffN ให้อัตโนมัติ) · เปลี่ยนชื่อผู้ใช้ได้ (staff_act_save + staff_rename)
+ *   - [x] ช่วงที่ 14: จำนวนสาขาสูงสุดที่ admweb กำหนด (branch_limit* · นับรวมสาขาที่ปิดใช้งาน) — branch_create ตรวจซ้ำใน transaction
  *
  * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
  */
@@ -80,11 +81,19 @@ function branches_active()
 
 /** เพิ่มสาขาใหม่ — $info: name short address phone · $settings: ค่าตั้ง 4 ค่า (branch_setting_rules)
     เลขที่บิลเริ่มต้น {รหัส}V / {รหัส} · เลขผู้เสียภาษีคัดลอกจากสาขาแรก · เลขที่สาขา (ภาษี) = สูงสุด + 1
+    คืน branch_id · 0 = ครบจำนวนสาขาสูงสุดแล้ว (ช่วงที่ 14 — ตรวจซ้ำใน transaction กันกดเพิ่มพร้อมกันเกินจำนวน)
     TODO:
-      - [x] INSERT ao_stock_branch ใน transaction · คืน branch_id */
+      - [x] INSERT ao_stock_branch ใน transaction · คืน branch_id
+      - [x] ช่วงที่ 14: ตรวจจำนวนสาขาสูงสุด (ล็อกแถว branch_limit ไว้ คนที่กดพร้อมกันต่อคิวกัน) */
 function branch_create($code, $info, $settings)
 {
     return sdb_tx(function () use ($code, $info, $settings) {
+        if (branch_limit() > 0) {
+            $max = (int) sdb_val('SELECT svalue FROM ' . sdb_tb('setting') . ' WHERE skey = ? FOR UPDATE', array('branch_limit'));
+            if ($max > 0 && (int) sdb_val('SELECT COUNT(*) FROM ' . sdb_tb('branch')) >= $max) {
+                return 0;
+            }
+        }
         $first  = sdb_row('SELECT tax_id FROM ' . sdb_tb('branch') . ' ORDER BY branch_id LIMIT 1');
         $taxNo  = (int) sdb_val('SELECT MAX(CAST(tax_branch AS UNSIGNED)) FROM ' . sdb_tb('branch'));
         $sort   = (int) sdb_val('SELECT MAX(sort) FROM ' . sdb_tb('branch'));
@@ -147,6 +156,59 @@ function branch_delete($code)
         sdb_q('DELETE FROM ' . sdb_tb('branch') . ' WHERE branch_id = ?', array($id));
     });
     branch_db_rows(true);
+}
+
+/* ---------- จำนวนสาขาสูงสุด (ช่วงที่ 14) ----------
+   ผู้ดูแลระบบตั้งที่หลังบ้าน admweb (AOSTOCK → ตั้งค่า POS · ao_stock_setting key branch_limit) · ว่าง / 0 = ไม่จำกัด
+   นับทุกสาขาในระบบ รวมที่ปิดใช้งาน (ข้อ 2ข — กันปิดสาขาเก่าแล้วเปิดสาขาใหม่วนไป) → เปิดสาขาที่ปิดไว้กลับมาได้เสมอ (จำนวนไม่เปลี่ยน)
+   ได้โควตาคืนเมื่อลบสาขา (ลบได้เฉพาะสาขาที่ยังไม่มีข้อมูล) · ตั้งต่ำกว่าที่มีอยู่ = สาขาเดิมใช้งานต่อได้ทั้งหมด แค่เพิ่มใหม่ไม่ได้ */
+
+/** จำนวนสาขาสูงสุด (0 = ไม่จำกัด)
+    TODO:
+      - [x] ช่วงที่ 14 */
+function branch_limit()
+{
+    $n = (int) stock_setting_get('branch_limit', '0');
+    return ($n > 0) ? $n : 0;
+}
+
+/** ข้อความของจำนวนสาขาสูงสุด เช่น "3 สาขา" / "ไม่จำกัด"
+    TODO:
+      - [x] ช่วงที่ 14 */
+function branch_limit_label($n)
+{
+    return ($n > 0) ? number_format($n) . ' สาขา' : 'ไม่จำกัด';
+}
+
+/** ตั้งจำนวนสาขาสูงสุด (หลังบ้าน admweb) + ลงประวัติของระบบ — คืน true ถ้าค่าเปลี่ยน · $by = ชื่อผู้แก้สำหรับประวัติ
+    TODO:
+      - [x] ช่วงที่ 14 */
+function branch_limit_set($n, $by)
+{
+    $n      = max(0, (int) $n);
+    $before = branch_limit();
+    if ($n === $before) {
+        return false;
+    }
+    stock_setting_set('branch_limit', (string) $n, false, 0);
+    log_add('', 'setting', null, 'ตั้งจำนวนสาขาสูงสุดจากหลังบ้าน', array(
+        'จำนวนสาขาสูงสุด' => branch_limit_label($before) . ' → ' . branch_limit_label($n),
+        'สาขาที่มีอยู่'    => count(branches_all()) . ' สาขา (นับรวมที่ปิดใช้งาน)',
+        'แก้โดย'         => $by,
+    ));
+    return true;
+}
+
+/** เพิ่มสาขาใหม่ได้อีกไหม — '' = ได้ · ไม่ได้ = ข้อความบอกผู้ดูแล POS
+    TODO:
+      - [x] ช่วงที่ 14 */
+function branch_limit_error()
+{
+    $max = branch_limit();
+    if ($max > 0 && count(branches_all()) >= $max) {
+        return 'มีสาขาครบ ' . number_format($max) . ' สาขาตามที่ผู้ดูแลระบบกำหนดแล้ว (นับรวมสาขาที่ปิดใช้งาน) — ติดต่อผู้ดูแลระบบเพื่อเพิ่มจำนวนสาขา';
+    }
+    return '';
 }
 
 /* ---------- ค่าตั้งของสาขา (ผู้ดูแลแก้ได้ที่หน้า "จัดการสาขา") — คอลัมน์ใน ao_stock_branch ----------
