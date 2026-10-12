@@ -8,6 +8,7 @@
  *   - [x] ย้ายจาก demo/ เข้า themes/aostock/ (วิ่งผ่าน router ของ admweb)
  *   - [x] อ่านใบเบิกจากฐานข้อมูลทั้งช่วงในคิวรีเดียว (ช่วงที่ 6) · ราคาทุนใช้ snapshot ในใบ
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
+ *   - [x] 12 ต.ค.: ตัวเลือกเรียง “ราคาสินค้า” เปลี่ยนเป็น “ราคาทุน” ตามที่เรียงจริง
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -209,8 +210,8 @@ require dirname(__FILE__) . '/inc/header.php';
       <?php foreach (array(
           'time|desc'  => 'ลำดับเวลา: ใหม่ → เก่า',
           'time|asc'   => 'ลำดับเวลา: เก่า → ใหม่',
-          'price|desc' => 'ราคาสินค้า: มาก → น้อย',
-          'price|asc'  => 'ราคาสินค้า: น้อย → มาก',
+          'price|desc' => 'ราคาทุน: มาก → น้อย',
+          'price|asc'  => 'ราคาทุน: น้อย → มาก',
           'value|desc' => 'มูลค่ารวม: มาก → น้อย',
           'value|asc'  => 'มูลค่ารวม: น้อย → มาก',
           'qty|desc'   => 'จำนวน: มาก → น้อย',

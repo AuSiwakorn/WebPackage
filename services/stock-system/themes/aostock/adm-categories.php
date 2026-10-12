@@ -9,6 +9,7 @@
  *   - [x] อ่าน / เขียนข้อมูลจากตาราง ao_stock_* ผ่าน api.php (ช่วงที่ 5–9)
  *   - [x] ช่วงที่ 10: แก้ File Header ให้ตรงกับระบบจริง
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
+ *   - [x] 12 ต.ค.: ปุ่ม “ลบหมวดนี้” ถามยืนยันก่อนลบ (เดิมลบเลย)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -142,7 +143,8 @@ require dirname(__FILE__) . '/inc/header.php';
       <span class="acc-right"><svg class="ico acc-chev" aria-hidden="true"><use href="#i-arrow"/></svg></span>
     </summary>
     <?php if ($x['count'] === 0) { ?>
-      <form class="adm-sec" method="post" action="adm-categories.php">
+      <?php /* ถามก่อนลบแบบเดียวกับหน้าหมวดสินค้าฝั่งพนักงาน (12 ต.ค. — เดิมกดแล้วลบเลย) */ ?>
+      <form class="adm-sec" method="post" action="adm-categories.php" data-ask="<?php echo e('ลบหมวด “' . $c . '” ?') ?>" onsubmit="return confirm(this.dataset.ask);">
         <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
         <input type="hidden" name="act" value="delete">
         <input type="hidden" name="c" value="<?php echo e($c) ?>">

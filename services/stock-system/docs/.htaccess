@@ -1,0 +1,11 @@
+# AOSTOCK: docs/ บนเซิร์ฟเวอร์ = หน้ารายการทดสอบ (aostock-test-checklist.html) + ตัวรับบันทึกผล (aostock-test-progress.php)
+# กันไฟล์รหัสบัญชีทดสอบ เผื่ออัปขึ้นมาโดยไม่ตั้งใจ (ไฟล์นี้ควรอยู่เฉพาะเครื่องผู้ดูแล)
+<Files "aostock-test-accounts.js">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</Files>

@@ -1,0 +1,1734 @@
+<!DOCTYPE html>
+<!--
+  FILE: docs/guide/aostock-system-guide.html
+  ROLE: ต้นฉบับของคู่มือ docs/aostock-system-guide.pdf — คู่มือการใช้งานฉบับอ่านง่าย 18 หัวข้อ (A4)
+  ภาพหน้าจอ: docs/guide/img/01-…54-….jpg (ถ่ายจากระบบทดสอบในเครื่อง ขนาด iPad แนวนอน ชื่อคน / ตัวเลขเป็นข้อมูลทดสอบ)
+  ทำ PDF ใหม่: เปิดไฟล์นี้ใน Edge / Chrome → พิมพ์ → บันทึกเป็น PDF · ขนาด A4 · ติ๊ก “กราฟิกพื้นหลัง” · ปิด “หัวกระดาษและท้ายกระดาษ”
+  แก้ไข:
+    - เลขภาพ / แผนภาพนับให้อัตโนมัติ (CSS counter) — ไม่ต้องพิมพ์ “ภาพที่ N” ในคำบรรยาย
+    - สารบัญละเอียด (div.toc2): ทุกบรรทัดเป็นลิงก์ไปที่ id ของหัวข้อ (h2 = sN · h3 = sN-k · หน้าเช็กลิสต์ = s16-0) — กดใน PDF แล้วไปหน้านั้น
+      เลขหน้า (span.pg) ใส่ไว้เป็นตัวเลข แก้เนื้อหาแล้วหน้าเลื่อน ให้เปิด PDF ใหม่ดูหน้าที่หัวข้อเริ่ม แล้วแก้ตัวเลขให้ตรง · เพิ่มหัวข้อย่อยใหม่ต้องเพิ่มบรรทัดในสารบัญเอง
+    - หน้าเช็กลิสต์พนักงาน (ข้อ 16) ต้องอยู่หน้าเดียว: ส่วนก่อนและหลังเป็น section.sec (ขึ้นหน้าใหม่)
+    - ข้อ 18 คำศัพท์ขึ้นหน้าใหม่ (section.sec) ให้ตารางอยู่หน้าเดียวกันทั้งตาราง
+-->
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AOSTOCK — คู่มือการใช้งาน</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --deep:#07211B; --brand:#0E7A5F; --brand-50:#E9F6F0; --brand-200:#BFE3D4;
+    --sale:#E2711D; --sale-50:#FDF1E7; --down:#B42318; --down-50:#FDECEA;
+    --warn:#B4741A; --warn-50:#FBF3E4; --ink:#1B2A26; --ink-2:#3D4D48; --ink-3:#6B7C76;
+    --line:#DCE5E1; --soft:#F4F7F6;
+  }
+  @page{
+    size:A4; margin:15mm 15mm 17mm;
+    @bottom-center{ content:"AOSTOCK · คู่มือการใช้งาน · หน้า " counter(page) " / " counter(pages);
+                    font-family:'IBM Plex Sans Thai',sans-serif; font-size:8.5pt; color:#7A8A85; }
+  }
+  @page :first{ margin:0; @bottom-center{ content:none } }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:'IBM Plex Sans Thai',Tahoma,sans-serif;font-size:10.6pt;line-height:1.7;color:var(--ink);background:#fff;
+       -webkit-print-color-adjust:exact;print-color-adjust:exact}
+  @media screen{ body{max-width:210mm;margin:0 auto;padding:12mm 14mm;background:#fff} html{background:#E8EEEC} }
+
+  /* ---------- ปก ---------- */
+  .cover{height:297mm;margin:0;padding:30mm 22mm 20mm;background:var(--deep);color:#fff;position:relative;overflow:hidden;
+         display:flex;flex-direction:column;page-break-after:always}
+  @media screen{ .cover{margin:-12mm -14mm 12mm;height:auto;min-height:250mm} }
+  .cover::before{content:"";position:absolute;right:-60mm;top:-40mm;width:170mm;height:170mm;border-radius:50%;
+                 background:radial-gradient(circle,rgba(18,148,111,.55),rgba(18,148,111,0) 70%)}
+  .logo{font-size:30pt;font-weight:700;letter-spacing:.02em;line-height:1;position:relative}
+  .logo span{color:#8FD9BE}
+  .cover .tag{margin-top:6px;font-size:10pt;letter-spacing:.18em;color:#9FC9BA;position:relative}
+  .cover h1{font-size:30pt;line-height:1.3;margin:48mm 0 6mm;font-weight:700;position:relative}
+  .cover .sub{font-size:13pt;color:#CDE7DD;max-width:150mm;position:relative}
+  .cover .who{margin-top:auto;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;position:relative}
+  .cover .who div{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:10px 12px;font-size:9.5pt;color:#D5ECE3}
+  .cover .who b{display:block;color:#fff;font-size:10.5pt}
+  .cover .ver{margin-top:10mm;font-size:9pt;color:#8DB3A6;position:relative}
+
+  /* ---------- เนื้อหา ---------- */
+  h2{font-size:17pt;line-height:1.35;margin:0 0 3mm;color:var(--deep);page-break-after:avoid}
+  h2 .no{display:inline-block;min-width:11mm;height:11mm;line-height:11mm;text-align:center;border-radius:8px;background:var(--brand);color:#fff;
+         font-size:12pt;margin-right:3mm;vertical-align:2px}
+  h3{font-size:12.5pt;margin:6mm 0 2mm;color:var(--deep);page-break-after:avoid}
+  h4{font-size:10.8pt;margin:4mm 0 1mm;color:var(--deep);page-break-after:avoid}
+  p{margin:0 0 2.5mm}
+  .sec{page-break-before:always}
+  .flow{margin-top:8mm}
+  .flow > h3:first-child{margin-top:0}
+  .lead{font-size:11.4pt;color:var(--ink-2);margin-bottom:5mm}
+  ul,ol{margin:0 0 3mm;padding-left:6mm}
+  li{margin:0 0 1.2mm}
+  b,strong{font-weight:600}
+  .muted{color:var(--ink-3)}
+  .k{display:inline-block;padding:0 6px;border-radius:5px;background:var(--soft);border:1px solid var(--line);font-weight:600;font-size:9.6pt;line-height:1.6}
+  .tip,.warn,.note{border-radius:10px;padding:3mm 4mm;margin:3mm 0 4mm;font-size:10pt;break-inside:avoid}
+  .tip{background:var(--brand-50);border:1px solid var(--brand-200)}
+  .warn{background:var(--warn-50);border:1px solid #EFDCBB}
+  .note{background:var(--soft);border:1px solid var(--line)}
+  .tip b:first-child,.warn b:first-child,.note b:first-child{color:var(--deep)}
+
+  /* เลขภาพ / แผนภาพนับให้อัตโนมัติ — แทรกภาพใหม่ตรงไหนก็ได้ ไม่ต้องไล่แก้เลข */
+  body{counter-reset:fig dg}
+  figure{counter-increment:fig}
+  figcaption::before{content:"ภาพที่ " counter(fig) " · ";font-weight:600;color:var(--ink-2)}
+  .dg{counter-increment:dg}
+  .dg-t::before{content:"แผนภาพ " counter(dg) " · "}
+
+  figure{margin:3mm 0 5mm;break-inside:avoid}
+  figure img{display:block;width:60%;margin:0 auto;border:1px solid var(--line);border-radius:8px}
+  figure.half img{width:42%}
+  figure.wide img{width:70%}
+  .pair figure img{width:100%}
+  figcaption{font-size:9pt;color:var(--ink-3);margin-top:1.5mm;text-align:center}
+  .pair{display:grid;grid-template-columns:1fr 1fr;gap:4mm;break-inside:avoid}
+
+  /* ---------- ขั้นตอนเป็นข้อ ๆ ---------- */
+  .steps{list-style:none;padding:0;margin:2mm 0 4mm;counter-reset:s}
+  .steps li{counter-increment:s;position:relative;padding-left:9mm;margin-bottom:2mm}
+  .steps li::before{content:counter(s);position:absolute;left:0;top:.5mm;width:6mm;height:6mm;border-radius:50%;background:var(--deep);color:#fff;
+                    font-size:8.5pt;font-weight:700;line-height:6mm;text-align:center}
+
+  /* ---------- แผนภาพ ---------- */
+  .dg{border:1px solid var(--line);border-radius:12px;padding:4mm;margin:3mm 0 5mm;background:#FBFDFC;break-inside:avoid}
+  .dg-t{font-size:9pt;font-weight:600;color:var(--ink-3);letter-spacing:.04em;margin-bottom:2.5mm}
+  .row{display:flex;align-items:stretch}
+  .bx{flex:1;border:1.5px solid var(--line);border-radius:10px;padding:2.5mm 3mm;background:#fff;font-size:9.4pt;line-height:1.55}
+  .bx b{display:block;font-size:10.2pt;color:var(--deep);margin-bottom:1mm}
+  .bx ul{padding-left:4mm;margin:0}
+  .bx li{margin:0}
+  .bx.g{border-color:var(--brand);background:var(--brand-50)}
+  .bx.o{border-color:var(--sale);background:var(--sale-50)}
+  .bx.r{border-color:var(--down);background:var(--down-50)}
+  .bx.y{border-color:#E3C48E;background:var(--warn-50)}
+  .bx.d{border-color:var(--deep);background:var(--deep);color:#DDEFE8}
+  .bx.d b{color:#fff}
+  .ar{flex:0 0 8mm;display:flex;align-items:center;justify-content:center}
+  .ar svg{width:7mm;height:7mm}
+  .num-badge{display:inline-block;width:5.5mm;height:5.5mm;line-height:5.5mm;border-radius:50%;background:var(--brand);color:#fff;text-align:center;font-size:8.5pt;font-weight:700;margin-right:1.5mm}
+
+  /* สมการเงินในลิ้นชัก */
+  .eq{display:flex;align-items:center;flex-wrap:wrap;gap:1.5mm;justify-content:center}
+  .eq .t{border:1.5px solid var(--line);background:#fff;border-radius:9px;padding:1.6mm 2.2mm;text-align:center;font-size:8.9pt;line-height:1.35;min-width:19mm}
+  .eq .t small{display:block;color:var(--ink-3);font-size:8pt}
+  .eq .op{font-size:14pt;font-weight:700;color:var(--ink-3);width:4mm;text-align:center}
+  .eq{flex-wrap:nowrap}
+  .eq .t.res{border-color:var(--deep);background:var(--deep);color:#fff;font-weight:600}
+
+  /* ถังสต๊อก */
+  .stock{display:grid;grid-template-columns:1fr 40mm 1fr;gap:3mm;align-items:center}
+  .stock .side{display:grid;gap:2.5mm}
+  .io{display:flex;align-items:center;gap:2mm;border-radius:9px;padding:2mm 3mm;font-size:9.3pt;line-height:1.45;background:#fff;border:1.5px solid var(--line)}
+  .io .s{flex:0 0 7mm;height:7mm;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12pt;color:#fff}
+  .io.in{border-color:var(--brand)} .io.in .s{background:var(--brand)}
+  .io.out{border-color:var(--down)} .io.out .s{background:var(--down)}
+  .io.adj{border-color:var(--warn)} .io.adj .s{background:var(--warn)}
+  .io b{display:block;color:var(--deep);font-size:10pt}
+  .tank{border:2px solid var(--deep);border-radius:14px;background:linear-gradient(180deg,#fff 0%,#fff 38%,var(--brand-50) 38%,#CFEBDF 100%);
+        height:52mm;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:3mm}
+  .tank b{font-size:12pt;color:var(--deep)}
+  .tank small{font-size:8.5pt;color:var(--ink-2)}
+
+  /* ตาราง */
+  table{width:100%;border-collapse:collapse;margin:2mm 0 4mm;font-size:9.4pt;line-height:1.5;break-inside:auto}
+  th,td{border:1px solid var(--line);padding:1.6mm 2.4mm;vertical-align:top;text-align:left}
+  th{background:var(--soft);font-weight:600;color:var(--deep)}
+  tr{break-inside:avoid}
+  td.c,th.c{text-align:center;white-space:nowrap}
+  .yes{color:var(--brand);font-weight:700}
+  .no{color:#B9C6C1}
+  .grp td{background:var(--brand-50);font-weight:600;color:var(--deep)}
+
+  .toc-wrap{display:grid;grid-template-columns:1fr 1fr;gap:8mm;margin:2mm 0 5mm}
+  .toc-g{font-size:9pt;font-weight:600;color:var(--ink-3);letter-spacing:.04em;margin:2mm 0 1.2mm}
+  .toc{list-style:none;padding:0;margin:0 0 3mm;font-size:10.2pt}
+  .toc li{display:flex;align-items:baseline;margin-bottom:1.4mm;break-inside:avoid}
+  .toc .pg{margin-left:auto;padding-left:3mm;color:var(--ink-3);font-variant-numeric:tabular-nums}
+  .toc b{flex:0 0 7mm;color:var(--brand)}
+  /* สารบัญละเอียด — ทุกบรรทัดเป็นลิงก์ กดใน PDF แล้วไปหน้านั้น · เลขหน้าเติมจากปลายทางของลิงก์ใน PDF */
+  .toc2{columns:2;column-gap:8mm;font-size:9.5pt;line-height:1.42;margin:1mm 0 5mm}
+  .toc2 .toc-g{break-after:avoid;font-size:8.6pt;font-weight:600;color:var(--ink-3);letter-spacing:.04em;margin:3mm 0 .6mm;border-bottom:1px solid var(--line);padding-bottom:.6mm}
+  .toc2 .toc-g:first-child{margin-top:0}
+  .toc2 a{display:flex;align-items:baseline;gap:2mm;color:inherit;text-decoration:none;break-inside:avoid}
+  .toc2 a.t1{font-weight:600;color:var(--deep);margin-top:1.4mm;break-after:avoid}
+  .toc2 a.t1 b{flex:0 0 6mm;color:var(--brand)}
+  .toc2 a.t2{padding-left:8mm;color:var(--ink-2);font-size:9pt;margin-top:.3mm}
+  .toc2 .tt{flex:1 1 auto;min-width:0}
+  .toc2 .pg{flex:0 0 auto;margin-left:auto;padding-left:2mm;font-variant-numeric:tabular-nums;color:var(--ink-3)}
+  .toc2 a.t1 .pg{color:var(--deep)}
+  .who-read{display:grid;grid-template-columns:repeat(2,1fr);gap:3mm;margin:2mm 0 4mm}
+  .who-read div{border:1px solid var(--line);border-radius:10px;padding:2.5mm 3.5mm;font-size:9.6pt;break-inside:avoid}
+  .who-read b{color:var(--deep)}
+
+  /* ---------- เหตุการณ์จริง (ข้อ 14) ---------- */
+  .case{border:1px solid var(--line);border-radius:12px;padding:3.5mm 4.5mm 2mm;margin:0 0 4.5mm;break-inside:avoid;background:#fff}
+  .case > h3{margin:0 0 2mm;font-size:12pt;display:flex;align-items:center;gap:2.5mm}
+  .case .cn{flex:0 0 7mm;height:7mm;line-height:7mm;border-radius:50%;background:var(--sale);color:#fff;text-align:center;font-size:10pt;font-weight:700}
+  .case h4{margin-top:2mm}
+  table.calc{width:auto;min-width:62%;margin:2mm 0 3mm}
+  table.calc td{border:0;border-bottom:1px solid var(--line);padding:1.1mm 2.4mm}
+  table.calc td.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;font-weight:600;min-width:24mm}
+  table.calc tr.tot td{border-bottom:2px solid var(--deep);font-weight:700;color:var(--deep)}
+  table.calc tr.bad td{color:var(--down);font-weight:600}
+
+  /* ---------- ถาม–ตอบ (ข้อ 15) ---------- */
+  .faq{columns:2;column-gap:6mm;margin:0 0 3mm}
+  .qa{break-inside:avoid;border-left:3px solid var(--brand);background:var(--soft);border-radius:0 8px 8px 0;padding:1.8mm 3mm .8mm;margin:0 0 2.6mm;font-size:9.1pt;line-height:1.5}
+  .qa p{margin:0 0 1.2mm}
+  .qa .q{font-weight:700;color:var(--deep);font-size:9.6pt}
+  .qa .m{color:var(--down);font-size:9pt}
+  .qa ul{margin:0 0 1.2mm;padding-left:4.5mm}
+  .qa li{margin:0 0 .6mm}
+
+  /* ---------- เช็กลิสต์ (ข้อ 16) ---------- */
+  .chk{list-style:none;padding:0;margin:0 0 2mm}
+  .chk li{position:relative;padding-left:7mm;margin:0 0 1.6mm;line-height:1.5}
+  .chk li::before{content:"";position:absolute;left:0;top:.9mm;width:4mm;height:4mm;border:1.4px solid var(--deep);border-radius:1mm;background:#fff}
+  .chk-sheet{border:2px solid var(--deep);border-radius:14px;padding:4mm 5mm 3mm;break-inside:avoid}
+  .chk-head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--line);padding-bottom:2mm;margin-bottom:2.5mm}
+  .chk-head b{font-size:14pt;color:var(--deep)}
+  .chk-head span{font-size:9pt;color:var(--ink-3)}
+  .chk-grp{margin-bottom:2mm}
+  .chk-grp h4{margin:2mm 0 1.6mm;display:flex;align-items:center;gap:2.5mm}
+  .chk-t{display:inline-block;padding:0 3mm;border-radius:6px;color:#fff;font-size:9.5pt;line-height:1.7}
+  .chk-t.g{background:var(--brand)} .chk-t.o{background:var(--sale)} .chk-t.d{background:var(--deep)}
+  .chk-foot{border-top:1px solid var(--line);padding-top:2mm;font-size:9pt;color:var(--ink-3)}
+  .chk-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:4mm;margin:0 0 4mm;break-inside:avoid}
+  .chk-cols > div{border:1px solid var(--line);border-radius:10px;padding:2.5mm 3.5mm 1mm;font-size:9.5pt}
+  .chk-cols h4{margin:0 0 1.6mm}
+
+  /* ภาพมือถือ (ข้อ 17) — ภาพสูง จึงวางคู่กันขนาดเล็ก */
+  .phones{display:flex;justify-content:center;gap:10mm;break-inside:avoid}
+  .phones figure{margin:2mm 0 4mm}
+  .phones figure img{width:52mm}
+  .mobile-row{display:grid;grid-template-columns:1fr auto;gap:6mm;align-items:start;break-inside:avoid}
+  .mobile-row .phones{gap:4mm}
+  .mobile-row .phones figure{margin:0 0 3mm}
+  .mobile-row .phones figure img{width:38mm}
+  .mobile-row figcaption{max-width:38mm;margin-left:auto;margin-right:auto}
+</style>
+</head>
+<body>
+
+<!-- ======================================================= ปก -->
+<section class="cover">
+  <div class="logo">AO<span>STOCK</span></div>
+  <div class="tag">ระบบบริหารสต๊อกสินค้า · หลายสาขา</div>
+  <h1>ระบบนี้ทำอะไรได้บ้าง<br>และงานแต่ละอย่างไปทางไหน</h1>
+  <div class="sub">คู่มือการใช้งานฉบับอ่านง่าย — ภาพรวมระบบ ขั้นตอนทีละข้อ เหตุการณ์จริง ถาม–ตอบ และเช็กลิสต์ประจำวัน อธิบายด้วยภาษาธรรมดา มีแผนภาพและภาพหน้าจอจริงประกอบ
+    เหมาะสำหรับเจ้าของร้าน ผู้จัดการสาขา พนักงาน ฝ่ายบัญชี และผู้ทดสอบระบบ</div>
+  <div class="who">
+    <div><b>พนักงาน</b>เปิดร้าน ขาย รับของ นับของ ปิดร้าน</div>
+    <div><b>ผู้จัดการสาขา</b>ดูแลพนักงานและงานในสาขาตัวเอง</div>
+    <div><b>ฝ่ายบัญชี</b>ดูบิลขาย เงินเข้า และภาษี</div>
+    <div><b>ผู้ดูแลระบบ</b>ดูทุกสาขา ตั้งค่า และดูรายงาน</div>
+  </div>
+  <div class="ver">ฉบับขยาย 12 ต.ค. 2569 · 18 หัวข้อ · ภาพหน้าจอถ่ายจากระบบทดสอบ ชื่อคนและตัวเลขในภาพเป็นข้อมูลสมมติ</div>
+</section>
+
+<!-- ======================================================= สารบัญ + ระบบนี้คืออะไร -->
+<section>
+  <h2>สารบัญ</h2>
+  <div class="toc2">
+    <div class="toc-g">ภาพรวม</div>
+    <a class="t1" href="#s1"><b>1</b><span class="tt">ระบบนี้คืออะไร ใครใช้บ้าง</span><span class="pg">3</span></a>
+    <a class="t2" href="#s1-1"><span class="tt">ระบบช่วยอะไรบ้าง</span><span class="pg">3</span></a>
+    <a class="t1" href="#s2"><b>2</b><span class="tt">การเข้าใช้งาน</span><span class="pg">4</span></a>
+    <a class="t2" href="#s2-1"><span class="tt">กรอกผิดหลายครั้งจะโดนล็อกชั่วคราว (กันคนสุ่มเดา)</span><span class="pg">5</span></a>
+    <a class="t2" href="#s2-2"><span class="tt">หลังเข้าระบบ</span><span class="pg">5</span></a>
+    <a class="t1" href="#s3"><b>3</b><span class="tt">หนึ่งวันของร้าน: เปิดร้าน → ขาย → ปิดร้าน</span><span class="pg">6</span></a>
+    <a class="t2" href="#s3-1"><span class="tt">เช้า: เปิดร้าน (สาขาละครั้งต่อวัน)</span><span class="pg">6</span></a>
+    <a class="t2" href="#s3-2"><span class="tt">ระหว่างวัน: เติมเงินทอน / หยิบเงินออก</span><span class="pg">7</span></a>
+    <a class="t2" href="#s3-3"><span class="tt">เย็น: ปิดร้าน</span><span class="pg">8</span></a>
+    <a class="t2" href="#s3-4"><span class="tt">เงินในลิ้นชักคิดอย่างไร</span><span class="pg">8</span></a>
+    <a class="t2" href="#s3-5"><span class="tt">ปิดร้านแล้ว แต่ยังต้องขายต่อ: เปิดร้านใหม่</span><span class="pg">9</span></a>
+    <a class="t2" href="#s3-6"><span class="tt">วันก่อนลืมปิดร้าน</span><span class="pg">9</span></a>
+    <a class="t1" href="#s4"><b>4</b><span class="tt">ของเข้า–ของออก: สต๊อกเปลี่ยนเมื่อไร</span><span class="pg">10</span></a>
+    <a class="t2" href="#s4-1"><span class="tt">ดูได้ว่าตัวเลขมาจากไหน: ประวัติเคลื่อนไหว</span><span class="pg">10</span></a>
+    <div class="toc-g">งานประจำวัน</div>
+    <a class="t1" href="#s5"><b>5</b><span class="tt">ขายสินค้า</span><span class="pg">11</span></a>
+    <a class="t2" href="#s5-1"><span class="tt">เลือกสินค้า</span><span class="pg">11</span></a>
+    <a class="t2" href="#s5-2"><span class="tt">ตะกร้า</span><span class="pg">11</span></a>
+    <a class="t2" href="#s5-3"><span class="tt">รับเงินและบันทึกบิล</span><span class="pg">12</span></a>
+    <a class="t2" href="#s5-4"><span class="tt">พิมพ์บิล และพิมพ์ซ้ำ</span><span class="pg">12</span></a>
+    <a class="t2" href="#s5-5"><span class="tt">การ์ด “ยอดขายวันนี้”</span><span class="pg">13</span></a>
+    <a class="t1" href="#s6"><b>6</b><span class="tt">รับคืนสินค้า</span><span class="pg">13</span></a>
+    <a class="t2" href="#s6-1"><span class="tt">ขั้นที่ 1 · หาบิลเดิม</span><span class="pg">13</span></a>
+    <a class="t2" href="#s6-2"><span class="tt">ขั้นที่ 2 · กรอกการรับคืน</span><span class="pg">14</span></a>
+    <a class="t1" href="#s7"><b>7</b><span class="tt">นำเข้า · เบิก / ตัดออก · ตรวจนับ</span><span class="pg">15</span></a>
+    <a class="t2" href="#s7-1"><span class="tt">นำเข้าสินค้า (ของเพิ่ม)</span><span class="pg">15</span></a>
+    <a class="t2" href="#s7-2"><span class="tt">เบิก / ตัดออก (ของลดโดยไม่ได้ขาย)</span><span class="pg">17</span></a>
+    <a class="t2" href="#s7-3"><span class="tt">ตรวจนับ / ปรับยอด (ทำให้ตัวเลขตรงกับของจริง)</span><span class="pg">17</span></a>
+    <a class="t1" href="#s8"><b>8</b><span class="tt">ทำผิดแล้วแก้อย่างไร (แก้ไข / ยกเลิก)</span><span class="pg">18</span></a>
+    <a class="t2" href="#s8-1"><span class="tt">แก้ไขบิล (บิลของวันนี้)</span><span class="pg">18</span></a>
+    <a class="t2" href="#s8-2"><span class="tt">ยกเลิกบิล</span><span class="pg">19</span></a>
+    <a class="t2" href="#s8-3"><span class="tt">ใบรับเข้า · ใบตัดออก · ใบตรวจนับ</span><span class="pg">19</span></a>
+    <a class="t2" href="#s8-4"><span class="tt">เอกสารของวันก่อน</span><span class="pg">20</span></a>
+    <a class="t2" href="#s8-5"><span class="tt">ใครแก้อะไรได้</span><span class="pg">20</span></a>
+    <div class="toc-g">ดูข้อมูล และงานของแต่ละตำแหน่ง</div>
+    <a class="t1" href="#s9"><b>9</b><span class="tt">ดูข้อมูลย้อนหลังและรายงาน</span><span class="pg">21</span></a>
+    <a class="t2" href="#s9-1"><span class="tt">ภาพรวมของฉัน</span><span class="pg">21</span></a>
+    <a class="t2" href="#s9-2"><span class="tt">สินค้าในสต๊อก</span><span class="pg">21</span></a>
+    <a class="t2" href="#s9-3"><span class="tt">หมวดสินค้า</span><span class="pg">22</span></a>
+    <a class="t2" href="#s9-4"><span class="tt">ประวัติการทำรายการ</span><span class="pg">22</span></a>
+    <a class="t2" href="#s9-5"><span class="tt">รายงานยอดขาย</span><span class="pg">23</span></a>
+    <a class="t1" href="#s10"><b>10</b><span class="tt">ผู้จัดการสาขาทำอะไรเพิ่มได้</span><span class="pg">24</span></a>
+    <a class="t2" href="#s10-1"><span class="tt">พนักงานในสาขา</span><span class="pg">24</span></a>
+    <a class="t1" href="#s11"><b>11</b><span class="tt">ผู้ดูแลระบบ</span><span class="pg">25</span></a>
+    <a class="t2" href="#s11-1"><span class="tt">หน้าภาพรวมผู้ดูแล</span><span class="pg">25</span></a>
+    <a class="t2" href="#s11-2"><span class="tt">สินค้าในสต๊อก · เพิ่ม / แก้สินค้า</span><span class="pg">26</span></a>
+    <a class="t2" href="#s11-3"><span class="tt">จัดการพนักงาน</span><span class="pg">27</span></a>
+    <a class="t2" href="#s11-4"><span class="tt">จัดการสาขา</span><span class="pg">28</span></a>
+    <a class="t2" href="#s11-5"><span class="tt">รายงาน</span><span class="pg">28</span></a>
+    <a class="t2" href="#s11-6"><span class="tt">ตรวจเอกสารของทุกสาขา</span><span class="pg">30</span></a>
+    <a class="t2" href="#s11-7"><span class="tt">ตั้งค่าการแจ้งเตือน</span><span class="pg">31</span></a>
+    <a class="t1" href="#s12"><b>12</b><span class="tt">ฝ่ายบัญชี</span><span class="pg">32</span></a>
+    <a class="t2" href="#s12-1"><span class="tt">บิลขายและเงินเข้า</span><span class="pg">33</span></a>
+    <a class="t2" href="#s12-2"><span class="tt">ตั้งค่าเลขที่บิล</span><span class="pg">33</span></a>
+    <a class="t1" href="#s13"><b>13</b><span class="tt">สิทธิ์: ใครทำอะไรได้บ้าง</span><span class="pg">34</span></a>
+    <a class="t2" href="#s13-1"><span class="tt">ตำแหน่งและสิ่งที่เห็น</span><span class="pg">36</span></a>
+    <div class="toc-g">เมื่อต้องการความช่วยเหลือ</div>
+    <a class="t1" href="#s14"><b>14</b><span class="tt">เหตุการณ์จริง: เจอแบบนี้ทำอย่างไร</span><span class="pg">36</span></a>
+    <a class="t2" href="#s14-1"><span class="tt">1. ลูกค้าขอเปลี่ยนสินค้า (เปลี่ยนรุ่น หรือเปลี่ยนชิ้นที่ชำรุด)</span><span class="pg">36</span></a>
+    <a class="t2" href="#s14-2"><span class="tt">2. ลูกค้าคืนของบางชิ้น จากบิลที่มีส่วนลด</span><span class="pg">37</span></a>
+    <a class="t2" href="#s14-3"><span class="tt">3. ของมาส่งไม่ครบ หรือส่งผิดรุ่น</span><span class="pg">37</span></a>
+    <a class="t2" href="#s14-4"><span class="tt">4. ส่งของไปอีกสาขา</span><span class="pg">37</span></a>
+    <a class="t2" href="#s14-5"><span class="tt">5. ปิดร้านแล้วเงินขาด (หรือเกิน)</span><span class="pg">38</span></a>
+    <a class="t2" href="#s14-6"><span class="tt">6. บันทึกบิลผิด: จำนวนผิด · วิธีจ่ายผิด · ลูกค้าขอบิล VAT ทีหลัง</span><span class="pg">38</span></a>
+    <a class="t2" href="#s14-7"><span class="tt">7. นับของแล้วไม่ตรง · ของแตกหรือหายระหว่างวัน</span><span class="pg">39</span></a>
+    <a class="t2" href="#s14-8"><span class="tt">8. ปิดร้านไปแล้ว ลูกค้ามาซื้ออีก</span><span class="pg">39</span></a>
+    <a class="t2" href="#s14-9"><span class="tt">9. เช้ามาเจอว่าเมื่อวานลืมปิดร้าน</span><span class="pg">39</span></a>
+    <a class="t2" href="#s14-10"><span class="tt">สรุปตัวเลขที่ระบบคิดให้</span><span class="pg">39</span></a>
+    <a class="t1" href="#s15"><b>15</b><span class="tt">ถาม–ตอบ เมื่อเจอปัญหา</span><span class="pg">40</span></a>
+    <a class="t2" href="#s15-1"><span class="tt">เข้าระบบ</span><span class="pg">40</span></a>
+    <a class="t2" href="#s15-2"><span class="tt">เมนู สิทธิ์ และปุ่ม</span><span class="pg">40</span></a>
+    <a class="t2" href="#s15-3"><span class="tt">เปิด / ปิดร้าน และเงินในลิ้นชัก</span><span class="pg">41</span></a>
+    <a class="t2" href="#s15-4"><span class="tt">ขายสินค้า และบิล</span><span class="pg">41</span></a>
+    <a class="t2" href="#s15-5"><span class="tt">รับคืนสินค้า</span><span class="pg">42</span></a>
+    <a class="t2" href="#s15-6"><span class="tt">นำเข้า · ตัดออก · ตรวจนับ</span><span class="pg">42</span></a>
+    <a class="t2" href="#s15-7"><span class="tt">ผู้จัดการสาขา · ผู้ดูแล</span><span class="pg">43</span></a>
+    <a class="t1" href="#s16"><b>16</b><span class="tt">เช็กลิสต์ประจำวัน</span><span class="pg">44</span></a>
+    <a class="t2" href="#s16-0"><span class="tt">เช็กลิสต์พนักงานหน้าร้าน (หน้าพิมพ์แยกได้)</span><span class="pg">44</span></a>
+    <a class="t2" href="#s16-1"><span class="tt">ผู้จัดการสาขา</span><span class="pg">45</span></a>
+    <a class="t2" href="#s16-2"><span class="tt">ผู้ดูแลระบบ</span><span class="pg">45</span></a>
+    <a class="t2" href="#s16-3"><span class="tt">ฝ่ายบัญชี</span><span class="pg">45</span></a>
+    <a class="t1" href="#s17"><b>17</b><span class="tt">ตั้งเครื่องให้พร้อมใช้</span><span class="pg">45</span></a>
+    <a class="t2" href="#s17-1"><span class="tt">เพิ่มไอคอน AOSTOCK บนหน้าจอ iPad / มือถือ</span><span class="pg">46</span></a>
+    <a class="t2" href="#s17-2"><span class="tt">ตั้ง iPad หน้าร้าน</span><span class="pg">46</span></a>
+    <a class="t2" href="#s17-3"><span class="tt">ใช้บนมือถือ</span><span class="pg">46</span></a>
+    <a class="t2" href="#s17-4"><span class="tt">เครื่องพิมพ์ใบเสร็จ 80 มม. และ A4</span><span class="pg">46</span></a>
+    <a class="t2" href="#s17-5"><span class="tt">ใช้เครื่องร่วมกันอย่างปลอดภัย</span><span class="pg">47</span></a>
+    <a class="t1" href="#s18"><b>18</b><span class="tt">คำศัพท์ในระบบ</span><span class="pg">48</span></a>
+  </div>
+
+  <h3>อ่านส่วนไหนก่อนดี</h3>
+  <div class="who-read">
+    <div><b>พนักงานหน้าร้าน</b> — ข้อ 2, 3, 5, 6, 7 และ 8 · มีปัญหาดูข้อ 14–15 · พิมพ์เช็กลิสต์ในข้อ 16 แปะไว้ข้างเครื่อง</div>
+    <div><b>ผู้จัดการสาขา</b> — ข้อ 3, 8, 9, 10 และ 14 · เช็กลิสต์ของผู้จัดการในข้อ 16</div>
+    <div><b>เจ้าของร้าน / ผู้ดูแลระบบ</b> — ข้อ 1, 4, 11 และ 13 · ตั้งเครื่องข้อ 17</div>
+    <div><b>ฝ่ายบัญชี</b> — ข้อ 3 (เรื่องเงิน), 12 และเช็กลิสต์ในข้อ 16</div>
+  </div>
+  <p class="muted">ภาพหน้าจอในคู่มือนี้ถ่ายจากระบบทดสอบบนจอขนาด iPad แนวนอน ชื่อคน ชื่อบริษัท และตัวเลขเป็นข้อมูลสมมติ
+    หน้าจอจริงอาจต่างไปเล็กน้อยตามสิทธิ์ของแต่ละคนและขนาดจอ · ข้อความในเครื่องหมาย “ ” คือข้อความหรือชื่อปุ่มที่เห็นบนจอจริง</p>
+</section>
+
+<section class="flow">
+  <h2 id="s1"><span class="no">1</span> ระบบนี้คืออะไร ใครใช้บ้าง</h2>
+  <p class="lead">AOSTOCK คือระบบหน้าร้านกับระบบนับของรวมไว้ในที่เดียว ใช้ได้หลายสาขาพร้อมกัน
+    เปิดผ่านเว็บได้ทั้งบน iPad มือถือ และคอมพิวเตอร์ ไม่ต้องลงโปรแกรม</p>
+
+  <h3 id="s1-1">ระบบช่วยอะไรบ้าง</h3>
+  <ul>
+    <li><b>รู้ว่าของเหลือเท่าไร</b> ทุกสินค้า ทุกสาขา ขายไป รับเข้า หรือของเสีย ระบบบวกลบให้เอง</li>
+    <li><b>ขายแล้วออกบิลได้ทันที</b> เลือกบิลธรรมดาหรือบิล VAT รับเงินสดหรือเงินโอน ระบบคิดเงินทอนให้</li>
+    <li><b>รู้ว่าเงินในลิ้นชักควรมีเท่าไร</b> ตอนปิดร้านนับเงินแล้วเทียบได้เลยว่าตรง ขาด หรือเกิน</li>
+    <li><b>ย้อนดูได้ทุกอย่าง</b> ใครทำอะไร เมื่อไร กี่ชิ้น แก้หรือยกเลิกต้องใส่เหตุผลทุกครั้ง</li>
+    <li><b>ผู้ดูแลเห็นทุกสาขาจากที่เดียว</b> มีรายงานยอดขาย และส่งแจ้งเตือนทาง Telegram / อีเมลได้</li>
+  </ul>
+
+  <div class="dg">
+    <div class="dg-t">ใครใช้ระบบ และเห็นอะไร</div>
+    <div class="row">
+      <div class="bx g"><b>พนักงาน</b>
+        <ul><li>เปิด–ปิดร้าน</li><li>ขาย ออกบิล รับคืน</li><li>รับของเข้า ตัดของออก นับของ</li><li>เห็นเฉพาะสาขาตัวเอง</li></ul></div>
+      <div class="ar"></div>
+      <div class="bx g"><b>ผู้จัดการสาขา</b>
+        <ul><li>ทำได้แบบพนักงาน (ตามที่ติ๊กให้)</li><li>เห็นทุกอย่างในสาขา</li><li>เพิ่ม / แก้ / พักงานพนักงานในสาขา</li><li>แก้งานของคนอื่นและย้อนหลังได้</li></ul></div>
+      <div class="ar"></div>
+      <div class="bx o"><b>ฝ่ายบัญชี</b>
+        <ul><li>ดูบิลขายทุกสาขา</li><li>เงินสด / เงินโอน / VAT</li><li>ดาวน์โหลดไฟล์ไปทำบัญชี</li><li>ตั้งค่าเลขที่บิล</li></ul></div>
+      <div class="ar"></div>
+      <div class="bx d"><b>ผู้ดูแลระบบ</b>
+        <ul><li>เห็นทุกสาขาพร้อมกัน</li><li>ตั้งค่าสาขา พนักงาน สิทธิ์ สินค้า</li><li>รายงานยอดขายทุกแบบ</li><li>ตั้งการแจ้งเตือน</li></ul></div>
+    </div>
+    <div style="margin-top:3mm" class="bx"><b>ข้อมูลกลางที่ทุกคนใช้ร่วมกัน</b>
+      รายการสินค้า (ใช้ร่วมกันทุกสาขา) · ของคงเหลือ (แยกตามสาขา) · บิลขาย · ใบรับเข้า / ตัดออก / ตรวจนับ / รับคืน · เงินในลิ้นชักของแต่ละวัน · ประวัติการทำรายการทั้งหมด</div>
+  </div>
+
+  <div class="note"><b>เรื่องสาขา</b> — รายการสินค้ามีชุดเดียวใช้ทุกสาขา (เพิ่มสินค้าใหม่ครั้งเดียว ทุกสาขาเห็น)
+    แต่ <b>จำนวนของคงเหลือแยกกันแต่ละสาขา</b> เงินในลิ้นชักและการเปิด–ปิดร้านก็แยกกันแต่ละสาขา</div>
+</section>
+
+<!-- ======================================================= 2 เข้าใช้งาน -->
+<section class="flow">
+  <h2 id="s2"><span class="no">2</span> การเข้าใช้งาน</h2>
+  <p class="lead">พนักงานและผู้จัดการสาขาเข้าด้วย <b>ชื่อผู้ใช้ + PIN 4 หลัก</b> ส่วนผู้ดูแลระบบและฝ่ายบัญชีเข้าด้วย <b>ชื่อผู้ใช้ + รหัสผ่าน</b>
+    หน้าเข้าสู่ระบบจึงมี 2 แท็บ ต้องเลือกให้ถูกแท็บ</p>
+
+  <div class="pair">
+    <div>
+      <h4>พนักงาน — แท็บ “พนักงาน (PIN)”</h4>
+      <ol class="steps">
+        <li><b>ครั้งแรกบนเครื่องนั้น</b> กด “ไม่มีชื่อคุณ? พิมพ์ชื่อผู้ใช้” แล้วพิมพ์ชื่อผู้ใช้ของตัวเอง (ภาษาอังกฤษพิมพ์เล็ก เช่น <span class="k">nipa</span>)</li>
+        <li>กด PIN 4 หลักบนแป้นตัวเลข <b>ครบ 4 หลักระบบเข้าให้เลย</b> ไม่ต้องกดปุ่มอื่น — กดผิดใช้ปุ่มลบทีละตัว หรือ “ล้าง”</li>
+        <li><b>ครั้งต่อไป</b> เครื่องจำชื่อไว้ในแถว “เลือกชื่อของคุณ” แค่แตะชื่อตัวเอง แล้วกด PIN</li>
+        <li>ไม่อยากให้เครื่องจำชื่อ — ตอนพิมพ์ชื่อ เอาติ๊ก “จำชื่อฉันไว้บนเครื่องนี้” ออก หรือกดปุ่ม × บนชื่อนั้นทีหลัง</li>
+      </ol>
+    </div>
+    <div>
+      <h4>ผู้ดูแล / ฝ่ายบัญชี — แท็บ “ผู้ดูแล / บัญชี”</h4>
+      <ol class="steps">
+        <li>พิมพ์ชื่อผู้ใช้และรหัสผ่าน แล้วกดเข้าสู่ระบบ</li>
+        <li>เครื่องส่วนตัว ติ๊ก “จดจำการเข้าสู่ระบบ 30 วัน” ได้ ไม่ต้องกรอกทุกครั้ง (กดออกจากระบบเมื่อไร การจดจำบนเครื่องนั้นก็หายไป)</li>
+        <li>ลืมรหัสผ่านหรือโดนล็อก — ติดต่อคนดูแลเว็บให้ตั้งรหัสผ่านใหม่ ตั้งใหม่แล้วปลดล็อกให้ทันที</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="pair">
+    <figure><img src="img/01-login.jpg" alt="หน้าเข้าสู่ระบบ">
+      <figcaption>หน้าเข้าสู่ระบบ — แตะชื่อที่เครื่องจำไว้ แล้วกด PIN 4 หลัก</figcaption></figure>
+    <figure><img src="img/37-login-locked.jpg" alt="หน้าเข้าสู่ระบบตอนโดนล็อก">
+      <figcaption>กรอก PIN ผิดครบ 5 ครั้ง — บอกเวลาที่ต้องรอ นับถอยหลัง และแป้นกดไม่ได้</figcaption></figure>
+  </div>
+
+  <div class="note"><b>เครื่องจำชื่อได้อย่างไร</b> — เครื่องหนึ่งจำได้สูงสุด 12 ชื่อ เรียงคนที่เข้าล่าสุดไว้ก่อน
+    ชื่อที่ไม่ได้เข้าเครื่องนั้นนานเกิน 180 วันจะหายไปเอง · คนที่ถูกพักงานหายจากแถวชื่อทันที · ล้างข้อมูลเบราว์เซอร์ (คุกกี้) แล้วต้องพิมพ์ชื่อใหม่
+    · การกดออกจากระบบไม่ได้ลบชื่อออก</div>
+
+  <h3 id="s2-1">กรอกผิดหลายครั้งจะโดนล็อกชั่วคราว (กันคนสุ่มเดา)</h3>
+  <table>
+    <thead><tr><th style="width:38%">กรอกผิด</th><th>ผลที่เกิด และวิธีแก้</th></tr></thead>
+    <tr><td>ชื่อเดียวกัน ผิดติดกันครบ 5 ครั้ง</td><td>บัญชีนั้นเข้าไม่ได้ <b>15 นาที</b> คนอื่นบนเครื่องเดียวกันแตะชื่อตัวเองเข้าได้ตามปกติ
+      — ไม่อยากรอ ให้ผู้จัดการสาขาหรือผู้ดูแล <b>ตั้ง PIN ใหม่</b> ซึ่งปลดล็อกให้ทันที</td></tr>
+    <tr><td>เครื่องเดียวกัน ผิดรวมกัน 5 ครั้ง (หลายชื่อรวมกัน)</td><td>ทุกชื่อบนเครื่องนั้นต้องรอ <b>1 นาที</b> — รีเซ็ตไม่ได้ รอให้ครบเวลา</td></tr>
+    <tr><td>ทั้งร้าน (อินเทอร์เน็ตวงเดียวกัน) ผิดรวม 20 ครั้งใน 15 นาที</td><td>ทุกคนในวงนั้นเข้าไม่ได้ <b>15 นาที</b> — รีเซ็ตไม่ได้ รอให้ครบเวลา</td></tr>
+  </table>
+  <ul>
+    <li>ข้อความบนจอบอกเวลาที่ต้องรอเป็นนาที:วินาที นับถอยหลังให้ดู แป้น PIN กดไม่ได้จนหมดเวลา แล้วขึ้น “ลองใหม่ได้แล้ว — กรอก PIN อีกครั้ง”</li>
+    <li><b>ใช้ให้ถูกแท็บ</b> — พนักงานไปกรอกในแท็บ “ผู้ดูแล / บัญชี” (หรือกลับกัน) ระบบนับเป็นการกรอกผิดด้วย</li>
+    <li>ผู้จัดการสาขาที่ใส่ PIN ยืนยันผิดในหน้า “พนักงานในสาขา” ก็นับรวมกับการล็อกตอนเข้าระบบเช่นกัน</li>
+  </ul>
+
+  <h3 id="s2-2">หลังเข้าระบบ</h3>
+  <ul>
+    <li><b>พนักงาน</b> เข้ามาที่หน้า “ภาพรวมของฉัน” — ถ้ามีสิทธิ์เปิดร้านแต่ร้านยังไม่เปิด ระบบพาไปหน้าเปิดร้านก่อน ·
+      <b>ผู้ดูแล</b> เข้ามาที่ “ภาพรวมผู้ดูแล” · <b>ฝ่ายบัญชี</b> เข้ามาที่ “บิลขายและเงินเข้า”</li>
+    <li>ด้านซ้ายคือ <b>เมนู</b> แต่ละคนเห็นเมนูไม่เหมือนกัน ขึ้นกับตำแหน่งและสิทธิ์ (ข้อ 13) กดปุ่มมุมบนซ้ายเพื่อย่อ / ขยายเมนู เครื่องจำไว้ให้</li>
+    <li>แถบบนบอกชื่อหน้า สถานะร้าน (<span class="k">ยังไม่เปิดร้าน</span> <span class="k">เปิดแล้ว 09:12 น.</span> <span class="k">ปิดร้านแล้ว</span>)
+      ชื่อและตำแหน่งของคนที่ใช้อยู่ ปุ่มออกจากระบบ และปุ่ม <span class="k">ขายสินค้า</span> สีส้มที่กดได้จากทุกหน้า (ตัวเลขบนปุ่ม = จำนวนชิ้นในตะกร้า)</li>
+    <li>ตอนร้านยังไม่เปิด เมนู “ขายสินค้า” มีป้าย <span class="k">เปิดร้านก่อน</span> หรือ <span class="k">ร้านยังไม่เปิด</span> · ปิดร้านแล้วมีป้าย <span class="k">ปิดร้านแล้ว</span></li>
+  </ul>
+
+  <table>
+    <thead><tr><th style="width:22%">ตำแหน่ง</th><th>เมนูที่มี (เห็นเฉพาะเมนูที่มีสิทธิ์)</th></tr></thead>
+    <tr><td><b>พนักงาน</b><br><b>ผู้จัดการสาขา</b></td><td><b>ใช้งานประจำวัน</b> — ภาพรวมของฉัน · เปิด / ปิดร้าน · ขายสินค้า · สินค้าในสต๊อก · หมวดสินค้า · นำเข้าสินค้า ·
+      เบิก / ตัดออก · ตรวจนับ / ปรับยอด · รับคืนสินค้า · ประวัติการทำรายการ · ประวัติเคลื่อนไหว<br>
+      <b>รายงาน</b> — รายงานยอดขาย<br><b>ผู้จัดการสาขา</b> — พนักงานในสาขา (เฉพาะผู้จัดการ)</td></tr>
+    <tr><td><b>ผู้ดูแลระบบ</b></td><td><b>ตรวจสอบ</b> — ภาพรวม · สินค้าในสต๊อก · หมวดสินค้า · นำเข้าสินค้า · เบิก / ตัดออก · รับคืนสินค้า · ประวัติการทำรายการ · ประวัติเคลื่อนไหว<br>
+      <b>รายงาน</b> — ภาพรวมยอดขาย · สรุปยอดขายรายวัน · ยอดขายแยกสาขา · ยอดขายตามพนักงาน · สินค้าขายดี 100 อันดับ<br>
+      <b>บัญชี</b> — บิลขายและเงินเข้า · ตั้งค่าเลขที่บิล<br><b>ตั้งค่า</b> — จัดการสาขา · จัดการพนักงาน · ตั้งค่าการแจ้งเตือน</td></tr>
+    <tr><td><b>ฝ่ายบัญชี</b></td><td>บิลขายและเงินเข้า · ตั้งค่าเลขที่บิล</td></tr>
+  </table>
+
+  <div class="warn"><b>ใช้เครื่องร่วมกันหลายคน</b> (เช่น iPad หน้าร้าน) — ทำงานเสร็จแล้ว <b>กดออกจากระบบทุกครั้ง</b> เพราะทุกรายการบันทึกชื่อคนที่เข้าระบบอยู่
+    · ทิ้งไว้นานโดยไม่ใช้งาน ระบบจะพากลับหน้าเข้าสู่ระบบเอง ของในตะกร้าหรือใบที่ทำค้างไว้จะหายไป
+    · เปิดลิงก์หน้าที่ไม่มีสิทธิ์ ระบบพากลับหน้าแรกพร้อมบอก “ไม่มีสิทธิ์เข้าหน้า … — ติดต่อผู้ดูแลเพื่อเปิดสิทธิ์”</div>
+</section>
+
+<!-- ======================================================= 3 หนึ่งวันของร้าน -->
+<section class="flow">
+  <h2 id="s3"><span class="no">3</span> หนึ่งวันของร้าน: เปิดร้าน → ขาย → ปิดร้าน</h2>
+  <p class="lead">ทุกสาขาทำงานเป็น “วัน” — เช้าเปิดร้าน ระหว่างวันขายและทำงานต่าง ๆ เย็นนับเงินแล้วปิดร้าน
+    <b>การขายและการรับคืนทำได้เฉพาะตอนร้านเปิดอยู่</b> ส่วนงานคลัง (นำเข้า ตัดออก ตรวจนับ) และการดูข้อมูล ทำได้ตลอด</p>
+
+  <div class="dg">
+    <div class="dg-t">ลำดับงานในหนึ่งวัน</div>
+    <div class="row">
+      <div class="bx"><b><span class="num-badge">1</span>เข้าระบบ</b>แตะชื่อตัวเอง แล้วกด PIN</div>
+      <div class="ar"><svg viewBox="0 0 24 24"><path d="M4 12h14M13 6l6 6-6 6" fill="none" stroke="#0E7A5F" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="bx g"><b><span class="num-badge">2</span>เปิดร้าน</b>ระบบยกเงินทอนจากเมื่อวานมาให้ เติมเพิ่มได้ ถ้านับแล้วไม่ตรงกด “แจ้งยอดไม่ตรง”</div>
+      <div class="ar"><svg viewBox="0 0 24 24"><path d="M4 12h14M13 6l6 6-6 6" fill="none" stroke="#0E7A5F" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="bx o" style="flex:1.5"><b><span class="num-badge">3</span>ระหว่างวัน</b>
+        <ul><li>ขายสินค้า ออกบิล</li><li>รับคืนสินค้า คืนเงิน</li><li>เติมเงินทอน / หยิบเงินออก (ใส่เหตุผล)</li><li>รับของเข้า ตัดของออก ตรวจนับ</li></ul></div>
+      <div class="ar"><svg viewBox="0 0 24 24"><path d="M4 12h14M13 6l6 6-6 6" fill="none" stroke="#0E7A5F" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="bx d"><b><span class="num-badge" style="background:#fff;color:#07211B">4</span>ปิดร้าน</b>นับเงินในลิ้นชัก แยกเงินทอนไว้พรุ่งนี้ ระบบส่งสรุปของวันให้ผู้ดูแล</div>
+    </div>
+    <div class="row" style="margin-top:3mm">
+      <div class="bx y"><b>ปิดร้านแล้วแต่ลูกค้ามาซื้ออีก?</b>
+        คนที่มีสิทธิ์ “เปิดร้านอีกครั้ง” หรือผู้ดูแล กด <span class="k">เปิดร้านใหม่</span> ได้ ต้องใส่เหตุผล แล้วปิดร้านอีกรอบเมื่อเสร็จ — ผู้ดูแลเห็นทุกครั้ง</div>
+      <div class="ar"></div>
+      <div class="bx y"><b>เมื่อวานลืมปิดร้าน?</b>
+        เช้าวันใหม่ระบบให้ <b>ปิดร้านของวันก่อนก่อน</b> (นับเงินที่เหลือ) แล้วจึงเปิดร้านวันนี้ได้ ผู้ดูแลปิดย้อนหลังแทนให้ได้ด้วย</div>
+    </div>
+  </div>
+
+  <h3 id="s3-1">เช้า: เปิดร้าน (สาขาละครั้งต่อวัน)</h3>
+  <p>ทำได้เฉพาะคนที่มีสิทธิ์ <b>“เปิด / ปิดร้าน”</b> — ถ้ามีสิทธิ์และร้านยังไม่เปิด เข้าระบบแล้วระบบพามาหน้านี้เอง</p>
+  <ol class="steps">
+    <li>เมนู <span class="k">เปิด / ปิดร้าน</span> ดู <b>“เงินทอนยกมา”</b> คือเงินที่แยกไว้ตอนปิดร้านครั้งก่อน (บอกด้วยว่าใครแยกไว้ เมื่อไร)
+      ถ้าวันก่อนไม่ได้ปิดร้าน ระบบใช้ “เงินทอนมาตรฐาน” ของสาขาแทน</li>
+    <li>จะเติมเงินทอนเพิ่ม พิมพ์ในช่อง <b>“เติมเงินทอนวันนี้ (ถ้ามี)”</b> หรือกดปุ่ม <span class="k">+500</span> <span class="k">+1,000</span> <span class="k">+2,000</span>
+      (ปุ่มตั้งเป็นจำนวนนั้นเลย ไม่ได้บวกเพิ่มทุกครั้งที่กด · <span class="k">ไม่เติม</span> = 0) ระบบรวมเป็น “เงินทอนเริ่มวันนี้” ให้</li>
+    <li>นับเงินทอนในลิ้นชักแล้ว <b>ไม่ตรง</b> กับยอดยกมา — กดลิงก์ <b>“แจ้งยอดไม่ตรง”</b> ใส่ “นับเงินทอนได้จริง” และ “เหตุผล” (จำเป็น)
+      ระบบบันทึกเป็นรายการปรับเงินทอนและแจ้งผู้ดูแลอัตโนมัติ</li>
+    <li>กด <span class="k">เปิดร้าน</span> — ขึ้น “เปิดร้านเรียบร้อย เริ่มทำงานได้เลย” แถบบนเปลี่ยนเป็น “เปิดแล้ว … น.” และป้ายบนเมนูหายไป</li>
+  </ol>
+  <div class="pair">
+    <figure><img src="img/02-store-open.jpg" alt="เปิดร้าน"><figcaption>เปิดร้าน — เงินทอนยกมาอัตโนมัติ เติมเพิ่มได้</figcaption></figure>
+    <figure><img src="img/20-store-open-mismatch.jpg" alt="แจ้งยอดไม่ตรง"><figcaption>กด “แจ้งยอดไม่ตรง” — ใส่ยอดที่นับได้จริงและเหตุผล</figcaption></figure>
+  </div>
+  <div class="note"><b>คนอื่นที่เข้าระบบทีหลังไม่ต้องเปิดซ้ำ</b> ร้านเปิดวันละครั้งต่อสาขา ·
+    คนที่ไม่มีสิทธิ์เปิดร้านจะเห็น “ร้านยังไม่เปิด — เปิดร้านได้เฉพาะคนที่มีสิทธิ์ “เปิด / ปิดร้าน” …” ระหว่างรอ ใช้ปุ่มลัด
+    “ยังไม่เปิดร้านก็ใช้ได้” ไปทำงานที่ไม่ต้องเปิดร้านได้ เช่น ดูสินค้า นำเข้า ตัดออก ตรวจนับ ดูประวัติ ดูรายงาน</div>
+
+  <h3 id="s3-2">ระหว่างวัน: เติมเงินทอน / หยิบเงินออก</h3>
+  <p>ใช้เมื่อเอาเงินสดเข้าหรือออกจากลิ้นชักโดยไม่ได้ขาย เช่น แลกเหรียญเพิ่ม ซื้อถุงใส่ของ ต้องมีสิทธิ์ <b>“เงินเข้า / ออกลิ้นชัก”</b></p>
+  <ol class="steps">
+    <li>หน้า <span class="k">เปิด / ปิดร้าน</span> การ์ด <b>“เติมเงินทอน / หยิบเงินออก”</b></li>
+    <li>ช่อง “รายการ” เลือก <b>เติมเงินทอนเข้าลิ้นชัก</b> หรือ <b>หยิบเงินออกจากลิ้นชัก</b></li>
+    <li>ใส่ “จำนวนเงิน” (มีสตางค์ได้) และ “เหตุผล” — <b>ต้องใส่เหตุผลทุกครั้ง</b></li>
+    <li>กด <span class="k">บันทึก</span> — รายการขึ้นในการ์ดพร้อมเวลาและชื่อคนทำ และไปรวมในยอด “ควรมีในลิ้นชัก” ตอนปิดร้าน</li>
+  </ol>
+  <figure class="wide"><img src="img/19-store-cash.jpg" alt="เติมเงินทอน หยิบเงินออก">
+    <figcaption>เติมเงินทอน 500 และหยิบเงินออก 120 — ด้านล่างคือส่วนปิดร้าน ยอดในลิ้นชักรวมรายการเหล่านี้แล้ว</figcaption></figure>
+  <p class="muted">หยิบออกได้ไม่เกินเงินที่ควรมีในลิ้นชักตอนนั้น · ทำได้เฉพาะตอนร้านเปิด · ผู้ดูแลเห็นทุกรายการในประวัติการทำรายการ</p>
+
+  <h3 id="s3-3">เย็น: ปิดร้าน</h3>
+  <ol class="steps">
+    <li>ส่วน <b>ปิดร้าน</b> ด้านล่างของหน้า <span class="k">เปิด / ปิดร้าน</span> — การ์ด “งานของสาขาวันนี้” บอกว่าใครทำไปกี่ใบ กี่ชิ้น</li>
+    <li>การ์ด <b>“เงินสดในลิ้นชัก”</b> บอกยอด <b>“ควรมีในลิ้นชัก”</b> (คิดตามแผนภาพถัดไป)</li>
+    <li>นับเงินสดในลิ้นชัก ใส่ในช่อง <b>“นับเงินได้จริง”</b> (ระบบใส่ยอดที่ควรมีไว้ให้ก่อน) — ถ้าไม่ตรง ขึ้น “ขาด” หรือ “เกิน” และ<b>ต้องเขียนหมายเหตุ</b>ว่าเกิดจากอะไร</li>
+    <li><b>“แยกเงินทอนไว้สำหรับพรุ่งนี้”</b> ปกติเท่าเงินทอนมาตรฐาน กด “เปลี่ยนจำนวน” ถ้าจะเก็บมากหรือน้อยกว่านั้น (เช่น ก่อนวันหยุดยาว)
+      ส่วนที่เหลือคือ <b>เงินนำส่ง</b></li>
+    <li>กด <span class="k">ปิดร้านและส่งสรุปให้ผู้ดูแล</span> — การ์ด “สรุปการปิดร้าน” ขึ้นมาแทน และสรุปของวันส่งถึงผู้ดูแล (ถ้าตั้งการแจ้งเตือนไว้)</li>
+  </ol>
+  <div class="pair">
+    <figure><img src="img/12-store-close.jpg" alt="ปิดร้าน"><figcaption>ปิดร้าน — ระบบบอกยอดที่ควรมี แล้วนับเงินจริงเทียบ</figcaption></figure>
+    <figure><img src="img/21-store-closed.jpg" alt="ปิดร้านแล้ว"><figcaption>ปิดร้านแล้ว — สรุปของวัน และการ์ด “เปิดร้านใหม่” (ถ้ามีสิทธิ์)</figcaption></figure>
+  </div>
+  <div class="warn"><b>ปิดร้านแล้ว</b> ขายสินค้า ยกเลิกบิล รับคืน และเติม / หยิบเงิน ทำไม่ได้จนกว่าจะเปิดร้านใหม่ (งานคลังยังทำได้)
+    · <b>ไม่มีกล่องถามยืนยันก่อนปิด</b> ตรวจตัวเลขให้เรียบร้อยก่อนกด</div>
+
+  <h3 id="s3-4">เงินในลิ้นชักคิดอย่างไร</h3>
+  <div class="dg">
+    <div class="dg-t">เงินที่ควรมีในลิ้นชักตอนปิดร้าน</div>
+    <div class="eq">
+      <div class="t">เงินทอนเริ่มวัน<small>ตอนเปิดร้าน</small></div><div class="op">+</div>
+      <div class="t">เติมระหว่างวัน<small>เติมเงินทอน</small></div><div class="op">+</div>
+      <div class="t">ขายเงินสด<small>ไม่นับเงินโอน</small></div><div class="op">−</div>
+      <div class="t">หยิบออก<small>ใช้จ่ายในร้าน</small></div><div class="op">−</div>
+      <div class="t">คืนเงินลูกค้า<small>จากการรับคืน</small></div><div class="op">=</div>
+      <div class="t res">ควรมีในลิ้นชัก</div>
+    </div>
+    <div class="row" style="margin-top:3mm">
+      <div class="bx g"><b>นับได้ตรง</b>ปิดร้านได้เลย</div><div class="ar"></div>
+      <div class="bx r"><b>ขาด หรือ เกิน</b>ต้องเขียนหมายเหตุว่าเกิดจากอะไร (เช่น ทอนผิด ลูกค้าไม่รับเงินทอน) ผู้ดูแลเห็นทันที</div><div class="ar"></div>
+      <div class="bx"><b>แยกเงินทอนไว้พรุ่งนี้</b>ปกติเท่าเดิม เปลี่ยนจำนวนได้ ส่วนที่เหลือคือเงินที่นำส่ง</div>
+    </div>
+  </div>
+  <p class="muted">“ขายเงินสด” นับเฉพาะบิลที่จ่ายเงินสดและไม่ถูกยกเลิก · บิลโอน / พร้อมเพย์ไม่เข้าลิ้นชัก · เงินคืนลูกค้าจ่ายเป็นเงินสดจากลิ้นชักเสมอ</p>
+
+  <h3 id="s3-5">ปิดร้านแล้ว แต่ยังต้องขายต่อ: เปิดร้านใหม่</h3>
+  <ol class="steps">
+    <li>หน้า <span class="k">เปิด / ปิดร้าน</span> การ์ด <b>“เปิดร้านใหม่”</b> (มีเฉพาะคนที่มีสิทธิ์ “เปิดร้านอีกครั้งหลังปิดแล้ว”)</li>
+    <li>ใส่ “เหตุผล” เช่น ลูกค้ากลับมาซื้อหลังปิดร้าน แล้วกด <span class="k">เปิดร้านใหม่</span></li>
+    <li>ขึ้น “เปิดร้านใหม่แล้ว ขายต่อได้ — ปิดร้านอีกครั้งเมื่อเสร็จ” ขายเสร็จแล้ว<b>ปิดร้านอีกรอบ</b>ตามขั้นตอนปกติ</li>
+  </ol>
+  <p class="muted">ไม่มีสิทธิ์ — ให้ผู้ดูแลเปิดให้จากหน้า “ภาพรวม” · เปิดใหม่ได้ไม่จำกัดครั้ง แต่ทุกครั้งขึ้นใน “รายการที่ต้องตรวจ” ของผู้ดูแล</p>
+
+  <h3 id="s3-6">วันก่อนลืมปิดร้าน</h3>
+  <p>เช้าวันใหม่ หน้าเปิดร้านขึ้นเตือน <b>“วัน… ยังไม่ได้กดปิดร้าน”</b> และ<b>ยังเปิดร้านวันนี้ไม่ได้</b>จนกว่าจะปิดของวันนั้น</p>
+  <ol class="steps">
+    <li>การ์ด <b>“ขั้นที่ 1 · ปิดร้านของวัน…”</b> — ยังไม่ได้ขายของวันนี้ เงินในลิ้นชักตอนนี้คือเงินของวันนั้น นับแล้วใส่ “นับเงินในลิ้นชักได้จริง”</li>
+    <li>“แยกเงินทอนไว้ (ยกมาเป็นเงินทอนวันนี้)” ปกติเท่าเงินทอนมาตรฐาน เปลี่ยนจำนวนได้</li>
+    <li>ใส่ <b>“ทำไมวันนั้นไม่ได้ปิดร้าน”</b> (จำเป็น) แล้วกดปุ่ม <span class="k">ปิดร้านของวัน…</span></li>
+    <li><b>ขั้นที่ 2</b> ฟอร์มเปิดร้านวันนี้ขึ้นมาให้ เงินทอนที่แยกไว้ยกมาแล้ว — เปิดร้านตามปกติ</li>
+  </ol>
+  <figure class="wide"><img src="img/22-store-close-past.jpg" alt="ปิดร้านของวันก่อน">
+    <figcaption>วันก่อนยังไม่ได้ปิดร้าน — ต้องปิดของวันนั้นก่อน (ขั้นที่ 1) แล้วจึงเปิดร้านวันนี้ (ขั้นที่ 2)</figcaption></figure>
+  <div class="note"><b>พนักงานปิดย้อนหลังได้เฉพาะวันล่าสุดที่ยังไม่ได้ปิด</b> — ถ้าค้างหลายวัน หรือเป็นวันที่เก่ากว่านั้น
+    ให้ผู้ดูแลปิดย้อนหลังที่หน้า “ภาพรวม” (ข้อ 11) · ผู้ดูแลเห็นทุกการปิดย้อนหลังใน “รายการที่ต้องตรวจ”</div>
+</section>
+
+<!-- ======================================================= 4 ของเข้าของออก -->
+<section class="flow">
+  <h2 id="s4"><span class="no">4</span> ของเข้า–ของออก: สต๊อกเปลี่ยนเมื่อไร</h2>
+  <p class="lead">“สต๊อก” คือจำนวนของที่สาขามีอยู่ ระบบเปลี่ยนตัวเลขให้เองทุกครั้งที่มีของเข้าหรือออก <b>ไม่มีช่องให้แก้ตัวเลขสต๊อกด้วยมือ</b>
+    ถ้าตัวเลขไม่ตรงกับของจริง ให้ทำ “ตรวจนับ / ปรับยอด” (ข้อ 7)</p>
+
+  <div class="dg">
+    <div class="dg-t">อะไรทำให้ของเพิ่ม อะไรทำให้ของลด</div>
+    <div class="stock">
+      <div class="side">
+        <div class="io in"><span class="s">+</span><div><b>นำเข้าสินค้า</b>ของมาส่ง มีใบส่งของ / ใบกำกับ</div></div>
+        <div class="io in"><span class="s">+</span><div><b>รับคืน (ของยังดี)</b>ลูกค้าซื้อผิดรุ่น ของกลับไปขายต่อ</div></div>
+        <div class="io adj"><span class="s">±</span><div><b>ตรวจนับ (นับได้มากกว่า)</b>เจอของเพิ่ม ปรับยอดขึ้น</div></div>
+      </div>
+      <div class="tank"><b>ของคงเหลือ<br>ของสาขา</b><small>แยกแต่ละสินค้า<br>แยกแต่ละสาขา</small></div>
+      <div class="side">
+        <div class="io out"><span class="s">−</span><div><b>ขายสินค้า</b>บันทึกบิลแล้วตัดทันที</div></div>
+        <div class="io out"><span class="s">−</span><div><b>เบิก / ตัดออก</b>ของเสีย หาย หมดอายุ ใช้ในร้าน ส่งสาขาอื่น</div></div>
+        <div class="io adj"><span class="s">±</span><div><b>ตรวจนับ (นับได้น้อยกว่า)</b>ของขาด ปรับยอดลง</div></div>
+      </div>
+    </div>
+    <div class="row" style="margin-top:3mm">
+      <div class="bx"><b>รับคืนของเสีย / ใช้แล้ว</b>ไม่เข้าสต๊อก — แยกเก็บไว้ส่งเคลม ไม่เอาไปขายต่อ</div><div class="ar"></div>
+      <div class="bx"><b>ยกเลิกเอกสาร</b>ตัวเลขกลับเหมือนไม่เคยทำ เช่น ยกเลิกบิล = ของกลับเข้าสต๊อก</div><div class="ar"></div>
+      <div class="bx"><b>ส่งของไปสาขาอื่น</b>สาขาต้นทางตัดออก (“ส่งไปสาขาอื่น”) สาขาปลายทางทำใบรับเข้าเอง</div>
+    </div>
+  </div>
+
+  <ul>
+    <li><b>ใส่ของในตะกร้ายังไม่ตัดสต๊อก</b> — ตัดตอนกดบันทึกบิลเท่านั้น ถ้าอีกเครื่องขายตัดหน้าไปก่อน ระบบบอกว่าของไม่พอตอนรับเงิน</li>
+    <li>สินค้าใหม่เริ่มที่ 0 ทุกสาขา ต้องทำใบรับเข้าก่อนจึงจะขายได้</li>
+    <li>สินค้าที่ “เลิกขาย” แล้วไม่ขึ้นในหน้าขาย นำเข้า และตรวจนับ แต่ประวัติและรายงานเดิมยังอยู่ครบ</li>
+  </ul>
+
+  <h3 id="s4-1">ดูได้ว่าตัวเลขมาจากไหน: ประวัติเคลื่อนไหว</h3>
+  <ol class="steps">
+    <li>เมนู <span class="k">ประวัติเคลื่อนไหว</span> เลือกสินค้าจากรายการทางซ้าย (ค้นด้วยชื่อหรือ SKU หรือกรองตามหมวด)</li>
+    <li>เลือกช่วงเวลา <span class="k">วันนี้</span> <span class="k">7 วัน</span> <span class="k">14 วัน</span> — <b>ย้อนหลังได้สูงสุด 14 วัน</b></li>
+    <li>อ่านแถบสมการด้านบน แล้วไล่ดูทีละรายการด้านล่าง: เมื่อไร · ชนิดรายการและเลขเอกสาร · ใครทำ · เข้า / ออกกี่ชิ้น · คงเหลือหลังรายการนั้น</li>
+  </ol>
+  <div class="eq" style="margin:2mm 0 2mm">
+    <div class="t">ยกมา<small>ยอดตอนต้นช่วง</small></div><div class="op">+</div>
+    <div class="t">รับเข้า<small>รวมที่ยกเลิก</small></div><div class="op">+</div>
+    <div class="t">ขาย<small>รวมยกเลิกบิล · รับคืน</small></div><div class="op">+</div>
+    <div class="t">ตัดออก<small>รวมที่ยกเลิก</small></div><div class="op">+</div>
+    <div class="t">ปรับยอด<small>จากการตรวจนับ</small></div><div class="op">=</div>
+    <div class="t res">คงเหลือ</div>
+  </div>
+  <p class="muted" style="text-align:center">ตัวเลขแต่ละช่องมีเครื่องหมาย + / − กำกับอยู่แล้ว เช่น ขาย −3 · ยกเลิกบิล +1 จึงรวมอยู่ในช่องขายเป็น −2</p>
+  <figure class="wide"><img src="img/29-movements.jpg" alt="ประวัติเคลื่อนไหว">
+    <figcaption>ประวัติเคลื่อนไหวของสินค้าหนึ่งตัว — แถบสมการด้านบน และทุกรายการที่ทำให้ยอดขยับ</figcaption></figure>
+  <p>ยังไม่เลือกสินค้า หน้านี้แสดง <b>“เคลื่อนไหวล่าสุด”</b> ของทุกสินค้ารวมกัน (100 รายการล่าสุด) กดชื่อสินค้าเพื่อดูละเอียดทีละตัว
+    · หน้า <b>สินค้าในสต๊อก</b> กดชื่อสินค้าก็มาที่หน้านี้ได้เหมือนกัน</p>
+</section>
+
+<!-- ======================================================= 5 ขายสินค้า -->
+<section class="flow">
+  <h2 id="s5"><span class="no">5</span> ขายสินค้า</h2>
+  <p class="lead">หน้าขายแบ่งเป็นสองฝั่ง: <b>ซ้ายคือสินค้า</b>ให้แตะเลือก <b>ขวาคือตะกร้าและส่วนรับเงิน</b>
+    ต้องมีสิทธิ์ “ขายสินค้า” และร้านต้องเปิดอยู่ (ร้านยังไม่เปิดหรือปิดแล้ว กดเมนูขายแล้วระบบพาไปหน้าเปิดร้าน)</p>
+
+  <h3 id="s5-1">เลือกสินค้า</h3>
+  <ul>
+    <li><b>แตะการ์ดสินค้า</b> = ใส่ตะกร้า 1 ชิ้น แตะซ้ำ = เพิ่มอีกชิ้น ตัวเลขสีส้มบนการ์ดคือจำนวนที่อยู่ในตะกร้า</li>
+    <li><b>ค้นหา</b> พิมพ์ชื่อสินค้าหรือ SKU ในช่อง “ชื่อสินค้า หรือ SKU” รายการกรองให้ทันทีขณะพิมพ์ · กรองตามหมวดด้วยปุ่มหมวดด้านบน (“ทั้งหมด” = ทุกหมวด)</li>
+    <li>การ์ดบอก “เหลือ N ชิ้น” — ตัวเลขเป็นสีส้มเมื่อถึงจุดสั่งซื้อ · ของหมดการ์ดขึ้น <b>“หมด”</b> และแตะไม่ได้</li>
+  </ul>
+  <div class="warn"><b>ยังค้นด้วยบาร์โค้ดไม่ได้</b> — ช่องค้นหาของทุกหน้าค้นได้เฉพาะ<b>ชื่อสินค้าและ SKU</b> เท่านั้น
+    ยิงเครื่องอ่านบาร์โค้ดลงช่องค้นหาจะยังหาสินค้าไม่เจอ (ยกเว้นตั้ง SKU ให้เป็นเลขเดียวกับบาร์โค้ด) และระบบไม่ใส่ตะกร้าให้เองหลังยิง</div>
+
+  <h3 id="s5-2">ตะกร้า</h3>
+  <ul>
+    <li>ปรับจำนวนด้วยปุ่ม − / + หรือพิมพ์ตัวเลขลงช่องได้เลย · พิมพ์ 0 หรือกด × = เอาออกจากตะกร้า · ปุ่มถังขยะ “ล้างตะกร้า” ล้างทันทีโดยไม่ถาม</li>
+    <li><b>ใส่ได้ไม่เกินของที่มี</b> — แตะเกิน ระบบหยุดที่ยอดคงเหลือ · พิมพ์เกิน ระบบปรับให้และบอก “ใส่ได้ไม่เกินยอดคงเหลือ ปรับให้เป็นจำนวนสูงสุดที่มีแล้ว”</li>
+    <li>ใส่ของในตะกร้ายังไม่ตัดสต๊อก (ตัดตอนบันทึกบิล) · ไปหน้าอื่นแล้วกลับมา ตะกร้ายังอยู่ จนกว่าจะออกจากระบบ</li>
+  </ul>
+
+  <h3 id="s5-3">รับเงินและบันทึกบิล</h3>
+  <ol class="steps">
+    <li><b>ยอดที่ต้องชำระ</b> — ราคาเต็มของทั้งตะกร้า คนที่มีสิทธิ์ <b>“ให้ส่วนลด”</b> แก้ตัวเลขนี้ได้ ระบบแสดง “ราคาเต็ม” และ “ส่วนลด” ให้เห็น
+      (ต้องมากกว่า 0 และไม่เกินราคาเต็ม · ส่วนลดเป็นส่วนลดท้ายบิล ไม่มีส่วนลดรายชิ้น) · ไม่มีสิทธิ์ = ขายราคาเต็มเสมอ</li>
+    <li>เลือก <b>ประเภทบิล</b> <span class="k">ไม่ VAT</span> หรือ <span class="k">VAT</span> ตามที่ลูกค้าต้องการ (เลขที่บิลแยกกันคนละชุด)</li>
+    <li>เลือก <b>วิธีจ่าย</b> <span class="k">เงินสด</span> หรือ <span class="k">โอน / พร้อมเพย์</span> (โอนไม่ต้องใส่เงินที่รับมา และไม่เข้าลิ้นชัก)</li>
+    <li>เงินสด: ใส่ <b>“รับเงินมา”</b> (มีสตางค์ได้) หรือกดปุ่มลัด <span class="k">พอดี</span> และยอดปัดขึ้นเป็นหลักร้อย / ห้าร้อย / พัน ระบบคิด <b>เงินทอน</b> ให้
+      — ใส่น้อยกว่ายอด เงินทอนขึ้นติดลบสีแดง ให้ตรวจก่อน</li>
+    <li>กด <span class="k">รับเงินและบันทึกบิล</span> → กล่อง <b>“ยืนยันการรับเงิน”</b> แสดงรายการ ยอด วิธีจ่าย ประเภทบิล เงินที่รับและเงินทอน
+      → ถูกแล้วกด <span class="k">ยืนยัน บันทึกบิล</span> (ผิดกด “ย้อนกลับ” ไปแก้)</li>
+    <li>ขึ้นแถบเขียว “บันทึกบิล … แล้ว · ยอด … บาท · รับเงิน … · เงินทอน …” ของถูกตัดออกจากสต๊อกทันที
+      แถบนี้มีปุ่ม <span class="k">ดู / พิมพ์บิล</span> และ (ตามสิทธิ์) <span class="k">แก้ไขบิลนี้</span> <span class="k">ยกเลิกบิลนี้</span></li>
+  </ol>
+  <div class="pair">
+    <figure><img src="img/03-sale.jpg" alt="หน้าขาย"><figcaption>หน้าขาย — ซ้ายเลือกสินค้า ขวาคือตะกร้า ยอดที่ต้องชำระ ประเภทบิล และวิธีจ่าย</figcaption></figure>
+    <figure><img src="img/04-sale-confirm.jpg" alt="ยืนยันการรับเงิน"><figcaption>กล่องยืนยันก่อนบันทึก — ตรวจรายการ ยอด และเงินทอน</figcaption></figure>
+  </div>
+  <div class="note"><b>บันทึกไม่ผ่าน เพราะอะไรได้บ้าง</b> — “ของไม่พอ (อาจถูกขายจากเครื่องอื่นไปแล้ว) …” แก้จำนวนในตะกร้าแล้วรับเงินใหม่ (ตะกร้ายังอยู่)
+    · “สาขานี้ยังไม่ได้ตั้งรหัสเลขที่บิล …” แจ้งฝ่ายบัญชีหรือผู้ดูแลให้ตั้งเลขที่บิล · “ร้านปิดแล้ว — บันทึกบิลไม่ได้” มีคนปิดร้านไปก่อน ต้องเปิดร้านใหม่</div>
+
+  <h3 id="s5-4">พิมพ์บิล และพิมพ์ซ้ำ</h3>
+  <ul>
+    <li>กด <span class="k">ดู / พิมพ์บิล</span> ขึ้นหน้าต่างบิล เลือกขนาด <span class="k">80 มม.</span> (เครื่องพิมพ์ใบเสร็จ) หรือ <span class="k">A4</span>
+      แล้วกด <span class="k">พิมพ์</span> · หรือกด “เปิดแท็บใหม่” ซึ่งเปิดบิลแล้วสั่งพิมพ์ให้ทันที</li>
+    <li><b>ระบบไม่สั่งพิมพ์เองหลังขาย</b> ต้องกดปุ่มทุกครั้ง · ขนาดกระดาษเริ่มต้นตั้งที่หน้า “ตั้งค่าเลขที่บิล” ของฝ่ายบัญชี</li>
+    <li><b>พิมพ์ซ้ำ</b> — เปิดบิลเดิมจากหน้า “ประวัติการทำรายการ” แล้วกด “ดู / พิมพ์บิล” · บิลที่ยกเลิกแล้วยังเปิดดูได้ มีตรา <b>“ยกเลิก”</b> สีแดง</li>
+    <li><b>บิล VAT</b> พิมพ์หัวว่า “ใบเสร็จรับเงิน / ใบกำกับภาษีอย่างย่อ” มีเลขประจำตัวผู้เสียภาษี และแยก “มูลค่าสินค้าก่อนภาษี” กับ “ภาษีมูลค่าเพิ่ม 7%”
+      — ราคาสินค้ารวม VAT อยู่แล้ว ระบบถอด VAT ออกมาแสดง (ยอด × 7 ÷ 107) ไม่ได้บวกเพิ่ม</li>
+    <li>บิล A4 มีจำนวนเงินเป็นตัวอักษร และช่องเซ็น “ผู้รับเงิน” กับ “ผู้ซื้อ / ลูกค้า”</li>
+  </ul>
+  <div class="pair">
+    <figure><img src="img/05-bill.jpg" alt="บิล 80 มม."><figcaption>หน้าต่างบิล — เลือก 80 มม. หรือ A4 แล้วกดพิมพ์</figcaption></figure>
+    <figure><img src="img/26-bill-a4.jpg" alt="บิล A4"><figcaption>บิลขนาด A4 — มีจำนวนเงินตัวอักษรและช่องเซ็นชื่อ</figcaption></figure>
+  </div>
+  <p class="muted"><b>เลขที่บิล</b> เช่น <span class="k">RS2026-10-0007</span> = รหัสบิลของสาขา + ปี-เดือน (ค.ศ.) + เลขรัน 4 หลัก · บิล VAT ใช้รหัสอีกชุด (เช่น RSV…)
+    · เลขรันเริ่มใหม่ทุกเดือน · เลขของบิลที่ยกเลิกไม่ถูกนำมาใช้ซ้ำ</p>
+
+  <h3 id="s5-5">การ์ด “ยอดขายวันนี้”</h3>
+  <p>ใต้ตะกร้ามีสรุปของ<b>ทั้งสาขาวันนี้</b>: จำนวนบิล จำนวนชิ้น ยอดขาย แยกเงินสด / โอน (ไม่นับบิลที่ยกเลิก)
+    และปุ่ม “ดูประวัติบิลวันนี้” ไปหน้าประวัติการทำรายการ · ขายผิดแล้วจะแก้ ดูข้อ 8</p>
+</section>
+
+<!-- ======================================================= 6 รับคืน -->
+<section class="flow">
+  <h2 id="s6"><span class="no">6</span> รับคืนสินค้า</h2>
+  <p class="lead">ลูกค้านำของมาคืนพร้อมบิลเดิม — คืนได้ภายในจำนวนวันที่สาขาตั้งไว้ (ปกติ 7 วัน) ต้องมีสิทธิ์ “รับคืนสินค้า”
+    และ<b>ร้านต้องเปิดอยู่</b> เพราะเงินคืนจ่ายเป็นเงินสดจากลิ้นชักของวันนี้</p>
+
+  <h3 id="s6-1">ขั้นที่ 1 · หาบิลเดิม</h3>
+  <ol class="steps">
+    <li>เมนู <span class="k">รับคืนสินค้า</span> — หน้าแรกแสดงบิลย้อนหลังของสาขา ใหม่สุดอยู่บน</li>
+    <li>ค้นจาก <b>เลขบิล ชื่อสินค้า หรือ SKU</b> ในช่องค้นหา แล้วกด “ค้นหา”</li>
+    <li>ดูช่อง “สถานะการคืน” แล้วกด <span class="k">เลือกบิลนี้</span> ที่บิลที่ต้องการ</li>
+  </ol>
+  <table>
+    <thead><tr><th style="width:30%">สถานะที่เห็น</th><th>ความหมาย</th></tr></thead>
+    <tr><td><span class="k" style="color:#0E7A5F">คืนได้อีก N วัน</span> / คืนได้ถึงวันนี้</td><td>ยังอยู่ในกำหนดคืน กดเลือกบิลได้</td></tr>
+    <tr><td><span class="k" style="color:#B42318">เกินกำหนด</span></td><td>เลยจำนวนวันที่สาขาตั้งไว้ เลือกไม่ได้ — ถ้าจำเป็นจริง ผู้ดูแลขยายจำนวนวันได้ที่หน้าจัดการสาขา</td></tr>
+    <tr><td>คืนครบทุกรายการแล้ว</td><td>ของในบิลนี้ถูกคืนไปหมดแล้ว</td></tr>
+  </table>
+  <figure class="wide"><img src="img/35-return-search.jpg" alt="ค้นหาบิลที่ลูกค้าจะคืน">
+    <figcaption>ค้นหาบิลที่ลูกค้าจะคืน — บิลในกำหนดมีปุ่ม “เลือกบิลนี้” บิลที่เลยกำหนดขึ้น “เกินกำหนด”</figcaption></figure>
+  <p class="muted">รายการแสดงย้อนหลังนานกว่ากำหนดคืน 7 วัน (อย่างน้อย 14 วัน) เพื่อให้เห็นบิลที่เลยกำหนดด้วย · บิลที่ถูกยกเลิกไม่ขึ้นในรายการ</p>
+
+  <h3 id="s6-2">ขั้นที่ 2 · กรอกการรับคืน</h3>
+  <ol class="steps">
+    <li><b>ใส่จำนวนที่คืน</b> เฉพาะรายการที่ลูกค้าคืน — คืนบางชิ้นได้ แต่ไม่เกินจำนวนที่ซื้อ (หักที่เคยคืนไปแล้ว)</li>
+    <li><b>เลือกเหตุผล</b> — เหตุผลเป็นตัวตัดสินว่าของกลับเข้าสต๊อกหรือไม่
+      <table style="margin-top:1.5mm">
+        <thead><tr><th>เหตุผล</th><th>ของที่คืน</th></tr></thead>
+        <tr><td>ซื้อผิดรุ่น / ผิดแบบ (ของยังสมบูรณ์)</td><td class="yes">กลับเข้าสต๊อก ขายต่อได้</td></tr>
+        <tr><td>สินค้าชำรุด / ใช้งานไม่ได้</td><td>ไม่เข้าสต๊อก แยกเก็บไว้ส่งเคลม</td></tr>
+        <tr><td>ใช้แล้ว / สภาพไม่สมบูรณ์</td><td>ไม่เข้าสต๊อก</td></tr>
+        <tr><td>อื่น ๆ (ต้องเขียนรายละเอียด)</td><td>ไม่เข้าสต๊อก</td></tr>
+      </table></li>
+    <li><b>แนบรูป</b> (ไม่บังคับ) ไม่เกิน 3 รูป รูปละไม่เกิน 5 MB (JPG / PNG / WEBP) ถ่ายใหม่หรือเลือกจากคลังรูปในเครื่องได้ — ถ่ายจุดที่ชำรุด กล่อง หรือใบเสร็จ ให้ผู้ดูแลตรวจภายหลัง</li>
+    <li><b>ยอดเงินคืน</b> ระบบคิดตามราคาที่ลูกค้าจ่ายจริง (บิลที่มีส่วนลด หักส่วนลดตามสัดส่วนให้แล้ว) ลดลงได้แต่ห้ามเกิน — ถ้าแก้ยอดต้องใส่เหตุผลที่ปรับ</li>
+    <li>กด <span class="k">บันทึกรับคืนและคืนเงิน</span> แล้วจ่ายเงินสดคืนจากลิ้นชัก — ได้ใบรับคืนเลขที่ <b>RT-…</b></li>
+  </ol>
+  <div class="pair">
+    <figure><img src="img/09-return.jpg" alt="รับคืน"><figcaption>รับคืน — เลือกเหตุผล ระบบบอกว่าของจะกลับเข้าสต๊อกหรือไม่ และยอดเงินคืน</figcaption></figure>
+    <figure><img src="img/38-need-jump.jpg" alt="ยังกรอกไม่ครบ"><figcaption>ยังไม่เลือกเหตุผลแล้วกดบันทึก — จอเลื่อนไปช่องที่ขาด กรอบแดงพร้อมบอกว่าต้องทำอะไร</figcaption></figure>
+  </div>
+  <div class="note"><b>ควรรู้</b>
+    <ul style="margin:1mm 0 0">
+      <li>เงินคืนเป็น<b>เงินสดเสมอ</b> แม้บิลเดิมจ่ายด้วยการโอน และไปหักในยอด “ควรมีในลิ้นชัก” ตอนปิดร้าน</li>
+      <li>คนที่ไม่มีสิทธิ์ “คืนเงินสดให้ลูกค้า” บันทึกได้เป็นรับคืนแบบไม่คืนเงิน (เช่น เปลี่ยนสินค้า) ยอดคืนเป็น 0</li>
+      <li>บิลที่มีการรับคืนแล้ว <b>ยกเลิกหรือแก้ทั้งบิลไม่ได้</b> · บิลของวันก่อนก็ยกเลิกไม่ได้ ลูกค้าคืนของให้ใช้หน้านี้</li>
+      <li>ปุ่มบันทึกเป็นสีเทาเมื่อยังกรอกไม่ครบ กดแล้วจอเลื่อนไปช่องที่ขาดให้ (หน้านำเข้า ตัดออก ตรวจนับก็เหมือนกัน)</li>
+      <li>ทุกใบรับคืนพร้อมรูปที่แนบ ผู้ดูแลเปิดดูได้ที่เมนู “รับคืนสินค้า” ฝั่งผู้ดูแล และขึ้นใน “รายการที่ต้องตรวจ”</li>
+    </ul></div>
+</section>
+
+<!-- ======================================================= 7 งานคลัง -->
+<section class="flow">
+  <h2 id="s7"><span class="no">7</span> นำเข้า · เบิก / ตัดออก · ตรวจนับ</h2>
+  <p class="lead">สามงานนี้ใช้หน้าตาแบบเดียวกัน: <b>เลือกสินค้าทางซ้าย → รายการขึ้นในใบทางขวา → กดปุ่มบันทึกที่แถบล่าง → ยืนยัน</b>
+    ทำได้แม้ร้านยังไม่เปิด · ใบที่ทำค้างไว้ไม่หาย ถ้าออกไปหน้าอื่นแล้วกลับมา (ระหว่างที่ยังไม่ออกจากระบบ)</p>
+
+  <h3 id="s7-1">นำเข้าสินค้า (ของเพิ่ม)</h3>
+  <ol class="steps">
+    <li>เมนู <span class="k">นำเข้าสินค้า</span> ใส่ <b>“เลขที่เอกสารอ้างอิง”</b> (เลขใบส่งของ / ใบกำกับ) — <b>จำเป็นทุกครั้ง</b> เพื่อตรวจย้อนหลังได้ · ช่อง “หมายเหตุ” ไม่บังคับ</li>
+    <li>แตะสินค้าที่มาส่ง (ค้นด้วยชื่อหรือ SKU ได้) แล้วปรับจำนวนในใบ — แต่ละแถวบอก “คงเหลือ 55 → 56” ให้เห็นยอดหลังรับเข้า</li>
+    <li>กด <span class="k">บันทึกการรับเข้า</span> ที่แถบล่าง → ตรวจในกล่องยืนยัน → ยืนยัน · ของเพิ่มในสต๊อกทันที ได้ใบรับเข้าเลขที่ <b>RC-…</b></li>
+  </ol>
+  <figure><img src="img/06-receive.jpg" alt="นำเข้าสินค้า"><figcaption>นำเข้าสินค้า — เลขเอกสารอ้างอิงด้านบน รายการในใบด้านขวา ปุ่มบันทึกที่แถบล่าง</figcaption></figure>
+
+  <h4>สินค้าที่ยังไม่มีในระบบ: เพิ่มสินค้าใหม่จากหน้านี้</h4>
+  <p>คนที่มีสิทธิ์ <b>“เพิ่มสินค้าใหม่”</b> กดปุ่ม <span class="k">+ เพิ่มสินค้าใหม่</span> ข้างช่องค้นหา ขึ้นหน้าต่าง “เพิ่มสินค้าใหม่”</p>
+  <ol class="steps">
+    <li>ใส่ <b>ชื่อสินค้า</b> · <b>SKU</b> เลือก “ตั้งให้อัตโนมัติ” (ได้รหัส P0001, P0002 …) หรือ “กรอกเอง” (A–Z 0–9 . _ - ตั้งแล้วเปลี่ยนไม่ได้)</li>
+    <li>เลือก <b>หมวด</b> (คนที่มีสิทธิ์เพิ่มหมวด พิมพ์หมวดใหม่ได้) · <b>หน่วย</b> (ปกติ “ชิ้น”)</li>
+    <li>ใส่ <b>ทุนต่อหน่วย</b> · <b>ราคาขาย (รวม VAT)</b> · <b>จุดสั่งซื้อ</b> (เหลือเท่านี้หรือน้อยกว่า = ใกล้หมด) · บาร์โค้ด (ไม่บังคับ)</li>
+    <li>บันทึก — สินค้าใหม่ใช้ได้ทุกสาขาทันที และเข้าใบรับเข้านี้ 1 ชิ้นให้เลย ปรับจำนวนต่อได้</li>
+  </ol>
+  <figure><img src="img/33-receive-newproduct.jpg" alt="เพิ่มสินค้าใหม่"><figcaption>หน้าต่างเพิ่มสินค้าใหม่จากหน้านำเข้า</figcaption></figure>
+  <div class="warn"><b>ราคาขายที่ตั้งตรงนี้มีผลกับบิลทันที</b> ตรวจให้ถูกก่อนบันทึก · ภายหลังผู้ดูแลแก้ข้อมูลสินค้าได้ที่หน้า “สินค้าในสต๊อก” ฝั่งผู้ดูแล</div>
+
+  <h3 id="s7-2">เบิก / ตัดออก (ของลดโดยไม่ได้ขาย)</h3>
+  <ol class="steps">
+    <li>เมนู <span class="k">เบิก / ตัดออก</span> <b>เลือกเหตุผล</b>: เบิกใช้ภายใน · ชำรุด / เสียหาย · หมดอายุ · คืนผู้จำหน่าย · ส่งไปสาขาอื่น · สูญหาย · อื่น ๆ</li>
+    <li>ช่อง “ผู้ขอเบิก / เลขที่อ้างอิง” ใส่ได้ (ไม่บังคับ) · <b>ส่งไปสาขาอื่น · สูญหาย · อื่น ๆ</b> ต้องเขียน “หมายเหตุ” อธิบายทุกครั้ง</li>
+    <li>แตะสินค้าที่จะตัดออก ปรับจำนวน — ตัดเกินของที่มีไม่ได้ ระบบปรับให้เท่าที่มี</li>
+    <li>กด <span class="k">บันทึกการตัดออก</span> → ยืนยัน · ได้ใบตัดออกเลขที่ <b>IS-…</b></li>
+  </ol>
+  <figure><img src="img/07-issue.jpg" alt="เบิก ตัดออก"><figcaption>เบิก / ตัดออก — เลือกเหตุผลก่อนบันทึก</figcaption></figure>
+  <p class="muted">ตัดออกเพราะ “สูญหาย” หรือ “ชำรุด / เสียหาย” ส่งแจ้งเตือนถึงผู้ดูแลได้ (ถ้าเปิดไว้) และ “สูญหาย” ขึ้นใน “รายการที่ต้องตรวจ”</p>
+
+  <h3 id="s7-3">ตรวจนับ / ปรับยอด (ทำให้ตัวเลขตรงกับของจริง)</h3>
+  <p>แต่ละเดือนเป็นหนึ่ง <b>รอบตรวจนับ</b> (เริ่มวันที่ตามที่สาขาตั้ง ปกติวันที่ 1) ต้องนับให้ครบทุกสินค้าภายในรอบ
+    การ์ดด้านบนบอก <b>“รอบนี้นับแล้ว X / Y รายการ”</b> และวันครบกำหนด</p>
+  <ol class="steps">
+    <li>เมนู <span class="k">ตรวจนับ / ปรับยอด</span> ใช้แท็บ <b>“ยังไม่นับ”</b> (ค่าเริ่มต้น) / “นับแล้ว” / “ทั้งหมด” ช่วยดูว่าเหลือตัวไหน</li>
+    <li>แตะสินค้า ระบบใส่ยอดในระบบไว้ให้ก่อน แล้ว<b>แก้เป็นจำนวนที่นับได้จริง</b></li>
+    <li>ถ้ามีรายการไม่ตรง เลือก <b>“ทำไมยอดถึงไม่ตรง”</b>: นับผิดครั้งก่อน · ใช้/เสียไม่ได้บันทึก · บันทึกผิด · เจอของเพิ่ม · ของหาย · อื่น ๆ
+      (<b>ของหาย</b> และ <b>อื่น ๆ</b> ต้องเขียนหมายเหตุ) — ระบบบอก “มูลค่าส่วนต่าง (ราคาทุน)” ให้เห็น</li>
+    <li>กดปุ่มที่แถบล่าง: ตรงทั้งหมดปุ่มขึ้น <span class="k">ยืนยัน นับแล้วตรง</span> (เก็บเป็นหลักฐานว่านับแล้ว ยอดไม่เปลี่ยน) ·
+      มีไม่ตรงปุ่มขึ้น <span class="k">บันทึกและปรับยอด</span> (ระบบปรับยอดในระบบให้เท่ากับที่นับได้) → ยืนยัน · ได้ใบตรวจนับเลขที่ <b>AD-…</b></li>
+  </ol>
+  <div class="pair">
+    <figure><img src="img/08-stocktake.jpg" alt="ตรวจนับ"><figcaption>ตรวจนับ — นับได้น้อยกว่าในระบบ ต้องเลือกสาเหตุก่อนบันทึก</figcaption></figure>
+    <figure><img src="img/34-stocktake-confirm.jpg" alt="ยืนยันการปรับยอด"><figcaption>กล่องยืนยันการปรับยอด — บอกยอดในระบบ → นับได้ สาเหตุ และมูลค่าส่วนต่าง</figcaption></figure>
+  </div>
+  <div class="note"><b>ตรวจนับตอนร้านเปิด</b> — นับได้ครั้งละไม่กี่รายการตามที่สาขาตั้ง (ปกติ <b>ครั้งละ 1 รายการ</b>) ขึ้นข้อความ
+    “บันทึกรายการนี้ก่อน แล้วค่อยนับตัวถัดไป …” เพื่อกันยอดขยับระหว่างนับ · ร้านยังไม่เปิดหรือปิดแล้ว นับได้ไม่จำกัด
+    · ถ้ามีคนขายหรือรับเข้าสินค้าตัวนั้นแทรกระหว่างนับ ระบบเตือน <b>“ยอดในระบบเปลี่ยนระหว่างนับ … — นับตัวนี้ใหม่”</b> ให้นับใหม่แล้วกดบันทึกอีกครั้ง</div>
+</section>
+
+<!-- ======================================================= 8 แก้ไข ยกเลิก -->
+<section class="flow">
+  <h2 id="s8"><span class="no">8</span> ทำผิดแล้วแก้อย่างไร (แก้ไข / ยกเลิก)</h2>
+  <p class="lead">เอกสารที่บันทึกแล้ว (บิล ใบรับเข้า ใบตัดออก ใบตรวจนับ) <b>แก้ตัวเลขทับไม่ได้</b> เพื่อให้ตรวจย้อนหลังได้เสมอ
+    แต่มีทางแก้สองแบบ ทั้งสองแบบต้องใส่หมายเหตุ และเก็บไว้ในประวัติ</p>
+
+  <div class="dg">
+    <div class="dg-t">เส้นทางของการแก้ไขและการยกเลิก</div>
+    <div class="row">
+      <div class="bx" style="flex:.9"><b>เอกสารที่บันทึกแล้ว</b>เปิดจากหน้า “ประวัติการทำรายการ” หรือแถบเขียวหลังบันทึก</div>
+      <div class="ar"><svg viewBox="0 0 24 24"><path d="M4 12h14M13 6l6 6-6 6" fill="none" stroke="#0E7A5F" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div style="flex:2.2;display:grid;gap:2.5mm">
+        <div class="row">
+          <div class="bx r"><b>ยกเลิก</b>ใส่หมายเหตุ (มีตัวเลือกให้แตะ เช่น กรอกจำนวนผิด คิดเงินผิด)</div>
+          <div class="ar"><svg viewBox="0 0 24 24"><path d="M4 12h14M13 6l6 6-6 6" fill="none" stroke="#B42318" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div class="bx"><b>ตัวเลขกลับเหมือนเดิม</b>ยกเลิกบิล = ของคืนสต๊อก · ยกเลิกใบรับเข้า = ถอนของออก</div>
+        </div>
+        <div class="row">
+          <div class="bx g"><b>แก้ไข</b>ใส่หมายเหตุ</div>
+          <div class="ar"><svg viewBox="0 0 24 24"><path d="M4 12h14M13 6l6 6-6 6" fill="none" stroke="#0E7A5F" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div class="bx"><b>ระบบยกเลิกใบเดิม แล้วดึงรายการกลับมาให้</b>แก้เฉพาะจุดที่ผิด แล้วบันทึกใหม่ ได้เลขเอกสารใหม่</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3 id="s8-1">แก้ไขบิล (บิลของวันนี้)</h3>
+  <ol class="steps">
+    <li>หน้า <span class="k">ประวัติการทำรายการ</span> (หรือแถบเขียวหลังบันทึกบิล) กด <span class="k">แก้ไขบิลนี้</span> — <b>ตะกร้าต้องว่างก่อน</b></li>
+    <li>กล่อง “แก้ไขบิล” แตะเหตุผลสำเร็จรูป (กรอกจำนวนผิด · คิดเงินผิด · ลูกค้าเปลี่ยนใจ · ยิงสินค้าผิดตัว) หรือพิมพ์เอง แล้วกด <span class="k">ยืนยัน เปิดขึ้นมาแก้</span></li>
+    <li>ระบบยกเลิกบิลเดิม แล้วพาไปหน้าขาย <b>รายการเดิมอยู่ในตะกร้าแล้ว</b> มีแถบฟ้าบอกว่าดึงกลับมากี่รายการ</li>
+    <li>แก้เฉพาะแถวที่ผิด เลือกประเภทบิล วิธีจ่าย และส่วนลดใหม่ แล้วรับเงินตามปกติ — ได้<b>เลขบิลใหม่</b></li>
+  </ol>
+  <div class="pair">
+    <figure><img src="img/23-bill-edit.jpg" alt="แก้ไขบิล"><figcaption>กล่องแก้ไขบิล — ต้องมีหมายเหตุก่อนจึงยืนยันได้</figcaption></figure>
+    <figure><img src="img/24-sale-edited.jpg" alt="หน้าขายหลังแก้ไขบิล"><figcaption>หลังยืนยัน — บิลเดิมถูกยกเลิก รายการเดิมกลับเข้าตะกร้า</figcaption></figure>
+  </div>
+  <div class="warn"><b>ตอนแก้ไขบิล ตรวจ 2 เรื่องนี้ทุกครั้ง</b> — ราคาในตะกร้าเป็น<b>ราคาขายปัจจุบัน</b> ไม่ใช่ราคาในบิลเดิม (ถ้าเพิ่งเปลี่ยนราคา ยอดจะไม่เท่าเดิม)
+    · <b>ส่วนลด ประเภทบิล และวิธีจ่ายกลับเป็นค่าเริ่มต้น</b> (ไม่ VAT · เงินสด · ราคาเต็ม) ต้องเลือกใหม่ · บิลเดิมไม่ถูกลบ ยังเปิดดูได้ มีตรา “ยกเลิก”</div>
+
+  <h3 id="s8-2">ยกเลิกบิล</h3>
+  <ol class="steps">
+    <li>กด <span class="k">ยกเลิกบิลนี้</span> ที่บิลในหน้าประวัติ (หรือแถบเขียวหลังบันทึก)</li>
+    <li>กล่อง “ยืนยันการยกเลิกบิล” บอกเลขบิล ยอดบิล และของที่จะคืนเข้าสต๊อก — ใส่หมายเหตุ</li>
+    <li>กด <span class="k">ยืนยัน ยกเลิกบิล</span> — ของคืนสต๊อก บิลไม่นับในยอดขายและเงินในลิ้นชัก ขึ้นข้อความ “ยกเลิกบิล … แล้ว · คืนสต๊อก … ชิ้น …”</li>
+  </ol>
+  <figure class="half"><img src="img/25-bill-void.jpg" alt="ยืนยันการยกเลิกบิล"><figcaption>กล่องยืนยันการยกเลิกบิล</figcaption></figure>
+
+  <h3 id="s8-3">ใบรับเข้า · ใบตัดออก · ใบตรวจนับ</h3>
+  <p>ทำแบบเดียวกัน ปุ่ม <span class="k">แก้ไขใบนี้</span> / <span class="k">ยกเลิกใบนี้</span> อยู่ที่ใบนั้นในหน้าประวัติ หรือแถบหลังบันทึก
+    — แก้ไข = ยกเลิกใบเดิม แล้วรายการเดิมกลับเข้าใบในหน้านั้น (ต้องไม่มีใบที่ทำค้างอยู่) แก้แล้วบันทึกเป็นใบใหม่</p>
+  <ul>
+    <li>ยกเลิก<b>ใบรับเข้า</b>ไม่ได้ ถ้าของจากใบนั้นถูกขายหรือเบิกออกไปแล้ว — ใช้การตรวจนับ / ปรับยอดแทน</li>
+    <li>ยกเลิก<b>ใบตรวจนับ</b>ที่ปรับยอดเพิ่มไม่ได้ ถ้าของส่วนที่เพิ่มถูกขายไปแล้ว — ให้นับใหม่อีกรอบแทน</li>
+    <li>ยกเลิก<b>ใบตัดออก</b>ได้เสมอ (ของกลับเข้าสต๊อก)</li>
+  </ul>
+
+  <h3 id="s8-4">เอกสารของวันก่อน</h3>
+  <p>ต้องมีสิทธิ์เสริม <b>“แก้ย้อนหลัง”</b> (ผู้จัดการสาขาได้อัตโนมัติ) หน้าประวัติจะมีแถบวันให้เลือกย้อนหลังได้ตามจำนวนวันที่สาขาตั้ง (ปกติ 7 วัน)</p>
+  <ul>
+    <li>แก้ / ยกเลิกย้อนหลังได้เฉพาะ <b>เอกสารคลัง</b> (ใบรับเข้า ใบตัดออก ใบตรวจนับ) — <b>บิลของวันก่อนแก้หรือยกเลิกไม่ได้</b> ลูกค้าคืนของให้ใช้ “รับคืนสินค้า”</li>
+    <li>ยกเลิก / แก้แล้ว สต๊อกถูกปรับ<b>วันนี้</b> และลงประวัติของวันนี้ · ใบเดิมขึ้น “ใบนี้ถูกยกเลิกย้อนหลังเมื่อ …”</li>
+    <li>เกินจำนวนวันที่สาขาตั้ง ขึ้น “เกินกำหนด … วัน — ต้องให้ผู้ดูแลทำ” (ผู้ดูแลยกเลิกย้อนหลังได้ทุกวัน แต่แก้ไขไม่ได้)</li>
+  </ul>
+  <figure><img src="img/36-history-past.jpg" alt="ประวัติของวันก่อน"><figcaption>ประวัติของวันก่อน — แถบวันด้านบน เอกสารคลังของวันนั้นมีปุ่มแก้ไข / ยกเลิก</figcaption></figure>
+
+  <h3 id="s8-5">ใครแก้อะไรได้</h3>
+  <table>
+    <thead><tr><th>กรณี</th><th>ต้องมีสิทธิ์</th></tr></thead>
+    <tr><td>แก้ / ยกเลิกบิลของตัวเอง ของวันนี้</td><td>“แก้ / ยกเลิกบิลของตัวเอง” (แก้ไขบิลต้องมีสิทธิ์ “ขายสินค้า” ด้วย)</td></tr>
+    <tr><td>แก้ / ยกเลิกใบรับเข้า ตัดออก ตรวจนับ ของตัวเอง ของวันนี้</td><td>“แก้ / ยกเลิกเอกสารคลังของตัวเอง” และสิทธิ์ของงานนั้น</td></tr>
+    <tr><td>แก้งานของคนอื่นในสาขา</td><td>สิทธิ์เสริม “แก้งานคนอื่น” (ผู้จัดการสาขาได้อัตโนมัติ)</td></tr>
+    <tr><td>แก้เอกสารคลังของวันก่อน</td><td>สิทธิ์เสริม “แก้ย้อนหลัง” ได้ไม่เกินจำนวนวันที่สาขาตั้ง เกินนั้นผู้ดูแลทำเอง</td></tr>
+  </table>
+  <div class="warn"><b>ทำไม่ได้</b> — ยกเลิก / แก้บิลหลังปิดร้านแล้ว (เปิดร้านใหม่ก่อน หรือใช้รับคืน) · ยกเลิกบิลที่มีการรับคืนไปแล้ว · แก้ / ยกเลิกบิลของวันก่อน
+    · ทุกการยกเลิก / แก้ไขขึ้นใน “รายการที่ต้องตรวจ” ของผู้ดูแล และส่งแจ้งเตือนได้</div>
+</section>
+
+<!-- ======================================================= 9 ดูข้อมูล -->
+<section class="flow">
+  <h2 id="s9"><span class="no">9</span> ดูข้อมูลย้อนหลังและรายงาน</h2>
+  <p class="lead">หน้าดูข้อมูลของพนักงานและผู้จัดการสาขา <b>เห็นเฉพาะสาขาตัวเอง</b> — เปิดได้ตามสิทธิ์ “ดูข้อมูล” ที่ได้รับ (ผู้จัดการสาขาได้ครบอัตโนมัติ)</p>
+
+  <h3 id="s9-1">ภาพรวมของฉัน</h3>
+  <p>หน้าแรกหลังเข้าระบบ บอกงานของตัวเองและงานที่ค้างของสาขา</p>
+  <ul>
+    <li><b>ชิ้นที่ฉันจัดการวันนี้</b> — นับรวมชิ้นที่ขาย รับเข้า เบิก ตรวจนับ และรับคืน (ไม่นับใบที่ยกเลิก) ถ้าผู้ดูแลตั้งเป้าไว้ มีแถบ “เป้าวันนี้” บอกเป็น %</li>
+    <li><b>เมื่อวาน · 7 วันล่าสุด · เดือนนี้</b> และกราฟผลงาน 7 วัน · ตารางรายวันของเดือนนี้ · “งานของฉันวันนี้” แยกตามประเภทเอกสาร</li>
+    <li><b>ทั้งสาขาวันนี้</b> — อันดับจำนวนชิ้นของทุกคนในสาขา (แสดงเฉพาะจำนวนชิ้น ไม่แสดงต้นทุนหรือมูลค่า)</li>
+    <li><b>งานที่รอดำเนินการ</b> — เช่น “ตรวจนับรอบนี้ยังไม่ครบ · เหลือ X จาก Y รายการ” พร้อมวันครบกำหนด และ “ยังไม่ได้ปิดร้านของวัน…”</li>
+    <li><b>สต๊อกที่ต้องดูแล</b> — สินค้าที่ใกล้หมด / หมด 4 ตัวที่ด่วนที่สุดของสาขา · ป้ายสิทธิ์เสริมที่มี (เช่น แก้งานคนอื่น) อยู่บนการ์ดด้านบน</li>
+  </ul>
+  <figure><img src="img/11-dashboard.jpg" alt="ภาพรวมของฉัน"><figcaption>ภาพรวมของฉัน — งานวันนี้ ผลงานย้อนหลัง และสิทธิ์เสริมที่มี</figcaption></figure>
+
+  <h3 id="s9-2">สินค้าในสต๊อก</h3>
+  <ul>
+    <li>การ์ดตัวเลขด้านบน <b>กดเป็นตัวกรองได้</b>: “รายการทั้งหมด” · “ใกล้หมด” · “หมดแล้ว” (กดซ้ำเพื่อยกเลิก) · “จำนวนรวม” บอกจำนวนชิ้นทั้งหมด</li>
+    <li>ค้นด้วยชื่อหรือ SKU · กรองตามหมวด · “เรียงตาม” ได้ 5 แบบ — ค่าเริ่มต้น <b>ด่วนก่อน (ใกล้หมดขึ้นก่อน)</b></li>
+    <li>แต่ละแถวบอกคงเหลือ จุดสั่งซื้อ แถบระดับสต๊อก ราคาขาย และสถานะ · กดชื่อสินค้า = ไปประวัติเคลื่อนไหวของตัวนั้น · ปุ่ม “นำเข้าสินค้า” (ถ้ามีสิทธิ์)</li>
+  </ul>
+  <table>
+    <thead><tr><th style="width:24%">สถานะ</th><th>เมื่อไร</th></tr></thead>
+    <tr><td><span class="k" style="color:#B42318">หมดแล้ว</span></td><td>คงเหลือ 0 — ขายไม่ได้จนกว่าจะรับเข้า</td></tr>
+    <tr><td><span class="k" style="color:#B4741A">ใกล้หมด</span></td><td>คงเหลือเท่ากับหรือน้อยกว่า “จุดสั่งซื้อ” ของสินค้านั้น (ผู้ดูแลตั้ง ใช้เลขเดียวกันทุกสาขา)</td></tr>
+    <tr><td><span class="k" style="color:#0E7A5F">พอใช้</span></td><td>มากกว่าจุดสั่งซื้อ · สินค้าที่จุดสั่งซื้อเป็น 0 จะไม่ขึ้น “ใกล้หมด” เลย</td></tr>
+  </table>
+  <div class="pair">
+    <figure><img src="img/27-products.jpg" alt="สินค้าในสต๊อก"><figcaption>สินค้าในสต๊อก — การ์ดด้านบนกดกรองได้ รายการเรียงตัวที่ด่วนไว้ก่อน</figcaption></figure>
+    <figure><img src="img/28-categories.jpg" alt="หมวดสินค้า"><figcaption>หมวดสินค้า — เพิ่มหมวด และดูจำนวนสินค้าในแต่ละหมวด</figcaption></figure>
+  </div>
+
+  <h3 id="s9-3">หมวดสินค้า</h3>
+  <ul>
+    <li>หมวดใช้ร่วมกันทุกสาขา · <b>เพิ่มหมวด</b> (สิทธิ์ “เพิ่มหมวดสินค้า”) ชื่อห้ามซ้ำ ไม่เกิน 50 ตัวอักษร เพิ่มแล้วใช้ได้ทุกสาขาทันที</li>
+    <li><b>ลบหมวด</b> (สิทธิ์ “ลบหมวดสินค้า”) ได้เฉพาะหมวดที่ไม่มีสินค้าเลย นับรวมสินค้าที่เลิกขายแล้วด้วย มีหน้าต่างถามยืนยันก่อนลบ</li>
+    <li>เปลี่ยนชื่อหมวดไม่ได้ · ย้ายสินค้าไปหมวดอื่นทำที่หน้าแก้ไขสินค้าของผู้ดูแล · กด “N รายการ” เพื่อดูสินค้าในหมวด</li>
+  </ul>
+
+  <h3 id="s9-4">ประวัติการทำรายการ</h3>
+  <ul>
+    <li>ทุกรายการของสาขาวันนี้ เรียงใหม่ไปเก่า: เปิดร้าน ขาย ยกเลิก รับเข้า ตัดออก ตรวจนับ รับคืน เงินเข้า–ออกลิ้นชัก ปิดร้าน ฯลฯ</li>
+    <li><b>ชิปด้านบนใช้กรองตามชนิด</b> (ขึ้นเฉพาะชนิดที่มีวันนี้) · การ์ดบอก “รายการทั้งหมด” “ของฉัน” “บิลขาย”</li>
+    <li>แต่ละรายการบอกเวลา คนทำ และรายละเอียด (เช่น ยอดบิล วิธีจ่าย เหตุผล) · บิลมีปุ่ม “ดู / พิมพ์บิล” และแก้ไข / ยกเลิกตามสิทธิ์</li>
+    <li>มีสิทธิ์ “แก้ย้อนหลัง” จะมี<b>แถบวัน</b>ด้านบนให้ดูวันก่อน ๆ (ข้อ 8) · พนักงานทั่วไปไม่เห็นรายการ “ตั้งค่า” ผู้จัดการสาขาเห็น</li>
+  </ul>
+  <figure><img src="img/10-history.jpg" alt="ประวัติการทำรายการ"><figcaption>ประวัติการทำรายการ — แถบวัน ชิปกรองชนิด และรายการของวันนี้</figcaption></figure>
+
+  <h3 id="s9-5">รายงานยอดขาย</h3>
+  <ol class="steps">
+    <li><b>ดูของ</b> — <span class="k">เฉพาะฉัน</span> (ค่าเริ่มต้น) หรือ <span class="k">ทั้งสาขา</span> (ต้องมีสิทธิ์ “ดูรายงานยอดขายทั้งสาขา” ผู้จัดการสาขาได้อัตโนมัติ)</li>
+    <li><b>ช่วงเวลา</b> — <span class="k">รายวัน</span> (เลือกได้ 7 วันล่าสุด) · <span class="k">รายเดือน</span> (ค่าเริ่มต้น ย้อนได้ 6 เดือน) · <span class="k">ทั้งหมด</span></li>
+    <li>อ่านการ์ด <b>ยอดขายรวม · จำนวนบิล · จำนวนชิ้น · เฉลี่ยต่อบิล</b> กราฟ และตารางแยกตามวัน / เดือน · แบบทั้งสาขามี “แยกตามพนักงาน” ด้วย</li>
+    <li>กด <span class="k">ดาวน์โหลด CSV</span> ได้ไฟล์เปิดใน Excel: วันที่ · บิล · ชิ้น · ยอดขาย (ทุกวันในช่วง รวมวันที่ไม่มียอด)</li>
+  </ol>
+  <figure><img src="img/30-report-sales.jpg" alt="รายงานยอดขาย"><figcaption>รายงานยอดขาย — เลือกดูของตัวเองหรือทั้งสาขา และช่วงเวลา</figcaption></figure>
+  <div class="tip"><b>ยอดขายไม่นับบิลที่ยกเลิก</b> และไม่หักเงินคืน — เงินคืนแยกแสดงต่างหาก จึงเทียบกับเงินในลิ้นชักได้ตรง
+    · ยอดผูกกับ<b>สาขาที่ขายจริง</b> พนักงานย้ายสาขาแล้ว ยอดเก่ายังอยู่ที่สาขาเดิม</div>
+</section>
+
+<!-- ======================================================= 10 ผู้จัดการสาขา -->
+<section class="flow">
+  <h2 id="s10"><span class="no">10</span> ผู้จัดการสาขาทำอะไรเพิ่มได้</h2>
+  <p class="lead">ผู้จัดการสาขาคือพนักงานที่ผู้ดูแลตั้งตำแหน่ง “ผู้จัดการสาขา” ให้ สาขาหนึ่งมีได้หลายคน เข้าระบบด้วยชื่อผู้ใช้ + PIN เหมือนพนักงาน</p>
+  <ul>
+    <li><b>เห็นทุกอย่างในสาขา</b> และได้สิทธิ์ดูข้อมูลกับสิทธิ์เสริมครบโดยอัตโนมัติ: แก้งานคนอื่น · แก้ย้อนหลัง · รายงานทั้งสาขา</li>
+    <li>งานขายและงานคลังของตัวเองยังเป็นไปตามที่ผู้ดูแลติ๊กให้</li>
+    <li>มีเมนู <span class="k">พนักงานในสาขา</span> สำหรับดูแลพนักงานในสาขาตัวเอง</li>
+  </ul>
+
+  <h3 id="s10-1">พนักงานในสาขา</h3>
+  <p>รายชื่อพนักงานของสาขา บอกตำแหน่ง เมนูที่ใช้ได้ (เช่น “หน้าร้าน ครบ” “งานคลัง 4/5”) และสิทธิ์เสริม
+    — แถวของผู้จัดการ (รวมตัวเอง) ขึ้น “ผู้ดูแลจัดการ” แทนปุ่มแก้ไข</p>
+  <div class="pair">
+    <div>
+      <h4>เพิ่มพนักงาน</h4>
+      <ol class="steps">
+        <li>กด <span class="k">เพิ่มพนักงาน</span></li>
+        <li>ใส่ <b>ชื่อ–นามสกุล</b> · <b>ชื่อผู้ใช้</b> (a–z 0–9 _ ยาว 3–20 ตัว ห้ามซ้ำกับใครในระบบ) · <b>PIN 4 หลัก</b> (ห้ามซ้ำกับคนอื่นในสาขาเดียวกัน) · อักษรย่อ (ไม่บังคับ)</li>
+        <li>ติ๊กสิทธิ์ — ระบบติ๊กชุดมาตรฐานไว้ให้แล้ว ปรับได้ (สิทธิ์เสริมเป็นของผู้ดูแล)</li>
+        <li>ใส่ <b>“PIN ของคุณ”</b> แล้วกด <span class="k">เพิ่มพนักงาน</span> — แจ้งชื่อผู้ใช้และ PIN ให้พนักงานใช้เข้าครั้งแรก</li>
+      </ol>
+    </div>
+    <div>
+      <h4>แก้ไขพนักงาน (กด “แก้ไข” ที่แถวนั้น)</h4>
+      <ul>
+        <li><b>ข้อมูลและสิทธิ์</b> — แก้ชื่อ ชื่อผู้ใช้ อักษรย่อ ติ๊กสิทธิ์ แล้วกด “บันทึก” มีผลทันที (เปลี่ยนชื่อผู้ใช้แล้วต้องแจ้งพนักงาน)</li>
+        <li><b>รีเซ็ต PIN</b> — ใช้ตอนพนักงานลืม PIN หรือโดนล็อก ตั้ง PIN ใหม่แล้ว<b>ปลดล็อกให้ทันที</b></li>
+        <li><b>พักงาน / ลาออก</b> — เข้าระบบไม่ได้ ชื่อหายจากหน้าเข้าสู่ระบบ แต่ชื่อในบิลและเอกสารเก่ายังอยู่ · “เปิดใช้งานอีกครั้ง” ได้ด้วย PIN และสิทธิ์เดิม</li>
+        <li><b>ลบพนักงาน</b> — ได้เฉพาะคนที่ยังไม่เคยทำรายการเลย นอกนั้นใช้พักงานแทน</li>
+      </ul>
+    </div>
+  </div>
+  <div class="pair">
+    <figure><img src="img/31-team.jpg" alt="พนักงานในสาขา"><figcaption>พนักงานในสาขา — รายชื่อ เมนูที่ใช้ได้ และสิทธิ์เสริม</figcaption></figure>
+    <figure><img src="img/32-team-edit.jpg" alt="แก้ไขพนักงาน"><figcaption>แก้ไขพนักงาน — ข้อมูล ติ๊กสิทธิ์ และ PIN ยืนยันก่อนบันทึก</figcaption></figure>
+  </div>
+  <div class="warn"><b>ทุกครั้งที่กดบันทึกต้องใส่ PIN ของตัวเอง</b> — ใส่ผิดครบ 5 ครั้งถูกล็อก 15 นาที และนับรวมกับการล็อกตอนเข้าระบบด้วย
+    · <b>ทำไม่ได้ (เป็นงานของผู้ดูแล)</b>: แก้ข้อมูลผู้จัดการสาขา (รวมของตัวเอง) · ย้ายพนักงานไปสาขาอื่น · ตั้ง / ปลดผู้จัดการ · ให้สิทธิ์เสริม
+    (สิทธิ์เสริมที่ผู้ดูแลให้ไว้แล้วยังอยู่เหมือนเดิม)</div>
+</section>
+
+<!-- ======================================================= 11 ผู้ดูแล -->
+<section class="flow">
+  <h2 id="s11"><span class="no">11</span> ผู้ดูแลระบบ</h2>
+  <p class="lead">ผู้ดูแลเห็นทุกสาขาพร้อมกัน และเป็นคนตั้งค่าทั้งหมด — <b>ผู้ดูแลไม่ได้ขายหรือรับคืนเอง</b> หน้าขาย เปิด / ปิดร้าน และตรวจนับเป็นงานของพนักงาน
+    (ผู้ดูแลเปิดหน้าเหล่านั้น ระบบพากลับหน้าภาพรวมพร้อมบอกว่าเป็นงานของพนักงาน · หน้าอื่น เช่น นำเข้า ตัดออก ประวัติ ระบบพาไปหน้าตรวจสอบของผู้ดูแลแทน)</p>
+
+  <div class="dg">
+    <div class="dg-t">งานจากสาขาไปถึงผู้ดูแลทางไหนบ้าง</div>
+    <div class="row">
+      <div class="bx g"><b>ทุกสาขาทำงาน</b>ขาย รับคืน รับเข้า ตัดออก ตรวจนับ เปิด–ปิดร้าน ยกเลิก / แก้ไข</div>
+      <div class="ar"><svg viewBox="0 0 24 24"><path d="M4 12h14M13 6l6 6-6 6" fill="none" stroke="#0E7A5F" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div style="flex:2;display:grid;gap:2.5mm">
+        <div class="bx d"><b>หน้า “ภาพรวม” ของผู้ดูแล — เห็นทันที</b>ยอดขายวันนี้ · ร้านไหนเปิด / ปิด · เงินขาด / เกินตอนปิดร้าน · <b>รายการที่ต้องตรวจ</b>
+          (ยกเลิก / แก้เอกสาร · รับคืนและเงินคืน · เปิดร้านใหม่หลังปิด · ปิดร้านย้อนหลัง · ตัดออกเพราะสูญหาย · เงินไม่ตรง)</div>
+        <div class="row">
+          <div class="bx o"><b>Telegram (ทันที)</b>เลือกได้ว่าเหตุการณ์ไหนส่ง</div><div class="ar"></div>
+          <div class="bx o"><b>อีเมลสรุปรายวัน</b>ส่งวันละครั้งตามเวลาที่ตั้ง (เริ่มต้น 21:00 น.)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3 id="s11-1">หน้าภาพรวมผู้ดูแล</h3>
+  <ul>
+    <li><b>การ์ดด้านบน</b> — ยอดขายวันนี้ · เงินขาด / เกินตอนปิดร้าน (ผลการปิดร้านล่าสุดของแต่ละสาขารวมกัน) · จำนวนรายการที่ต้องตรวจ · เลือกดูทีละสาขาได้จากช่องบนขวา</li>
+    <li><b>สถานะร้านวันนี้</b> — ทุกสาขาในตารางเดียว: ร้านเปิด / ปิดเมื่อไร ใครเปิด เปิดใหม่กี่ครั้ง ยอดขาย เงินสด / โอน บิลยกเลิก และเงินตอนปิดร้าน (ตรงพอดี / ขาด / เกิน)</li>
+    <li><b>รายการที่ต้องตรวจ</b> — เรื่องที่ควรดูของวันนี้ ใหม่สุดอยู่บน พร้อมเหตุผลและคนทำ กด “ดูประวัติ” ไปดูรายละเอียดของสาขานั้น
+      (รายการนี้เริ่มใหม่ทุกวัน ไม่มีปุ่มกดว่าตรวจแล้ว)</li>
+    <li><b>สต๊อกแยกตามสาขา</b> — มูลค่าสต๊อก (ราคาทุน) จำนวนที่ใกล้หมด / หมด และสินค้าที่ต้องสั่งก่อน</li>
+  </ul>
+  <figure><img src="img/13-adm-dashboard.jpg" alt="ภาพรวมผู้ดูแล"><figcaption>ภาพรวมผู้ดูแล — สถานะร้านทุกสาขาวันนี้ และรายการที่ต้องตรวจ</figcaption></figure>
+  <div class="pair">
+    <div>
+      <h4>เปิดร้านใหม่ให้สาขา</h4>
+      <ol class="steps">
+        <li>แถวของสาขาที่ “ปิดแล้ว” ในตารางสถานะร้าน</li>
+        <li>ใส่เหตุผลในช่อง “เหตุผลเปิดใหม่” แล้วกด <span class="k">เปิดใหม่</span></li>
+        <li>พนักงานขายต่อได้ และต้องปิดร้านอีกครั้งเมื่อเสร็จ</li>
+      </ol>
+    </div>
+    <div>
+      <h4>ปิดร้านย้อนหลังให้สาขาที่ลืมปิด</h4>
+      <ol class="steps">
+        <li>ใต้ชื่อสาขาขึ้น “ยังไม่ได้ปิดร้าน: …” กด <b>ปิดย้อนหลัง</b></li>
+        <li>แต่ละวันใส่ “นับได้จริง” · “แยกเงินทอนไว้” · <b>“หมายเหตุ”</b> (จำเป็น)</li>
+        <li>กด <span class="k">ปิดวันนี้ย้อนหลัง</span> ทีละวัน (แสดงครั้งละ 5 วันล่าสุด)</li>
+      </ol>
+    </div>
+  </div>
+  <figure class="half"><img src="img/52-adm-close-past.jpg" alt="ปิดร้านย้อนหลัง"><figcaption>ปิดร้านย้อนหลังจากหน้าภาพรวม — ทีละวัน ต้องใส่หมายเหตุ</figcaption></figure>
+
+  <h3 id="s11-2">สินค้าในสต๊อก · เพิ่ม / แก้สินค้า</h3>
+  <ul>
+    <li>หน้า “สินค้าในสต๊อก” ของผู้ดูแลเทียบ<b>ยอดคงเหลือทุกสาขา</b>ในตารางเดียว (ช่องสีแดง = หมด เหลือง = ใกล้หมด) มีวันรับเข้าล่าสุด มูลค่าทุน
+      และแท็บ ทั้งหมด / ต้องเติม / หมดแล้ว / เลิกขาย · กรองตามสาขาเพื่อดูสถานะของสาขานั้นได้</li>
+    <li><span class="k">เพิ่มสินค้า</span> / <span class="k">แก้ไข</span>: <b>SKU</b> (A–Z 0–9 . _ - ตั้งครั้งเดียว เปลี่ยนไม่ได้) · ชื่อสินค้า · หมวด · หน่วย · ทุนต่อหน่วย ·
+      ราคาขาย (รวม VAT) · จุดสั่งซื้อ (ใช้ทุกสาขา) · บาร์โค้ด (ไม่บังคับ ห้ามซ้ำ) · รูปสินค้า (JPG / PNG / WEBP ไม่เกิน 2 MB ไม่มีรูปหน้าขายใช้ไอคอนของหมวด)</li>
+    <li><b>ยอดคงเหลือแก้ที่หน้านี้ไม่ได้</b> สินค้าใหม่เริ่มที่ 0 ทุกสาขา ให้พนักงานทำใบรับเข้า · แก้ราคาแล้วมีผลกับบิลถัดไปทันที</li>
+    <li><b>ลบสินค้าไม่ได้</b> ใช้ปุ่ม “เลิกขายสินค้านี้” แทน (ซ่อนจากหน้าขาย นำเข้า ตรวจนับ ประวัติและรายงานยังอยู่ครบ) และ “เปิดขายอีกครั้ง” ได้</li>
+    <li>หมวดสินค้า: เพิ่ม / ลบได้เหมือนฝั่งพนักงาน · ยังไม่มีหมวดเลย เพิ่มสินค้าไม่ได้ ต้องเพิ่มหมวดก่อน</li>
+  </ul>
+  <div class="pair">
+    <figure><img src="img/40-adm-products.jpg" alt="สินค้าในสต๊อก ผู้ดูแล"><figcaption>สินค้าในสต๊อก (ผู้ดูแล) — ยอดคงเหลือทุกสาขาในตารางเดียว</figcaption></figure>
+    <figure><img src="img/41-adm-product-edit.jpg" alt="แก้ไขสินค้า"><figcaption>แก้ไขสินค้า — SKU เปลี่ยนไม่ได้ ยอดคงเหลือแก้ที่นี่ไม่ได้</figcaption></figure>
+  </div>
+
+  <h3 id="s11-3">จัดการพนักงาน</h3>
+  <ol class="steps">
+    <li>กด <span class="k">เพิ่มพนักงาน</span> เลือก <b>ตำแหน่ง</b> “พนักงาน” หรือ “ผู้จัดการสาขา”</li>
+    <li>ใส่ ชื่อ–นามสกุล · ชื่อผู้ใช้ (a–z 0–9 _ 3–20 ตัว ห้ามซ้ำ) · <b>สาขาที่ประจำ</b> · PIN 4 หลัก (ห้ามซ้ำในสาขาเดียวกัน) · อักษรย่อ (ไม่บังคับ)</li>
+    <li>ติ๊กสิทธิ์ (ระบบติ๊กชุดมาตรฐานไว้ให้ · ต้องมีอย่างน้อย 1 อย่าง) แล้วกด “เพิ่มพนักงาน”</li>
+  </ol>
+  <p>เปิด “แก้ไข” ที่ชื่อพนักงาน ทำได้: แก้ข้อมูลและสิทธิ์ · <b>รีเซ็ต PIN</b> (ปลดล็อกด้วย) · <b>ย้ายสาขา</b> (มีผลตั้งแต่วันนี้ ยอดขายและเอกสารเก่ายังอยู่ที่สาขาเดิม) ·
+    พักงาน / ลาออก (พักแล้วเครื่องที่จดจำไว้ถูกล้างด้วย) · เปิดใช้งานอีกครั้ง · ลบ (เฉพาะคนที่ยังไม่เคยทำรายการ)</p>
+  <div class="pair">
+    <figure><img src="img/42-adm-user-add.jpg" alt="เพิ่มพนักงาน"><figcaption>เพิ่มพนักงาน — ตำแหน่ง ข้อมูล สาขา และ PIN</figcaption></figure>
+    <figure><img src="img/15-adm-perms.jpg" alt="สิทธิ์พนักงาน"><figcaption>แก้ไขพนักงาน — ติ๊กสิทธิ์รายคน สิทธิ์ที่ต้องมีสิทธิ์หลักก่อนจะบอกไว้ใต้ชื่อ</figcaption></figure>
+  </div>
+  <p class="muted">หน้านี้จัดการเฉพาะพนักงาน · บัญชีผู้ดูแลและฝ่ายบัญชี (เข้าด้วยรหัสผ่าน) จะเพิ่ม / ตั้งรหัสใหม่ / พักงาน ติดต่อคนดูแลเว็บ</p>
+
+  <h3 id="s11-4">จัดการสาขา</h3>
+  <ul>
+    <li><span class="k">เพิ่มสาขา</span>: <b>รหัสสาขา</b> ภาษาอังกฤษพิมพ์ใหญ่หรือตัวเลข 2–6 ตัว <b>ตั้งครั้งเดียว</b> (ระบบตั้งรหัสเลขที่บิลให้เป็น รหัสV สำหรับบิล VAT และ รหัส สำหรับบิลไม่ VAT)
+      · ชื่อสาขา · ชื่อย่อ (ใช้บนแถบ / การ์ด) · เบอร์โทร · ที่อยู่ (พิมพ์บนใบเสร็จ) · ค่าตั้งของสาขา</li>
+    <li>แต่ละสาขามี “ผู้จัดการสาขา” ติ๊กได้หลายคน (เลือกจากพนักงานที่ประจำสาขานั้น)</li>
+    <li><b>ปิดใช้งานสาขา</b> — ต้องย้ายพนักงานออกให้หมด และร้านวันนั้นต้องปิดแล้ว · ประวัติ บิล รายงานยังอยู่ครบ เปิดใช้งานกลับได้
+      · <b>ลบสาขา</b> ได้เฉพาะสาขาที่ยังไม่มีข้อมูลเลย · จำนวนสาขาสูงสุดกำหนดโดยคนดูแลเว็บ (นับรวมสาขาที่ปิดใช้งาน)</li>
+  </ul>
+  <table>
+    <thead><tr><th style="width:36%">ค่าตั้งของสาขา</th><th style="width:20%">ค่าที่ใส่ได้ · สาขาใหม่</th><th>มีผลกับอะไร</th></tr></thead>
+    <tr><td>รอบตรวจนับเริ่มวันที่</td><td>1–28 · วันที่ 1</td><td>วันเริ่มรอบตรวจนับรายเดือน ต้องนับให้ครบทุกสินค้าภายในรอบ</td></tr>
+    <tr><td>แก้เอกสาร / รับคืนย้อนหลังได้</td><td>0–60 วัน · 7 วัน</td><td>ลูกค้าคืนของได้ภายในกี่วัน และพนักงานที่มีสิทธิ์แก้ย้อนหลังย้อนได้กี่วัน (เกินนั้นผู้ดูแลทำเอง)</td></tr>
+    <tr><td>ระหว่างร้านเปิด ตรวจนับได้ครั้งละ</td><td>0–50 รายการ · 1</td><td>กันยอดขยับเพราะมีการขายแทรกระหว่างนับ · 0 = ไม่จำกัด</td></tr>
+    <tr><td>เงินทอนมาตรฐาน</td><td>0–100,000 บาท · 2,000</td><td>ยอดตั้งต้นของเงินทอนที่แยกไว้ตอนปิดร้าน (ตั้งได้ทีละ 100 บาท)</td></tr>
+    <tr><td>เป้าต่อคนต่อวัน</td><td>0–100,000 ชิ้น · 0</td><td>แถบ “เป้าวันนี้” ในภาพรวมของพนักงาน · 0 = ไม่ตั้งเป้า</td></tr>
+  </table>
+  <figure><img src="img/16-adm-branches.jpg" alt="จัดการสาขา"><figcaption>จัดการสาขา — ข้อมูลสาขาและค่าตั้งของสาขา</figcaption></figure>
+
+  <h3 id="s11-5">รายงาน</h3>
+  <p>ทุกหน้ารายงานเลือกช่วงได้ด้วยปุ่ม <span class="k">30 วัน</span> <span class="k">รายวัน</span> <span class="k">รายเดือน</span> <span class="k">รายปี</span> (หรือเดือน / ปีตามหน้านั้น)
+    เลือกสาขาได้ และมีปุ่ม <span class="k">ดาวน์โหลด CSV</span> · <b>ไม่นับบิลที่ยกเลิก</b>ทุกหน้า</p>
+  <table>
+    <thead><tr><th style="width:28%">หน้า</th><th>ใช้ดูอะไร</th></tr></thead>
+    <tr><td><b>ภาพรวมยอดขาย</b></td><td>ยอดขาย เงินสด / โอน · จำนวนบิล เฉลี่ยต่อบิล บิล VAT บิลยกเลิก · ชิ้นที่ขาย ส่วนลดรวม · กราฟรายวัน (กดแท่งเพื่อดูวันนั้น) · สินค้าขายดี 10 อันดับ</td></tr>
+    <tr><td><b>สรุปยอดขายรายวัน</b></td><td>ตารางทั้งเดือน วันละแถว สาขาละคอลัมน์ สลับดูยอดขาย / บิล / ชิ้น ได้ · ช่องเข้มกว่า = ยอดสูงกว่า ·
+      <b>กดที่ตัวเลขเพื่อดูบิลทุกใบของวันนั้น</b> พร้อมรายการสินค้า และเปิดพิมพ์บิลได้</td></tr>
+    <tr><td><b>ยอดขายแยกสาขา</b></td><td>เทียบสาขาต่อวัน / ต่อเดือน / ต่อปี พร้อม % ของทั้งหมด · สาขาที่ยอดสูงสุดของแต่ละแถวเป็นสีเขียว</td></tr>
+    <tr><td><b>ยอดขายตามพนักงาน</b></td><td>อันดับพนักงานขาย: วันที่ขาย บิล ชิ้น เฉลี่ยต่อบิล ส่วนลดที่ให้ ยอดขาย · รวมคนที่ยังไม่มียอดด้วย</td></tr>
+    <tr><td><b>สินค้าขายดี 100 อันดับ</b></td><td>เรียงตามจำนวนที่ขายหรือยอดขาย กรองตามหมวด · แยกจำนวนตามสาขา และคงเหลือตอนนี้ · กดชื่อสินค้าไปประวัติเคลื่อนไหว</td></tr>
+  </table>
+  <div class="pair">
+    <figure><img src="img/14-adm-report.jpg" alt="ภาพรวมยอดขาย"><figcaption>ภาพรวมยอดขาย — กราฟรายวัน และทางลัดไปรายงานอื่น</figcaption></figure>
+    <figure><img src="img/43-adm-report-daily.jpg" alt="สรุปยอดขายรายวัน"><figcaption>สรุปยอดขายรายวัน — ทั้งเดือนในตารางเดียว</figcaption></figure>
+  </div>
+  <div class="pair">
+    <figure><img src="img/47-adm-day-sales.jpg" alt="บิลของวัน"><figcaption>กดยอดของวันใดก็ได้ — เห็นบิลทุกใบของวันนั้น (บิลยกเลิกมีขีดฆ่า)</figcaption></figure>
+    <figure><img src="img/44-adm-report-branch.jpg" alt="ยอดขายแยกสาขา"><figcaption>ยอดขายแยกสาขา — เทียบสาขาต่อเดือน</figcaption></figure>
+  </div>
+  <div class="pair">
+    <figure><img src="img/45-adm-report-staff.jpg" alt="ยอดขายตามพนักงาน"><figcaption>ยอดขายตามพนักงาน — อันดับและส่วนลดที่แต่ละคนให้</figcaption></figure>
+    <figure><img src="img/46-adm-report-products.jpg" alt="สินค้าขายดี"><figcaption>สินค้าขายดี 100 อันดับ — แยกตามสาขา และคงเหลือตอนนี้</figcaption></figure>
+  </div>
+
+  <h3 id="s11-6">ตรวจเอกสารของทุกสาขา</h3>
+  <ul>
+    <li><b>ประวัติการทำรายการ</b> — ทุกสาขารวมกัน กรองตามช่วง สาขา และชนิดรายการ · รายการที่ถูกยกเลิกภายหลังมีขีดฆ่า · กด “ดู” เพื่อเปิด<b>ประวัติของวันนั้นของสาขานั้น</b>
+      ซึ่งมีลำดับเหตุการณ์ทั้งวัน · <b>เอกสารคลังของวันก่อน ผู้ดูแลยกเลิกได้ทุกวัน แต่แก้ไขไม่ได้</b> (การแก้ไขให้พนักงานทำใบใหม่) · ของวันนี้ผู้ดูแลดูได้อย่างเดียว</li>
+    <li><b>ประวัติเคลื่อนไหว</b> — เหมือนฝั่งพนักงาน แต่เลือกดูทุกสาขาหรือสาขาเดียวได้ (ย้อนหลังสูงสุด 14 วัน)</li>
+    <li><b>นำเข้าสินค้า · เบิก / ตัดออก · รับคืนสินค้า</b> — รายการเอกสารของทุกสาขา (ดูอย่างเดียว) ค้นหา กรองตามเหตุผล เรียงตามมูลค่า / เวลา
+      · กดเปิดดูใบได้ — ใบรับคืนมีรูปที่แนบ (กดดูภาพใหญ่) บิลเดิม คืนหลังซื้อกี่วัน และยอดที่ปรับ</li>
+  </ul>
+  <div class="pair">
+    <figure><img src="img/48-adm-history.jpg" alt="ประวัติทุกสาขา"><figcaption>ประวัติการทำรายการของทุกสาขา — กรองตามชนิด กด “ดู” เพื่อเปิดทั้งวัน</figcaption></figure>
+    <figure><img src="img/50-adm-return.jpg" alt="ใบรับคืน"><figcaption>ใบรับคืน — บิลเดิม เหตุผล รูปที่แนบ และยอดคืนเงิน</figcaption></figure>
+  </div>
+  <figure><img src="img/49-adm-movements.jpg" alt="ประวัติเคลื่อนไหวทุกสาขา"><figcaption>ประวัติเคลื่อนไหวของผู้ดูแล — เลือกสาขาเดียวหรือทุกสาขา</figcaption></figure>
+
+  <h3 id="s11-7">ตั้งค่าการแจ้งเตือน</h3>
+  <div class="pair">
+    <div>
+      <h4>Telegram — ส่งทันทีเมื่อเกิดเหตุการณ์</h4>
+      <ol class="steps">
+        <li>สร้างบอทใน Telegram ที่ @BotFather (พิมพ์ /newbot) แล้วคัดลอก <b>Bot token</b> มาวาง</li>
+        <li>ทักบอท 1 ครั้ง (หรือเพิ่มบอทเข้ากลุ่ม) แล้วกด <span class="k">ค้นหา Chat ID</span> เลือกแชตที่จะรับ (ใส่ได้หลายแชต)</li>
+        <li>ติ๊ก “แจ้งเมื่อ” เลือกเหตุการณ์ · เลือกสาขา · ติ๊ก “ส่งแบบไม่มีเสียงแจ้งเตือน” ได้</li>
+        <li>กด <span class="k">ส่งข้อความทดสอบ</span> ดูว่ามาถึงไหม แล้วกด <span class="k">บันทึก</span> (ทดสอบอย่างเดียวยังไม่บันทึก)</li>
+      </ol>
+    </div>
+    <div>
+      <h4>เหตุการณ์ที่เลือกส่งได้</h4>
+      <ul>
+        <li>ปิดร้าน · สรุปยอดของสาขา <span class="muted">(ติ๊กไว้ตั้งต้น)</span></li>
+        <li>เงินในลิ้นชักขาด / เกิน <span class="muted">(ตั้งต้น)</span></li>
+        <li>ยกเลิกบิล / แก้เอกสาร <span class="muted">(ตั้งต้น)</span></li>
+        <li>รับคืนสินค้า · คืนเงินสด <span class="muted">(ตั้งต้น)</span></li>
+        <li>เปิดร้านใหม่หลังปิด <span class="muted">(ตั้งต้น)</span></li>
+        <li>ตัดออกเพราะสูญหาย / ชำรุด <span class="muted">(ตั้งต้น)</span></li>
+        <li>เปิดร้าน (เวลาและเงินทอน)</li>
+        <li>สินค้าใกล้หมด / หมด (วันละครั้งตอนเปิดร้าน)</li>
+        <li>ยกเลิกเอกสารย้อนหลัง</li>
+      </ul>
+    </div>
+  </div>
+  <div class="pair">
+    <div>
+      <h4>อีเมลสรุปยอดขายรายวัน</h4>
+      <ol class="steps">
+        <li>ตั้ง <b>เซิร์ฟเวอร์อีเมล (SMTP)</b> ก่อน — มีปุ่มตั้งค่าด่วนสำหรับ Gmail / Microsoft 365 / อีเมลบนโฮสติ้ง (Gmail ใช้ “App password” 16 ตัว ไม่ใช่รหัสผ่านปกติ)</li>
+        <li>เปิด “ส่งอีเมลสรุปยอดขายรายวัน” ใส่ <b>ผู้รับ</b> (หลายคนได้) · <b>เวลาส่ง</b> (ตั้งต้น 21:00 ควรหลังทุกสาขาปิดร้าน) · ส่งเฉพาะวันที่มียอด หรือทุกวัน · สาขา</li>
+        <li>ติ๊ก “ในอีเมลมี” — ยอดขายแยกสาขามีเสมอ เลือกเพิ่ม: เงินสด / โอน · บิล VAT · รับคืน · เงินขาด / เกิน · ขายดี 5 อันดับ · ยอดสะสมเดือนนี้ · สินค้าใกล้หมด</li>
+        <li>กด <span class="k">ดูตัวอย่างอีเมล</span> และ <span class="k">ส่งทดสอบ</span> แล้วกด <span class="k">บันทึก</span></li>
+      </ol>
+    </div>
+    <figure><img src="img/51-adm-mail-preview.jpg" alt="ตัวอย่างอีเมล"><figcaption>ตัวอย่างอีเมลสรุปยอดขายรายวัน</figcaption></figure>
+  </div>
+  <figure><img src="img/17-adm-notify.jpg" alt="การแจ้งเตือน"><figcaption>ตั้งค่าการแจ้งเตือน — ด้านขวาเป็นตัวอย่างข้อความ Telegram ตามเหตุการณ์ที่ติ๊ก</figcaption></figure>
+  <div class="note"><b>อีเมลรายวันส่งโดยตัวส่งอัตโนมัติ (cron) ของโฮสต์</b> — ถ้าไม่ได้ตั้งไว้ หน้านี้ขึ้นเตือนว่าอีเมลจะยังไม่ถูกส่ง (แจ้งคนดูแลเว็บ) ·
+    ส่งไม่สำเร็จระบบลองใหม่วันละไม่เกิน 3 ครั้ง · ส่วน “ประวัติการส่งล่าสุด” บอกว่าส่งอะไรไปเมื่อไร สำเร็จหรือไม่ พร้อมสาเหตุ</div>
+</section>
+
+<!-- ======================================================= 12 บัญชี -->
+<section class="flow">
+  <h2 id="s12"><span class="no">12</span> ฝ่ายบัญชี</h2>
+  <p class="lead">ฝ่ายบัญชีเห็นเฉพาะเรื่องบิลและเงินของทุกสาขา มี 2 เมนู: <b>บิลขายและเงินเข้า</b> และ <b>ตั้งค่าเลขที่บิล</b>
+    ไม่เกี่ยวกับงานหน้าร้านหรือสต๊อก (ผู้ดูแลเปิด 2 หน้านี้ได้เหมือนกัน)</p>
+
+  <h3 id="s12-1">บิลขายและเงินเข้า</h3>
+  <ol class="steps">
+    <li>เลือก <b>วัน</b> (ปุ่ม ‹ › หรือเลือกจากปฏิทิน ย้อนหลังได้ 60 วัน) และ <b>สาขา</b> (ทุกสาขา หรือสาขาเดียว)</li>
+    <li>อ่าน<b>การ์ดสรุปของวัน</b> — บิลทั้งหมด (VAT · ไม่ VAT · ยกเลิก) · ยอดขาย และ VAT ที่เก็บได้ · <b>เงินเข้าสุทธิ</b> (เงินสด + โอน − เงินคืน)</li>
+    <li>ตาราง <b>“แยกตามสาขา”</b> — ใช้เทียบเงิน: <b>เงินสด</b>เทียบกับเงินที่สาขานำส่ง · <b>โอน / พร้อมเพย์</b>เทียบกับรายการเดินบัญชีธนาคาร</li>
+    <li><b>“รายการบิล”</b> — เลือกแท็บ ทุกบิล / บิล VAT / บิลไม่ VAT · แต่ละใบบอกเวลา สาขา พนักงาน วิธีจ่าย ก่อน VAT · VAT · รวม · กด “ดู / พิมพ์” เปิดบิลพิมพ์ซ้ำได้</li>
+    <li><b>“สรุปเดือน”</b> ตั้งแต่วันที่ 1 ถึงวันนี้ (หรือสิ้นเดือน) แยกสาขา พร้อมเลขผู้เสียภาษี — ใช้ประกอบรายงานภาษีขาย (ภ.พ.30 ยื่นภายในวันที่ 15 ของเดือนถัดไป)</li>
+    <li>กด <span class="k">ดาวน์โหลดบิลทั้งเดือน (CSV / Excel)</span> — ไฟล์เปิดใน Excel ภาษาไทยไม่เพี้ยน</li>
+  </ol>
+  <figure><img src="img/18-account.jpg" alt="บิลขายและเงินเข้า"><figcaption>บิลขายและเงินเข้า — การ์ดสรุปของวัน และตารางแยกสาขา</figcaption></figure>
+  <div class="note"><b>ไฟล์บิลทั้งเดือนมีอะไร</b> — วันที่ · เวลา · สาขา · เลขผู้เสียภาษี · สาขาที่ · เลขที่บิล · ประเภท (VAT / ไม่ VAT) · ชำระโดย · ราคาเต็ม · ส่วนลด ·
+    มูลค่าก่อน VAT · VAT · รวม · สถานะ (ปกติ / ยกเลิก) · พนักงาน — <b>บิลที่ยกเลิกอยู่ในไฟล์ด้วย แต่ยอดเป็น 0</b> · ไฟล์ไม่รวมเงินคืน · กรองตามสาขาและแท็บ VAT ที่เลือกอยู่</div>
+  <p class="muted">การ์ดสรุปและตาราง “แยกตามสาขา” ไม่กรองตามแท็บ VAT — แท็บมีผลกับ “รายการบิล” และไฟล์ที่ดาวน์โหลดเท่านั้น
+    · VAT = ยอด × 7 ÷ 107 เพราะราคาสินค้ารวม VAT แล้ว · บิลยกเลิกนับเป็นจำนวนใบ แต่ไม่นับเป็นเงิน</p>
+
+  <h3 id="s12-2">ตั้งค่าเลขที่บิล</h3>
+  <p>ตั้งแยกทีละสาขา (กดชื่อสาขาเพื่อเปิด) บอกเลขบิลใบถัดไปของทั้งสองชุดไว้ให้</p>
+  <table>
+    <thead><tr><th style="width:26%">ส่วน</th><th>ช่องที่กรอก</th></tr></thead>
+    <tr><td><b>หัวบิล</b><br><span class="muted">พิมพ์บนบิลทั้งสองชุด</span></td><td>ชื่อร้าน / ชื่อบริษัท (จำเป็น · บิล VAT ควรตรงกับชื่อที่จดทะเบียน) · เบอร์โทร · ที่อยู่ (ว่าง = ใช้ของสาขา · บิล VAT ต้องเป็นที่อยู่ที่จดทะเบียน)
+      · บรรทัดเสริม (เช่น LINE) · ขนาดกระดาษเริ่มต้น (ใบเสร็จ 80 มม. / A4) · ข้อความท้ายบิล (เช่น เงื่อนไขการเปลี่ยนคืน)</td></tr>
+    <tr><td><b>ชุดบิล VAT</b></td><td>รหัสนำหน้าเลขที่ (ภาษาอังกฤษพิมพ์ใหญ่หรือตัวเลข 1–6 ตัว ห้ามซ้ำกับชุดอื่น) · หัวกระดาษ (ตั้งต้น “ใบเสร็จรับเงิน / ใบกำกับภาษีอย่างย่อ” ต้องมีคำว่าใบกำกับภาษี)
+      · เลขประจำตัวผู้เสียภาษี 13 หลัก · เลขที่สาขา 5 หลัก (สำนักงานใหญ่ = 00000)</td></tr>
+    <tr><td><b>ชุดบิลไม่ VAT</b></td><td>รหัสนำหน้าเลขที่ · หัวกระดาษ (ตั้งต้น “บิลเงินสด / ใบเสร็จรับเงิน” ห้ามใช้คำว่าใบกำกับภาษี) · ติ๊ก “พิมพ์เลขผู้เสียภาษีบนบิลไม่ VAT ด้วย” ได้</td></tr>
+  </table>
+  <ol class="steps">
+    <li>แก้ช่องที่ต้องการ แล้วกด <span class="k">บันทึก…</span> ของสาขานั้น — ขึ้น “บันทึกแล้ว — ใช้กับบิลใบถัดไปทันที”</li>
+    <li>กด “ดูตัวอย่างบิล VAT” / “ดูตัวอย่างบิลไม่ VAT” เพื่อดูหน้าตาบิลจริง (ตัวอย่างแสดงตามค่าที่<b>บันทึกแล้ว</b> มีตรา “ตัวอย่าง”)</li>
+  </ol>
+  <figure><img src="img/39-account-settings.jpg" alt="ตั้งค่าเลขที่บิล"><figcaption>ตั้งค่าเลขที่บิล — หัวบิล และชุดเลขที่ของบิล VAT / ไม่ VAT ของแต่ละสาขา</figcaption></figure>
+  <div class="warn"><b>เปลี่ยนรหัสนำหน้าแล้ว</b> มีผลกับบิลใบถัดไปเท่านั้น เลขรันนับต่อจากเดิม บิลเก่าไม่เปลี่ยนเลข · หัวกระดาษของสองชุดต้องไม่เหมือนกัน
+    · ทุกการแก้ค่าลงประวัติ “ตั้งค่า” ให้ผู้ดูแลเห็น (ฝ่ายบัญชีเปิดหน้าประวัติไม่ได้)</div>
+</section>
+
+<!-- ======================================================= 13 สิทธิ์ -->
+<section class="flow">
+  <h2 id="s13"><span class="no">13</span> สิทธิ์: ใครทำอะไรได้บ้าง</h2>
+  <p class="lead">ผู้ดูแลติ๊กสิทธิ์ให้พนักงานรายคน (ผู้จัดการสาขาติ๊กให้พนักงานในสาขาได้ ยกเว้นสิทธิ์เสริม)
+    ไม่ได้ติ๊ก = ไม่เห็นเมนูนั้น และระบบไม่ให้ทำ (ตรวจที่ระบบจริง ไม่ใช่แค่ซ่อนปุ่ม) · <b>เปลี่ยนสิทธิ์แล้วมีผลทันที</b> ไม่ต้องออกจากระบบ</p>
+  <table>
+    <thead><tr><th style="width:34%">สิทธิ์</th><th>ทำอะไรได้ · ต้องมีสิทธิ์หลักก่อน</th><th class="c">ผู้จัดการ<br>สาขา</th></tr></thead>
+    <tr class="grp"><td colspan="3">หน้าร้าน</td></tr>
+    <tr><td>ขายสินค้า</td><td>ตะกร้า รับเงิน พิมพ์บิล (ไม่ติ๊ก = พนักงานคลังอย่างเดียว)</td><td class="c">ตามที่ติ๊ก</td></tr>
+    <tr><td>ให้ส่วนลดท้ายบิล</td><td>แก้ยอดที่ต้องชำระ (ไม่ติ๊ก = ขายราคาเต็ม) · ต้องมี “ขายสินค้า”</td><td class="c">ตามที่ติ๊ก</td></tr>
+    <tr><td>เปิด / ปิดร้าน</td><td>นับเงินทอนตอนเปิด นับเงินสดตอนปิด ปิดร้านของวันก่อนที่ลืมปิด</td><td class="c">ตามที่ติ๊ก</td></tr>
+    <tr><td>เปิดร้านอีกครั้งหลังปิดแล้ว</td><td>ต้องใส่เหตุผล · ต้องมี “เปิด / ปิดร้าน”</td><td class="c">ตามที่ติ๊ก</td></tr>
+    <tr><td>เงินเข้า / ออกลิ้นชัก</td><td>เติมเงินทอน / หยิบเงินออกระหว่างวัน</td><td class="c">ตามที่ติ๊ก</td></tr>
+    <tr><td>แก้ / ยกเลิกบิลของตัวเอง (วันนี้)</td><td>ต้องมี “ขายสินค้า”</td><td class="c">ตามที่ติ๊ก</td></tr>
+    <tr class="grp"><td colspan="3">งานคลัง</td></tr>
+    <tr><td>นำเข้าสินค้า</td><td>รับของเข้าสต๊อก</td><td class="c">ตามที่ติ๊ก</td></tr>
+    <tr><td>เพิ่มสินค้าใหม่</td><td>จากหน้านำเข้า ตั้งราคาขายได้ด้วย (มีผลกับบิลทันที) · ต้องมี “นำเข้าสินค้า”</td><td class="c">ตามที่ติ๊ก</td></tr>
+    <tr><td>เบิก / ตัดออกสินค้า</td><td></td><td class="c">ตามที่ติ๊ก</td></tr>
+    <tr><td>ตรวจนับ / ปรับยอด</td><td></td><td class="c">ตามที่ติ๊ก</td></tr>
+    <tr><td>แก้ / ยกเลิกเอกสารคลังของตัวเอง (วันนี้)</td><td>ต้องมีนำเข้า หรือตัดออก หรือตรวจนับ อย่างใดอย่างหนึ่ง</td><td class="c">ตามที่ติ๊ก</td></tr>
+    <tr class="grp"><td colspan="3">รับคืนสินค้า · หมวดสินค้า</td></tr>
+    <tr><td>รับคืนสินค้า</td><td>บิลย้อนหลังได้ตามจำนวนวันที่สาขาตั้ง</td><td class="c">ตามที่ติ๊ก</td></tr>
+    <tr><td>คืนเงินสดให้ลูกค้า</td><td>ไม่ติ๊ก = รับคืนได้แต่ไม่คืนเงินสด · ต้องมี “รับคืนสินค้า”</td><td class="c">ตามที่ติ๊ก</td></tr>
+    <tr><td>เพิ่มหมวด · ลบหมวด</td><td>แยกกันสองสิทธิ์</td><td class="c">ตามที่ติ๊ก</td></tr>
+    <tr class="grp"><td colspan="3">ดูข้อมูล</td></tr>
+    <tr><td>สินค้าในสต๊อก · ประวัติเคลื่อนไหว · ประวัติรายการของสาขา · รายงานยอดขายของตัวเอง</td><td>เปิดดูหน้านั้น ๆ</td><td class="c yes">ได้เอง</td></tr>
+    <tr class="grp"><td colspan="3">สิทธิ์เสริม (ให้เฉพาะคนที่ไว้ใจ · ผู้ดูแลให้เท่านั้น)</td></tr>
+    <tr><td>แก้งานคนอื่น</td><td>แก้ / ยกเลิกเอกสารของคนอื่นในสาขา</td><td class="c yes">ได้เอง</td></tr>
+    <tr><td>แก้ย้อนหลัง</td><td>แก้ / ยกเลิกเอกสารคลังของวันก่อน ตามจำนวนวันที่สาขาตั้ง</td><td class="c yes">ได้เอง</td></tr>
+    <tr><td>รายงานทั้งสาขา</td><td>ดูยอดขายของทุกคนในสาขา · ต้องมี “รายงานยอดขาย”</td><td class="c yes">ได้เอง</td></tr>
+    <tr><td>ผู้จัดการสาขา</td><td>ตำแหน่งผู้จัดการ (ข้อ 10)</td><td class="c">—</td></tr>
+  </table>
+  <ul>
+    <li><b>พนักงานใหม่</b> ระบบติ๊กให้ตั้งต้น 13 ข้อ: ขายสินค้า · ให้ส่วนลด · เปิด / ปิดร้าน · เงินเข้า / ออกลิ้นชัก · แก้บิลตัวเอง · นำเข้า · เบิก / ตัดออก · ตรวจนับ ·
+      แก้เอกสารคลังตัวเอง · ดูสินค้าในสต๊อก · ประวัติเคลื่อนไหว · ประวัติรายการ · รายงานของตัวเอง — ปรับได้ก่อนกดเพิ่ม</li>
+    <li>สิทธิ์ที่ต้องมีสิทธิ์หลักก่อน จะเป็นสีเทากดไม่ได้จนกว่าจะติ๊กสิทธิ์หลัก และหน้าจอบอกไว้ว่า “ต้องมี … ด้วย”</li>
+    <li>ไม่มีสิทธิ์แล้วเปิดลิงก์ตรง ๆ ระบบพากลับหน้าแรก บอก “ไม่มีสิทธิ์เข้าหน้า … — ติดต่อผู้ดูแลเพื่อเปิดสิทธิ์”</li>
+  </ul>
+
+  <h3 id="s13-1">ตำแหน่งและสิ่งที่เห็น</h3>
+  <table>
+    <thead><tr><th>ตำแหน่ง</th><th>เห็นข้อมูล</th><th>เข้าระบบด้วย</th><th>ใครสร้างบัญชี</th></tr></thead>
+    <tr><td>พนักงาน / ผู้จัดการสาขา</td><td>เฉพาะสาขาตัวเอง</td><td>ชื่อผู้ใช้ + PIN 4 หลัก</td><td>ผู้ดูแล (ผู้จัดการเพิ่มพนักงานในสาขาได้)</td></tr>
+    <tr><td>ฝ่ายบัญชี</td><td>ทุกสาขา เฉพาะบิลและเงินเข้า</td><td>ชื่อผู้ใช้ + รหัสผ่าน</td><td>คนดูแลเว็บ</td></tr>
+    <tr><td>ผู้ดูแลระบบ</td><td>ทุกสาขา ทุกเรื่อง</td><td>ชื่อผู้ใช้ + รหัสผ่าน</td><td>คนดูแลเว็บ</td></tr>
+  </table>
+</section>
+<!-- ======================================================= 14 เหตุการณ์จริง -->
+<section class="flow">
+  <h2 id="s14"><span class="no">14</span> เหตุการณ์จริง: เจอแบบนี้ทำอย่างไร</h2>
+  <p class="lead">รวมเรื่องที่เกิดบ่อยหน้าร้าน แต่ละเรื่องบอกว่าต้องทำอะไรในระบบ ตามลำดับ และตัวเลขที่จะเห็น
+    ตัวเลขในตัวอย่างคิดตามสูตรเดียวกับที่ระบบใช้จริง</p>
+
+  <div class="case">
+    <h3 id="s14-1"><span class="cn">1</span>ลูกค้าขอเปลี่ยนสินค้า (เปลี่ยนรุ่น หรือเปลี่ยนชิ้นที่ชำรุด)</h3>
+    <p>ระบบไม่มีปุ่ม “เปลี่ยนของ” โดยตรง ให้ทำเป็น <b>รับคืนชิ้นเดิม + ขายชิ้นใหม่</b> ตัวเลขสต๊อกและเงินจึงถูกทั้งสองฝั่ง</p>
+    <ol class="steps">
+      <li><b>รับคืนชิ้นเดิม</b> (ข้อ 6) — เปลี่ยนรุ่นเพราะซื้อผิด เลือก “ซื้อผิดรุ่น / ผิดแบบ” (ของกลับเข้าสต๊อก) · ชิ้นเดิมชำรุด เลือก “สินค้าชำรุด / ใช้งานไม่ได้” (ไม่เข้าสต๊อก แยกเก็บไว้เคลม)</li>
+      <li><b>ขายชิ้นใหม่เป็นบิลใหม่</b> (ข้อ 5) ตามปกติ</li>
+      <li>รับหรือทอนเงินกับลูกค้าเฉพาะ<b>ส่วนต่าง</b> — ในระบบเป็นคืนเงิน 1 รายการ และรับเงิน 1 บิล รวมกันแล้วเงินในลิ้นชักเปลี่ยนเท่าส่วนต่างพอดี</li>
+    </ol>
+    <table class="calc">
+      <tr><td>ลูกค้าคืนเคสรุ่นมาตรฐาน (จ่ายไป 290.00) ขอเปลี่ยนเป็นรุ่นพรีเมียม 590.00</td><td class="n"></td></tr>
+      <tr><td>ใบรับคืน — คืนเงินสดให้ลูกค้า</td><td class="n">− 290.00</td></tr>
+      <tr><td>บิลใหม่ — รับเงินค่ารุ่นพรีเมียม</td><td class="n">+ 590.00</td></tr>
+      <tr class="tot"><td>เงินในลิ้นชักเพิ่มขึ้น = ส่วนต่างที่เก็บจากลูกค้า</td><td class="n">+ 300.00</td></tr>
+    </table>
+    <p class="muted">ต้องมีสิทธิ์ “รับคืนสินค้า” และ “คืนเงินสดให้ลูกค้า” — ไม่มีสิทธิ์คืนเงินสด ให้คนที่มีสิทธิ์เป็นคนทำ (ไม่อย่างนั้นใบรับคืนบันทึกยอดคืนเป็น 0 แล้วตัวเลขเงินไม่ตรง)
+      · ร้านต้องเปิดอยู่ · บิลเดิมต้องยังอยู่ในกำหนดคืน</p>
+  </div>
+
+  <div class="case">
+    <h3 id="s14-2"><span class="cn">2</span>ลูกค้าคืนของบางชิ้น จากบิลที่มีส่วนลด</h3>
+    <p>บิลที่ลดราคาท้ายบิล ระบบคืนเงิน<b>ตามราคาที่ลูกค้าจ่ายจริง</b> โดยเฉลี่ยส่วนลดให้ทุกชิ้นตามสัดส่วนราคา — ไม่ใช่คืนตามป้ายราคา</p>
+    <table class="calc">
+      <tr><td>บิลเดิม: 100.00 + 290.00 + 590.00 = ราคาเต็ม</td><td class="n">980.00</td></tr>
+      <tr><td>ลดท้ายบิลเหลือ (ลูกค้าจ่ายจริง)</td><td class="n">900.00</td></tr>
+      <tr><td>สัดส่วนที่จ่ายจริง = 900 ÷ 980</td><td class="n">0.9184</td></tr>
+      <tr class="tot"><td>ลูกค้าคืนชิ้นราคา 290.00 → ยอดคืน = 290 × 900 ÷ 980 (ปัด 2 ตำแหน่ง)</td><td class="n">266.33</td></tr>
+    </table>
+    <p class="muted">หน้ารับคืนใส่ยอดนี้ให้เอง ลดลงได้แต่เกินไม่ได้ (ถ้าลดต้องใส่เหตุผล) · บิลที่ไม่มีส่วนลด คืนเต็มราคาชิ้นนั้น</p>
+  </div>
+
+  <div class="case">
+    <h3 id="s14-3"><span class="cn">3</span>ของมาส่งไม่ครบ หรือส่งผิดรุ่น</h3>
+    <ol class="steps">
+      <li><b>นับของจริงก่อนบันทึก</b> แล้วรับเข้าเท่าที่มาจริง — ใบส่งของเขียน 20 ชิ้น มาจริง 18 ชิ้น ให้ใส่ 18 และเขียนหมายเหตุ เช่น “ใบส่งของ 20 มาจริง 18 รอส่งเพิ่ม”</li>
+      <li>ของที่ค้างส่งมาถึงทีหลัง ทำใบรับเข้าใหม่อีกใบ ใส่เลขเอกสารอ้างอิงเดิมได้</li>
+      <li><b>ส่งผิดรุ่น</b> — อย่ารับรุ่นที่ผิดเข้าระบบ ถ้าเผลอบันทึกไปแล้ววันนี้ ใช้ “แก้ไขใบนี้” แก้ให้ถูก (ข้อ 8)
+        ถ้าของรับเข้าไปแล้วและต้องส่งคืนผู้จำหน่าย ใช้ “เบิก / ตัดออก” เหตุผล <b>“คืนผู้จำหน่าย”</b></li>
+    </ol>
+    <p class="muted">ใบรับเข้าที่ของถูกขายไปบางส่วนแล้วยกเลิกไม่ได้ — ให้แก้ตัวเลขด้วยการตรวจนับ / ปรับยอดแทน</p>
+  </div>
+
+  <div class="case">
+    <h3 id="s14-4"><span class="cn">4</span>ส่งของไปอีกสาขา</h3>
+    <p>ระบบไม่มีใบโอนระหว่างสาขา ให้ทำ <b>2 ใบ คนละสาขา</b>:</p>
+    <div class="row" style="margin:2mm 0 3mm">
+      <div class="bx r"><b>สาขาต้นทาง · ตัดออก</b>เมนู “เบิก / ตัดออก” เหตุผล <span class="k">ส่งไปสาขาอื่น</span> หมายเหตุ (จำเป็น) เขียนว่าส่งไปสาขาไหน · ได้เลขใบ IS-…</div>
+      <div class="ar"><svg viewBox="0 0 24 24"><path d="M4 12h14M13 6l6 6-6 6" fill="none" stroke="#0E7A5F" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="bx g"><b>สาขาปลายทาง · นำเข้า</b>เมื่อของมาถึง ทำใบรับเข้า ใส่ “เลขที่เอกสารอ้างอิง” เป็นเลขใบ IS-… ของต้นทาง จะตามย้อนได้</div>
+    </div>
+    <table class="calc">
+      <tr><td>ส่งฟิล์มกระจก 10 ชิ้น จากสำนักงานใหญ่ไปสาขารังสิต</td><td class="n"></td></tr>
+      <tr><td>สำนักงานใหญ่ — หลังบันทึกใบตัดออก</td><td class="n">− 10</td></tr>
+      <tr><td>สาขารังสิต — หลังบันทึกใบรับเข้า</td><td class="n">+ 10</td></tr>
+    </table>
+    <p class="muted">ระหว่างทาง (ต้นทางตัดแล้ว ปลายทางยังไม่รับ) ของ 10 ชิ้นนี้ไม่อยู่ในสาขาไหนเลย — ปลายทางควรรับเข้าทันทีที่ของถึง
+      · ผู้ดูแลตรวจทั้งสองใบได้ที่เมนู “เบิก / ตัดออก” และ “นำเข้าสินค้า” ฝั่งผู้ดูแล</p>
+  </div>
+
+  <div class="case">
+    <h3 id="s14-5"><span class="cn">5</span>ปิดร้านแล้วเงินขาด (หรือเกิน)</h3>
+    <p>ตัวอย่างหนึ่งวันของสาขา — ระบบคิดยอด “ควรมีในลิ้นชัก” ให้แบบนี้</p>
+    <table class="calc">
+      <tr><td>เงินทอนเริ่มวัน (ยกมาจากเมื่อวาน ไม่ได้เติมตอนเปิดร้าน)</td><td class="n">2,000.00</td></tr>
+      <tr><td>+ เติมเงินทอนระหว่างวัน (แลกเหรียญ)</td><td class="n">500.00</td></tr>
+      <tr><td>+ ขายเงินสด (บิลเงินสดที่ไม่ถูกยกเลิก · บิลโอน 4,200.00 ไม่นับ)</td><td class="n">12,350.00</td></tr>
+      <tr><td>− หยิบเงินออก (ซื้อถุงใส่ของ)</td><td class="n">120.00</td></tr>
+      <tr><td>− คืนเงินลูกค้า (ใบรับคืนจากเรื่องที่ 2)</td><td class="n">266.33</td></tr>
+      <tr class="tot"><td>ควรมีในลิ้นชัก</td><td class="n">14,463.67</td></tr>
+      <tr><td>นับเงินได้จริง</td><td class="n">14,443.67</td></tr>
+      <tr class="bad"><td>ส่วนต่าง → ขาด (ต้องเขียนหมายเหตุก่อนปิดร้าน)</td><td class="n">− 20.00</td></tr>
+      <tr><td>แยกเงินทอนไว้สำหรับพรุ่งนี้</td><td class="n">2,000.00</td></tr>
+      <tr class="tot"><td>เงินนำส่ง = นับได้ − เงินทอนที่แยกไว้</td><td class="n">12,443.67</td></tr>
+    </table>
+    <h4>ก่อนกดปิดร้าน ลองเช็กสิ่งเหล่านี้</h4>
+    <ul>
+      <li>มีบิลที่ลูกค้าโอน แต่บันทึกเป็นเงินสด (หรือกลับกัน) ไหม — ดูในประวัติการทำรายการ ชิป “ขายสินค้า” · ยังเปิดร้านอยู่แก้บิลได้ (เรื่องที่ 6)</li>
+      <li>หยิบเงินออกไปใช้ หรือเติมเงินทอน แต่ยังไม่ได้บันทึกในการ์ด “เติมเงินทอน / หยิบเงินออก” ไหม</li>
+      <li>คืนเงินลูกค้าไปแล้วแต่ยังไม่ได้บันทึกรับคืนไหม</li>
+    </ul>
+    <p class="muted">เช็กแล้วยังไม่ตรง ให้เขียนหมายเหตุตามจริง (เช่น ทอนเกินช่วงบ่าย) แล้วปิดร้าน — ผู้ดูแลเห็นส่วนต่างทันทีในหน้าภาพรวม และได้แจ้งเตือน “เงินขาด / เกิน” ถ้าเปิดไว้
+      · ปิดร้านแล้วแก้ตัวเลขการปิดไม่ได้</p>
+  </div>
+
+  <div class="case">
+    <h3 id="s14-6"><span class="cn">6</span>บันทึกบิลผิด: จำนวนผิด · วิธีจ่ายผิด · ลูกค้าขอบิล VAT ทีหลัง</h3>
+    <table>
+      <thead><tr><th style="width:30%">เจอเมื่อไร</th><th>ทำอย่างไร</th></tr></thead>
+      <tr><td><b>วันเดียวกัน ร้านยังเปิด</b></td><td>“แก้ไขบิลนี้” (ข้อ 8) → รายการเดิมกลับเข้าตะกร้า → แก้จำนวน / เลือกวิธีจ่ายที่ถูก / เลือก “VAT” → รับเงินใหม่ ได้เลขบิลใหม่
+        <br><span class="muted">ถ้าบิลเดิมมีส่วนลด ต้องแก้ “ยอดที่ต้องชำระ” ให้เท่าเดิมอีกครั้ง เพราะส่วนลดไม่ยกมา</span></td></tr>
+      <tr><td><b>วันเดียวกัน ปิดร้านแล้ว</b></td><td>คนที่มีสิทธิ์ “เปิดร้านอีกครั้ง” (หรือผู้ดูแล) เปิดร้านใหม่ก่อน → แก้บิล → ปิดร้านอีกรอบ</td></tr>
+      <tr><td><b>วันถัดไป</b></td><td>บิลของวันก่อนแก้หรือยกเลิกไม่ได้ · ของผิด / ลูกค้าคืนของ ใช้ “รับคืนสินค้า” · วิธีจ่ายผิด หรือขอบิล VAT ย้อนหลัง
+        ระบบเปลี่ยนให้ไม่ได้ — แจ้งผู้ดูแลและฝ่ายบัญชีให้บันทึกไว้</td></tr>
+      <tr><td><b>มีของค้างในตะกร้าอยู่</b></td><td>แก้ไขบิลได้เมื่อ<b>ตะกร้าว่าง</b>เท่านั้น — ขายรายการที่ค้างให้เสร็จก่อน (หรือล้างตะกร้า)</td></tr>
+    </table>
+    <p class="muted">บิล VAT ของระบบเป็น “ใบเสร็จรับเงิน / ใบกำกับภาษีอย่างย่อ” ไม่มีช่องชื่อและที่อยู่ลูกค้า</p>
+  </div>
+
+  <div class="case">
+    <h3 id="s14-7"><span class="cn">7</span>นับของแล้วไม่ตรง · ของแตกหรือหายระหว่างวัน</h3>
+    <ul>
+      <li><b>รู้สาเหตุอยู่แล้ว</b> (ทำแตก ลูกค้าทำหาย ของหมดอายุ) — บันทึก “เบิก / ตัดออก” ด้วยเหตุผลนั้นทันที ไม่ต้องรอตรวจนับ</li>
+      <li><b>ไม่รู้สาเหตุ เจอตอนนับ</b> — ทำ “ตรวจนับ / ปรับยอด” เลือกสาเหตุที่ใกล้ที่สุด (เลือก “ของหาย” หรือ “อื่น ๆ” ต้องเขียนหมายเหตุ)</li>
+      <li>ก่อนปรับยอด เช็กว่ามีของที่มาส่งแต่ยังไม่ได้ทำใบรับเข้า หรือของที่เบิกไปแต่ยังไม่ได้บันทึกไหม — ทำใบนั้นก่อน แล้วค่อยนับ</li>
+    </ul>
+    <table class="calc">
+      <tr><td>เคสมือถือ แฟชั่น: ในระบบ 57 ชิ้น · นับได้จริง 55 ชิ้น</td><td class="n">− 2 ชิ้น</td></tr>
+      <tr><td>ราคาทุนชิ้นละ</td><td class="n">50.00</td></tr>
+      <tr class="bad"><td>มูลค่าส่วนต่าง (ราคาทุน) = − 2 × 50</td><td class="n">− 100.00</td></tr>
+    </table>
+    <p class="muted">บันทึกแล้วยอดในระบบเปลี่ยนเป็น 55 ทันที · มูลค่าส่วนต่างคิดจากราคาทุน ไม่ใช่ราคาขาย</p>
+  </div>
+
+  <div class="case">
+    <h3 id="s14-8"><span class="cn">8</span>ปิดร้านไปแล้ว ลูกค้ามาซื้ออีก</h3>
+    <ol class="steps">
+      <li>คนที่มีสิทธิ์ “เปิดร้านอีกครั้งหลังปิดแล้ว” กด “เปิดร้านใหม่” ที่หน้าเปิด / ปิดร้าน ใส่เหตุผล — ไม่มีคนมีสิทธิ์ โทรให้ผู้ดูแลเปิดจากหน้าภาพรวม</li>
+      <li>ขายตามปกติ (เงินที่รับเพิ่ม ไปรวมในยอดที่ควรมีของวันนี้)</li>
+      <li><b>ปิดร้านอีกรอบ</b> นับเงินในลิ้นชักใหม่ทั้งหมด แล้วกดปิดร้าน — ใช้ผลการปิดรอบล่าสุด</li>
+    </ol>
+  </div>
+
+  <div class="case">
+    <h3 id="s14-9"><span class="cn">9</span>เช้ามาเจอว่าเมื่อวานลืมปิดร้าน</h3>
+    <ol class="steps">
+      <li><b>อย่าเพิ่งขาย</b> — เงินในลิ้นชักตอนนี้ยังเป็นเงินของเมื่อวาน นับให้เรียบร้อยก่อน</li>
+      <li>หน้าเปิดร้านขึ้น “ขั้นที่ 1 · ปิดร้านของวัน…” ใส่ยอดที่นับได้ แยกเงินทอน เขียนเหตุผลว่าทำไมไม่ได้ปิด แล้วกดปิด (ข้อ 3)</li>
+      <li>ขั้นที่ 2 เปิดร้านวันนี้ตามปกติ</li>
+    </ol>
+    <p class="muted">ค้างมากกว่า 1 วัน หรือเป็นวันที่เก่ากว่าวันล่าสุด พนักงานปิดเองไม่ได้ — ให้ผู้ดูแลปิดย้อนหลังที่หน้าภาพรวม ทีละวัน</p>
+  </div>
+
+  <h3 id="s14-10">สรุปตัวเลขที่ระบบคิดให้</h3>
+  <table>
+    <thead><tr><th style="width:28%">ตัวเลข</th><th style="width:40%">คิดอย่างไร</th><th>ตัวอย่าง</th></tr></thead>
+    <tr><td>VAT ในบิล VAT</td><td>ราคารวม VAT แล้ว → VAT = ยอด × 7 ÷ 107 (ปัด 2 ตำแหน่ง) · ก่อน VAT = ยอด − VAT</td><td>ยอด 980.00 → VAT 64.11 · ก่อน VAT 915.89</td></tr>
+    <tr><td>เงินทอน</td><td>รับเงินมา − ยอดที่ต้องชำระ</td><td>รับ 1,000.00 ยอด 980.00 → ทอน 20.00</td></tr>
+    <tr><td>ส่วนลด</td><td>ราคาเต็ม − ยอดที่ต้องชำระที่แก้</td><td>980.00 แก้เป็น 900.00 → ส่วนลด 80.00</td></tr>
+    <tr><td>เงินคืนบิลที่มีส่วนลด</td><td>ราคาชิ้นนั้น × ยอดที่จ่ายจริง ÷ ราคาเต็มของบิล</td><td>290 × 900 ÷ 980 = 266.33</td></tr>
+    <tr><td>ควรมีในลิ้นชัก</td><td>เงินทอนเริ่มวัน + เติม + ขายเงินสด − หยิบออก − คืนเงิน</td><td>ดูเรื่องที่ 5</td></tr>
+    <tr><td>เงินนำส่ง</td><td>เงินที่นับได้ − เงินทอนที่แยกไว้พรุ่งนี้</td><td>14,443.67 − 2,000.00 = 12,443.67</td></tr>
+    <tr><td>มูลค่าส่วนต่างตรวจนับ</td><td>(นับได้ − ในระบบ) × ราคาทุน</td><td>(55 − 57) × 50 = − 100.00</td></tr>
+    <tr><td>ใกล้หมด</td><td>คงเหลือ ≤ จุดสั่งซื้อของสินค้านั้น</td><td>จุดสั่งซื้อ 20 · เหลือ 20 → ใกล้หมด</td></tr>
+  </table>
+</section>
+<!-- ======================================================= 15 ถาม-ตอบ -->
+<section class="flow">
+  <h2 id="s15"><span class="no">15</span> ถาม–ตอบ เมื่อเจอปัญหา</h2>
+  <p class="lead">ข้อความในเครื่องหมายคำพูดคือข้อความที่ขึ้นบนจอจริง (… คือส่วนที่เปลี่ยนตามสถานการณ์ เช่น ชื่อ ตัวเลข)
+    ลองทำตาม “ทำอย่างไร” ก่อน ถ้ายังไม่ได้ ติดต่อคนที่บอกไว้ในข้อนั้น</p>
+
+  <h3 id="s15-1">เข้าระบบ</h3>
+  <div class="faq">
+    <div class="qa"><p class="q">กด PIN แล้วขึ้น “PIN ไม่ถูกต้อง” ทั้งที่มั่นใจว่าถูก</p>
+      <p><b>ตรวจ</b> — แตะชื่อตัวเองถูกคนไหม · อยู่แท็บ “พนักงาน (PIN)” ไหม (กรอกผิดแท็บก็นับเป็นผิด) · ถ้าถูกพักงานไว้ ระบบจะบอกว่าไม่ถูกต้องเหมือนกรอกผิด
+        <br><b>ทำอย่างไร</b> — อย่าลองซ้ำหลายครั้ง ผิดครบ 5 ครั้งจะโดนล็อก ให้ผู้จัดการสาขาตรวจสถานะบัญชี หรือตั้ง PIN ใหม่ให้</p></div>
+    <div class="qa"><p class="q">โดนล็อก เข้าระบบไม่ได้</p>
+      <p class="m">“กรอก PIN ผิดหลายครั้ง บัญชีนี้ถูกล็อกชั่วคราว — ลองใหม่ได้ในอีก …”</p>
+      <p><b>ทำอย่างไร</b> — รอให้ครบ 15 นาที หรือให้ผู้จัดการสาขา / ผู้ดูแล <b>ตั้ง PIN ใหม่</b> ซึ่งปลดล็อกให้ทันที ·
+        ถ้าขึ้น “กรอกผิดหลายครั้งเกินไป …” (ทั้งเครื่อง รอ 1 นาที) หรือ “มีการกรอกผิดจากเครือข่ายนี้หลายครั้งเกินไป …” (ทั้งร้าน รอ 15 นาที) ต้องรอให้ครบเวลาเท่านั้น (ข้อ 2)</p></div>
+    <div class="qa"><p class="q">ลืม PIN หรือลืมชื่อผู้ใช้</p>
+      <p><b>ทำอย่างไร</b> — บอกผู้จัดการสาขา (เมนู “พนักงานในสาขา” → แก้ไข → รีเซ็ต PIN) หรือผู้ดูแล · ชื่อผู้ใช้ดูได้ที่หน้าเดียวกัน
+        · ผู้ดูแล / ฝ่ายบัญชีลืมรหัสผ่าน ติดต่อคนดูแลเว็บให้ตั้งใหม่</p></div>
+    <div class="qa"><p class="q">ชื่อตัวเองหายไปจากแถว “เลือกชื่อของคุณ”</p>
+      <p><b>เพราะ</b> — ล้างข้อมูลเบราว์เซอร์ · ไม่ได้เข้าเครื่องนี้เกิน 180 วัน · เครื่องจำครบ 12 ชื่อแล้ว · บัญชีถูกพักงาน
+        <br><b>ทำอย่างไร</b> — กด “ไม่มีชื่อคุณ? พิมพ์ชื่อผู้ใช้” แล้วพิมพ์ชื่อผู้ใช้เอง</p></div>
+    <div class="qa"><p class="q">ใช้งานอยู่ดี ๆ ถูกพากลับหน้าเข้าสู่ระบบ หรือขึ้น “เซสชันหมดอายุ …”</p>
+      <p><b>เพราะ</b> — ทิ้งไว้นานไม่ได้ใช้ · กดออกจากระบบในแท็บอื่น · ผู้ดูแลเปลี่ยนชื่อผู้ใช้หรือพักงานบัญชีนั้น
+        <br><b>ทำอย่างไร</b> — เข้าระบบใหม่ ของในตะกร้าหรือใบที่ทำค้างจะหายไป ต้องทำใหม่ · ดูหน้าประวัติก่อนว่ารายการล่าสุดบันทึกแล้วหรือยัง</p></div>
+  </div>
+
+  <h3 id="s15-2">เมนู สิทธิ์ และปุ่ม</h3>
+  <div class="faq">
+    <div class="qa"><p class="q">ไม่เห็นเมนูที่ต้องใช้ หรือขึ้น “ไม่มีสิทธิ์เข้าหน้า … — ติดต่อผู้ดูแลเพื่อเปิดสิทธิ์”</p>
+      <p><b>ทำอย่างไร</b> — ขอสิทธิ์จากผู้ดูแล (สิทธิ์งานทั่วไป ผู้จัดการสาขาติ๊กให้ได้) เปิดแล้วมีผลทันที ไม่ต้องออกจากระบบ (ข้อ 13)</p></div>
+    <div class="qa"><p class="q">ขึ้น “เมนูนี้ถูกปิดใช้งานอยู่ — ติดต่อคนดูแลเว็บถ้าต้องการใช้”</p>
+      <p><b>เพราะ</b> — เมนูนั้นยังไม่ได้เปิดให้ร้านใช้ (เช่น รับคืน ตรวจนับ รายงาน) <b>ทำอย่างไร</b> — แจ้งผู้ดูแล / คนดูแลเว็บ</p></div>
+    <div class="qa"><p class="q">ปุ่มบันทึกเป็นสีเทา กดแล้วจอเลื่อนไปที่อื่น</p>
+      <p><b>เพราะ</b> — ยังกรอกไม่ครบ ระบบพาไปช่องแรกที่ขาด ขึ้นกรอบแดงพร้อมบอกว่าต้องทำอะไร เช่น “เลือกเหตุผลการคืนก่อน”
+        <br><b>ทำอย่างไร</b> — กรอกช่องที่กรอบแดง แล้วกดบันทึกอีกครั้ง · ถ้าร้านปิด ปุ่มพาขึ้นไปที่แถบแจ้งด้านบน</p></div>
+    <div class="qa"><p class="q">แตะแล้วหน้าจอนิ่ง ไม่มีอะไรเกิดขึ้น</p>
+      <p><b>เพราะ</b> — อินเทอร์เน็ตหลุด หรือเซิร์ฟเวอร์ตอบไม่ทัน (ตอนนี้ระบบยังไม่ขึ้นข้อความบอกในกรณีนี้)
+        <br><b>ทำอย่างไร</b> — เช็กอินเทอร์เน็ต แล้วรีเฟรชหน้า (ดึงหน้าลง หรือกด F5) ดูว่ารายการบันทึกแล้วหรือยังที่หน้าประวัติ ก่อนทำซ้ำ</p></div>
+    <div class="qa"><p class="q">ขึ้นหน้า “ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง — …”</p>
+      <p><b>ทำอย่างไร</b> — กดกลับหน้าแรกแล้วลองใหม่ ถ้ายังเป็น แจ้งคนดูแลเว็บ <b>พร้อมวันเวลาที่ขึ้นบนจอ</b> (ใช้หาสาเหตุ)</p></div>
+  </div>
+
+  <h3 id="s15-3">เปิด / ปิดร้าน และเงินในลิ้นชัก</h3>
+  <div class="faq">
+    <div class="qa"><p class="q">กดเมนูขายแล้วถูกพาไปหน้าเปิดร้าน หรือขึ้น “ร้านยังไม่เปิด — รอคนที่มีสิทธิ์ “เปิด / ปิดร้าน” เปิดร้านก่อน”</p>
+      <p><b>ทำอย่างไร</b> — เปิดร้านก่อน (ข้อ 3) · ไม่มีสิทธิ์เปิดร้าน ให้คนที่มีสิทธิ์เปิด ระหว่างนั้นทำงานคลังหรือดูข้อมูลได้</p></div>
+    <div class="qa"><p class="q">เปิดร้านไม่ได้ ขึ้น “ปิดร้านของวัน…ก่อน แล้วจึงเปิดร้านวันนี้”</p>
+      <p><b>เพราะ</b> — วันล่าสุดก่อนหน้ายังไม่ได้ปิดร้าน <b>ทำอย่างไร</b> — ทำ “ขั้นที่ 1 · ปิดร้านของวัน…” ให้เสร็จก่อน (ข้อ 3)
+        · ถ้าขึ้น “ปิดย้อนหลังได้เฉพาะวันล่าสุดที่ยังไม่ได้ปิด — วันอื่นให้ผู้ดูแลปิดที่หน้าภาพรวม” ให้ผู้ดูแลปิดให้</p></div>
+    <div class="qa"><p class="q">ปิดร้านไม่ได้ ขึ้น “เงินที่นับได้ไม่ตรงกับยอดที่ควรมี กรุณากรอกหมายเหตุว่าเกิดจากอะไร”</p>
+      <p><b>ทำอย่างไร</b> — เช็กสาเหตุตามเรื่องที่ 5 ในข้อ 14 แล้วเขียนหมายเหตุตามจริง จึงปิดร้านได้ · ผู้ดูแลเห็นส่วนต่างทุกครั้ง</p></div>
+    <div class="qa"><p class="q">หยิบเงินออกไม่ได้</p>
+      <p class="m">“หยิบเงินออกได้ไม่เกินเงินที่ควรมีในลิ้นชัก (… บาท)” · “ร้านไม่ได้เปิดอยู่ — เติม / หยิบเงินได้เฉพาะตอนร้านเปิด”</p>
+      <p><b>ทำอย่างไร</b> — ใส่จำนวนไม่เกินเงินที่ควรมี และต้องใส่เหตุผลทุกครั้ง · ทำได้เฉพาะตอนร้านเปิด</p></div>
+    <div class="qa"><p class="q">กดปิดร้านแล้วขึ้น “ร้านปิดไปแล้ว (อาจมีเครื่องอื่นปิดก่อน)”</p>
+      <p><b>เพราะ</b> — มีคนปิดร้านจากอีกเครื่องไปแล้ว <b>ทำอย่างไร</b> — โหลดหน้าใหม่ ดูการ์ด “สรุปการปิดร้าน” ว่าตัวเลขถูกไหม</p></div>
+  </div>
+
+  <h3 id="s15-4">ขายสินค้า และบิล</h3>
+  <div class="faq">
+    <div class="qa"><p class="q">ยิงบาร์โค้ดแล้วหาสินค้าไม่เจอ</p>
+      <p><b>เพราะ</b> — ช่องค้นหาค้นได้เฉพาะชื่อสินค้าและ SKU ยังไม่ค้นด้วยบาร์โค้ด <b>ทำอย่างไร</b> — พิมพ์ชื่อหรือ SKU แทน หรือแตะการ์ดสินค้า</p></div>
+    <div class="qa"><p class="q">แตะสินค้าแล้วจำนวนในตะกร้าไม่เพิ่ม หรือการ์ดขึ้น “หมด”</p>
+      <p><b>เพราะ</b> — ใส่ครบเท่าของที่เหลือแล้ว หรือของหมด (ถ้าเพิ่งหมดจากอีกเครื่องขึ้น “สินค้านี้เหลือไม่พอ ใส่เพิ่มไม่ได้แล้ว”)
+        <br><b>ทำอย่างไร</b> — ถ้ามีของจริงแต่ระบบบอกหมด แปลว่ายังไม่ได้ทำใบรับเข้า หรือยอดคลาด ให้คนทำงานคลังรับเข้า / ตรวจนับก่อน</p></div>
+    <div class="qa"><p class="q">กดรับเงินแล้วขึ้น “ของไม่พอ (อาจถูกขายจากเครื่องอื่นไปแล้ว) — …”</p>
+      <p><b>เพราะ</b> — ระหว่างรอลูกค้า อีกเครื่องขายตัวนั้นไปก่อน <b>ทำอย่างไร</b> — ตะกร้ายังอยู่ ลดจำนวนตามที่บอกแล้วรับเงินใหม่</p></div>
+    <div class="qa"><p class="q">แก้ยอดที่ต้องชำระไม่ได้ หรือปุ่มรับเงินกดไม่ได้</p>
+      <p class="m">“ยอดชำระต้องมากกว่า 0 และไม่เกินราคาเต็ม … บาท”</p>
+      <p><b>เพราะ</b> — ไม่มีสิทธิ์ “ให้ส่วนลด” (ช่องจะไม่ให้แก้) หรือใส่ 0 / มากกว่าราคาเต็ม <b>ทำอย่างไร</b> — ใส่ยอดที่ถูก หรือขอสิทธิ์ส่วนลด</p></div>
+    <div class="qa"><p class="q">ขึ้น “สาขานี้ยังไม่ได้ตั้งรหัสเลขที่บิล … — แจ้งฝ่ายบัญชี / ผู้ดูแล”</p>
+      <p><b>ทำอย่างไร</b> — ฝ่ายบัญชีหรือผู้ดูแลตั้งรหัสนำหน้าที่หน้า “ตั้งค่าเลขที่บิล” ของสาขานั้น (ข้อ 12) แล้วรับเงินใหม่ได้เลย ตะกร้ายังอยู่</p></div>
+    <div class="qa"><p class="q">ไม่มีปุ่ม “แก้ไขบิลนี้ / ยกเลิกบิลนี้” หรือกดแล้วไม่ผ่าน</p>
+      <ul>
+        <li>“บิลนี้เป็นของพนักงานคนอื่น — …” → ต้องมีสิทธิ์ “แก้งานคนอื่น” ให้ผู้จัดการทำ</li>
+        <li>“ไม่มีสิทธิ์ “แก้บิลตัวเอง” — …” → ขอสิทธิ์จากผู้ดูแล</li>
+        <li>“บิลนี้มีการรับคืนสินค้าไปแล้ว — …” → ใช้รับคืนแทน</li>
+        <li>“ร้านปิดแล้ว — ยกเลิกบิลไม่ได้ …” → เปิดร้านใหม่ก่อน</li>
+        <li>“ตะกร้ายังมีสินค้าค้างอยู่ …” → ขายหรือล้างตะกร้าก่อน</li>
+        <li>บิลของวันก่อน → แก้ / ยกเลิกไม่ได้ ใช้รับคืน</li>
+      </ul></div>
+    <div class="qa"><p class="q">บันทึกบิลแล้ว บิลไม่พิมพ์ออกมา</p>
+      <p><b>เพราะ</b> — ระบบไม่สั่งพิมพ์เองหลังขาย <b>ทำอย่างไร</b> — กด “ดู / พิมพ์บิล” → “พิมพ์” · ตั้งเครื่องพิมพ์ดูข้อ 17 · พิมพ์ซ้ำได้จากหน้าประวัติ</p></div>
+    <div class="qa"><p class="q">ใส่เงินที่รับมาน้อยกว่ายอด แล้วยังกดบันทึกได้</p>
+      <p><b>เพราะ</b> — ระบบไม่บล็อก แต่บันทึกเงินที่รับเท่ากับยอดชำระ (เงินทอน 0) <b>ทำอย่างไร</b> — ดูเงินทอนสีแดงในกล่องยืนยันทุกครั้งก่อนกดยืนยัน</p></div>
+  </div>
+
+  <h3 id="s15-5">รับคืนสินค้า</h3>
+  <div class="faq">
+    <div class="qa"><p class="q">หาบิลที่ลูกค้าจะคืนไม่เจอ</p>
+      <p><b>เพราะ</b> — บิลเก่ากว่าช่วงที่แสดง (กำหนดคืน + 7 วัน อย่างน้อย 14 วัน) · บิลถูกยกเลิกแล้ว · เป็นบิลของสาขาอื่น (ขึ้น “ไม่พบบิลนี้ในสาขา”)
+        <br><b>ทำอย่างไร</b> — ค้นด้วยเลขบิลให้ครบ หรือชื่อ / SKU ของสินค้า · บิลสาขาอื่น ต้องคืนที่สาขาที่ซื้อ</p></div>
+    <div class="qa"><p class="q">บิลขึ้น “เกินกำหนด” เลือกไม่ได้</p>
+      <p class="m">“เกินกำหนดคืน … วัน (ผ่านมา … วัน) — คืนไม่ได้ · ถ้าจำเป็น ผู้ดูแลขยายจำนวนวันได้ที่หน้าจัดการสาขา”</p>
+      <p><b>ทำอย่างไร</b> — ปรึกษาผู้ดูแล (การขยายวันมีผลกับทั้งสาขา และกับการแก้เอกสารย้อนหลังด้วย)</p></div>
+    <div class="qa"><p class="q">บันทึกรับคืนไม่ได้ ขึ้น “ต้องเปิดร้านก่อน เพราะเงินคืนจ่ายจากลิ้นชักของวันนี้” หรือ “ร้านปิดแล้ว — รับคืนไม่ได้ …”</p>
+      <p><b>ทำอย่างไร</b> — เปิดร้าน หรือเปิดร้านใหม่ (ข้อ 3) แล้วบันทึกรับคืน</p></div>
+    <div class="qa"><p class="q">ยอดเงินคืนน้อยกว่าราคาบนป้าย</p>
+      <p><b>เพราะ</b> — บิลนั้นมีส่วนลด ระบบคืนตามที่ลูกค้าจ่ายจริง (เรื่องที่ 2 ในข้อ 14) · ถ้าจะแก้ยอดเอง ขึ้น
+        “ยอดเงินคืนไม่เท่ากับยอดคำนวณ — กรุณาใส่เหตุผลที่ปรับยอด” ต้องใส่เหตุผล และเกินยอดที่ลูกค้าจ่ายไม่ได้</p></div>
+    <div class="qa"><p class="q">แนบรูปไม่ได้</p>
+      <p class="m">“รูป … ใหญ่เกิน 5 MB” · “ไฟล์ … ไม่ใช่รูป JPG / PNG / WEBP” · “แนบรูปได้ไม่เกิน 3 รูป”</p>
+      <p><b>ทำอย่างไร</b> — เลือกไม่เกิน 3 รูป ถ่ายใหม่ด้วยกล้องปกติ (ไม่ต้องใช้โหมดความละเอียดสูงสุด) · รูปไม่บังคับ บันทึกโดยไม่แนบก็ได้</p></div>
+  </div>
+
+  <h3 id="s15-6">นำเข้า · ตัดออก · ตรวจนับ</h3>
+  <div class="faq">
+    <div class="qa"><p class="q">บันทึกรับเข้าไม่ได้ ขึ้น “กรุณากรอกเลขที่เอกสารอ้างอิง (ใบส่งของ / ใบกำกับ) ทุกครั้ง”</p>
+      <p><b>ทำอย่างไร</b> — ใส่เลขใบส่งของหรือใบกำกับที่มากับของ (รับของจากสาขาอื่น ใส่เลขใบตัดออก IS-… ของสาขาต้นทาง)</p></div>
+    <div class="qa"><p class="q">ยกเลิกใบรับเข้าไม่ได้</p>
+      <p class="m">“ยกเลิกไม่ได้ เพราะของบางส่วนถูกขายออกไปแล้ว — … · กรณีนี้ให้ใช้การตรวจนับ/ปรับยอดแทน”</p>
+      <p><b>ทำอย่างไร</b> — นับของจริงแล้วทำ “ตรวจนับ / ปรับยอด” ให้ตัวเลขตรง เลือกสาเหตุ “บันทึกผิด”</p></div>
+    <div class="qa"><p class="q">ตัดออกแล้วจำนวนถูกปรับเอง</p>
+      <p class="m">“… มีอยู่ … ชิ้น — ปรับจำนวนให้เท่าที่มี” · “… หมดสต๊อกแล้ว ตัดออกไม่ได้”</p>
+      <p><b>เพราะ</b> — ตัดออกเกินของที่มีในระบบไม่ได้ <b>ทำอย่างไร</b> — ถ้าของจริงมีมากกว่าในระบบ ตรวจนับก่อนแล้วค่อยตัดออก</p></div>
+    <div class="qa"><p class="q">ตรวจนับตอนร้านเปิด แตะสินค้าตัวต่อไปไม่ได้</p>
+      <p class="m">“บันทึกรายการนี้ก่อน แล้วค่อยนับตัวถัดไป — ร้านเปิดอยู่ นับได้ครั้งละ … รายการ”</p>
+      <p><b>ทำอย่างไร</b> — บันทึกทีละรายการ หรือนับตอนร้านยังไม่เปิด / ปิดแล้ว (นับได้ไม่จำกัด)</p></div>
+    <div class="qa"><p class="q">ตรวจนับแล้วขึ้น “ยอดในระบบเปลี่ยนไประหว่างที่นับ (มีการขายหรือรับเข้าแทรก) — …”</p>
+      <p><b>ทำอย่างไร</b> — นับสินค้าตัวนั้นใหม่ แก้ตัวเลข แล้วกดบันทึกอีกครั้ง (ระบบใช้ยอดล่าสุดเป็นตัวตั้งให้แล้ว)</p></div>
+    <div class="qa"><p class="q">เพิ่มสินค้าใหม่ไม่ได้</p>
+      <p class="m">“ไม่มีสิทธิ์ “เพิ่มสินค้าใหม่” — …” · “SKU … มีอยู่แล้ว” · “บาร์โค้ด … ซ้ำกับ …”</p>
+      <p><b>ทำอย่างไร</b> — ขอสิทธิ์ · SKU ซ้ำ ให้เลือกตั้งอัตโนมัติ หรือใช้รหัสอื่น (ถ้าซ้ำกับสินค้าที่เลิกขาย ผู้ดูแลเปิดขายใหม่ได้) · บาร์โค้ดซ้ำ ตรวจว่าเป็นสินค้าตัวเดียวกันไหม</p></div>
+    <div class="qa"><p class="q">ลบหมวดไม่ได้</p>
+      <p class="m">“ลบไม่ได้ เพราะหมวด “…” ยังมีสินค้า … รายการ (รวมที่เลิกขาย) — ย้ายสินค้าไปหมวดอื่นก่อน”</p>
+      <p><b>ทำอย่างไร</b> — ให้ผู้ดูแลเปลี่ยนหมวดของสินค้าเหล่านั้นที่หน้าแก้ไขสินค้าก่อน แล้วค่อยลบ</p></div>
+  </div>
+
+  <h3 id="s15-7">ผู้จัดการสาขา · ผู้ดูแล</h3>
+  <div class="faq">
+    <div class="qa"><p class="q">บันทึกข้อมูลพนักงานไม่ได้ ขึ้น “PIN ยืนยันตัวตนไม่ถูกต้อง — …” หรือ “PIN ของคุณถูกล็อกอีก … นาที …”</p>
+      <p><b>ระวัง</b> — การใส่ PIN ยืนยันผิดนับรวมกับการล็อกตอนเข้าระบบ โดนล็อกแล้วเข้าระบบไม่ได้ด้วย 15 นาที ให้ผู้ดูแลตั้ง PIN ใหม่ถ้ารีบ</p></div>
+    <div class="qa"><p class="q">ตั้ง PIN ให้พนักงานไม่ได้ ขึ้น “PIN นี้ซ้ำกับ … ในสาขาเดียวกัน กรุณาใช้เลขอื่น”</p>
+      <p><b>ทำอย่างไร</b> — ใช้เลขอื่น PIN ในสาขาเดียวกันห้ามซ้ำกัน (ต่างสาขาซ้ำได้)</p></div>
+    <div class="qa"><p class="q">ลบพนักงานไม่ได้</p>
+      <p class="m">“ลบไม่ได้ เพราะมี…ที่เคยทำแล้ว — ใช้ “พักงาน / ลาออก” แทน ชื่อในเอกสารเก่าจะไม่หาย”</p>
+      <p><b>เพราะ</b> — คนที่เคยทำรายการแล้วลบไม่ได้ เพื่อให้เอกสารเก่ายังมีชื่อคนทำ <b>ทำอย่างไร</b> — ใช้พักงาน / ลาออก</p></div>
+    <div class="qa"><p class="q">ปิดใช้งานสาขา หรือเพิ่มสาขาไม่ได้</p>
+      <p class="m">“ยังมีพนักงานประจำ … คน (…) — ย้ายไปสาขาอื่นก่อน …” · “ร้านของสาขานี้ยังเปิดอยู่วันนี้ — ปิดร้านก่อน …” · “มีสาขาครบ … สาขาตามที่กำหนดไว้แล้ว …”</p>
+      <p><b>ทำอย่างไร</b> — ย้ายพนักงานออก / ให้สาขาปิดร้านก่อน · จำนวนสาขาเต็ม ติดต่อคนดูแลเว็บให้เพิ่มจำนวน</p></div>
+    <div class="qa"><p class="q">ไม่ได้รับข้อความ Telegram</p>
+      <p><b>ตรวจ</b> — เปิดการแจ้งเตือน Telegram และติ๊กเหตุการณ์นั้นไว้ไหม · ทักบอทหรือเพิ่มบอทเข้ากลุ่มแล้วหรือยัง · กด “ส่งข้อความทดสอบ” แล้วอ่านสาเหตุ
+        (เช่น “ไม่พบ Chat ID นี้ — ต้องทักบอทก่อน …” “ผู้ใช้บล็อกบอทนี้อยู่”) · ดูตาราง “ประวัติการส่งล่าสุด” ในหน้าเดียวกัน</p></div>
+    <div class="qa"><p class="q">อีเมลสรุปรายวันไม่มา</p>
+      <p><b>ตรวจ</b> — หน้าตั้งค่าขึ้นเตือนเรื่องตัวส่งอัตโนมัติ (cron) ไหม (ถ้าขึ้น แจ้งคนดูแลเว็บ) · เลือก “เฉพาะวันที่มียอดขาย” แล้ววันนั้นไม่มีบิลไหม
+        · ดูในโฟลเดอร์ Spam · กด “ส่งทดสอบ” ดูสาเหตุ (ส่วนใหญ่เป็นค่าเซิร์ฟเวอร์อีเมล) · ส่งไม่สำเร็จ ระบบลองใหม่วันละไม่เกิน 3 ครั้ง</p></div>
+  </div>
+</section>
+<!-- ======================================================= 16 เช็กลิสต์ -->
+<section class="sec">
+  <h2 id="s16"><span class="no">16</span> เช็กลิสต์ประจำวัน</h2>
+  <p class="lead">ทำตามลำดับนี้ทุกวัน ตัวเลขในระบบจะตรงกับของจริงและเงินจริง — หน้าของพนักงานหน้าร้านจัดให้อยู่ในหน้าเดียว
+    สั่งพิมพ์เฉพาะหน้านั้นไปแปะไว้ข้างเครื่องได้</p>
+
+  <div class="chk-sheet" id="s16-0">
+    <div class="chk-head"><b>เช็กลิสต์พนักงานหน้าร้าน</b><span>AOSTOCK · ทำทุกวัน</span></div>
+    <div class="chk-grp">
+      <h4><span class="chk-t g">เช้า</span>ก่อนเปิดร้าน</h4>
+      <ul class="chk">
+        <li>เข้าระบบด้วย<b>ชื่อของตัวเอง</b> (แตะชื่อ + PIN) — ห้ามใช้ชื่อคนอื่น</li>
+        <li>ขึ้น “วัน… ยังไม่ได้กดปิดร้าน” → นับเงิน แล้วปิดร้านของวันนั้นก่อน (ขั้นที่ 1)</li>
+        <li>นับเงินทอนในลิ้นชัก เทียบกับ “เงินทอนยกมา” — ไม่ตรง กด “แจ้งยอดไม่ตรง” ใส่ยอดจริงและเหตุผล</li>
+        <li>เติมเงินทอนถ้าต้องการ แล้วกด <b>“เปิดร้าน”</b> — แถบบนขึ้น “เปิดแล้ว … น.”</li>
+        <li>ดู “งานที่รอดำเนินการ” และ “สต๊อกที่ต้องดูแล” ในภาพรวมของฉัน — ของใกล้หมด แจ้งผู้จัดการ</li>
+      </ul>
+    </div>
+    <div class="chk-grp">
+      <h4><span class="chk-t o">ระหว่างวัน</span>ทุกครั้งที่ทำรายการ</h4>
+      <ul class="chk">
+        <li>ขายทุกบิล ดูกล่องยืนยันก่อนกด: <b>ประเภทบิล</b> (VAT / ไม่ VAT) · <b>วิธีจ่าย</b> · <b>เงินทอน</b></li>
+        <li>ลูกค้าโอน / พร้อมเพย์ เลือก “โอน / พร้อมเพย์” — ไม่ใช่เงินสด</li>
+        <li>เอาเงินเข้า / ออกลิ้นชักโดยไม่ได้ขาย → บันทึก “เติมเงินทอน / หยิบเงินออก” <b>ทันที</b> พร้อมเหตุผล</li>
+        <li>ลูกค้าคืนของ → “รับคืนสินค้า” เลือกเหตุผลให้ถูก แล้วคืนเงินจากลิ้นชัก</li>
+        <li>ของมาส่ง → นับของจริงก่อน แล้วทำใบรับเข้าพร้อมเลขใบส่งของ</li>
+        <li>ของแตก / หาย / หมดอายุ / เบิกใช้ → “เบิก / ตัดออก” ทันที</li>
+        <li>ตรวจนับตอนร้านเปิด → นับทีละรายการ แล้วบันทึกทันที</li>
+        <li>ลุกจากเครื่องที่ใช้ร่วมกัน → <b>ออกจากระบบ</b></li>
+      </ul>
+    </div>
+    <div class="chk-grp">
+      <h4><span class="chk-t d">เย็น</span>ปิดร้าน</h4>
+      <ul class="chk">
+        <li>บิลสุดท้ายบันทึกแล้ว ตะกร้าว่าง</li>
+        <li>เปิดประวัติการทำรายการ ชิป “ขายสินค้า” — บิลโอนกับบิลเงินสดบันทึกถูกไหม (ผิดยังแก้บิลได้ตอนนี้)</li>
+        <li>นับเงินสดในลิ้นชัก ใส่ “นับเงินได้จริง” — ไม่ตรง เช็กเงินเข้า–ออกที่ยังไม่ได้บันทึก แล้วเขียนหมายเหตุตามจริง</li>
+        <li>แยกเงินทอนไว้สำหรับพรุ่งนี้ ส่วนที่เหลือคือเงินนำส่ง</li>
+        <li>กด <b>“ปิดร้านและส่งสรุปให้ผู้ดูแล”</b> แล้วดูการ์ดสรุปการปิดร้าน</li>
+        <li>ออกจากระบบ</li>
+      </ul>
+    </div>
+    <div class="chk-foot">ติดปัญหา ดูข้อ 15 “ถาม–ตอบ” · ลืม PIN / โดนล็อก แจ้งผู้จัดการสาขา</div>
+  </div>
+</section>
+
+<section class="sec">
+  <h3 id="s16-1" style="margin-top:0">ผู้จัดการสาขา</h3>
+  <div class="chk-cols">
+    <div><h4>ทุกวัน</h4><ul class="chk">
+      <li>ภาพรวมของฉัน — งานค้างของสาขา (ตรวจนับ · ปิดร้านค้าง)</li>
+      <li>ประวัติการทำรายการ — การยกเลิก / แก้ไขบิล และเงินเข้า–ออกลิ้นชัก มีเหตุผลสมเหตุสมผลไหม</li>
+      <li>สาขาปิดร้านทุกวัน เงินตรงหรือมีหมายเหตุ</li>
+      <li>พนักงานลืม PIN / โดนล็อก → รีเซ็ต PIN</li></ul></div>
+    <div><h4>ทุกสัปดาห์</h4><ul class="chk">
+      <li>สินค้าในสต๊อก การ์ด “ใกล้หมด” / “หมดแล้ว” → แจ้งสั่งของ</li>
+      <li>ตรวจนับรอบนี้นับไปกี่รายการแล้ว เหลือกี่วัน</li>
+      <li>รายงานยอดขายทั้งสาขา แยกตามพนักงาน</li></ul></div>
+    <div><h4>ทุกเดือน</h4><ul class="chk">
+      <li>ตรวจนับให้ครบทุกสินค้าก่อนครบรอบ</li>
+      <li>คนลาออก / พักงาน → พักงานในระบบ · ทบทวนสิทธิ์ของแต่ละคน</li></ul></div>
+  </div>
+
+  <h3 id="s16-2">ผู้ดูแลระบบ</h3>
+  <div class="chk-cols">
+    <div><h4>ทุกวัน</h4><ul class="chk">
+      <li>ภาพรวม — ทุกสาขาเปิด / ปิดร้านครบ เงินขาด / เกิน</li>
+      <li><b>รายการที่ต้องตรวจ</b> — ดูก่อนหมดวัน (รายการเริ่มใหม่ทุกวัน)</li>
+      <li>สาขาที่ “ยังไม่ได้ปิดร้าน” → ปิดย้อนหลัง</li>
+      <li>Telegram / อีเมลสรุปมาครบ</li></ul></div>
+    <div><h4>ทุกสัปดาห์</h4><ul class="chk">
+      <li>สต๊อกแยกตามสาขา · สินค้าที่ต้องสั่งก่อน</li>
+      <li>ใบตัดออกเหตุผลสูญหาย / ชำรุด · ใบรับคืนพร้อมรูป</li>
+      <li>ยอดขายตามพนักงาน — ส่วนลดที่ให้</li></ul></div>
+    <div><h4>ทุกเดือน</h4><ul class="chk">
+      <li>สรุปยอดขายรายวัน / แยกสาขาของเดือน</li>
+      <li>ราคา จุดสั่งซื้อ สินค้าที่ควรเลิกขาย</li>
+      <li>พนักงาน ผู้จัดการ และสิทธิ์เสริม · ค่าตั้งของสาขา</li>
+      <li>ประวัติการส่งแจ้งเตือน มีส่งไม่สำเร็จไหม</li></ul></div>
+  </div>
+
+  <h3 id="s16-3">ฝ่ายบัญชี</h3>
+  <div class="chk-cols">
+    <div><h4>ทุกวัน (ของเมื่อวาน)</h4><ul class="chk">
+      <li>เงินสดแต่ละสาขา เทียบกับเงินที่สาขานำส่ง</li>
+      <li>เงินโอน / พร้อมเพย์ เทียบกับรายการเดินบัญชีธนาคาร</li>
+      <li>บิลยกเลิก และเงินคืน มีที่มาที่ไป</li></ul></div>
+    <div><h4>ทุกเดือน</h4><ul class="chk">
+      <li>“สรุปเดือน” ยอดก่อน VAT และ VAT แยกสาขา สำหรับ ภ.พ.30 (ยื่นภายในวันที่ 15 ของเดือนถัดไป)</li>
+      <li><b>ดาวน์โหลดบิลทั้งเดือน (CSV)</b> เก็บไว้ — หน้าบิลขายย้อนดูได้แค่ 60 วัน</li></ul></div>
+    <div><h4>เมื่อมีการเปลี่ยนแปลง</h4><ul class="chk">
+      <li>เปิดสาขาใหม่ → ตั้งหัวบิล รหัสเลขที่บิล เลขผู้เสียภาษี และเลขที่สาขา</li>
+      <li>ย้ายที่อยู่ / เปลี่ยนชื่อบริษัท → แก้หัวบิลทุกสาขา แล้วดูตัวอย่างบิล</li></ul></div>
+  </div>
+</section>
+
+<!-- ======================================================= 17 ตั้งเครื่อง -->
+<section class="flow">
+  <h2 id="s17"><span class="no">17</span> ตั้งเครื่องให้พร้อมใช้</h2>
+  <p class="lead">ระบบเปิดผ่านเว็บเบราว์เซอร์ ไม่ต้องลงโปรแกรม ใช้ได้ทั้ง iPad แท็บเล็ต มือถือ และคอมพิวเตอร์ (Safari · Chrome · Edge รุ่นใหม่)
+    ต้องต่ออินเทอร์เน็ตตลอดเวลาที่ใช้งาน — หน้าขายออกแบบมาสำหรับ <b>iPad แนวนอน</b> เป็นหลัก</p>
+
+  <h3 id="s17-1">เพิ่มไอคอน AOSTOCK บนหน้าจอ iPad / มือถือ</h3>
+  <div class="pair">
+    <div>
+      <h4>iPad / iPhone (Safari)</h4>
+      <ol class="steps">
+        <li>เปิด Safari ไปที่ที่อยู่เว็บของระบบ (ผู้ดูแลแจ้งให้) จนเห็นหน้าเข้าสู่ระบบ</li>
+        <li>แตะปุ่ม <b>แชร์</b> (สี่เหลี่ยมมีลูกศรชี้ขึ้น)</li>
+        <li>เลือก <b>“เพิ่มไปยังหน้าจอโฮม”</b> ตั้งชื่อว่า AOSTOCK แล้วแตะ “เพิ่ม”</li>
+      </ol>
+    </div>
+    <div>
+      <h4>แท็บเล็ต / มือถือ Android (Chrome)</h4>
+      <ol class="steps">
+        <li>เปิด Chrome ไปที่ที่อยู่เว็บของระบบ</li>
+        <li>แตะเมนู <b>⋮</b> มุมขวาบน</li>
+        <li>เลือก <b>“เพิ่มลงในหน้าจอหลัก”</b> แล้วยืนยัน</li>
+      </ol>
+    </div>
+  </div>
+  <p class="muted">ไอคอนบนหน้าจอโฮมเป็นทางลัดเปิดหน้าเว็บ (ภาพไอคอนเป็นภาพย่อของหน้าเว็บ) เปิดแล้วยังต้องเข้าระบบตามปกติ</p>
+
+  <h3 id="s17-2">ตั้ง iPad หน้าร้าน</h3>
+  <ul>
+    <li><b>ใช้แนวนอน</b> — หน้าขาย นำเข้า ตัดออก ตรวจนับ จะเห็นสินค้าทางซ้ายกับตะกร้า / ใบทางขวาพร้อมกัน</li>
+    <li>ตั้งให้หน้าจอไม่ดับเร็วเกินไประหว่างขาย (การตั้งค่า → จอภาพและความสว่าง → ล็อกอัตโนมัติ)</li>
+    <li>ใช้ Wi-Fi ของร้านที่สัญญาณดี — เน็ตหลุดระหว่างกด ให้ดูหน้าประวัติก่อนทำซ้ำ (ข้อ 15)</li>
+    <li>ตัวหนังสือเล็กไป ใช้ปุ่ม “aA” ในแถบที่อยู่ของ Safari ขยายขนาดหน้าเว็บได้</li>
+  </ul>
+
+  <h3 id="s17-3">ใช้บนมือถือ</h3>
+  <div class="mobile-row">
+  <p>ทำได้ทุกอย่างเหมือนบน iPad หน้าจอจัดเรียงเป็นแนวตั้ง: <b>เมนูอยู่ใต้ปุ่ม ☰</b> มุมซ้ายบน (แตะ × หรือแตะพื้นหลังเพื่อปิด)
+    หน้าขายมีรายการสินค้าอยู่บน ตะกร้าและส่วนรับเงินอยู่ล่าง ปุ่ม <span class="k">ขาย</span> สีส้มบนแถบบนบอกจำนวนชิ้นในตะกร้า</p>
+  <div class="phones">
+    <figure><img src="img/53-phone-sale.jpg" alt="หน้าขายบนมือถือ"><figcaption>หน้าขายบนมือถือ — ตะกร้าและรับเงิน</figcaption></figure>
+    <figure><img src="img/54-phone-menu.jpg" alt="เมนูบนมือถือ"><figcaption>เมนูบนมือถือ — เปิดจากปุ่ม ☰</figcaption></figure>
+  </div>
+  </div>
+
+  <h3 id="s17-4">เครื่องพิมพ์ใบเสร็จ 80 มม. และ A4</h3>
+  <p>ระบบสั่งพิมพ์ผ่าน<b>หน้าต่างพิมพ์ของเบราว์เซอร์</b> ไม่มีโปรแกรมพิมพ์แยก — เครื่องพิมพ์จึงต้องใช้กับอุปกรณ์เครื่องนั้นได้ก่อน</p>
+  <ul>
+    <li><b>iPad / iPhone</b> — ใช้เครื่องพิมพ์ที่รองรับ AirPrint (อยู่ Wi-Fi วงเดียวกัน) หรือตามวิธีของยี่ห้อเครื่องพิมพ์นั้น</li>
+    <li><b>คอมพิวเตอร์</b> — ติดตั้งไดรเวอร์ของเครื่องพิมพ์ให้เครื่องพิมพ์ขึ้นในรายการเครื่องพิมพ์ของ Windows / macOS ก่อน</li>
+  </ul>
+  <ol class="steps">
+    <li>ฝ่ายบัญชีหรือผู้ดูแลตั้ง <b>“ขนาดกระดาษเริ่มต้น”</b> ของสาขาที่หน้า “ตั้งค่าเลขที่บิล” (ใบเสร็จ 80 มม. หรือ A4)</li>
+    <li>พิมพ์บิลทดสอบ: “ดู / พิมพ์บิล” → เลือก <span class="k">80 มม.</span> หรือ <span class="k">A4</span> → <span class="k">พิมพ์</span></li>
+    <li>หน้าต่างพิมพ์ของเครื่อง เลือกเครื่องพิมพ์ที่ถูก — บนคอม ตั้งขนาดกระดาษให้ตรงกับเครื่องพิมพ์ ระยะขอบ “ไม่มี” และขนาด 100%
+      ถ้ามีวันที่หรือที่อยู่เว็บติดมาที่หัว / ท้ายกระดาษ ให้ปิด “หัวกระดาษและท้ายกระดาษ”</li>
+    <li>ตั้งเครื่องพิมพ์ที่ใช้ประจำเป็นค่าเริ่มต้นของเครื่อง ครั้งต่อไปกดพิมพ์ได้เลย</li>
+  </ol>
+  <p class="muted">หน้าบิลกำหนดขนาดกระดาษและระยะขอบไว้ในตัวแล้ว (80 มม. ความยาวตามบิล / A4) · ฝ่ายบัญชีกด “ดูตัวอย่างบิล” ในหน้าตั้งค่าเลขที่บิลเพื่อพิมพ์ทดสอบได้โดยไม่ต้องขาย</p>
+
+  <h3 id="s17-5">ใช้เครื่องร่วมกันอย่างปลอดภัย</h3>
+  <ul>
+    <li>ทุกคนมี<b>ชื่อผู้ใช้และ PIN ของตัวเอง</b> — ทุกรายการบันทึกชื่อคนที่เข้าระบบ ใช้ PIN ของคนอื่นเท่ากับทำรายการในชื่อคนนั้น</li>
+    <li>อย่าบอก PIN ให้ใคร สงสัยว่าคนอื่นรู้ ให้ผู้จัดการสาขาตั้ง PIN ใหม่</li>
+    <li><b>ลุกจากเครื่องต้องกดออกจากระบบ</b> — ปิดแท็บหรือพับหน้าจอไม่ได้แปลว่าออกจากระบบ</li>
+    <li>เปิดหลายแท็บได้ แต่กดออกจากระบบในแท็บหนึ่ง แท็บอื่นก็ออกด้วย</li>
+    <li>ไม่อยากให้เครื่องจำชื่อตัวเอง เอาติ๊ก “จำชื่อฉันไว้บนเครื่องนี้” ออก หรือกด × บนชื่อ</li>
+    <li>“จดจำการเข้าสู่ระบบ 30 วัน” ของผู้ดูแล / ฝ่ายบัญชี ใช้เฉพาะเครื่องส่วนตัว</li>
+  </ul>
+</section>
+
+<!-- ======================================================= 18 คำศัพท์ -->
+<section class="sec">
+  <h2 id="s18"><span class="no">18</span> คำศัพท์ในระบบ</h2>
+  <table>
+    <thead><tr><th style="width:28%">คำ</th><th>ความหมาย</th></tr></thead>
+    <tr><td>สต๊อก / ของคงเหลือ</td><td>จำนวนของที่สาขามีอยู่ตอนนี้</td></tr>
+    <tr><td>SKU / รหัสสินค้า</td><td>รหัสประจำสินค้าแต่ละตัว ใช้ค้นหาแทนชื่อได้</td></tr>
+    <tr><td>จุดสั่งซื้อ</td><td>จำนวนที่ถ้าของเหลือเท่านี้หรือน้อยกว่า ระบบขึ้น “ใกล้หมด”</td></tr>
+    <tr><td>เงินทอน</td><td>เงินที่เตรียมไว้ในลิ้นชักตอนเปิดร้านเพื่อทอนลูกค้า</td></tr>
+    <tr><td>ลิ้นชัก</td><td>เงินสดในร้านของวันนั้น (ไม่รวมเงินโอน)</td></tr>
+    <tr><td>เงินนำส่ง</td><td>เงินสดที่เหลือหลังแยกเงินทอนไว้สำหรับพรุ่งนี้ ส่งให้เจ้าของ / บัญชี</td></tr>
+    <tr><td>บิลธรรมดา / บิล VAT</td><td>บิล VAT พิมพ์เป็นใบกำกับภาษีอย่างย่อ และมีเลขที่บิลแยกชุด</td></tr>
+    <tr><td>ใบรับเข้า (RC)</td><td>เอกสารการรับของเข้าสต๊อก ต้องมีเลขที่ใบส่งของ / ใบกำกับอ้างอิง</td></tr>
+    <tr><td>ใบตัดออก (IS)</td><td>เอกสารของออกจากสต๊อกโดยไม่ได้ขาย</td></tr>
+    <tr><td>ใบตรวจนับ (AD)</td><td>ผลการนับของจริงและการปรับยอดให้ตรง</td></tr>
+    <tr><td>ใบรับคืน (RT)</td><td>เอกสารรับคืนสินค้าจากลูกค้า อ้างอิงบิลเดิม</td></tr>
+    <tr><td>รอบตรวจนับ</td><td>ช่วงเวลาหนึ่งเดือนที่ต้องนับสินค้าให้ครบทุกตัว</td></tr>
+    <tr><td>ยกเลิก / แก้ไขเอกสาร</td><td>ทางแก้เอกสารที่บันทึกแล้ว ต้องใส่หมายเหตุ และเก็บไว้ในประวัติ (ข้อ 8)</td></tr>
+    <tr><td>เปิดร้านใหม่</td><td>เปิดร้านอีกครั้งหลังปิดไปแล้วในวันเดียวกัน ต้องใส่เหตุผล</td></tr>
+    <tr><td>สิทธิ์ / สิทธิ์เสริม</td><td>สิ่งที่แต่ละคนทำได้ ผู้ดูแลติ๊กให้รายคน (ข้อ 13)</td></tr>
+  </table>
+</section>
+
+</body>
+</html>

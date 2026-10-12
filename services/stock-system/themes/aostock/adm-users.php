@@ -13,6 +13,8 @@
  *         · ตั้ง / ปลด "ผู้จัดการสาขา" ที่ช่อง "ตำแหน่ง" บนสุดของฟอร์ม (หรือที่หน้าจัดการสาขา) · ป้ายผู้จัดการข้างชื่อ · ย้ายสาขายังอยู่ในหน้านี้ (เฉพาะผู้ดูแล)
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  *   - [x] ช่วงที่ 13: เปลี่ยนชื่อผู้ใช้ได้ (ช่องในฟอร์มแก้ไข — พนักงานใช้คู่กับ PIN ตอนเข้าระบบ) · ข้อความหลังเพิ่มบอกชื่อผู้ใช้ที่ต้องแจ้งพนักงาน
+ *   - [x] คนที่พักงานรีเซ็ต PIN / ย้ายสาขาได้ — ข้อความเปิดใช้งานไม่ได้บอกให้ทำสองอย่างนี้ก่อน แต่เดิมฟอร์มถูกซ่อน
+ *   - [x] 12 ต.ค.: ช่องชื่อผู้ใช้ในฟอร์มแก้ไข maxlength 20 ตามกติกา 3–20 ตัว (เดิม 40)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -201,7 +203,7 @@ require dirname(__FILE__) . '/inc/header.php';
         </div>
         <div class="field">
           <label for="e-user">ชื่อผู้ใช้</label>
-          <input class="input" type="text" id="e-user" name="username" value="<?php echo e($pv['username']) ?>" maxlength="40" required autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="เช่น nipa">
+          <input class="input" type="text" id="e-user" name="username" value="<?php echo e($pv['username']) ?>" maxlength="20" required autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="เช่น nipa">
           <small class="adm-hint">ใช้คู่กับ PIN ตอนเข้าระบบ · เปลี่ยนแล้วแจ้งพนักงานด้วย · a–z 0–9 _ ยาว 3–20 ตัว</small>
         </div>
         <div class="field">
@@ -212,7 +214,11 @@ require dirname(__FILE__) . '/inc/header.php';
       <?php perm_boxes($pv['perms'], $picked['branch']); ?>
       <button class="btn btn-primary" type="submit"><svg class="ico"><use href="#i-check"/></svg> บันทึก</button>
     </form>
+    <?php } else { ?>
+    <p class="adm-hint">พักงานอยู่ — แก้ข้อมูลและสิทธิ์ได้หลังเปิดใช้งาน · ถ้าเปิดใช้งานไม่ได้เพราะ PIN ซ้ำหรือสาขาเดิมปิดไปแล้ว ให้รีเซ็ต PIN หรือย้ายสาขาด้านล่างก่อน</p>
+    <?php } ?>
 
+    <!-- รีเซ็ต PIN · ย้ายสาขา — คนที่พักงานก็ทำได้ (ใช้ปลดปัญหาก่อนเปิดใช้งาน) -->
     <div class="adm-row">
       <form class="adm-sec" method="post" action="adm-users.php?u=<?php echo e(rawurlencode($sel)) ?>">
         <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
@@ -251,7 +257,6 @@ require dirname(__FILE__) . '/inc/header.php';
         <?php } ?>
       </form>
     </div>
-    <?php } ?>
 
     <!-- พักงาน / เปิดใช้งาน · ลบ -->
     <div class="adm-row br-danger">

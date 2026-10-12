@@ -9,6 +9,7 @@
  *   - [x] ช่วงที่ 7: บิลที่บันทึกแล้วอยู่ในตาราง — ไฟล์นี้แสดงตะกร้า + สรุปยอดวันนี้
  *   - [x] ช่วงที่ 11: ช่องแก้ยอดชำระ (ส่วนลด) เฉพาะคนที่มีสิทธิ์ discount · ลิงก์ประวัติตามสิทธิ์
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
+ *   - [x] 12 ต.ค.: ช่อง “รับเงินมา” / ปุ่ม “พอดี” รับและใส่ยอดที่มีสตางค์ได้ (แป้น decimal) — เดิมตัดเป็นบาทเต็ม เงินทอนติดลบ
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -206,20 +207,22 @@ $base = 'sale.php' . ($qs !== '' ? '?' . $qs : '');
             <label><input type="radio" name="method" value="transfer"> โอน / พร้อมเพย์</label>
           </div>
 
+          <?php /* รับสตางค์ได้ — ยอดลงตัวแสดงเป็นบาทเต็ม (980) มีสตางค์แสดง 2 ตำแหน่ง (99.50) · เดิม (int) ตัดเป็น 99 เงินทอนติดลบ (12 ต.ค.) */
+          $totIn = (abs($tot - round($tot)) < 0.005) ? (string) (int) round($tot) : number_format($tot, 2, '.', ''); ?>
           <div id="cash-box">
             <span class="lbl lbl-mt">รับเงินมา</span>
             <div class="cash-in">
-              <input class="input num" type="text" inputmode="numeric" id="received" name="received"
-                     value="<?php echo (int) $tot ?>" autocomplete="off" aria-label="จำนวนเงินที่รับมา">
+              <input class="input num" type="text" inputmode="decimal" id="received" name="received"
+                     value="<?php echo e($totIn) ?>" autocomplete="off" aria-label="จำนวนเงินที่รับมา">
               <span class="unit">บาท</span>
             </div>
             <div class="amt-quick" id="recv-quick">
-              <button type="button" data-set="<?php echo (int) $tot ?>">พอดี</button>
+              <button type="button" data-set="<?php echo e($totIn) ?>">พอดี</button>
               <?php
-              $seen = array((int) $tot);
+              $seen = array(round($tot, 2));
               foreach (array(100, 500, 1000) as $step) {
                   $v = (int) (ceil($tot / $step) * $step);
-                  if (in_array($v, $seen, true)) { continue; }
+                  if (in_array($v, $seen)) { continue; }
                   $seen[] = $v;
                   echo '<button type="button" data-set="' . $v . '">' . money($v) . '</button>';
               }
@@ -270,6 +273,8 @@ $base = 'sale.php' . ($qs !== '' ? '?' . $qs : '');
     var disc = document.getElementById('disc');
     var nerr = document.getElementById('net-err');
     var fmt2 = function (n) { return n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
+    /* ค่าในช่องรับเงิน: ลงตัว = บาทเต็ม · มีสตางค์ = 2 ตำแหน่ง (แบบเดียวกับ $totIn ฝั่ง PHP) */
+    var plain = function (n) { return Math.abs(n - Math.round(n)) < 0.005 ? String(Math.round(n)) : n.toFixed(2); };
 
     /* ยอดที่ต้องชำระเปลี่ยน → คำนวณส่วนลด และตั้งเงินที่รับมาให้เท่ายอดใหม่ */
     function netSync() {
@@ -286,9 +291,9 @@ $base = 'sale.php' . ($qs !== '' ? '?' . $qs : '');
       totEl.textContent = fmt2(tot);
       var pay = document.querySelector('.btn-pay');
       if (pay) { pay.disabled = !ok; }
-      if (rec && !rec.getAttribute('data-touched')) { rec.value = String(Math.ceil(tot)); }
+      if (rec && !rec.getAttribute('data-touched')) { rec.value = plain(tot); }
       var q0 = document.querySelector('#recv-quick button');
-      if (q0) { q0.setAttribute('data-set', String(Math.ceil(tot))); }
+      if (q0) { q0.setAttribute('data-set', plain(tot)); }
       paint();
     }
     if (net) {
@@ -299,8 +304,8 @@ $base = 'sale.php' . ($qs !== '' ? '?' . $qs : '');
 
     function paint() {
       if (!rec || !chg) { return; }
-      var v = Number(String(rec.value).replace(/[^0-9]/g, '')) || 0;
-      var d = v - tot;
+      var v = Number(String(rec.value).replace(/[^0-9.]/g, '')) || 0;
+      var d = Math.round((v - tot) * 100) / 100;
       chg.textContent = (d < 0 ? '-' : '') + Math.abs(d).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
       chg.className = 'num' + (d < 0 ? ' neg' : '');
     }

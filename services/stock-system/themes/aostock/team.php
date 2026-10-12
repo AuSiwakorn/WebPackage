@@ -8,6 +8,8 @@
  *   - [x] ช่วงที่ 12: หน้าใหม่ของผู้จัดการสาขา (ข้อ 1ก หน้าแยกฝั่งพนักงาน · 2ก ติ๊กได้เฉพาะสิทธิ์ที่ไม่ใช่สิทธิ์เสริม · 3ก ยืนยัน PIN ทุกครั้งที่บันทึก)
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  *   - [x] ช่วงที่ 13: ชื่อผู้ใช้ต้องกรอกตอนเพิ่ม · เปลี่ยนชื่อผู้ใช้ของพนักงานในสาขาได้ (ข้อ 1ก — ช่องในฟอร์มแก้ไข)
+ *   - [x] คนที่พักงานรีเซ็ต PIN ได้ — เปิดใช้งานไม่ได้เพราะ PIN ซ้ำ ข้อความบอกให้รีเซ็ตก่อน แต่เดิมฟอร์มถูกซ่อน
+ *   - [x] 12 ต.ค.: ช่องชื่อผู้ใช้ในฟอร์มแก้ไข maxlength 20 ตามกติกา 3–20 ตัว (เดิม 40)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -246,7 +248,7 @@ require dirname(__FILE__) . '/inc/header.php';
         </div>
         <div class="field">
           <label for="e-user">ชื่อผู้ใช้</label>
-          <input class="input" type="text" id="e-user" name="username" value="<?php echo e($pv['username']) ?>" maxlength="40" required autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="เช่น nipa">
+          <input class="input" type="text" id="e-user" name="username" value="<?php echo e($pv['username']) ?>" maxlength="20" required autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="เช่น nipa">
           <small class="adm-hint">ใช้คู่กับ PIN ตอนเข้าระบบ · เปลี่ยนแล้วแจ้งพนักงานด้วย · a–z 0–9 _ ยาว 3–20 ตัว</small>
         </div>
         <div class="field">
@@ -263,7 +265,11 @@ require dirname(__FILE__) . '/inc/header.php';
         <button class="btn btn-primary" type="submit"><svg class="ico"><use href="#i-check"/></svg> บันทึก</button>
       </div>
     </form>
+    <?php } else { ?>
+    <p class="adm-hint">พักงานอยู่ — แก้ข้อมูลและสิทธิ์ได้หลังเปิดใช้งาน · ถ้าเปิดใช้งานไม่ได้เพราะ PIN ซ้ำ ให้รีเซ็ต PIN ด้านล่างก่อน</p>
+    <?php } ?>
 
+    <!-- รีเซ็ต PIN — คนที่พักงานก็ทำได้ (ใช้ปลดปัญหา PIN ซ้ำก่อนเปิดใช้งาน) -->
     <div class="adm-row">
       <form class="adm-sec" method="post" action="team.php?u=<?php echo e(rawurlencode($sel)) ?>">
         <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
@@ -279,7 +285,6 @@ require dirname(__FILE__) . '/inc/header.php';
         </div>
       </form>
     </div>
-    <?php } ?>
 
     <!-- พักงาน / เปิดใช้งาน · ลบ -->
     <div class="adm-row br-danger">

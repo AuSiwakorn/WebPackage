@@ -7,6 +7,8 @@
  * TODO:
  *   - [x] ช่วงที่ 10: แยกจาก api.php เดิม (ย้ายโค้ดทั้งก้อน ไม่แก้ตรรกะ) · จัดฟังก์ชันที่เคยปนอยู่หมวดอื่นให้มาอยู่หมวดนี้
  *   - [x] ช่วงที่ 12: ประวัติการเพิ่ม / ลบหมวดเป็นชนิด category (พนักงานทุกคนเห็น — เดิมปนอยู่ในตั้งค่า)
+ *   - [x] ช่วงที่ 16: พนักงานเพิ่มสินค้าใหม่จากหน้านำเข้า (Stock_doAddProduct) · SKU อัตโนมัติ P0001… (Stock_nextProductSku) หรือกรอกเอง
+ *         · ตั้งชื่อตามมาตรฐานใหม่ Stock_ (ดู FUNCTIONS.md)
  *
  * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
  */
@@ -189,6 +191,77 @@ function product_save($isNew, $d)
     }
     product_db_reset();
     return $id;
+}
+
+/** SKU อัตโนมัติถัดไป P0001, P0002, … (ตัวนับใน ao_stock_doc_seq ชุด SKU · ข้ามเลขที่มีคนกรอกเองไปแล้ว) — ต้องเรียกใน sdb_tx
+    ตัวนับเป็นแถวเดียว (upsert) คนที่เพิ่มพร้อมกันต่อคิวกันเอง ไม่ได้เลขซ้ำ
+    TODO:
+      - [x] ช่วงที่ 16 (ข้อ 2: เว้นว่าง = ตั้งให้อัตโนมัติ) */
+function Stock_nextProductSku()
+{
+    do {
+        $sku = 'P' . str_pad((string) stock_seq_next(0, 'SKU', '-'), 4, '0', STR_PAD_LEFT);
+    } while (sdb_val('SELECT 1 FROM ' . sdb_tb('product') . ' WHERE sku = ?', array($sku)) !== null);
+    return $sku;
+}
+
+/** เพิ่มสินค้าใหม่จากหน้านำเข้า (พนักงานที่มีสิทธิ์ product_add) — ตรวจเหมือนหน้าเพิ่มสินค้าของผู้ดูแล (product_read_form)
+    ฟอร์ม: sku_mode (auto | manual) · sku · name · cat · cat_new (หมวดใหม่ — ต้องมีสิทธิ์ category_add) · unit · barcode · cost · price · reorder
+    หมวดใหม่ + สินค้า + ประวัติ อยู่ใน transaction เดียว — ตรวจไม่ผ่าน = ไม่มีอะไรถูกบันทึก (หมวดใหม่ไม่ค้าง)
+    คืน array('sku' => SKU, 'name' => ชื่อ) หรือ array('error' => ข้อความ)
+    TODO:
+      - [x] ช่วงที่ 16 */
+function Stock_doAddProduct($user, $code)
+{
+    if (!can($user, 'product_add')) {
+        return array('error' => 'ไม่มีสิทธิ์ “เพิ่มสินค้าใหม่” — ติดต่อผู้จัดการสาขาหรือผู้ดูแลเพื่อเปิดสิทธิ์');
+    }
+    $auto   = !(isset($_POST['sku_mode']) && $_POST['sku_mode'] === 'manual');
+    $newCat = (isset($_POST['cat_new']) && is_string($_POST['cat_new'])) ? trim(preg_replace('/\s+/u', ' ', $_POST['cat_new'])) : '';
+    if ($newCat !== '') {
+        foreach (array_keys(cat_registry()) as $c) {                     // พิมพ์ชื่อหมวดที่มีอยู่แล้ว = ใช้หมวดนั้น
+            if (mb_strtolower($c, 'UTF-8') === mb_strtolower($newCat, 'UTF-8')) {
+                $_POST['cat'] = $c;
+                $newCat = '';
+                break;
+            }
+        }
+    }
+    if ($newCat !== '' && !can($user, 'category_add')) {
+        return array('error' => 'ไม่มีสิทธิ์เพิ่มหมวดสินค้าใหม่ — เลือกจากหมวดที่มีอยู่ หรือติดต่อผู้จัดการสาขา');
+    }
+    try {
+        return sdb_tx(function () use ($user, $code, $auto, $newCat) {
+            if ($newCat !== '') {
+                $e = cat_add($newCat, $user, $code);
+                if ($e !== '') {
+                    throw new InvalidArgumentException($e);
+                }
+                $_POST['cat'] = $newCat;
+            }
+            if ($auto) {
+                $_POST['sku'] = Stock_nextProductSku();
+            }
+            product_db_reset();
+            list($d, $err) = product_read_form(true, '');
+            if ($err !== '') {
+                throw new InvalidArgumentException($err);
+            }
+            product_save(true, $d);
+            log_add($code, 'stock', $user, 'เพิ่มสินค้าใหม่ ' . $d['name'], array(
+                'SKU'      => $d['sku'] . ($auto ? ' (ตั้งให้อัตโนมัติ)' : ''),
+                'หมวด'     => $d['cat'],
+                'ราคาขาย'  => money2($d['price']) . ' บาท / ' . $d['unit'],
+                'ทุน'      => money2($d['cost']) . ' บาท',
+                'เพิ่มโดย' => $user['name'] . ' (จากหน้านำเข้าสินค้า)',
+            ));
+            return array('sku' => $d['sku'], 'name' => $d['name']);
+        });
+    } catch (InvalidArgumentException $ex) {
+        cat_registry(true);                                              // ยกเลิกทั้งชุดแล้ว — ล้าง cache ที่อาจจำหมวดใหม่ไว้
+        product_db_reset();
+        return array('error' => $ex->getMessage());
+    }
 }
 
 /** เปิดขาย / เลิกขาย */

@@ -10,6 +10,11 @@
  *   - [x] ช่วงที่ 10: แก้ File Header ให้ตรงกับระบบจริง · กัน XSS — ค่าทุกตัวในกล่องยืนยันผ่าน esc() · ทูลทิปกราฟใช้ textContent
  *   - [x] ช่วงที่ 11: ช่องติ๊กสิทธิ์ที่พ่วงกัน (data-needs) ปิด / เปิดตามตัวหลัก
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
+ *   - [x] ผลทดสอบ 7 ต.ค. (S2): เปิดเมนูบนมือถือแล้วล็อกการเลื่อนหน้าด้านหลัง (html.nav-lock)
+ *   - [x] 8 ต.ค.: เมนูแบบย่อเลื่อนได้ — ป้ายชื่อเมนูตอนชี้เมาส์ย้ายจาก CSS ::after มาเป็นกล่อง .rail-tip (position:fixed)
+ *   - [x] 8 ต.ค.: ปุ่มบันทึกที่ยังกรอกไม่ครบ (button[data-need] + aoNeedSync) — กดแล้วเลื่อนไปช่องที่ขาด กะพริบ + ข้อความ แทนปุ่ม disabled ที่กดแล้วเงียบ
+ *   - [x] 8 ต.ค.: คอลัมน์ขวา (.sale-cart) สูงเกินจอ → ค้างที่ขอบล่างแทน (--cart-top · aoCartFit) ปุ่มรับเงิน / ช่องหมายเหตุไม่จมใต้ขอบจอ
+ *   - [x] 12 ต.ค.: กล่องยืนยันการรับเงินแสดง “รับมา” มีสตางค์ได้ · ยกเลิกใบตรวจนับบอก “ส่วนต่างที่จะปรับกลับเป็นก่อนนับ” (เดิมใช้คำของใบตัดออก)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -117,6 +122,7 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
   function setOpen(open) {
     side.classList.toggle('open', open);
     bd.classList.toggle('open', open);
+    document.documentElement.classList.toggle('nav-lock', open);     // หน้าด้านหลังไม่เลื่อนตามตอนเลื่อนเมนู (ผลทดสอบ S2)
     tg.setAttribute('aria-expanded', String(open));
   }
   var cl = document.getElementById('side-close');
@@ -143,6 +149,36 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
       mode.setAttribute('aria-pressed', String(rail));
     });
   }
+
+  /* เมนูแบบย่อ: ป้ายชื่อเมนูตอนชี้เมาส์ / โฟกัสด้วยคีย์บอร์ด
+     กล่องเดียว position:fixed (.rail-tip) — เมนูเลื่อนได้แล้ว ป้ายแบบ ::after เดิมจะโดนตัดที่ขอบเมนู */
+  var tip = document.createElement('div');
+  tip.className = 'rail-tip';
+  tip.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(tip);
+  var railHover = window.matchMedia ? window.matchMedia('(hover: hover) and (min-width: 901px)') : null;
+  function tipHide() { tip.classList.remove('on'); }
+  function tipShow(a) {
+    var t = a.getAttribute('data-t');
+    if (!t || !app || !app.classList.contains('app--rail') || !railHover || !railHover.matches) { tipHide(); return; }
+    var r = a.getBoundingClientRect();
+    tip.textContent = t;
+    tip.style.left = Math.round(r.right + 10) + 'px';
+    tip.style.top = Math.round(r.top + r.height / 2) + 'px';
+    tip.classList.add('on');
+  }
+  side.addEventListener('mouseover', function (ev) {
+    var a = ev.target.closest ? ev.target.closest('.side-nav a') : null;
+    if (a) { tipShow(a); } else { tipHide(); }
+  });
+  side.addEventListener('mouseleave', tipHide);
+  side.addEventListener('scroll', tipHide, { passive: true });
+  side.addEventListener('focusin', function (ev) {
+    var a = ev.target.closest ? ev.target.closest('.side-nav a') : null;
+    if (a && a.matches && a.matches(':focus-visible')) { tipShow(a); }
+  });
+  side.addEventListener('focusout', tipHide);
+  if (mode) { mode.addEventListener('click', tipHide); }
 
   /* htmx สลับเนื้อหาแล้วให้เคอร์เซอร์กลับไปอยู่ช่องเดิม
      (พิมพ์ค้นหาอยู่แล้วผลลัพธ์เปลี่ยน ต้องพิมพ์ต่อได้ทันที) */
@@ -286,7 +322,7 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
       h += '<div class="cf-r"><span>ประเภทบิล</span><b>' + (vatOn && vatOn.checked ? 'บิล VAT' : 'บิลธรรมดา (ไม่ VAT)') + '</b></div>';
       if (isCash) {
         h += '<div class="cf-r"><span>รับมา</span><b class="num">'
-           + (Number(String(rec.value).replace(/[^0-9]/g, '')) || 0).toLocaleString('th-TH') + '.00 บาท</b></div>'
+           + (Number(String(rec.value).replace(/[^0-9.]/g, '')) || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' บาท</b></div>'
            + '<div class="cf-r cf-big"><span>เงินทอน</span><b class="num">'
            + esc(chg ? chg.textContent : '0.00') + ' บาท</b></div>';
       }
@@ -330,7 +366,8 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
         h += '<div class="cf-r cf-big"><span>' + (isSheet ? 'จะดึงกลับเข้าใบ' : 'จะดึงกลับเข้าตะกร้า')
            + '</span><b class="num">' + esc(itm) + ' รายการ</b></div>';
       } else if (qty) {
-        h += '<div class="cf-r cf-warn"><span>' + (isRecv ? 'จะถอนออกจากสต๊อก' : 'ของที่จะคืนเข้าสต๊อก')
+        /* ใบตรวจนับ: ยกเลิกแล้วยอดกลับเป็นก่อนปรับ (มีทั้งเพิ่มและลด) — qty คือส่วนต่างรวม ไม่ใช่ของที่คืนเข้าสต๊อก (12 ต.ค.) */
+        h += '<div class="cf-r cf-warn"><span>' + (isRecv ? 'จะถอนออกจากสต๊อก' : (isAdj ? 'ส่วนต่างที่จะปรับกลับเป็นก่อนนับ' : 'ของที่จะคืนเข้าสต๊อก'))
            + '</span><b class="num">' + esc(qty) + ' ชิ้น</b></div>';
       }
       h += '</div>'
@@ -549,6 +586,149 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
     });
     sync(f);
   });
+})();
+</script>
+<script>
+/* คอลัมน์ขวา (.sale-cart — ตะกร้าหน้าขาย / ใบรายการหน้านำเข้า ตัดออก ตรวจนับ) ค้างที่ขอบบนจอ (sticky) — 8 ต.ค.
+   สูงเกินจอเมื่อไร ส่วนล่าง (ปุ่มรับเงิน / ช่องหมายเหตุ) จมใต้ขอบจอหรือแถบสรุปล่าง จนกว่าจะเลื่อนผ่านสินค้าทั้งหมด
+   → ตอนสูงเกิน ตั้ง --cart-top ติดลบ: คอลัมน์เลื่อนตามหน้าจนเห็นท้ายคอลัมน์ แล้วค้างไว้เหนือขอบล่าง · พอดีจอ = ค้างขอบบนเหมือนเดิม
+   วัดใหม่ทุกครั้งที่ขนาดเปลี่ยน (เพิ่ม / ลบรายการ · htmx สลับเนื้อหา · กล่องสาเหตุโผล่ · หมุนจอ) */
+(function () {
+  if (!document.querySelector('.sale-cart')) { return; }
+  var seen = null, ro = null;
+  function fit() {
+    var a = document.querySelector('.sale-cart');
+    if (!a) { return; }
+    a.style.removeProperty('--cart-top');
+    var cs = window.getComputedStyle(a);
+    if (cs.position === 'sticky') {
+      var bar  = document.querySelector('.recv-bar');
+      var room = window.innerHeight - (bar ? bar.offsetHeight : 0) - 16;     // ที่ว่างถึงขอบล่าง หรือถึงแถบสรุปล่างจอ
+      var h    = a.offsetHeight;
+      if ((parseFloat(cs.top) || 0) + h > room) { a.style.setProperty('--cart-top', Math.round(room - h) + 'px'); }
+    }
+    if (a !== seen && window.ResizeObserver) {                                // htmx สลับเนื้อหา = คอลัมน์ตัวใหม่
+      if (ro) { ro.disconnect(); }
+      ro = new ResizeObserver(fit);
+      ro.observe(a);
+      seen = a;
+    }
+  }
+  window.aoCartFit = fit;
+  window.addEventListener('resize', fit);
+  document.body.addEventListener('htmx:afterSettle', fit);
+  fit();
+})();
+</script>
+<script>
+/* ปุ่มบันทึกที่ยังกรอกไม่ครบ (8 ต.ค. · ผลทดสอบ: “บอกแค่ใต้ปุ่ม”) — หน้ารับคืน / นำเข้า / เบิก-ตัดออก / ตรวจนับ
+   เดิมปุ่มเป็น disabled กดแล้วเงียบ · ตอนนี้ปุ่มดูจาง (aria-disabled="true") แต่กดได้ — กดแล้วไม่ส่งฟอร์ม
+   เลื่อนจอไปที่ช่องแรกที่ยังขาด กรอบแดงกะพริบ + ข้อความบอกว่าต้องทำอะไร + วางเคอร์เซอร์ในช่อง
+   หน้าที่ใช้: ปุ่มมี data-need · ตั้ง btn.aoNeed = function () { return null (ครบแล้ว) | {
+     box: กล่องที่เลื่อนไปและกะพริบ, field: ช่องที่วางเคอร์เซอร์ (ไม่ใส่ได้), msg: ข้อความ (ไม่ใส่ได้),
+     after: วางข้อความต่อจากตัวนี้ (ไม่ใส่ = ใต้หัวการ์ด หรือท้ายกล่อง), mouseOnly: true = วางเคอร์เซอร์เฉพาะเครื่องที่ใช้เมาส์ } }
+   แล้วเรียก aoNeedSync(btn) ทุกครั้งที่ค่าในฟอร์มเปลี่ยน · ฝั่งเซิร์ฟเวอร์ยังตรวจซ้ำทุกข้อเหมือนเดิม */
+(function () {
+  var shown = null;                            /* { btn, box, el } กล่องที่ชี้อยู่ตอนนี้ */
+  var calm  = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function clear() {
+    if (!shown) { return; }
+    if (shown.el && shown.el.parentNode) { shown.el.parentNode.removeChild(shown.el); }
+    shown.box.classList.remove('need-on', 'need-flash');
+    shown = null;
+  }
+
+  window.aoNeedSync = function (btn) {
+    var n = btn.aoNeed ? btn.aoNeed() : null;
+    if (n) { btn.setAttribute('aria-disabled', 'true'); } else { btn.removeAttribute('aria-disabled'); }
+    /* กรอกช่องที่ชี้ไว้แล้ว (หรือ htmx สลับกล่องนั้นออกไป) → เอาข้อความกับกรอบแดงออก */
+    if (shown && shown.btn === btn && (!n || n.box !== shown.box || !document.body.contains(shown.box))) { clear(); }
+  };
+
+  function stickyOf(el) {
+    for (var p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+      if (window.getComputedStyle(p).position === 'sticky') { return p; }
+    }
+    return null;
+  }
+
+  /* เลื่อนให้กล่อง (รวมข้อความเตือน) อยู่กลางที่ว่างระหว่างแถบหัวจอกับแถบสรุปล่างจอ · สูงกว่าที่ว่าง = ชิดบน
+     กล่องในคอลัมน์ที่ติดขอบ (sticky — ใบรายการด้านขวาของหน้าตรวจนับ) ไม่ขยับตามการเลื่อนจนกว่าคอลัมน์จะหลุด
+     → ถ้าตอนติดขอบยังจมใต้แถบล่าง เลื่อนจนคอลัมน์หลุดแล้วกล่องโผล่เหนือแถบล่างพอดี */
+  function scrollToBox(box, el) {
+    var a    = box.getBoundingClientRect(), m = el ? el.getBoundingClientRect() : a;
+    var rTop = Math.min(a.top, m.top), rBot = Math.max(a.bottom, m.bottom), h = rBot - rTop;
+    var top  = document.querySelector('.top');
+    var bar  = document.querySelector('.recv-bar');
+    var t    = top ? Math.max(0, top.getBoundingClientRect().bottom) : 0;
+    var lim  = window.innerHeight - (bar ? bar.offsetHeight : 0);
+    var room = lim - t, dy = null;
+    var s    = stickyOf(box);
+    if (s) {
+      if (rTop >= t && rBot <= lim) { return; }                                        // ติดขอบอยู่และเห็นครบแล้ว
+      var sr = s.getBoundingClientRect();
+      if ((parseFloat(window.getComputedStyle(s).top) || 0) + (rBot - sr.top) > lim - 16) {   // ตอนติดขอบก็ยังจม
+        var p  = s.parentElement;
+        var pb = p.getBoundingClientRect().bottom - (parseFloat(window.getComputedStyle(p).paddingBottom) || 0);
+        dy = pb - (sr.bottom - rBot) - (lim - 16);
+      } else if (rTop >= t) {
+        dy = rBot - (lim - 16);                    // ค้างแล้วเห็น — เลื่อนแค่พอให้คอลัมน์ไปค้าง สินค้าทางซ้ายไม่วิ่งไกล
+      }
+    }
+    if (dy === null) { dy = (h > room - 48) ? rTop - t - 16 : rTop - t - (room - h) / 2; }
+    if (Math.abs(dy) < 4) { return; }
+    try { window.scrollBy({ top: dy, behavior: calm ? 'auto' : 'smooth' }); } catch (e) { window.scrollBy(0, dy); }
+  }
+
+  function jump(btn) {
+    var n = btn.aoNeed ? btn.aoNeed() : null;
+    if (!n || !n.box) { return; }
+    clear();
+    var box = n.box, el = null;
+    if (n.msg) {
+      el = document.createElement('p');
+      el.className = 'need-msg';
+      el.setAttribute('role', 'alert');
+      el.innerHTML = '<svg class="ico" aria-hidden="true"><use href="#i-alert"/></svg><span></span>';
+      el.lastChild.textContent = n.msg;
+      var head = n.after ? null : box.querySelector(':scope > .card-head');
+      var ref  = n.after || head;
+      if (ref) { ref.parentNode.insertBefore(el, ref.nextSibling); } else { box.appendChild(el); }
+    }
+    shown = { btn: btn, box: box, el: el };
+    box.classList.add('need-on');
+    box.classList.remove('need-flash'); void box.offsetWidth; box.classList.add('need-flash');
+    if (window.aoCartFit) { window.aoCartFit(); }            // ข้อความที่เพิ่งใส่ทำให้คอลัมน์ขวาสูงขึ้น — วัดใหม่ก่อนคำนวณการเลื่อน
+    scrollToBox(box, el);
+    var fine = !window.matchMedia || window.matchMedia('(pointer: fine)').matches;
+    if (n.field && (fine || !n.mouseOnly)) {
+      try { n.field.focus({ preventScroll: true }); } catch (e) { n.field.focus(); }
+    }
+  }
+
+  document.addEventListener('click', function (ev) {
+    var btn = ev.target.closest ? ev.target.closest('button[data-need][aria-disabled="true"]') : null;
+    if (!btn) { return; }
+    ev.preventDefault();
+    ev.stopPropagation();
+    /* กด Enter ในช่องกรอก (เช่น ยิงบาร์โค้ดในช่องค้นหา) เบราว์เซอร์จะกดปุ่มบันทึกให้เอง — แค่ไม่ส่ง ไม่เลื่อนจอ */
+    var a = document.activeElement;
+    if (ev.detail === 0 && a && a !== btn && a !== document.body) { return; }
+    jump(btn);
+  }, true);
+
+  /* กันอีกชั้น: ฟอร์มที่ปุ่มบันทึกยังจางอยู่ไม่ส่ง (ก่อนถึงกล่องยืนยันใน data-confirm) */
+  document.addEventListener('submit', function (ev) {
+    var f = ev.target;
+    if (f && f.querySelector && f.querySelector('button[data-need][aria-disabled="true"]')) {
+      ev.preventDefault();
+      ev.stopPropagation();
+    }
+  }, true);
+
+  var btns = document.querySelectorAll('button[data-need]');
+  for (var i = 0; i < btns.length; i++) { window.aoNeedSync(btns[i]); }
 })();
 </script>
 <?php if (strpos($NAV_ACTIVE, 'adm-report') === 0) { ?>

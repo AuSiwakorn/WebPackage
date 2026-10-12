@@ -6,6 +6,7 @@
  * TABLES: ao_stock_sale, ao_stock_sale_item, ao_stock_receive / issue / count / return (+ _item), ao_stock_branch, ao_stock_staff, ao_stock_store_day
  * TODO:
  *   - [x] ช่วงที่ 10: แยกจาก api.php เดิม (ย้ายโค้ดทั้งก้อน ไม่แก้ตรรกะ) · จัดฟังก์ชันที่เคยปนอยู่หมวดอื่นให้มาอยู่หมวดนี้
+ *   - [x] ช่วงที่ 17: งานค้าง "ยังไม่ได้ปิดร้าน" บอกวิธีปิดย้อนหลัง
  *
  * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
  */
@@ -13,7 +14,8 @@
 /** งานค้างของสาขา (การ์ด "งานที่รอดำเนินการ" ในภาพรวมพนักงาน) — ว่าง = ไม่มีงานค้าง
     คืน array ของ array(type count|store, title, sub, link)
     TODO:
-      - [x] ช่วงที่ 8: แทนใบโอนสมมติ (ระบบไม่มีใบโอนระหว่างสาขา) ด้วยงานจริง: ตรวจนับรอบนี้ยังไม่ครบ · วันก่อนที่ยังไม่ได้ปิดร้าน */
+      - [x] ช่วงที่ 8: แทนใบโอนสมมติ (ระบบไม่มีใบโอนระหว่างสาขา) ด้วยงานจริง: ตรวจนับรอบนี้ยังไม่ครบ · วันก่อนที่ยังไม่ได้ปิดร้าน
+      - [x] ช่วงที่ 17: วันที่ยังไม่ได้ปิดบอกวิธีปิดย้อนหลัง */
 function pending_tasks($branch)
 {
     $codes = ($branch === 'ALL') ? array_keys(branches_active()) : array($branch);
@@ -36,7 +38,8 @@ function pending_tasks($branch)
         }
         foreach (store_unclosed_days($c) as $ymd) {
             $rows[] = array('type' => 'store', 'title' => 'ยังไม่ได้ปิดร้านของวัน' . thai_date_full(strtotime($ymd)),
-                            'sub' => branch_name($c) . ' · แจ้งผู้ดูแลให้ตรวจเงินในลิ้นชักของวันนั้น', 'link' => '');
+                            'sub' => branch_name($c) . ' · ปิดย้อนหลังได้ตอนเปิดร้านวันถัดไป (หน้าเปิด / ปิดร้าน) · ถ้าเปิดร้านไปแล้ว แจ้งผู้ดูแลให้ปิดย้อนหลัง',
+                            'link' => '');
         }
     }
     return $rows;

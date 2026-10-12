@@ -9,6 +9,7 @@
  *   - [x] ใบที่บันทึกแล้วเก็บในตาราง ao_stock_* (ช่วงที่ 6) · ยอดขยับระหว่างกดบันทึก แสดงข้อความให้นับใหม่แทนหน้า error
  *   - [x] ช่วงที่ 11: แก้ / ยกเลิกใบของตัวเองต้องมีสิทธิ์ doc_fix · ปุ่มแก้ / ยกเลิกและลิงก์ยอดคงเหลือแสดงตามสิทธิ์
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
+ *   - [x] 8 ต.ค.: ยังกรอกไม่ครบแล้วกดบันทึก → เลื่อนไปช่องแรกที่ขาด กะพริบ + ข้อความ (data-need · aoNeedSync ใน inc/footer.php)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -231,7 +232,7 @@ require dirname(__FILE__) . '/inc/header.php';
       <span id="ab-diff" class="ab-diff"></span>
       <small id="ab-hint">แตะสินค้าที่ต้องการนับ</small>
     </div>
-    <button class="btn-xl btn-in" type="submit" id="ab-go" disabled>
+    <button class="btn-xl btn-in" type="submit" id="ab-go" data-need aria-disabled="true">
       <svg class="ico"><use href="#i-clipboard"/></svg> <span id="ab-go-t">บันทึกผลการนับ</span>
     </button>
   </div>
@@ -250,8 +251,23 @@ require dirname(__FILE__) . '/inc/header.php';
   var diffEl = document.getElementById('ab-diff');
   var hint   = document.getElementById('ab-hint');
 
+  var lack   = '';                    // ช่องแรกที่ยังขาด — ให้ปุ่มบันทึกพาไป (aoNeedSync ใน inc/footer.php)
+
   function picked() { return form.querySelector('input[name="why"]:checked'); }
   function attr(el, k) { return el ? Number(el.getAttribute(k)) || 0 : 0; }
+
+  go.aoNeed = function () {
+    if (lack === 'pick') {
+      return { box: document.querySelector('#adj-live .sale-pick'), field: document.getElementById('aq'), mouseOnly: true,
+               msg: 'แตะสินค้าที่ต้องการนับ แล้วกรอกจำนวนที่นับได้จริง' };
+    }
+    if (lack === 'why') {
+      var g = why.querySelector('.why');
+      return { box: g, field: g.querySelector('input[name="why"]'), after: g, msg: 'มีรายการที่ยอดไม่ตรง — เลือกสาเหตุก่อนบันทึก' };
+    }
+    if (lack === 'note') { return { box: noteEl, field: noteEl, after: noteEl, msg: 'สาเหตุนี้ต้องกรอกหมายเหตุด้วย' }; }
+    return null;
+  };
 
   window.adjSync = function () {
     var s     = document.getElementById('adj-sum');
@@ -270,9 +286,10 @@ require dirname(__FILE__) . '/inc/header.php';
       : (bad === 0 ? '· <span class="dchip eq">ตรงทั้งหมด</span>'
                    : '· <span class="dchip up">เกิน ' + over + '</span> <span class="dchip dn">ขาด ' + short + '</span>');
 
-    go.disabled = (n === 0 || (bad > 0 && (!w || (needNote && !hasNote))));
+    lack = (n === 0) ? 'pick' : (bad === 0) ? '' : !w ? 'why' : (needNote && !hasNote) ? 'note' : '';
+    if (window.aoNeedSync) { window.aoNeedSync(go); }
     goT.textContent = (n > 0 && bad === 0) ? 'ยืนยัน นับแล้วตรง' : 'บันทึกและปรับยอด';
-    bar.className = go.disabled ? 'recv-bar adj-bar' : 'recv-bar adj-bar on';
+    bar.className = lack ? 'recv-bar adj-bar' : 'recv-bar adj-bar on';
 
     if (n === 0)                         { hint.textContent = 'แตะสินค้าที่ต้องการนับ แล้วกรอกจำนวนที่นับได้จริง'; }
     else if (bad === 0)                  { hint.textContent = 'ทุกรายการตรงกับระบบ บันทึกไว้เป็นหลักฐานว่านับแล้ว'; }

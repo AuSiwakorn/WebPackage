@@ -9,6 +9,8 @@
  *   - [x] ใบที่บันทึกแล้วเก็บในตาราง ao_stock_* (ช่วงที่ 6) · ของไม่พอตอนบันทึก (เช็กหลังล็อกยอด) แสดงข้อความแทนหน้า error
  *   - [x] ช่วงที่ 11: แก้ / ยกเลิกใบของตัวเองต้องมีสิทธิ์ doc_fix · ปุ่มแก้ / ยกเลิกและลิงก์ยอดคงเหลือแสดงตามสิทธิ์
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
+ *   - [x] 8 ต.ค.: ยังกรอกไม่ครบแล้วกดบันทึก → เลื่อนไปช่องแรกที่ขาด กะพริบ + ข้อความ (data-need · aoNeedSync ใน inc/footer.php)
+ *   - [x] 12 ต.ค.: ช่อง “ผู้ทำรายการ” ขึ้น “พนักงาน” แม้เป็นผู้จัดการสาขา → ใช้ user_role_label() แบบเดียวกับแถบบน
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -263,7 +265,7 @@ require dirname(__FILE__) . '/inc/header.php';
           <span class="av"><?php echo e($user['initials']) ?></span>
           <div>
             <b><?php echo e($user['name']) ?></b>
-            <small><?php echo e(role_name($user['role'])) ?> · <?php echo e(branch_name($code)) ?></small>
+            <small><?php echo e(user_role_label($user)) ?> · <?php echo e(branch_name($code)) ?></small>
           </div>
         </div>
       </div>
@@ -285,7 +287,7 @@ require dirname(__FILE__) . '/inc/header.php';
       <b class="num" id="ib-qty">0</b> ชิ้น
       <small id="ib-hint">เลือกสินค้าเข้าใบก่อน</small>
     </div>
-    <button class="btn-xl btn-out" type="submit" id="ib-go" disabled>
+    <button class="btn-xl btn-out" type="submit" id="ib-go" data-need aria-disabled="true">
       <svg class="ico"><use href="#i-out"/></svg> บันทึกการตัดออก
     </button>
   </div>
@@ -302,8 +304,23 @@ require dirname(__FILE__) . '/inc/header.php';
   var noteRq = document.getElementById('note-req');
   var form   = document.getElementById('issue-form');
 
+  var lack   = '';                    // ช่องแรกที่ยังขาด — ให้ปุ่มบันทึกพาไป (aoNeedSync ใน inc/footer.php)
+
   function num(v) { return Number(String(v).replace(/[^0-9]/g, '')) || 0; }
   function picked() { return form.querySelector('input[name="why"]:checked'); }
+
+  go.aoNeed = function () {
+    if (lack === 'pick') {
+      return { box: document.querySelector('#issue-live .sale-pick'), field: document.getElementById('iq'), mouseOnly: true,
+               msg: 'แตะสินค้าที่จะตัดออกอย่างน้อย 1 รายการ (ค้นด้วยชื่อหรือ SKU ได้)' };
+    }
+    if (lack === 'why') {
+      var g = form.querySelector('.why');
+      return { box: g, field: g.querySelector('input[name="why"]'), after: g, msg: 'เลือกเหตุผลของการตัดออกก่อน' };
+    }
+    if (lack === 'note') { return { box: noteEl, field: noteEl, after: noteEl, msg: 'เหตุผลนี้ต้องกรอกหมายเหตุด้วย' }; }
+    return null;
+  };
 
   window.issueSync = function () {
     var sumEl = document.getElementById('issue-sum');
@@ -317,8 +334,9 @@ require dirname(__FILE__) . '/inc/header.php';
     items.textContent = n.toLocaleString('th-TH');
     qtyEl.textContent = q.toLocaleString('th-TH');
 
-    go.disabled   = (n === 0 || !w || (needNote && !hasNote));
-    bar.className = go.disabled ? 'recv-bar issue-bar' : 'recv-bar issue-bar on';
+    lack = (n === 0) ? 'pick' : !w ? 'why' : (needNote && !hasNote) ? 'note' : '';
+    if (window.aoNeedSync) { window.aoNeedSync(go); }
+    bar.className = lack ? 'recv-bar issue-bar' : 'recv-bar issue-bar on';
 
     if (n === 0)                    { hint.textContent = 'เลือกสินค้าเข้าใบก่อน'; }
     else if (!w)                    { hint.textContent = 'ยังไม่ได้เลือกเหตุผลของการตัดออก'; }

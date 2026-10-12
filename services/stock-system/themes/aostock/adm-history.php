@@ -11,6 +11,7 @@
  *   - [x] ช่วงที่ 9: แถวรับคืนลิงก์ไปหน้ารายละเอียดของวันแทน เมื่อเมนูรับคืนถูกปิดจากหลังบ้าน
  *   - [x] ช่วงที่ 10: คืนหมายเหตุแบบเดโมเดิม — บิลที่ "มีรับคืน" · ใบรับคืน "กลับเข้าสต๊อก / ไม่เข้าสต๊อก"
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
+ *   - [x] 12 ต.ค.: แถว “ยกเลิกรับเข้า” แสดง −N ชิ้น (เดิม +N) แบบเดียวกับประวัติฝั่งพนักงาน
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -268,7 +269,7 @@ require dirname(__FILE__) . '/inc/header.php';
               <td data-label="ผู้ทำ" class="nowrap"><?php echo e($r['by']) ?></td>
               <td data-label="จำนวน" class="r num nowrap">
                 <?php if ($r['amount'] === null) { ?>—
-                <?php } elseif ($r['kind'] === 'qty') { ?><?php echo $r['amount'] > 0 ? '+' : ($r['amount'] < 0 ? '−' : '') ?><?php echo number_format(abs($r['amount'])) ?> ชิ้น
+                <?php } elseif ($r['kind'] === 'qty') { ?><?php echo $r['type'] === 'receive' ? '+' : '−' ?><?php echo number_format(abs($r['amount'])) ?> ชิ้น
                 <?php } else { ?><?php echo e(money2($r['amount'])) ?> ฿<?php } ?>
               </td>
               <td data-label="" class="r">

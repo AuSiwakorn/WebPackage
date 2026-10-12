@@ -9,6 +9,7 @@
  *   - [x] ช่วงที่ 8: ทุกวันอ่านจากบิลจริงทั้งช่วงในคิวรีเดียว (เดิมวันก่อนเป็นข้อมูลตัวอย่าง)
  *   - [x] ช่วงที่ 11: เข้าหน้านี้ต้องมีสิทธิ์ "รายงานยอดขาย" (report) · ปุ่มไปเปิดร้านตามสิทธิ์
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
+ *   - [x] 12 ต.ค.: ปุ่มเลือกวันขึ้นเลขวันซ้ำ (“พ 8 8/10”) → “พ 8/10”
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -124,7 +125,7 @@ require dirname(__FILE__) . '/inc/header.php';
           $on = ($ref === $k) || ($ref === '' && $i === 0);
           ?>
           <a class="cat<?php echo $on ? ' on' : '' ?>" href="<?php echo e($qs(array('ref' => $k))) ?>">
-            <?php echo $i === 0 ? 'วันนี้' : ($i === 1 ? 'เมื่อวาน' : short_day($d) . ' ' . date('j/n', $d)) ?>
+            <?php echo $i === 0 ? 'วันนี้' : ($i === 1 ? 'เมื่อวาน' : short_day($d) . '/' . date('n', $d)) ?>
           </a>
         <?php } ?>
       </div>

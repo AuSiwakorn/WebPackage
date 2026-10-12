@@ -13,6 +13,8 @@
  *   - [x] ช่วงที่ 11: ปุ่ม "แก้ไขใบนี้" เฉพาะคนที่เข้าหน้างานคลังชนิดนั้นได้ · ปุ่ม "รับคืน" ตามสิทธิ์ (page_ok)
  *   - [x] ช่วงที่ 12: ลำดับเหตุการณ์ไม่แสดงรายการ "ตั้งค่า" ให้พนักงานทั่วไป
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
+ *   - [x] ปุ่ม “ดู / พิมพ์บิล” ทุกบิลของวันนั้น (รวมบิลที่ยกเลิก)
+ *   - [x] 12 ต.ค.: ลำดับเหตุการณ์ทั้งวัน — ผู้ดูแลเห็นรายการ “ตั้งค่า” ด้วย (เดิมซ่อนเพราะเช็กแค่ผู้จัดการสาขา)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -136,11 +138,14 @@ $age   = (int) round((strtotime(date('Y-m-d')) - $pastTs) / 86400);
               <td data-label="รายการ"><span class="ret-names"><?php echo e(implode(' · ', $names)) ?></span></td>
               <td class="r" data-label="ยอด"><?php echo e(money2($b['total'])) ?></td>
               <td class="r">
-                <?php if (!empty($b['void'])) { ?>
-                  <span class="bdg bdg-adj">ยกเลิกแล้ว</span>
-                <?php } elseif ($user['role'] === 'staff' && page_ok($user, 'return.php')) { ?>
-                  <a class="btn btn-ghost btn-sm" href="return.php?bill=<?php echo e(rawurlencode($b['no'])) ?>">รับคืน</a>
-                <?php } ?>
+                <span class="hp-act">
+                  <?php echo Stock_buildBillPrintButton($b) ?>
+                  <?php if (!empty($b['void'])) { ?>
+                    <span class="bdg bdg-adj">ยกเลิกแล้ว</span>
+                  <?php } elseif ($user['role'] === 'staff' && page_ok($user, 'return.php')) { ?>
+                    <a class="btn btn-ghost btn-sm" href="return.php?bill=<?php echo e(rawurlencode($b['no'])) ?>">รับคืน</a>
+                  <?php } ?>
+                </span>
               </td>
             </tr>
           <?php } ?>
@@ -150,7 +155,7 @@ $age   = (int) round((strtotime(date('Y-m-d')) - $pastTs) / 86400);
   <?php } ?>
 </section>
 
-<?php $events = array_reverse(log_of_day($code, $pastTs, 0, !is_branch_manager($user))); /* ช่วงที่ 12: พนักงานทั่วไปไม่เห็นรายการตั้งค่า */ ?>
+<?php $events = array_reverse(log_of_day($code, $pastTs, 0, $user['role'] === 'staff' && !is_branch_manager($user))); /* ช่วงที่ 12: พนักงานทั่วไปไม่เห็นรายการตั้งค่า · ผู้ดูแลเห็น (12 ต.ค.) */ ?>
 <section class="card">
   <div class="card-head">
     <div>

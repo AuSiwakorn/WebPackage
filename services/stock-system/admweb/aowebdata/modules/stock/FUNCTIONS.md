@@ -2,7 +2,7 @@
 
 > **สถานะ: ร่างรออนุมัติ (ช่วงที่ 15)** — ยังไม่ได้เปลี่ยนชื่อในโค้ด · ตรวจคอลัมน์ "ชื่อใหม่" แล้วแจ้งชื่อที่อยากแก้ได้เลย
 
-ฟังก์ชันทั้งหมด 468 ตัว อยู่ใน `admweb/aowebdata/modules/stock/api/*.php` (โหลดผ่าน `api.php`) · ธีม `themes/aostock/` และหน้า admweb ของโมดูลเรียกใช้
+ฟังก์ชันทั้งหมด 473 ตัว (เดิม 468 + ตั้งชื่อตามมาตรฐานแล้ว 5 ตัว: ช่วงที่ 16 สองตัว · ปุ่มพิมพ์บิล · ช่วงที่ 17 สองตัว) อยู่ใน `admweb/aowebdata/modules/stock/api/*.php` (โหลดผ่าน `api.php`) · ธีม `themes/aostock/` และหน้า admweb ของโมดูลเรียกใช้
 
 ## มาตรฐานการตั้งชื่อ
 
@@ -250,6 +250,8 @@
 | `Stock_getProductUnits()` | `product_units` | หน่วยที่เคยใช้ (ไว้เติมในช่องหน่วยของฟอร์มสินค้า) |
 | `Stock_readProductForm($isNew, $sku)` | `product_read_form` | ตรวจค่าจากฟอร์มสินค้า — คืน array(ค่า, ข้อผิดพลาด) · $isNew = ตรวจ SKU ด้วย |
 | `Stock_saveProduct($isNew, $d)` | `product_save` | เพิ่ม / แก้สินค้า — $d จาก Stock_readProductForm · คืน product_id |
+| `Stock_nextProductSku()` | — (ใหม่ ช่วงที่ 16) | SKU อัตโนมัติถัดไป P0001, P0002, … (ตัวนับใน ao_stock_doc_seq ชุด SKU · ข้ามเลขที่กรอกเองไปแล้ว) — ต้องเรียกใน Stock_dbTransaction |
+| `Stock_doAddProduct($user, $code)` | — (ใหม่ ช่วงที่ 16) | พนักงานเพิ่มสินค้าใหม่จากหน้านำเข้า (สิทธิ์ product_add) — หมวดใหม่ + สินค้า + ประวัติใน transaction เดียว · คืน array(sku, name) หรือ array(error) |
 | `Stock_setProductActive($sku, $on)` | `product_set_active` | เปิดขาย / เลิกขาย |
 | `Stock_storeProductImage($sku, $field, $oldPath)` | `product_image_store` | รูปสินค้าที่อัปโหลด — ตรวจชนิด / ขนาด แล้วเก็บด้วย UpFile ของ admweb (แทนรูปเดิม) |
 | `Stock_removeProductImage($sku, $oldPath)` | `product_image_remove` | ลบรูปสินค้า (ไฟล์ + ค่าในฐานข้อมูล) |
@@ -422,7 +424,7 @@
 | `Stock_getSaleSummary($code)` | `sale_summary` | สรุปยอดขายวันนี้ของสาขา (บิลที่ยกเลิกนับแยก ไม่นับเป็นยอดขาย) |
 | `Stock_renderSaleFlash($err, $done, $voided, $oob)` | `sale_flash` | ข้อความแจ้งผลบนหน้าขาย (ส่งกลับแบบ out-of-band ให้ htmx ด้วย) |
 
-## `api/store.php` — เปิด–ปิดร้าน · เงินสดในลิ้นชัก (18)
+## `api/store.php` — เปิด–ปิดร้าน · เงินสดในลิ้นชัก (20)
 
 | ชื่อใหม่ | ชื่อเดิม | ทำอะไร |
 |---|---|---|
@@ -440,6 +442,8 @@
 | `Stock_openStore($code, $user, $topup, $counted, $reason)` | `store_open` | บันทึกการเปิดร้าน — คืนสถานะร้าน (อีกเครื่องเปิดไปก่อนแล้ว = สถานะของเครื่องนั้น ไม่ลงประวัติซ้ำ) |
 | `Stock_getExpectedCash($code)` | `store_expected_cash` | ยอดเงินที่ควรมีในลิ้นชักตอนนี้ |
 | `Stock_closeStore($code, $user, $counted, $keep, $note)` | `store_close` | บันทึกการปิดร้าน — เงินที่แยกไว้พรุ่งนี้ไม่เกินเงินที่นับได้ · นำส่ง = นับได้ − แยกไว้ |
+| `Stock_getDayCash($dayId)` | — (ใหม่ ช่วงที่ 17) | เงินในลิ้นชักของวันหนึ่ง (เงินทอนเริ่มวัน / เติม / ขายเงินสด / หยิบออก / คืนเงิน / ควรมี) — ใช้ได้ทั้งวันนี้และวันก่อน |
+| `Stock_closePastDay($code, $ymd, $user, $counted, $keep, $note)` | — (ใหม่ ช่วงที่ 17) | ปิดร้านย้อนหลังของวันที่ลืมปิด — ต้องมีหมายเหตุ · ลงประวัติ “ปิดร้านย้อนหลัง” · แจ้งเตือนแบบปิดร้าน |
 | `Stock_reopenStore($code, $user, $reason)` | `store_reopen` | เปิดร้านใหม่หลังปิดไปแล้ว — ผู้ดูแลเท่านั้น ต้องมีเหตุผล |
 | `Stock_addCashMove($code, $user, $dir, $amount, $reason)` | `store_cash_add` | เติมเงินทอน (in) / หยิบเงินออก (out) ระหว่างวัน — ร้านต้องเปิดอยู่ · ต้องมีเหตุผล · หยิบเกินเงินที่ควรมีในลิ้นชักไม่ได้ |
 | `Stock_getStoreRefunds($code)` | `store_refunds` | เงินสดที่คืนลูกค้าวันนี้ (รับคืนสินค้า) — จ่ายออกจากลิ้นชักของวันนี้เสมอ แม้บิลเดิมจะเป็นของวันก่อน |
@@ -449,7 +453,7 @@
 
 | ชื่อใหม่ | ชื่อเดิม | ทำอะไร |
 |---|---|---|
-| `Stock_getReturnLookbackDays()` | `return_lookback_days` | ค้นบิลย้อนหลังได้กี่วัน — มากกว่ากำหนดคืน เพื่อให้เห็นบิลที่เกินกำหนดด้วย |
+| `Stock_getReturnLookbackDays()` | `return_lookback_days` | ค้นบิลย้อนหลังได้กี่วัน = กำหนดคืนของสาขา + 7 อย่างน้อย 14 (รับ `$code` · ไม่ระบุ = 14) — มากกว่ากำหนดคืน เพื่อให้เห็นบิลที่เกินกำหนดด้วย |
 | `Stock_getReturnReasons()` | `return_reasons` | เหตุผลการรับคืน |
 | `Stock_getReturnReasonLabel($k)` | `return_reason_label` | ชื่อเหตุผล |
 | `Stock_getReturnProduct($sku)` | `ret_product` | สินค้าจาก SKU (รวมที่เลิกขาย — บิลเก่ายังอ้างถึงได้) |
@@ -471,7 +475,7 @@
 | `Stock_getReturnsRange($codes, $from, $to)` | `returns_range` | ใบรับคืนของหลายสาขา ช่วงวันที่ $from–$to (หน้าตรวจสอบของผู้ดูแล) — หัวใบ + รายการ 2 คิวรี เรียงตามเวลาที่ออกใบ |
 | `Stock_findReturn($code, $no)` | `return_doc_find` | หาใบรับคืนจากเลขที่ RT-ปปดดวว-NNNN (วันไหนก็ได้) |
 
-## `api/bill.php` — บัญชี · หัวบิล · เลขที่บิล · VAT (28)
+## `api/bill.php` — บัญชี · หัวบิล · เลขที่บิล · VAT (29)
 
 | ชื่อใหม่ | ชื่อเดิม | ทำอะไร |
 |---|---|---|
@@ -487,6 +491,7 @@
 | `Stock_bahtText($amount)` | `thai_baht_text` | จำนวนเงินเป็นตัวอักษรไทย เช่น 1,250.50 → หนึ่งพันสองร้อยห้าสิบบาทห้าสิบสตางค์ |
 | `Stock_thaiNumberText($n)` | `thai_number_text` | ตัวเลขจำนวนเต็มเป็นคำอ่านไทย (รองรับหลักล้านซ้อน) |
 | `Stock_billPrintUrl($code, $ts, $no, $more = array())` | `bill_print_url` | ลิงก์หน้าพิมพ์บิล |
+| `Stock_buildBillPrintButton($bill)` | — (ใหม่ หลังช่วงที่ 16) | HTML ปุ่ม “ดู / พิมพ์บิล” ที่เปิด popup บิล — หน้าขาย (หลังบันทึก) · ประวัติวันนี้ · บิลของวันก่อน |
 | `Stock_setAccountSetting($code, $key, $val)` | `acct_setting_set` | บันทึกค่าตั้งบัญชี / หัวบิลของสาขา |
 | `Stock_getBillPrefix($code, $vat)` | `bill_prefix` | รหัสนำหน้าของชุดเลข: $vat = true → ชุด VAT |
 | `Stock_formatBillNo($prefix, $ts, $n)` | `bill_no_format` | ประกอบเลขที่บิล เช่น BP2026-01-0001 |

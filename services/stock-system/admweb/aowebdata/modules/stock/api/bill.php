@@ -6,6 +6,7 @@
  * TABLES: ao_stock_branch (ค่าตั้งบิล), ao_stock_doc_seq, ao_stock_sale, ao_stock_return
  * TODO:
  *   - [x] ช่วงที่ 10: แยกจาก api.php เดิม (ย้ายโค้ดทั้งก้อน ไม่แก้ตรรกะ) · จัดฟังก์ชันที่เคยปนอยู่หมวดอื่นให้มาอยู่หมวดนี้
+ *   - [x] ปุ่ม “ดู / พิมพ์บิล” ของพนักงาน (Stock_buildBillPrintButton)
  *
  * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
  */
@@ -214,6 +215,16 @@ function thai_number_text($n)
 function bill_print_url($code, $ts, $no, $more = array())
 {
     return 'bill-print.php?' . http_build_query(array_merge(array('b' => $code, 'd' => date('Ymd', $ts), 'no' => $no), $more));
+}
+
+/** ปุ่ม “ดู / พิมพ์บิล” (HTML) — กดแล้วเปิด popup บิลของ inc/footer.php (data-bill-print)
+    $bill = บิลจาก sale_bills_query (ใช้ branch / ts / no) · พนักงานเปิดได้เฉพาะบิลของสาขาตัวเอง (bill-print.php เช็กซ้ำ)
+    TODO:
+      - [x] พนักงานดู / พิมพ์บิลได้ — หน้าขาย (หลังบันทึก) · ประวัติวันนี้ · บิลของวันก่อน */
+function Stock_buildBillPrintButton($bill)
+{
+    return '<button type="button" class="btn btn-ghost btn-sm" data-bill-print="' . e(bill_print_url($bill['branch'], $bill['ts'], $bill['no'])) . '"'
+         . ' data-bill-no="' . e($bill['no']) . '"><svg class="ico"><use href="#i-print"/></svg> ดู / พิมพ์บิล</button>';
 }
 
 function acct_setting_set($code, $key, $val)

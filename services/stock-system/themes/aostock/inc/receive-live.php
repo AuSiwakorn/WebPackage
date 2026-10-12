@@ -7,6 +7,7 @@
  * TODO:
  *   - [x] ย้ายจาก demo/ เข้า themes/aostock/ (วิ่งผ่าน router ของ admweb)
  *   - [x] ใบที่บันทึกแล้วอยู่ในตาราง (ช่วงที่ 6) — ไฟล์นี้แสดงเฉพาะร่าง
+ *   - [x] ช่วงที่ 16: ปุ่ม "เพิ่มสินค้าใหม่" ข้างช่องค้นหา (สิทธิ์ product_add) · ระบบยังไม่มีสินค้า = กล่อง "เพิ่มสินค้าแรก"
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
@@ -29,6 +30,7 @@ $sum   = rdraft_count();
 $qs    = ($q !== '' ? 'q=' . rawurlencode($q) : '') . ($cat !== '' ? ($q !== '' ? '&' : '') . 'cat=' . rawurlencode($cat) : '');
 $base  = 'receive.php' . ($qs !== '' ? '?' . $qs : '');
 $csrf  = csrf_token();
+$canNew = can($user, 'product_add');      // ปุ่มเพิ่มสินค้าใหม่ (ช่วงที่ 16 — หน้าต่างฟอร์มอยู่ใน receive.php)
 ?>
 <div class="sale-wrap" id="recv-live">
 
@@ -52,6 +54,11 @@ $csrf  = csrf_token();
                  hx-target="#recv-live" hx-swap="outerHTML"
                  hx-sync="this:replace" hx-push-url="true" hx-preserve="true">
         </div>
+        <?php if ($canNew) { ?>
+          <button type="button" class="btn btn-ghost np-open" data-fm-open="np-modal" aria-label="เพิ่มสินค้าใหม่" title="เพิ่มสินค้าใหม่เข้าระบบ">
+            <svg class="ico"><use href="#i-plus"/></svg><span class="np-t">เพิ่มสินค้าใหม่</span>
+          </button>
+        <?php } ?>
       </div>
 
       <div class="cats" hx-target="#recv-live" hx-swap="outerHTML" hx-push-url="true">
@@ -63,10 +70,21 @@ $csrf  = csrf_token();
         <?php } ?>
       </div>
 
-      <?php if (!$list) { ?>
+      <?php if (!$list && !products_list()) { /* ช่วงที่ 16: ระบบยังไม่มีสินค้าเลย */ ?>
+        <div class="empty np-first">
+          <svg class="ico"><use href="#i-boxes"/></svg>
+          <b>ยังไม่มีสินค้าในระบบ</b>
+          <?php if ($canNew) { ?>
+            <small>เพิ่มสินค้าแรกได้เลย บันทึกแล้วจะใส่ในใบรับเข้านี้ให้ทันที</small>
+            <button type="button" class="btn btn-primary" data-fm-open="np-modal"><svg class="ico"><use href="#i-plus"/></svg> เพิ่มสินค้าแรก</button>
+          <?php } else { ?>
+            <small>ติดต่อผู้จัดการสาขาหรือผู้ดูแลให้เพิ่มสินค้า หรือเปิดสิทธิ์ “เพิ่มสินค้าใหม่” ให้คุณ</small>
+          <?php } ?>
+        </div>
+      <?php } elseif (!$list) { ?>
         <p class="empty">
           <svg class="ico"><use href="#i-search"/></svg>
-          ไม่พบสินค้าที่ตรงกับคำค้น<br><small>ลองพิมพ์ชื่อสั้นลง หรือเลือกหมวด “ทั้งหมด”</small>
+          ไม่พบสินค้าที่ตรงกับคำค้น<br><small>ลองพิมพ์ชื่อสั้นลง หรือเลือกหมวด “ทั้งหมด”<?php echo $canNew ? ' · ถ้าเป็นสินค้าใหม่ กด “เพิ่มสินค้าใหม่”' : '' ?></small>
         </p>
       <?php } else { ?>
         <div class="goods">

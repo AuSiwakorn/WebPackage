@@ -9,6 +9,7 @@
  *   - [x] อ่าน / เขียนข้อมูลจากตาราง ao_stock_* ผ่าน api.php (ช่วงที่ 5–9)
  *   - [x] ช่วงที่ 10: แก้ File Header ให้ตรงกับระบบจริง
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
+ *   - [x] ผลทดสอบ 7 ต.ค. (C11): ปุ่ม “แก้ไข” ท้ายทุกแถว (เดิมต้องรู้ว่าแตะชื่อสินค้า)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -19,7 +20,7 @@ if (!defined('ALLOW_DIRECT_ACCESS')) {
    ----------------------------------------------------------
    แถวละ 1 สินค้า · คอลัมน์ละ 1 สาขา (เฉพาะสาขาที่เปิดใช้งาน) + รวมทุกสาขา
    สีของช่องบอกสถานะของสาขานั้น: หมด / ใกล้หมด (ต่ำกว่าจุดสั่งซื้อ) / พอใช้
-   ผู้ดูแลเพิ่ม / แก้สินค้าได้ (ปุ่ม "เพิ่มสินค้า" / แตะชื่อสินค้า → adm-product-edit.php)
+   ผู้ดูแลเพิ่ม / แก้สินค้าได้ (ปุ่ม "เพิ่มสินค้า" / ปุ่ม "แก้ไข" ท้ายแถว หรือแตะชื่อสินค้า → adm-product-edit.php)
    ยอดคงเหลือแก้ที่นี่ไม่ได้ — นำเข้า / เบิก / ตรวจนับ เป็นงานของพนักงาน
 
    ตัวกรอง (GET)
@@ -253,6 +254,7 @@ require dirname(__FILE__) . '/inc/header.php';
             <th>รับเข้าล่าสุด</th>
             <?php echo $th('value', 'มูลค่า (ทุน)', 'r') ?>
             <?php echo $th('urgent', 'สถานะ') ?>
+            <th><span class="sr-only">แก้ไข</span></th>
           </tr>
         </thead>
         <tbody>
@@ -269,6 +271,7 @@ require dirname(__FILE__) . '/inc/header.php';
               <td data-label="รับเข้าล่าสุด" class="nowrap"><?php echo $r['last'] !== '' ? e(thai_day_month(strtotime($r['last']))) . ' <small>(' . (int) round((strtotime(date('Y-m-d')) - strtotime($r['last'])) / 86400) . ' วันก่อน)</small>' : '<small>เกิน ' . $flowDays . ' วัน</small>' ?></td>
               <td data-label="มูลค่า (ทุน)" class="r num nowrap"><?php echo e(money2($r['value'])) ?></td>
               <td data-label="สถานะ"><span class="bdg <?php echo $r['focus'] === 'out' ? 'bdg-out' : ($r['focus'] === 'low' ? 'bdg-adj' : 'bdg-ok') ?>"><?php echo e(stock_label($r['focus'])) ?></span></td>
+              <td class="r nowrap"><a class="btn btn-ghost btn-sm" href="adm-product-edit.php?sku=<?php echo e(rawurlencode($p['sku'])) ?>" aria-label="แก้ไข <?php echo e($p['name']) ?>">แก้ไข</a></td>
             </tr>
           <?php } ?>
         </tbody>

@@ -11,6 +11,11 @@
  *   - [x] ช่วงที่ 8: "งานของสาขาวันนี้" นับจากเอกสารจริง (branch_rank_today — ขาย รับเข้า เบิก ตรวจนับ รับคืน)
  *   - [x] ช่วงที่ 11: แยกสิทธิ์ เปิด / ปิดร้าน (store) · เปิดร้านอีกครั้ง (store_reopen — เดิมเปิดได้เฉพาะผู้ดูแลจากหน้าภาพรวม adm-dashboard ซึ่งยังเปิดได้เหมือนเดิม) · เงินเข้า / ออก (cash)
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
+ *   - [x] ช่อง “เติมเงินทอนวันนี้” / “แยกเงินทอนไว้สำหรับพรุ่งนี้” รับยอดใดก็ได้ (ทศนิยม 2 ตำแหน่ง) — เดิม step 100 กรอก 250 แล้วส่งไม่ได้
+ *   - [x] ช่วงที่ 17: วันล่าสุดก่อนวันนี้ยังไม่ได้ปิด → ขั้นที่ 1 ปิดร้านของวันนั้น (act=close_past) ก่อนเปิดร้านวันนี้ · เปิดร้านถูกกันไว้จนกว่าจะปิด
+ *   - [x] 8 ต.ค.: การ์ด “เปิดร้านใหม่” ปุ่มติดใต้ช่องเหตุผล → ฟอร์ม class store-reopen-f เว้นระยะแบบเดียวกับฟอร์มผู้ดูแล
+ *   - [x] 12 ต.ค.: แถว “− หยิบออกใช้จ่าย” / “− คืนเงินลูกค้า” ขึ้น −0.00 (ลบซ้ำ) → เครื่องหมายอยู่ที่ป้ายอย่างเดียว แบบเดียวกับแถว +
+ *   - [x] 12 ต.ค.: กด “แจ้งยอดไม่ตรง” แล้วเหลือกล่องคำแนะนำเปล่า (ซ่อนแค่ข้อความ) → ซ่อนทั้งกล่อง
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -31,11 +36,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'เซสชันหมดอายุ กรุณาลองใหม่อีกครั้ง';
     } else {
         $act  = isset($_POST['act']) ? $_POST['act'] : '';
-        $need = array('open' => 'store', 'close' => 'store', 'reopen' => 'store_reopen', 'cash' => 'cash');   // ช่วงที่ 11
+        $need = array('open' => 'store', 'close' => 'store', 'close_past' => 'store', 'reopen' => 'store_reopen', 'cash' => 'cash');   // ช่วงที่ 11 · 17
 
         if (isset($need[$act]) && !can($user, $need[$act])) {
             $pl    = perm_list();
             $error = 'ไม่มีสิทธิ์ “' . $pl[$need[$act]]['short'] . '” — ติดต่อผู้ดูแลเพื่อเปิดสิทธิ์';
+        } elseif ($act === 'open' && !store_is_open($code) && $carry['unclosed'] !== '') {
+            /* ช่วงที่ 17: วันก่อนยังไม่ได้ปิด — ต้องปิดก่อน (เงินในลิ้นชักตอนนี้ยังเป็นของวันนั้น) */
+            $error = 'ปิดร้านของวัน' . thai_date_full(strtotime($carry['unclosed'])) . 'ก่อน แล้วจึงเปิดร้านวันนี้';
+        } elseif ($act === 'close_past' && !store_is_open($code) && !store_is_closed($code)) {
+            /* ช่วงที่ 17: ปิดร้านย้อนหลัง — พนักงานปิดได้เฉพาะวันล่าสุดที่ค้าง ก่อนเปิดร้านวันนี้ (วันเก่ากว่านั้นให้ผู้ดูแลปิด) */
+            $day = isset($_POST['day']) ? preg_replace('/\D/', '', (string) $_POST['day']) : '';
+            if ($day === '' || $day !== $carry['unclosed']) {
+                $error = 'ปิดย้อนหลังได้เฉพาะวันล่าสุดที่ยังไม่ได้ปิด — วันอื่นให้ผู้ดูแลปิดที่หน้าภาพรวม';
+            } else {
+                $r = Stock_closePastDay($code, $day, $user,
+                                        isset($_POST['cash_counted']) ? preg_replace('/[^0-9.]/', '', $_POST['cash_counted']) : 0,
+                                        isset($_POST['keep']) ? preg_replace('/[^0-9.]/', '', $_POST['keep']) : branch_default_float($code),
+                                        isset($_POST['note']) ? $_POST['note'] : '');
+                if (isset($r['error'])) {
+                    $error = $r['error'];
+                } else {
+                    header('Location: ' . url('store.php?pastclosed=' . $day));
+                    exit;
+                }
+            }
         } elseif ($act === 'open' && !store_is_open($code)) {
             $topup   = isset($_POST['topup']) ? round((float) preg_replace('/[^0-9.]/', '', $_POST['topup']), 2) : 0;
             $counted = (isset($_POST['counted']) && $_POST['counted'] !== '') ? round((float) preg_replace('/[^0-9.]/', '', $_POST['counted']), 2) : null;
@@ -91,6 +116,20 @@ if (isset($_GET['opened'])) { $notice = 'เปิดร้านเรียบ
 if (isset($_GET['closed'])) { $notice = 'ปิดร้านเรียบร้อย สรุปยอดถูกส่งให้ผู้ดูแลแล้ว'; }
 if (isset($_GET['reopened'])) { $notice = 'เปิดร้านใหม่แล้ว ขายต่อได้ — ปิดร้านอีกครั้งเมื่อเสร็จ'; }
 if (isset($_GET['cash'])) { $notice = 'บันทึกเงินเข้า / ออกลิ้นชักแล้ว'; }
+if (isset($_GET['pastclosed']) && ($pcTs = strtotime(preg_replace('/\D/', '', (string) $_GET['pastclosed']))) !== false) {
+    $notice = 'ปิดร้านของวัน' . thai_date_full($pcTs) . 'แล้ว — เปิดร้านวันนี้ต่อได้เลย เงินทอนที่แยกไว้ยกมาให้แล้ว';
+}
+
+/* ช่วงที่ 17: วันล่าสุดก่อนวันนี้ยังไม่ได้ปิด → ขั้นที่ 1 ปิดร้านของวันนั้นก่อน (นับเงินในลิ้นชักก่อนขายบิลแรก) */
+$carry = store_carry($code);                         // อ่านใหม่หลังบันทึก
+$past  = null;
+if (!store_is_open($code) && !store_is_closed($code) && $carry['unclosed'] !== '') {
+    $pr = store_day_row($code, date('Y-m-d', strtotime($carry['unclosed'])));
+    if ($pr !== null && $pr['status'] === 'open') {
+        $past = array('ymd' => $carry['unclosed'], 'cash' => Stock_getDayCash($pr['day_id']),
+                      'opened' => date('H:i', strtotime($pr['opened_at'])), 'by' => ($pr['opened_name'] !== null) ? $pr['opened_name'] : '-');
+    }
+}
 
 $state    = store_state($code);
 $isOpen   = store_is_open($code);
@@ -108,7 +147,7 @@ foreach ($rank as $r) { $branchQty += $r['qty']; $branchDoc += $r['docs']; }
 
 $branch = $code;                       // ตัวเลือกสาขาบน topbar ล็อกที่สาขาของร้าน
 
-$PAGE_TITLE = $isOpen ? 'ร้านเปิดอยู่' : ($isClosed ? 'ปิดร้านแล้ว' : 'เปิดร้านวันนี้');
+$PAGE_TITLE = $isOpen ? 'ร้านเปิดอยู่' : ($isClosed ? 'ปิดร้านแล้ว' : ($past !== null ? 'ปิดร้านของวันก่อน' : 'เปิดร้านวันนี้'));
 $PAGE_SUB   = branch_name($code) . ' · ' . thai_date_full(time());
 $NAV_ACTIVE = 'store.php';
 require dirname(__FILE__) . '/inc/header.php';
@@ -131,20 +170,72 @@ require dirname(__FILE__) . '/inc/header.php';
 <div class="store-wrap">
   <div class="store-hero">
     <span class="ic"><svg class="ico"><use href="#i-store"/></svg></span>
-    <h2>เปิดร้านวันนี้</h2>
+    <h2><?php echo $past !== null && can($user, 'store') ? 'ปิดร้านของวันก่อน แล้วเปิดร้านวันนี้' : 'เปิดร้านวันนี้' ?></h2>
     <p><?php echo e(branch_name($code)) ?> · <?php echo e(thai_date_full(time())) ?> · <?php echo e($user['name']) ?></p>
   </div>
 
   <?php if ($carry['unclosed'] !== '') { ?>
     <div class="alert alert-warn" role="alert">
       <svg class="ico"><use href="#i-alert"/></svg>
-      <span><?php echo e(thai_date_full(strtotime($carry['unclosed']))) ?> ยังไม่ได้ปิดร้าน — เงินทอนยกมาใช้เงินทอนมาตรฐานของสาขา
-            นับเงินในลิ้นชักก่อนเปิดร้าน ถ้าไม่เท่ากด “แจ้งยอดไม่ตรง” · ผู้ดูแลเห็นรายการนี้ในภาพรวม</span>
+      <span>วัน<?php echo e(thai_date_full(strtotime($carry['unclosed']))) ?> ยังไม่ได้กดปิดร้าน —
+            <?php echo ($past !== null && can($user, 'store'))
+                ? 'ปิดร้านของวันนั้นก่อน (ขั้นที่ 1) แล้วจึงเปิดร้านวันนี้ (ขั้นที่ 2) · ผู้ดูแลเห็นรายการนี้ใน “รายการที่ต้องตรวจ”'
+                : 'แจ้งคนที่มีสิทธิ์ “เปิด / ปิดร้าน” ให้ปิดร้านของวันนั้นก่อน แล้วจึงเปิดร้านวันนี้' ?></span>
     </div>
   <?php } ?>
 
   <?php if (!can($user, 'store')) { ?>
   <p class="store-note">ร้านยังไม่เปิด — เปิดร้านได้เฉพาะคนที่มีสิทธิ์ “เปิด / ปิดร้าน” · ระหว่างนี้ทำงานอื่นที่ไม่ต้องเปิดร้านได้ตามปกติ</p>
+  <?php } elseif ($past !== null) { $pc = $past['cash']; ?>
+  <!-- ช่วงที่ 17 · ขั้นที่ 1: ปิดร้านของวันที่ลืมปิด — ยังไม่ได้ขายของวันนี้ เงินในลิ้นชักตอนนี้คือเงินของวันนั้น -->
+  <form class="card" method="post" action="store.php" id="past-form">
+    <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
+    <input type="hidden" name="act" value="close_past">
+    <input type="hidden" name="day" value="<?php echo e($past['ymd']) ?>">
+    <div class="card-head">
+      <div><h3>ขั้นที่ 1 · ปิดร้านของวัน<?php echo e(thai_date_full(strtotime($past['ymd']))) ?></h3>
+        <p>เปิดร้านวันนั้น <?php echo e($past['opened']) ?> น. โดย <?php echo e($past['by']) ?> · ยังไม่ได้ขายของวันนี้ เงินในลิ้นชักตอนนี้คือเงินของวันนั้น — นับแล้วกรอกด้านล่าง</p></div>
+    </div>
+    <div class="card-body num">
+      <div class="kvl">
+        <div><span>เงินทอนเริ่มวัน</span><b><?php echo e(money2($pc['float'])) ?></b></div>
+        <div><span>+ เติมระหว่างวัน</span><b><?php echo e(money2($pc['topup'])) ?></b></div>
+        <div><span>+ ขายเงินสด</span><b><?php echo e(money2($pc['sales'])) ?></b></div>
+        <div><span>− หยิบออกใช้จ่าย</span><b><?php echo e(money2($pc['withdraw'])) ?></b></div>
+        <?php if ($pc['refunds'] > 0) { ?>
+        <div><span>− คืนเงินลูกค้า (รับคืนสินค้า)</span><b><?php echo e(money2($pc['refunds'])) ?></b></div>
+        <?php } ?>
+        <div class="tot"><span>ควรมีในลิ้นชัก</span><b id="expected" data-v="<?php echo e($num($pc['expected'])) ?>"><?php echo e(money2($pc['expected'])) ?></b></div>
+      </div>
+
+      <div class="field">
+        <label for="cash_counted">นับเงินในลิ้นชักได้จริง</label>
+        <input class="input cash" type="number" id="cash_counted" name="cash_counted"
+               value="<?php echo e($num($pc['expected'])) ?>" min="0" step="0.01" inputmode="decimal">
+      </div>
+      <div class="diff" id="diff" hidden><span id="diff-lb">ขาด</span><span id="diff-v">0.00</span></div>
+
+      <div class="kvl">
+        <div class="tot"><span>แยกเงินทอนไว้ (ยกมาเป็นเงินทอนวันนี้)</span><b id="keep-view"><?php echo e(money2(branch_default_float($code))) ?></b></div>
+      </div>
+      <p class="hint-note">เท่าเงินทอนมาตรฐานของสาขา · <a href="#" id="keep-link">เปลี่ยนจำนวน</a></p>
+      <div id="keep-box" hidden>
+        <input class="input cash" type="number" id="keep" name="keep"
+               value="<?php echo e($num(branch_default_float($code))) ?>" min="0" step="0.01" inputmode="decimal">
+      </div>
+
+      <div class="field">
+        <label for="note">ทำไมวันนั้นไม่ได้ปิดร้าน <i class="req">จำเป็น</i></label>
+        <input class="input" type="text" id="note" name="note" required maxlength="255" autocomplete="off"
+               placeholder="เช่น ลืมกดปิดร้านก่อนกลับบ้าน">
+      </div>
+
+      <button class="btn btn-primary btn-block btn-xl" type="submit">
+        <svg class="ico"><use href="#i-store-off"/></svg> ปิดร้านของวัน<?php echo e(thai_day_month(strtotime($past['ymd']))) ?>
+      </button>
+      <p class="store-note">ขั้นที่ 2 · เปิดร้านวันนี้ — ขึ้นให้หลังปิดเสร็จ เงินทอนที่แยกไว้จะยกมาอัตโนมัติ</p>
+    </div>
+  </form>
   <?php } else { ?>
   <form class="card" method="post" action="store.php" id="open-form">
     <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
@@ -161,7 +252,7 @@ require dirname(__FILE__) . '/inc/header.php';
 
       <div class="field">
         <label for="topup">เติมเงินทอนวันนี้ (ถ้ามี)</label>
-        <input class="input cash" type="number" id="topup" name="topup" value="0" min="0" step="100" inputmode="numeric">
+        <input class="input cash" type="number" id="topup" name="topup" value="0" min="0" step="0.01" inputmode="decimal">
       </div>
 
       <div class="amt-quick">
@@ -321,9 +412,9 @@ require dirname(__FILE__) . '/inc/header.php';
           <div><span>เงินทอนเริ่มวัน</span><b><?php echo e(money2($state['float'])) ?></b></div>
           <div><span>+ เติมระหว่างวัน</span><b><?php echo e(money2($cash['topup'])) ?></b></div>
           <div><span>+ ขายเงินสด</span><b><?php echo e(money2(store_cash_sales($code))) ?></b></div>
-          <div><span>− หยิบออกใช้จ่าย</span><b>−<?php echo e(money2($cash['withdraw'])) ?></b></div>
+          <div><span>− หยิบออกใช้จ่าย</span><b><?php echo e(money2($cash['withdraw'])) ?></b></div>
           <?php if (store_refunds($code) > 0) { ?>
-          <div><span>− คืนเงินลูกค้า (รับคืนสินค้า)</span><b>−<?php echo e(money2(store_refunds($code))) ?></b></div>
+          <div><span>− คืนเงินลูกค้า (รับคืนสินค้า)</span><b><?php echo e(money2(store_refunds($code))) ?></b></div>
           <?php } ?>
           <div class="tot"><span>ควรมีในลิ้นชัก</span><b id="expected" data-v="<?php echo e($num($expected)) ?>"><?php echo e(money2($expected)) ?></b></div>
         </div>
@@ -344,7 +435,7 @@ require dirname(__FILE__) . '/inc/header.php';
         </p>
         <div id="keep-box" hidden>
           <input class="input cash" type="number" id="keep" name="keep"
-                 value="<?php echo (int) branch_default_float($code) ?>" min="0" step="100" inputmode="numeric">
+                 value="<?php echo e($num(branch_default_float($code))) ?>" min="0" step="0.01" inputmode="decimal">
           <p class="hint-note">เช่น ลดเหลือ 1,500 เพราะแบงก์ย่อยหมด หรือเพิ่มก่อนวันหยุดยาว</p>
         </div>
 
@@ -400,7 +491,7 @@ require dirname(__FILE__) . '/inc/header.php';
   <?php if (can($user, 'store_reopen')) { ?>
   <section class="card">
     <div class="card-head"><div><h3>เปิดร้านใหม่</h3><p>ใช้เมื่อปิดร้านไปแล้วแต่ยังต้องขายหรือแก้รายการต่อ · ต้องระบุเหตุผล</p></div></div>
-    <form class="card-body" method="post" action="store.php">
+    <form class="card-body store-reopen-f" method="post" action="store.php">
       <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
       <input type="hidden" name="act" value="reopen">
       <div class="field">
@@ -452,7 +543,9 @@ require dirname(__FILE__) . '/inc/header.php';
       var box = document.getElementById('adj');
       box.hidden = false;
       document.getElementById('counted').focus();
-      this.parentNode.style.display = 'none';
+      /* ซ่อนทั้งกล่องคำแนะนำ — เดิมซ่อนแค่ข้อความ เหลือกล่องเปล่ากับไอคอน (12 ต.ค.) */
+      var hint = this.closest('.hint');
+      (hint || this.parentNode).style.display = 'none';
     });
   }
 

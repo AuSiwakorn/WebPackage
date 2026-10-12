@@ -13,6 +13,8 @@
  *   - [x] ช่วงที่ 12: พนักงานทั่วไปไม่เห็นรายการ "ตั้งค่า" (เพิ่ม / แก้พนักงาน รีเซ็ต PIN แก้สาขา ฯลฯ) · ผู้จัดการสาขาเห็นครบ
  *   - [x] ช่วงที่ 11: ปุ่มแก้ / ยกเลิกตามสิทธิ์ใหม่ (บิล = bill_fix + แก้ไขต้องขายได้ · เอกสารคลัง = doc_fix + สิทธิ์หน้างานนั้น) · ลิงก์ตามสิทธิ์ (page_ok)
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
+ *   - [x] ปุ่ม “ดู / พิมพ์บิล” ทุกบิลของวันนี้ (รวมบิลที่ยกเลิก)
+ *   - [x] ผลทดสอบ 7 ต.ค. (M7): ยกเลิก / แก้บิลไม่ผ่าน (เช่น ร้านปิดแล้ว) แสดงข้อความ — เดิม redirect เงียบ ๆ
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -93,6 +95,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $err === '' && !$pastTs) {
             $v = bill_void($code, $no, $user, $reason, $redo);
             if ($v === null) {
                 $err = 'ไม่พบบิลนี้ หรือถูกยกเลิกไปแล้ว';
+            } elseif (isset($v['error'])) {
+                $err = $v['error'];          // ร้านปิดแล้ว / มีรับคืนแล้ว — เดิมไม่แสดง กดแล้วเงียบ (ผลทดสอบ M7)
             } elseif ($redo) {
                 /* ดึงรายการกลับเข้าตะกร้าแล้วพาไปหน้าขายต่อทันที */
                 cart_from_bill($v, $code);
@@ -307,14 +311,17 @@ require dirname(__FILE__) . '/inc/header.php';
                 — <?php echo e($rdoc['void_reason']) ?>
               </p>
             <?php } ?>
-            <?php if ($bill !== null && empty($bill['void']) && can_void_doc($user, $bill, 'bill') && !bill_returned_any($bill['no'])) { ?>
+            <?php if ($bill !== null) { ?>
               <?php
+              /* ดู / พิมพ์บิลได้ทุกใบ (ใบที่ยกเลิกพิมพ์ออกมามีตรา “ยกเลิก”) · แก้ / ยกเลิกตามสิทธิ์ */
+              $fix = empty($bill['void']) && can_void_doc($user, $bill, 'bill') && !bill_returned_any($bill['no']);
               $act = hist_url($t !== '' ? 't=' . rawurlencode($t) : '');
               $dat = ' data-bill="' . e($bill['no']) . '" data-total="' . e(money2($bill['total']))
                    . '" data-qty="' . (int) $bill['qty'] . '" data-items="' . (int) $bill['items'] . '"';
               ?>
               <div class="tl-act">
-                <?php foreach (array(
+                <?php echo Stock_buildBillPrintButton($bill) ?>
+                <?php if ($fix) { foreach (array(
                     array('edit', 'แก้ไขบิลนี้',  'i-arrow', 'หมายเหตุการแก้ไขบิล'),
                     array('void', 'ยกเลิกบิลนี้', 'i-ban',   'หมายเหตุการยกเลิกบิล'),
                 ) as $b) { if ($b[0] === 'edit' && !can($user, 'sale')) { continue; } ?>
@@ -329,15 +336,16 @@ require dirname(__FILE__) . '/inc/header.php';
                       <svg class="ico"><use href="#<?php echo e($b[2]) ?>"/></svg> <?php echo e($b[1]) ?>
                     </button>
                   </form>
-                <?php } ?>
+                <?php } } ?>
               </div>
-            <?php } elseif ($bill !== null && !empty($bill['void'])) { ?>
+              <?php if (!empty($bill['void'])) { ?>
               <p class="tl-voided">
                 <svg class="ico"><use href="#i-ban"/></svg>
                 บิลนี้ถูก<?php echo (isset($bill['void_mode']) && $bill['void_mode'] === 'edit') ? 'ยกเลิกเพื่อแก้ไข' : 'ยกเลิก' ?>
                 เมื่อ <?php echo e($bill['void_at']) ?> น. โดย <?php echo e($bill['void_by']) ?>
                 — <?php echo e($bill['void_reason']) ?>
               </p>
+              <?php } ?>
             <?php } ?>
             <?php if ($r['detail']) { ?>
               <dl class="tl-d">

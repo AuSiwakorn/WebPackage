@@ -86,12 +86,12 @@ $sqlAlter[_DBPREFIX_ . 'stock_branch']['daily_goal'] = "ALTER TABLE `" . _DBPREF
       role: staff=พนักงาน (เมนูตามที่ติ๊กใน perms เฉพาะสาขาตนเอง) · admin=ผู้ดูแล (ทุกสาขา ไม่ขาย)
       ไม่มีบทบาทหัวหน้าคลัง — ใช้สิทธิ์เสริม perms ติ๊กให้พนักงานรายคนแทน
       ผู้ดูแลเพิ่ม / แก้ / พักงาน / ลบ พนักงานได้ที่หน้า "จัดการพนักงาน" (ลบได้เฉพาะคนที่ยังไม่เคยทำรายการ)
-      perms (คั่นด้วย ,) — ช่วงที่ 11 ขึ้นต้นด้วยตัวบอกรุ่น v2 ตามด้วยสิทธิ์ 21 ตัว (รายการเต็ม: perm_list ใน api/core.php)
+      perms (คั่นด้วย ,) — ช่วงที่ 11 ขึ้นต้นด้วยตัวบอกรุ่น v2 ตามด้วยสิทธิ์ 23 ตัว (รายการเต็ม: perm_list ใน api/core.php)
         หน้าร้าน:  sale discount store store_reopen cash bill_fix
-        งานคลัง:   receive issue stocktake doc_fix
+        งานคลัง:   receive product_add (ช่วงที่ 16) issue stocktake doc_fix
         รับคืน:    refund refund_cash        หมวดสินค้า: category_add category_del
         ดูข้อมูล:  products movements history report
-        สิทธิ์เสริม: void_others backdate report_branch
+        สิทธิ์เสริม: void_others backdate report_branch manager (ช่วงที่ 12)
       แถวที่ไม่มี v2 = สิทธิ์ชุดเดิม 7 ตัว (sale receive issue stocktake history refund category) → แปลงตอนอ่าน ไม่ต้อง Reinstall
       admin ได้ทุกสิทธิ์ ยกเว้นงานหน้าร้าน / งานคลัง / หมวดสินค้าฝั่งพนักงาน (ผู้ดูแลไม่ขาย / ไม่เปิด-ปิดร้าน)
       branch_id = สาขาปัจจุบัน (admin ใส่สาขาหลักได้ แต่สลับดูทุกสาขา)

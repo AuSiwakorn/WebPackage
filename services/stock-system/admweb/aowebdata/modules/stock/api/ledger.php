@@ -7,6 +7,7 @@
  * TODO:
  *   - [x] ช่วงที่ 10: แยกจาก api.php เดิม (ย้ายโค้ดทั้งก้อน ไม่แก้ตรรกะ) · จัดฟังก์ชันที่เคยปนอยู่หมวดอื่นให้มาอยู่หมวดนี้
  *   - [x] ช่วงที่ 11: แก้ไขเอกสารย้อนหลังต้องมีสิทธิ์ของหน้างานคลังชนิดนั้นด้วย
+ *   - [x] 12 ต.ค.: ผู้ดูแลย้อนดูประวัติได้ตาม return_lookback_days(สาขา) (เดิม 14 วันตายตัว)
  *
  * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
  */
@@ -596,7 +597,7 @@ function past_types()
 function backdate_limit($user, $code)
 {
     if ($user['role'] === 'admin') {
-        return return_lookback_days();
+        return return_lookback_days($code);
     }
     return can($user, 'backdate') ? backdate_days($code) : 0;
 }

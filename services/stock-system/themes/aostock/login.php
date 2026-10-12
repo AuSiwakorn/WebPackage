@@ -15,6 +15,10 @@
  *   - [x] ช่วงที่ 13: ไม่แสดงรายชื่อพนักงานทั้งหมดแล้ว — พิมพ์ชื่อผู้ใช้ + PIN · เครื่องจำชื่อคนที่เคยเข้า (ปุ่มชื่อ + × เอาออก)
  *         · ติ๊ก "จำชื่อฉันไว้บนเครื่องนี้" ไว้ให้ก่อน · ข้อความผิดไม่บอกว่าชื่อผู้ใช้มีจริงไหม · ล็อกตาม IP ทั้ง 2 แท็บ
  *   - [x] วงหมุนกลางจอ "กำลังเข้าสู่ระบบ…" ทันทีที่ส่ง PIN / รหัสผ่าน (ข้อ ก) · กันกดซ้ำระหว่างส่ง · กดย้อนกลับมาแล้วซ่อนให้
+ *   - [x] 8 ต.ค.: แถว “เลือกชื่อของคุณ” กดค้างลากด้วยเมาส์ / หมุนลูกกลิ้งเพื่อเลื่อนได้ (เดิมต้องกดชื่อที่โผล่ครึ่งชื่อ) · ลากแล้วปล่อยบนชื่อไม่นับเป็นการเลือก
+ *   - [x] 8 ต.ค.: ล็อกจากการกรอกผิด — บอกล็อกที่นานที่สุดตั้งแต่ครั้งที่ 5 (เดิมขึ้น “รออีก 58 วินาที” แล้วโดนล็อกบัญชีต่ออีก 15 นาที)
+ *         · เวลานับถอยหลังทุกวินาที (นาที:วินาที) · ระหว่างล็อกแป้น PIN / ปุ่มเข้าสู่ระบบกดไม่ได้ เฉพาะชื่อที่ติดล็อก · หมดเวลาขึ้น “ลองใหม่ได้แล้ว”
+ *   - [x] 12 ต.ค.: “ลืมรหัสผ่าน?” บอกให้ติดต่อคนดูแลเว็บ (เลิกพูดถึงหลังบ้าน admweb บนหน้าจอ)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -35,6 +39,37 @@ $via       = $known ? 'pick' : 'type';   // แท็บ PIN: pick = แตะ�
 $staffPick = '';                         // ปุ่มชื่อที่เลือก
 $typed     = '';                         // ชื่อผู้ใช้ที่พิมพ์
 $keep      = true;                       // "จำชื่อฉันไว้บนเครื่องนี้" ติ๊กไว้ให้ก่อน (ข้อ 3ก)
+$lockInfo  = null;                       // ล็อกจากการกรอกผิด (ส่งให้ JS นับถอยหลัง / ล็อกแป้น) — null = ไม่ล็อก
+
+/* กรอกผิดนับพร้อมกัน 3 ชั้น: เครื่องนี้ (5 ครั้ง ล็อก 1 นาที) · บัญชี (5 ครั้ง ล็อก 15 นาที) · เครือข่าย (20 ครั้ง ล็อก 15 นาที)
+   ข้อความ: {t} = เวลาที่เหลือ (นาที:วินาที) ซึ่ง JS นับถอยหลังให้ */
+$LOCK_MSG = array(
+    'dev'   => 'กรอกผิดหลายครั้งเกินไป — ลองใหม่ได้ในอีก {t}',
+    'ip'    => 'มีการกรอกผิดจากเครือข่ายนี้หลายครั้งเกินไป — ลองใหม่ได้ในอีก {t}',
+    'pin'   => 'กรอก PIN ผิดหลายครั้ง บัญชีนี้ถูกล็อกชั่วคราว — ลองใหม่ได้ในอีก {t} หรือให้ผู้จัดการสาขา / ผู้ดูแลรีเซ็ต PIN',
+    'admin' => 'กรอกรหัสผ่านผิดหลายครั้ง บัญชีนี้ถูกล็อกชั่วคราว — ลองใหม่ได้ในอีก {t}',
+);
+/* วินาที → นาที:วินาที
+   TODO:
+     - [x] 8 ต.ค.: ใช้กับข้อความล็อก (เดิมบอกเป็นวินาทีหรือนาทีปัดขึ้น ตัวเลขไม่ขยับ) */
+$mmss = function ($s) {
+    $s = max(0, (int) $s);
+    return (int) floor($s / 60) . ':' . str_pad((string) ($s % 60), 2, '0', STR_PAD_LEFT);
+};
+/* ล็อกที่ยังเหลืออยู่ของชื่อนี้ — คืน null = ไม่ล็อก · ล็อกหลายชั้นพร้อมกันให้บอกตัวที่นานที่สุด (kind / left)
+   TODO:
+     - [x] 8 ต.ค.: เดิมเช็กล็อกเครื่องก่อน ขึ้น “รออีก 58 วินาที” พอครบนาทีโดนล็อกบัญชีต่ออีก 15 นาที (ล็อกพร้อมกันตั้งแต่ครั้งที่ 5) */
+$lockNow = function ($who, $mode) {
+    $l = array('dev' => login_locked(), 'ip' => ip_locked_left(), 'acc' => ($who !== '') ? staff_locked_left($who) : 0,
+               'who' => $who, 'mode' => $mode);
+    if ($l['dev'] <= 0 && $l['ip'] <= 0 && $l['acc'] <= 0) {
+        return null;
+    }
+    $all       = max($l['dev'], $l['ip']);
+    $l['kind'] = ($l['acc'] >= $all) ? $mode : (($l['ip'] > $l['dev']) ? 'ip' : 'dev');
+    $l['left'] = max($all, $l['acc']);
+    return $l;
+};
 
 /* ---- เอาชื่อออกจากเครื่องนี้ (ปุ่ม × บนปุ่มชื่อ) ---- */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mode']) && $_POST['mode'] === 'forget') {
@@ -50,36 +85,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($mode === 'admin' && !role_enabled('admin')) {
         $mode = 'pin';                    // ปิดช่องทางผู้ดูแลไว้ก่อนในเฟสนี้
     }
-    $lock = login_locked();
-
-    if (!csrf_check(isset($_POST['csrf']) ? $_POST['csrf'] : null)) {
-        $error = 'เซสชันหมดอายุ กรุณาลองเข้าสู่ระบบอีกครั้ง';
-    } elseif ($lock > 0) {
-        $error = 'กรอกผิดหลายครั้งเกินไป กรุณารออีก ' . $lock . ' วินาที';
-    } elseif (($ipLeft = ip_locked_left()) > 0) {            // ช่วงที่ 13: ทุกบัญชีรวมกันผิดเกินกำหนดจาก IP นี้
-        $error = 'มีการกรอกผิดจากเครือข่ายนี้หลายครั้งเกินไป — ลองใหม่ในอีก ' . (int) ceil($ipLeft / 60) . ' นาที';
-    } elseif ($mode === 'pin') {
+    /* อ่านชื่อที่กรอกก่อน — ใช้ทั้งเช็กล็อกของบัญชีนั้น และตอบกลับให้ฟอร์มจำค่าเดิม */
+    if ($mode === 'pin') {
         $via       = (isset($_POST['via']) && $_POST['via'] === 'type') ? 'type' : 'pick';
         $typed     = isset($_POST['staff_typed']) ? strtolower(trim((string) $_POST['staff_typed'])) : '';
         $keep      = !empty($_POST['keep']);
         $staffPick = isset($_POST['staff']) ? strtolower(trim((string) $_POST['staff'])) : '';
         $who       = ($via === 'type') ? $typed : $staffPick;
-        $pin       = isset($_POST['pin']) ? trim($_POST['pin']) : '';
+    } else {
+        /* ชื่อช่อง adm_user / adm_pass — admweb (fix.req.php) แก้ค่าของช่องชื่อ username / password ทิ้ง ' และ = ก่อนถึงหน้านี้ */
+        $username = isset($_POST['adm_user']) ? trim($_POST['adm_user']) : '';
+        $who      = strtolower($username);
+    }
+
+    if (!csrf_check(isset($_POST['csrf']) ? $_POST['csrf'] : null)) {
+        $error = 'เซสชันหมดอายุ กรุณาลองเข้าสู่ระบบอีกครั้ง';
+    } elseif (($lockInfo = $lockNow($who, $mode)) !== null) {
+        $error = $LOCK_MSG[$lockInfo['kind']];                // ล็อกเครื่อง / เครือข่าย / บัญชีนี้ — บอกตัวที่นานที่สุด (ช่วงที่ 13 · 8 ต.ค.)
+    } elseif ($mode === 'pin') {
+        $pin = isset($_POST['pin']) ? trim($_POST['pin']) : '';
 
         if ($who === '') {
             $error = ($via === 'type') ? 'กรุณากรอกชื่อผู้ใช้' : 'กรุณาเลือกชื่อของคุณก่อน';
         } elseif (strlen(preg_replace('/\D/', '', $pin)) !== 4) {
             $error = 'กรุณากรอก PIN ให้ครบ 4 หลัก';
-        } elseif (($left = staff_locked_left($who)) > 0) {
-            $error = 'กรอก PIN ผิดหลายครั้ง บัญชีนี้ถูกล็อกชั่วคราว — ลองใหม่ในอีก ' . (int) ceil($left / 60) . ' นาที หรือให้ผู้จัดการสาขา / ผู้ดูแลรีเซ็ต PIN';
         } else {
             $user = attempt_pin_login($who, $pin);
             if ($user === null) {
                 login_failed();
                 staff_login_failed($who);
                 ip_login_failed();
-                /* ชื่อที่เครื่องนี้จำไว้อยู่แล้ว บอกตรง ๆ ได้ · ชื่อที่พิมพ์มา ไม่บอกว่ามีชื่อนี้จริงไหม (กันไล่เดาชื่อผู้ใช้) */
-                $error = isset($known[$who]) ? 'PIN ไม่ถูกต้อง' : 'ชื่อผู้ใช้หรือ PIN ไม่ถูกต้อง';
+                /* ชื่อที่เครื่องนี้จำไว้อยู่แล้ว บอกตรง ๆ ได้ · ชื่อที่พิมพ์มา ไม่บอกว่ามีชื่อนี้จริงไหม (กันไล่เดาชื่อผู้ใช้)
+                   ผิดครบกำหนดแล้วล็อกทันที → บอกล็อกที่นานที่สุดเลย ไม่ใช่ 1 นาทีแล้วค่อยโผล่ 15 นาที */
+                $lockInfo = $lockNow($who, $mode);
+                $error = ($lockInfo !== null) ? $LOCK_MSG[$lockInfo['kind']]
+                       : (isset($known[$who]) ? 'PIN ไม่ถูกต้อง' : 'ชื่อผู้ใช้หรือ PIN ไม่ถูกต้อง');
             } else {
                 staff_login_ok($who);
                 login_user($user);
@@ -91,22 +131,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     } else {
-        /* ชื่อช่อง adm_user / adm_pass — admweb (fix.req.php) แก้ค่าของช่องชื่อ username / password ทิ้ง ' และ = ก่อนถึงหน้านี้ */
-        $username = isset($_POST['adm_user']) ? trim($_POST['adm_user']) : '';
         $password = isset($_POST['adm_pass']) ? (string) $_POST['adm_pass'] : '';
 
-        $uKey = strtolower($username);
+        $uKey = $who;
         if ($username === '' || $password === '') {
             $error = 'กรุณากรอกชื่อผู้ใช้และรหัสผ่านให้ครบ';
-        } elseif (($left = staff_locked_left($uKey)) > 0) {
-            $error = 'กรอกรหัสผ่านผิดหลายครั้ง บัญชีนี้ถูกล็อกชั่วคราว — ลองใหม่ในอีก ' . (int) ceil($left / 60) . ' นาที';
         } else {
             $user = attempt_login($username, $password);
             if ($user === null) {
                 login_failed();
                 staff_login_failed($uKey);
                 ip_login_failed();
-                $error = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
+                $lockInfo = $lockNow($uKey, $mode);
+                $error = ($lockInfo !== null) ? $LOCK_MSG[$lockInfo['kind']] : 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
             } else {
                 staff_login_ok($uKey);
                 login_user($user);
@@ -216,10 +253,14 @@ foreach (users_active() as $u) {
       </div>
       <?php } ?>
 
-      <?php if ($error !== '') { ?>
-        <div class="alert alert-error" role="alert">
+      <?php if ($error !== '') { $errT = explode('{t}', $error, 2); ?>
+        <div class="alert alert-error" role="alert" id="lg-alert"<?php if ($lockInfo !== null) { /* ล็อก: JS นับถอยหลัง + ล็อกแป้นตามชื่อที่เลือก (8 ต.ค.) */ ?>
+             data-dev="<?php echo (int) $lockInfo['dev'] ?>" data-ip="<?php echo (int) $lockInfo['ip'] ?>" data-acc="<?php echo (int) $lockInfo['acc'] ?>"
+             data-who="<?php echo e($lockInfo['acc'] > 0 ? $lockInfo['who'] : '') ?>" data-mode="<?php echo e($lockInfo['mode']) ?>"
+             data-kind="<?php echo in_array($lockInfo['kind'], array('pin', 'admin'), true) ? 'acc' : e($lockInfo['kind']) ?>"
+             data-msg-dev="<?php echo e($LOCK_MSG['dev']) ?>" data-msg-ip="<?php echo e($LOCK_MSG['ip']) ?>" data-msg-acc="<?php echo e($LOCK_MSG[$lockInfo['mode']]) ?>"<?php } ?>>
           <svg class="ico"><use href="#i-alert"/></svg>
-          <span><?php echo e($error) ?></span>
+          <span id="lg-alert-t"><?php echo e($errT[0]) ?><?php if (isset($errT[1])) { ?><b class="num lock-t"><?php echo e($mmss($lockInfo !== null ? $lockInfo['left'] : 0)) ?></b><?php echo e($errT[1]) ?><?php } ?></span>
         </div>
       <?php } ?>
 
@@ -339,7 +380,7 @@ foreach (users_active() as $u) {
         </div>
         <div class="login-help" id="forgot-help" hidden>
           <b>ลืมรหัสผ่าน / บัญชีถูกล็อก</b>
-          ให้ผู้ดูแลระบบเข้าหลังบ้าน (admweb) → AOSTOCK → <b>ผู้ดูแล POS</b> แล้วกด "ตั้งรหัสผ่านใหม่" ให้ — ตั้งแล้วบัญชีที่ถูกล็อกจะปลดล็อกด้วย
+          ติดต่อ<b>คนดูแลเว็บ</b>ให้ตั้งรหัสผ่านใหม่ — ตั้งแล้วบัญชีที่ถูกล็อกจะปลดล็อกด้วย
           และทุกเครื่องที่เคยจดจำไว้ต้องเข้าระบบใหม่ · ไม่ควรติ๊ก "จดจำ" บนเครื่องที่ใช้ร่วมกับคนอื่น
         </div>
 
@@ -397,6 +438,53 @@ foreach (users_active() as $u) {
         this.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
       }
     });
+  }
+
+  /* ---- แถวชื่อ: กดค้างลากด้วยเมาส์ / หมุนลูกกลิ้ง เพื่อเลื่อนซ้าย–ขวา (จอสัมผัสปัดนิ้วได้เองอยู่แล้ว) ---- */
+  var row = document.getElementById('staffs');
+  if (row) {
+    var drag = null, dragged = false;
+    row.addEventListener('pointerdown', function (ev) {
+      if (ev.pointerType !== 'mouse' || ev.button !== 0) { return; }
+      drag = { x: ev.clientX, left: row.scrollLeft };
+      dragged = false;
+    });
+    window.addEventListener('pointermove', function (ev) {
+      if (!drag) { return; }
+      if (!(ev.buttons & 1)) {                                   // ปล่อยเมาส์นอกหน้าต่างไปแล้ว
+        drag = null;
+        row.classList.remove('dragging');
+        return;
+      }
+      var dx = ev.clientX - drag.x;
+      if (!dragged && Math.abs(dx) > 5) {
+        dragged = true;
+        row.classList.add('dragging');
+      }
+      if (dragged) { row.scrollLeft = drag.left - dx; }
+    });
+    window.addEventListener('pointerup', function () {
+      if (!drag) { return; }
+      drag = null;
+      row.classList.remove('dragging');
+      if (dragged) { setTimeout(function () { dragged = false; }, 0); }   // ปล่อยนอกแถวชื่อ (ไม่มี click ให้ดัก) ก็ล้างค่าให้
+    });
+    /* ลากแล้วปล่อยบนปุ่มชื่อ / ปุ่ม × ไม่นับเป็นการกด (จับไว้ตั้งแต่ขาลง ก่อนถึงตัวปุ่ม) */
+    row.addEventListener('click', function (ev) {
+      if (!dragged) { return; }
+      dragged = false;
+      ev.preventDefault();
+      ev.stopPropagation();
+    }, true);
+    /* ลูกกลิ้งแนวตั้งบนแถวชื่อ = เลื่อนซ้าย–ขวา · เลื่อนสุดขอบแล้วปล่อยให้หน้าเลื่อนตามปกติ */
+    row.addEventListener('wheel', function (ev) {
+      if (Math.abs(ev.deltaY) <= Math.abs(ev.deltaX)) { return; }
+      var max = row.scrollWidth - row.clientWidth;
+      var next = Math.max(0, Math.min(max, row.scrollLeft + ev.deltaY));
+      if (next === row.scrollLeft) { return; }
+      row.scrollLeft = next;
+      ev.preventDefault();
+    }, { passive: false });
   }
 
   /* ---- บรรทัดบอกสิทธิ์ของคนที่เลือก ---- */
@@ -469,6 +557,7 @@ foreach (users_active() as $u) {
   /* ---- วงหมุนกลางจอระหว่างส่งไปตรวจ (ข้อ ก: ขึ้นทันทีที่ส่ง · ผิด = หน้าโหลดใหม่พร้อมข้อความเหมือนเดิม) ---- */
   var busy    = document.getElementById('lg-busy');
   var sending = false;
+  var locked  = false;                                     // ชื่อที่เลือกอยู่ยังติดล็อกจากการกรอกผิด (ดูท้ายสคริปต์)
   function showBusy() {
     sending = true;
     if (busy) { busy.hidden = false; }
@@ -486,7 +575,7 @@ foreach (users_active() as $u) {
   }
 
   function press(k) {
-    if (sending) { return; }                               // กำลังส่งอยู่ — กันกดซ้ำ
+    if (sending || locked) { return; }                     // กำลังส่งอยู่ — กันกดซ้ำ · ติดล็อกอยู่ (ดูท้ายสคริปต์)
     if (k === 'clear') { clearPin(); return; }
     if (k === 'back')  { buf = buf.slice(0, -1); paint(); return; }
     if (buf.length >= 4) { return; }
@@ -513,6 +602,90 @@ foreach (users_active() as $u) {
     else if (ev.key === 'Escape')       { press('clear'); }
   });
   paint();
+
+  /* ---- ล็อกจากการกรอกผิด (8 ต.ค.): เวลาที่เหลือนับถอยหลังทุกวินาที · ระหว่างล็อกแป้น PIN / ปุ่มเข้าสู่ระบบกดไม่ได้
+     ล็อกเครื่องนี้ / เครือข่าย = ทุกชื่อ · ล็อกบัญชี = เฉพาะชื่อนั้น (คนอื่นบนเครื่องเดียวกันแตะชื่อตัวเองแล้วเข้าได้)
+     ค่าเริ่มต้นมาจากเซิร์ฟเวอร์ (data-* บน #lg-alert) — เซิร์ฟเวอร์ตรวจล็อกซ้ำทุกครั้งที่ส่งอยู่แล้ว ---- */
+  var lk = document.getElementById('lg-alert');
+  if (lk && lk.hasAttribute('data-dev')) {
+    var lkTxt  = document.getElementById('lg-alert-t');
+    var lkUse  = lk.querySelector('use');
+    var lkPad  = document.getElementById('keypad');
+    var lkUser = document.getElementById('username');
+    var lkBtn  = paneA ? paneA.querySelector('button[type="submit"]') : null;
+    var lkWho  = lk.getAttribute('data-who');
+    var lkAt   = Date.now();
+    var lkEnd  = {
+      dev: lkAt + Number(lk.getAttribute('data-dev')) * 1000,
+      ip:  lkAt + Number(lk.getAttribute('data-ip')) * 1000,
+      acc: lkAt + Number(lk.getAttribute('data-acc')) * 1000
+    };
+    var lkAll0 = Math.max(lkEnd.dev, lkEnd.ip) > lkAt;     // ตอนโหลดหน้า ทุกชื่อติดล็อกอยู่ไหม
+    var lkKind = lk.getAttribute('data-kind');             // ข้อความที่แสดงอยู่: dev | ip | acc | ok | '' (ซ่อน)
+    var lkTab  = '';
+    var lkB    = lkTxt.querySelector('.lock-t');
+    var lkTimer = null;
+
+    function mmss(ms) {
+      var s = Math.max(0, Math.ceil(ms / 1000));
+      return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2);
+    }
+    function lkAdmin() { return !!(paneA && paneA.className.indexOf(' on') !== -1); }
+    function lkSel() {                                     // ชื่อที่จะส่งตอนนี้ (แท็บที่เปิดอยู่)
+      if (lkAdmin()) { return lkUser ? lkUser.value.trim().toLowerCase() : ''; }
+      return via.value === 'type' ? typed.value.trim().toLowerCase() : staffInput.value;
+    }
+    function lkSay(kind, ms) {
+      var tab = lkAdmin() ? 'admin' : 'pin';
+      if (kind === lkKind && lkB && kind !== 'ok' && kind !== '') {
+        lk.setAttribute('aria-live', 'off');               // ข้อความเดิม เปลี่ยนแค่ตัวเลข — ไม่ให้โปรแกรมอ่านหน้าจออ่านซ้ำทุกวินาที
+        lkB.textContent = mmss(ms);
+        return;
+      }
+      if (kind === lkKind && tab === lkTab) { return; }
+      lkKind = kind;
+      lkTab  = tab;
+      lkB    = null;
+      lk.setAttribute('aria-live', 'polite');
+      lk.hidden = (kind === '');
+      if (kind === '') { return; }
+      lk.className = 'alert ' + (kind === 'ok' ? 'alert-ok' : 'alert-error');
+      if (lkUse) { lkUse.setAttribute('href', kind === 'ok' ? '#i-info' : '#i-alert'); }
+      lkTxt.textContent = '';
+      if (kind === 'ok') {
+        lkTxt.textContent = 'ลองใหม่ได้แล้ว' + (tab === 'admin' ? '' : ' — กรอก PIN อีกครั้ง');
+        return;
+      }
+      var parts = lk.getAttribute('data-msg-' + kind).split('{t}');
+      lkB = document.createElement('b');
+      lkB.className = 'num lock-t';
+      lkB.textContent = mmss(ms);
+      lkTxt.appendChild(document.createTextNode(parts[0]));
+      lkTxt.appendChild(lkB);
+      lkTxt.appendChild(document.createTextNode(parts[1] || ''));
+    }
+    function lkTick() {
+      var now = Date.now(), u = lkSel();
+      var all = Math.max(lkEnd.dev, lkEnd.ip) - now;
+      var acc = (lkWho !== '' && u === lkWho) ? lkEnd.acc - now : 0;
+      var left = Math.max(all, acc);
+      locked = left > 0;
+      for (var i = 0; i < keys.length; i++) { keys[i].disabled = locked; }
+      if (lkPad) { lkPad.classList.toggle('is-locked', locked); }
+      if (lkBtn) { lkBtn.disabled = locked; }
+      if (locked) {
+        lkSay(acc >= all ? 'acc' : (lkEnd.ip > lkEnd.dev ? 'ip' : 'dev'), left);
+      } else {
+        lkSay((lkAll0 || (lkWho !== '' && u === lkWho)) ? 'ok' : '', 0);   // ล็อกของชื่อนี้เพิ่งหมด = บอกว่าลองใหม่ได้ · ชื่ออื่นที่ไม่เคยติด = ซ่อน
+      }
+      if (now >= Math.max(lkEnd.dev, lkEnd.ip, lkEnd.acc) && lkTimer) { clearInterval(lkTimer); lkTimer = null; }
+    }
+    lkTimer = setInterval(lkTick, 250);
+    /* แตะชื่ออื่น / พิมพ์ชื่อ / สลับแท็บ → ปลด / ล็อกแป้นทันที ไม่ต้องรอรอบถัดไป */
+    document.addEventListener('click', function () { setTimeout(lkTick, 0); });
+    document.addEventListener('input', function () { setTimeout(lkTick, 0); });
+    lkTick();
+  }
 
   /* ---- ลืมรหัสผ่าน: แสดง / ซ่อนวิธีรีเซ็ต ---- */
   var fb = document.getElementById('forgot-btn');

@@ -6,6 +6,8 @@
  * TABLES: ao_stock_store_day, ao_stock_cash_move, ao_stock_sale, ao_stock_return, ao_stock_log
  * TODO:
  *   - [x] ช่วงที่ 10: แยกจาก api.php เดิม (ย้ายโค้ดทั้งก้อน ไม่แก้ตรรกะ) · จัดฟังก์ชันที่เคยปนอยู่หมวดอื่นให้มาอยู่หมวดนี้
+ *   - [x] ประวัติเปิดร้านใหม่ลงบทบาทจริงของคนเปิด (store_reopen)
+ *   - [x] ช่วงที่ 17: ปิดร้านย้อนหลัง (Stock_closePastDay) · เงินในลิ้นชักของวันใดก็ได้ (Stock_getDayCash)
  *
  * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
  */
@@ -21,6 +23,7 @@
    - ระหว่างวันเติม / หยิบเงินได้ (stock_cash_move) · เงินคืนลูกค้า = stock_return.refund ของวันนี้
    - ปิดร้าน: เก็บยอดที่ควรมี + นับได้ + แยกไว้พรุ่งนี้ + นำส่ง ลงแถวของวัน
    - ปิดแล้ว ขาย / ยกเลิกบิล / รับคืน / เติม–หยิบเงินไม่ได้ จนกว่าผู้ดูแลจะเปิดร้านใหม่
+   - ลืมปิดร้าน (ช่วงที่ 17): เปิดร้านวันใหม่ต้องปิดวันล่าสุดที่ค้างก่อน (Stock_closePastDay) · ผู้ดูแลปิดย้อนหลังได้จากหน้าภาพรวม
    ========================================================== */
 
 /** เงินทอนมาตรฐานของสาขา (ฟิลด์ default_float) */
@@ -70,7 +73,8 @@ function store_day_result($code, $ts)
         'opened_by' => ($r['opened_name'] !== null) ? $r['opened_name'] : '-',
         'float'     => (float) $r['open_cash'],
         'closed'    => $closed,
-        'closed_at' => $closed ? date('H:i', strtotime($r['closed_at'])) : '',
+        /* ปิดย้อนหลัง (ช่วงที่ 17) → เวลาปิดอยู่คนละวัน ใส่วันที่ด้วย เช่น 7/10 09:10 */
+        'closed_at' => $closed ? date(substr($r['closed_at'], 0, 10) === $r['store_date'] ? 'H:i' : 'j/n H:i', strtotime($r['closed_at'])) : '',
         'closed_by' => ($closed && $r['closed_name'] !== null) ? $r['closed_name'] : '',
         'expect'    => $num($r['expected_cash']),
         'counted'   => $num($r['counted_cash']),
@@ -283,8 +287,101 @@ function store_expected_cash($code)
     if ($st['closed_at'] !== '' && $st['expected'] !== null) {
         return $st['expected'];
     }
-    $c = store_daily_cash($code);
-    return round($st['float'] + $c['topup'] + store_cash_sales($code) - $c['withdraw'] - store_refunds($code), 2);
+    $c = Stock_getDayCash($st['id']);
+    return $c['expected'];
+}
+
+/**
+ * เงินในลิ้นชักของวันหนึ่ง (แถว ao_stock_store_day) — ใช้ได้ทั้งวันนี้และวันก่อน (ปิดร้านย้อนหลัง)
+ * คืน array(float, topup, withdraw, sales, refunds, expected)
+ *   expected = เงินทอนเริ่มวัน + เติม + ขายเงินสด − หยิบออก − คืนเงินลูกค้า (ทุกรายการผูก day_id ของวันนั้น)
+ * TODO:
+ *   - [x] ช่วงที่ 17: รวมจาก cash_move / sale / return ด้วย day_id · store_expected_cash ของวันนี้ใช้ตัวนี้ด้วย (สูตรเดียว)
+ */
+function Stock_getDayCash($dayId)
+{
+    $dayId = (int) $dayId;
+    $float = (float) sdb_val('SELECT open_cash FROM ' . sdb_tb('store_day') . ' WHERE day_id = ?', array($dayId));
+    $m     = sdb_row('SELECT COALESCE(SUM(CASE WHEN direction = \'in\' THEN amount END), 0) AS i,'
+                   . ' COALESCE(SUM(CASE WHEN direction = \'out\' THEN amount END), 0) AS o FROM ' . sdb_tb('cash_move') . ' WHERE day_id = ?',
+                     array($dayId));
+    $sales = (float) sdb_val('SELECT COALESCE(SUM(total), 0) FROM ' . sdb_tb('sale')
+                           . ' WHERE day_id = ? AND status = \'paid\' AND pay_method = \'cash\'', array($dayId));
+    $ref   = (float) sdb_val('SELECT COALESCE(SUM(refund), 0) FROM ' . sdb_tb('return') . ' WHERE day_id = ?', array($dayId));
+    $c     = array('float' => $float, 'topup' => (float) $m['i'], 'withdraw' => (float) $m['o'], 'sales' => $sales, 'refunds' => $ref);
+    $c['expected'] = round($float + $c['topup'] + $sales - $c['withdraw'] - $ref, 2);
+    return $c;
+}
+
+/**
+ * ปิดร้านย้อนหลัง — วันก่อนวันนี้ที่ยังเปิดค้างอยู่ (ลืมกดปิดร้าน)
+ * - พนักงาน (สิทธิ์ store) ทำตอนเปิดร้านวันใหม่ ก่อนขายบิลแรก — เงินในลิ้นชักตอนนั้นคือเงินของวันที่ค้าง · ที่แยกไว้ยกไปเป็นเงินทอนวันนี้
+ * - ผู้ดูแลปิดวันไหนก็ได้จากหน้าภาพรวม (กรณีเปิดวันใหม่ไปแล้ว หรือค้างหลายวัน)
+ * ต้องมีหมายเหตุทุกครั้ง · ลงประวัติของวันนี้ "ปิดร้านย้อนหลัง …" (ผู้ดูแลเห็นในรายการที่ต้องตรวจ) · แจ้งเตือนแบบปิดร้าน (บอกว่าปิดย้อนหลัง)
+ * คืน array('ok' => true, 'keep' => เงินที่แยกไว้) หรือ array('error' => ข้อความ)
+ * TODO:
+ *   - [x] ช่วงที่ 17 (ผลทดสอบ 7 ต.ค. — ลืมปิดร้านวันที่ 6 แล้วเปิดวันที่ 7 ต่อ วันที่ 6 ค้างอยู่ตลอดไป)
+ */
+function Stock_closePastDay($code, $ymd, $user, $counted, $keep, $note)
+{
+    $ymd = preg_replace('/\D/', '', (string) $ymd);
+    $ts  = (strlen($ymd) === 8) ? strtotime($ymd) : false;
+    if ($ts === false || date('Y-m-d', $ts) >= date('Y-m-d')) {
+        return array('error' => 'ปิดย้อนหลังได้เฉพาะวันก่อนวันนี้');
+    }
+    $note = trim((string) $note);
+    if ($note === '') {
+        return array('error' => 'กรุณากรอกหมายเหตุว่าทำไมวันนั้นไม่ได้ปิดร้าน');
+    }
+    $row  = store_day_row($code, date('Y-m-d', $ts));
+    $gone = 'วัน' . thai_date_full($ts) . ' ไม่ได้ค้างอยู่แล้ว (อาจมีคนปิดไปก่อน)';
+    if ($row === null || $row['status'] !== 'open') {
+        return array('error' => $gone);
+    }
+    $dayId = (int) $row['day_id'];
+    $saved = array();
+    $ok = sdb_tx(function () use ($code, $ts, $row, $dayId, $user, $counted, $keep, $note, &$saved) {
+        if (sdb_val('SELECT status FROM ' . sdb_tb('store_day') . ' WHERE day_id = ? FOR UPDATE', array($dayId)) !== 'open') {
+            return false;
+        }
+        $expected = Stock_getDayCash($dayId);
+        $expected = $expected['expected'];
+        $counted  = max(0, round((float) $counted, 2));
+        $keep     = max(0, min(round((float) $keep, 2), $counted));
+        $note     = stock_cut($note, 255);
+        sdb_update('store_day', array(
+            'status'        => 'closed',
+            'closed_by'     => stock_uid($user),
+            'closed_at'     => date('Y-m-d H:i:s'),
+            'expected_cash' => $expected,
+            'counted_cash'  => $counted,
+            'keep_cash'     => $keep,
+            'handover_cash' => round($counted - $keep, 2),
+            'close_note'    => $note,
+        ), array('day_id' => $dayId));
+
+        /* ---- เก็บลงประวัติของวันนี้ (วันที่ปิด) ---- */
+        $diff = round($counted - $expected, 2);
+        log_add($code, 'close', $user, 'ปิดร้านย้อนหลัง ' . branch_name($code) . ' · ของวัน' . thai_date_full($ts), array(
+            'ของวันที่'        => thai_date_full($ts),
+            'เปิดร้านวันนั้น'    => date('H:i', strtotime($row['opened_at'])) . ' น. โดย ' . ($row['opened_name'] !== null ? $row['opened_name'] : '-'),
+            'เงินที่ควรมี'       => money2($expected) . ' บาท',
+            'นับได้จริง'        => money2($counted) . ' บาท',
+            'ผลต่าง'           => ($diff > 0 ? 'เกิน +' : ($diff < 0 ? 'ขาด −' : 'ตรงพอดี ')) . money2(abs($diff)) . ' บาท',
+            'เงินทอนที่แยกไว้'   => money2($keep) . ' บาท',
+            'นำส่ง'            => money2($counted - $keep) . ' บาท',
+            'หมายเหตุ'          => $note,
+            'ปิดโดย'           => $user['name'] . ' (' . actor_label($user) . ')',
+        ), $counted);
+        $saved = array('keep' => $keep);
+        return true;
+    });
+    store_db_reset();
+    if ($ok !== true) {
+        return array('error' => $gone);
+    }
+    notify_on_close($code, $ts);                  // Telegram: ปิดร้าน (ย้อนหลัง) + เงินขาด / เกิน
+    return array('ok' => true, 'keep' => $saved['keep']);
 }
 
 /**
@@ -342,10 +439,11 @@ function store_close($code, $user, $counted, $keep, $note)
     return $ok ? store_state($code) : null;
 }
 
-/** เปิดร้านใหม่หลังปิดไปแล้ว — ผู้ดูแลเท่านั้น ต้องมีเหตุผล
+/** เปิดร้านใหม่หลังปิดไปแล้ว — ผู้ดูแล (adm-dashboard) หรือพนักงานที่มีสิทธิ์ store_reopen (store.php · ช่วงที่ 11) · ต้องมีเหตุผล
     ผลของรอบที่ปิดไป (นับได้ / ควรมี) ยังอยู่ในแถวและในประวัติ จนกว่าจะปิดใหม่อีกครั้ง
     TODO:
-      - [x] status open + reopen_count + 1 ใน ao_stock_store_day */
+      - [x] status open + reopen_count + 1 ใน ao_stock_store_day
+      - [x] “ผู้เปิดใหม่” ต่อท้ายบทบาทจริง (ผู้ดูแล / พนักงาน / ผู้จัดการสาขา) — เดิมเขียน (ผู้ดูแล) ทุกครั้ง */
 function store_reopen($code, $user, $reason)
 {
     $st = store_state($code);
@@ -362,7 +460,7 @@ function store_reopen($code, $user, $reason)
             'ปิดไปเมื่อ'          => $st['closed_at'] . ' น. โดย ' . $st['closed_by'],
             'เงินที่นับได้ตอนปิด' => money2($st['cash_counted']) . ' บาท',
             'เหตุผล'             => trim($reason),
-            'ผู้เปิดใหม่'          => $user['name'] . ' (ผู้ดูแล)',
+            'ผู้เปิดใหม่'          => $user['name'] . ' (' . actor_label($user) . ')',
         ));
         return true;
     });

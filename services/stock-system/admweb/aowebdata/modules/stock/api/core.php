@@ -8,6 +8,7 @@
  *   - [x] ช่วงที่ 10: แยกจาก api.php เดิม (ย้ายโค้ดทั้งก้อน ไม่แก้ตรรกะ) · จัดฟังก์ชันที่เคยปนอยู่หมวดอื่นให้มาอยู่หมวดนี้
  *   - [x] ช่วงที่ 11: แตกสิทธิ์พนักงานเป็น 18 ตัว + สิทธิ์เสริม 3 ตัว · สิทธิ์ที่พ่วงกัน (needs) · แปลงสิทธิ์ชุดเดิม · page_ok สำหรับเมนู / ลิงก์
  *   - [x] ช่วงที่ 12: สิทธิ์ผู้จัดการสาขา (manager) ได้สิทธิ์ดูข้อมูล + สิทธิ์เสริมอัตโนมัติ · หน้า team.php · ชื่อบทบาท "ผู้จัดการสาขา"
+ *   - [x] ช่วงที่ 16: สิทธิ์ "เพิ่มสินค้าใหม่" (product_add · หมวดงานคลัง · ต้องมีนำเข้า) — ไม่อยู่ในค่าเริ่มต้นของพนักงานใหม่ (ข้อ 1ก)
  *
  * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
  */
@@ -173,6 +174,7 @@ function perm_list()
         'cash'          => array('group' => 'shop',     'label' => 'เงินเข้า / ออกลิ้นชัก',              'short' => 'เงินเข้า / ออก'),
         'bill_fix'      => array('group' => 'shop',     'label' => 'แก้ / ยกเลิกบิลของตัวเอง (วันนี้)',     'short' => 'แก้บิลตัวเอง', 'needs' => array('sale')),
         'receive'       => array('group' => 'stock',    'label' => 'นำเข้าสินค้า (รับเข้าสต๊อก)',          'short' => 'นำเข้าสินค้า'),
+        'product_add'   => array('group' => 'stock',    'label' => 'เพิ่มสินค้าใหม่ (จากหน้านำเข้า)',       'short' => 'เพิ่มสินค้าใหม่', 'needs' => array('receive')),   // ช่วงที่ 16
         'issue'         => array('group' => 'stock',    'label' => 'เบิก / ตัดออกสินค้า',                'short' => 'เบิก / ตัดออก'),
         'stocktake'     => array('group' => 'stock',    'label' => 'ตรวจนับ / ปรับยอด',                 'short' => 'ตรวจนับ'),
         'doc_fix'       => array('group' => 'stock',    'label' => 'แก้ / ยกเลิกเอกสารคลังของตัวเอง (วันนี้)', 'short' => 'แก้เอกสารคลังตัวเอง',
@@ -338,7 +340,7 @@ function user_perms($user)
            ผู้ดูแลตรวจสอบงานพวกนี้จากหน้าชุด adm- แทน */
         return array_values(array_diff(array_keys(perm_list()), array(
             'sale', 'discount', 'store', 'store_reopen', 'cash', 'bill_fix',
-            'receive', 'issue', 'stocktake', 'doc_fix', 'category_add', 'category_del',
+            'receive', 'product_add', 'issue', 'stocktake', 'doc_fix', 'category_add', 'category_del',
         )));
     }
     if (isset($user['role']) && $user['role'] !== 'staff') {

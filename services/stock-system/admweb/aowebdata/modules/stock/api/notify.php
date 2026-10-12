@@ -6,6 +6,9 @@
  * TABLES: ao_stock_setting, ao_stock_notify_log · ao_stock_sale / return / store_day / issue / log (ข้อมูลของข้อความ)
  * TODO:
  *   - [x] ช่วงที่ 10: แยกจาก api.php เดิม (ย้ายโค้ดทั้งก้อน ไม่แก้ตรรกะ) · จัดฟังก์ชันที่เคยปนอยู่หมวดอื่นให้มาอยู่หมวดนี้
+ *   - [x] ข้อความ “เปิดร้านใหม่หลังปิด” ลงบทบาทจริงของคนเปิด (เดิม (ผู้ดูแล) ทุกครั้ง) · ตัวอย่างข้อความอ่านจากช่อง “ผู้เปิดใหม่” ในประวัติ
+ *   - [x] ช่วงที่ 17: ข้อความปิดร้าน / เงินขาดเกิน บอกว่า “ปิดร้านย้อนหลัง” (notify_on_close รับวันของร้าน)
+ *   - [x] 12 ต.ค.: คำอธิบายเหตุการณ์ “เปิดร้านใหม่หลังปิด” — ผู้ดูแล หรือพนักงานที่มีสิทธิ์ (เดิมเขียนว่าผู้ดูแลอย่างเดียว)
  *
  * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
  */
@@ -95,7 +98,7 @@ function notify_tg_events()
         'cash_diff' => array('เงินในลิ้นชักขาด / เกิน', 'ตอนปิดร้านนับเงินได้ไม่ตรงกับที่ควรมี'),
         'void'      => array('ยกเลิกบิล / แก้เอกสาร', 'พร้อมเหตุผลและชื่อคนยกเลิก'),
         'refund'    => array('รับคืนสินค้า · คืนเงินสด', 'เลขที่บิลเดิม ยอดเงินคืน และเหตุผล'),
-        'reopen'    => array('เปิดร้านใหม่หลังปิด', 'ผู้ดูแลเปิดร้านอีกครั้งหลังปิดไปแล้ว'),
+        'reopen'    => array('เปิดร้านใหม่หลังปิด', 'เปิดร้านอีกครั้งหลังปิดไปแล้ว (ผู้ดูแล หรือพนักงานที่มีสิทธิ์)'),
         'lost'      => array('ตัดออกเพราะสูญหาย / ชำรุด', 'ใบเบิก/ตัดออกที่เหตุผลเป็นของหายหรือเสียหาย'),
         'open'      => array('เปิดร้าน', 'เวลาเปิดร้านและเงินทอนเริ่มวันของแต่ละสาขา'),
         'low'       => array('สินค้าใกล้หมด / หมด', 'วันละครั้งตอนสาขาเปิดร้าน เฉพาะสินค้าที่ถึงจุดสั่งซื้อ'),
@@ -291,7 +294,9 @@ function notify_tg_text($event, $d)
             return $t;
         case 'close':
             $diff = isset($d['diff']) ? (float) $d['diff'] : 0;
-            $t = "🏪 <b>ปิดร้าน · " . $e('branch') . "</b>\n📅 " . $e('day') . ' · ' . $e('time') . ' น. · ปิดโดย ' . $e('by')
+            $late = !empty($d['late']);              // ปิดร้านย้อนหลัง (ช่วงที่ 17) — เวลาปิดเป็นของวันอื่น เช่น 7/10 09:10
+            $t = "🏪 <b>" . ($late ? 'ปิดร้านย้อนหลัง' : 'ปิดร้าน') . " · " . $e('branch') . "</b>\n📅 " . $e('day') . ' · '
+               . ($late ? 'ปิดเมื่อ ' : '') . $e('time') . ' น. · ปิดโดย ' . $e('by')
                . "\n\n💰 ยอดขาย <b>" . $m('total') . " บาท</b> (" . number_format((int) $d['bills']) . " บิล"
                . (!empty($d['void']) ? ' · ยกเลิก ' . number_format((int) $d['void']) : '') . ")"
                . "\n   เงินสด " . $m('cash') . ' · โอน ' . $m('transfer');
@@ -301,10 +306,14 @@ function notify_tg_text($event, $d)
             $t .= "\n🧾 ลิ้นชัก ควรมี " . $m('expect') . ' · นับได้ ' . $m('counted')
                 . (abs($diff) < 0.005 ? ' ✅ ตรง' : "\n⚠️ เงิน" . ($diff < 0 ? 'ขาด ' : 'เกิน ') . money2(abs($diff)) . ' บาท')
                 . "\n💼 นำส่ง " . $m('handover') . ' · เก็บเป็นเงินทอน ' . $m('keep');
+            if ($late && $e('note') !== '') {
+                $t .= "\n📝 <i>" . $e('note') . '</i>';
+            }
             return $t;
         case 'cash_diff':
             $diff = isset($d['diff']) ? (float) $d['diff'] : 0;
-            return "⚠️ <b>เงิน" . ($diff < 0 ? 'ขาด ' : 'เกิน ') . money2(abs($diff)) . " บาท · " . $e('branch') . "</b>\n📅 " . $e('day')
+            return "⚠️ <b>เงิน" . ($diff < 0 ? 'ขาด ' : 'เกิน ') . money2(abs($diff)) . " บาท · " . $e('branch')
+                 . (!empty($d['late']) ? ' (ปิดร้านย้อนหลัง)' : '') . "</b>\n📅 " . $e('day')
                  . ' · ปิดโดย ' . $e('by') . ' ' . $e('time') . ' น.'
                  . "\nควรมีในลิ้นชัก " . $m('expect') . ' · นับได้ ' . $m('counted')
                  . ($e('note') !== '' ? "\nหมายเหตุ: <i>" . $e('note') . '</i>' : '');
@@ -501,18 +510,21 @@ function notify_on_open($code)
     }
 }
 
-/** ปิดร้าน + เงินขาด / เกิน
+/** ปิดร้าน + เงินขาด / เกิน · $ts = วันของร้านที่ปิด (ไม่ส่ง = วันนี้ · วันก่อน = ปิดร้านย้อนหลัง ช่วงที่ 17)
     TODO:
-      - [x] ช่วงที่ 9: เรียกจาก store_close */
-function notify_on_close($code)
+      - [x] ช่วงที่ 9: เรียกจาก store_close
+      - [x] ช่วงที่ 17: ปิดร้านย้อนหลัง (Stock_closePastDay) — ข้อความบอกว่าปิดย้อนหลัง + หมายเหตุ */
+function notify_on_close($code, $ts = null)
 {
     if (!notify_wants('close', $code) && !notify_wants('cash_diff', $code)) {
         return;
     }
-    $d = notify_d_store($code, time());
+    $late = ($ts !== null && date('Y-m-d', $ts) !== date('Y-m-d'));
+    $d    = notify_d_store($code, $late ? $ts : time());
     if ($d === null || !$d['closed']) {
         return;
     }
+    $d['late'] = $late;
     notify_event('close', $code, notify_tg_text('close', $d));
     if ($d['diff'] !== null && abs($d['diff']) >= 0.01) {
         notify_event('cash_diff', $code, notify_tg_text('cash_diff', $d));
@@ -521,13 +533,14 @@ function notify_on_close($code)
 
 /** เปิดร้านใหม่หลังปิด — $st = สถานะก่อนเปิดใหม่ (ยังมีเวลา / คนปิด / เงินที่นับได้)
     TODO:
-      - [x] ช่วงที่ 9: เรียกจาก store_reopen */
+      - [x] ช่วงที่ 9: เรียกจาก store_reopen
+      - [x] ผู้เปิดต่อท้ายบทบาทจริง (actor_label) */
 function notify_on_reopen($code, $user, $reason, $st)
 {
     if (!notify_wants('reopen', $code)) {
         return;
     }
-    $d = array_merge(notify_d_base($code, $user['name'] . ' (ผู้ดูแล)'), array(
+    $d = array_merge(notify_d_base($code, $user['name'] . ' (' . actor_label($user) . ')'), array(
         'closed_at' => $st['closed_at'], 'closed_by' => $st['closed_by'], 'counted' => $st['cash_counted'], 'reason' => trim($reason),
     ));
     notify_event('reopen', $code, notify_tg_text('reopen', $d));
@@ -663,7 +676,8 @@ function notify_tg_sample($event, $code = '')
                 $dt = json_decode((string) $lg['detail'], true);
                 $dt = is_array($dt) ? $dt : array();
                 $cl = isset($dt['ปิดไปเมื่อ']) ? explode(' น. โดย ', $dt['ปิดไปเมื่อ']) : array('-', '-');
-                return notify_tg_text('reopen', array_merge(notify_d_base($code, (string) $lg['name'] . ' (ผู้ดูแล)', strtotime($lg['add_date'])), array(
+                $by = isset($dt['ผู้เปิดใหม่']) ? (string) $dt['ผู้เปิดใหม่'] : (string) $lg['name'] . ' (ผู้ดูแล)';     // ประวัติเก่าก่อนแก้บทบาทไม่มีช่องนี้
+                return notify_tg_text('reopen', array_merge(notify_d_base($code, $by, strtotime($lg['add_date'])), array(
                     'closed_at' => $cl[0], 'closed_by' => isset($cl[1]) ? $cl[1] : '-',
                     'counted' => isset($dt['เงินที่นับได้ตอนปิด']) ? (float) str_replace(',', '', $dt['เงินที่นับได้ตอนปิด']) : 0,
                     'reason' => isset($dt['เหตุผล']) ? $dt['เหตุผล'] : '')));

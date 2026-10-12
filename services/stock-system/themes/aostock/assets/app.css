@@ -95,6 +95,8 @@ ul{margin:0;padding:0;list-style:none}
   border-radius:8px;cursor:pointer;display:grid;place-items:center;
 }
 .input-icon-btn:hover{color:var(--deep-900);background:var(--bg-soft)}
+/* Edge ใส่ปุ่มตาแสดงรหัสของตัวเองในช่องรหัสผ่าน — ซ้อนกับปุ่มของเรา (ผลทดสอบ A4) */
+input[type="password"]::-ms-reveal,input[type="password"]::-ms-clear{display:none}
 .check{display:flex;align-items:center;gap:10px;font-size:.92rem;color:var(--ink-2);cursor:pointer}
 .check input{width:18px;height:18px;accent-color:var(--brand);cursor:pointer}
 
@@ -110,7 +112,7 @@ ul{margin:0;padding:0;list-style:none}
 /* ==========================================================
    LOGIN
    ========================================================== */
-.login{min-height:100vh;display:grid;grid-template-columns:minmax(0,1.02fr) minmax(0,.98fr)}
+.login{min-height:100vh;min-height:100dvh;display:grid;grid-template-columns:minmax(0,1.02fr) minmax(0,.98fr)}
 .login > *{min-width:0}
 
 /* ---- ฝั่งซ้าย: แบรนด์ ---- */
@@ -182,6 +184,10 @@ ul{margin:0;padding:0;list-style:none}
 /* ---- แถบเลือกพนักงาน ---- */
 .staffs{display:flex;gap:9px;overflow-x:auto;padding:2px 2px 8px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .staffs::-webkit-scrollbar{display:none}
+/* กดค้างลากด้วยเมาส์ (login.php) — ระหว่างลากไม่เลือกข้อความ ไม่เปลี่ยนสีปุ่มที่เมาส์ผ่าน */
+.staffs{-webkit-user-select:none;user-select:none}
+.staffs.dragging,.staffs.dragging *{cursor:grabbing}
+.staffs.dragging .staff{pointer-events:none}
 .staff{
   flex:0 0 auto;display:flex;align-items:center;gap:10px;
   border:1.5px solid var(--line);background:#fff;border-radius:999px;
@@ -219,6 +225,10 @@ ul{margin:0;padding:0;list-style:none}
 .keypad button:active{background:var(--brand-50);border-color:var(--brand-300);transform:scale(.97)}
 .keypad .k-soft{font-size:.95rem;font-weight:600;color:var(--ink-2);background:var(--bg-soft)}
 .keypad .k-soft .ico{width:22px;height:22px}
+/* ติดล็อกจากการกรอกผิด (login.php · 8 ต.ค.) — แป้นจาง กดไม่ได้จนกว่าจะหมดเวลา */
+.keypad button:disabled{opacity:.4;cursor:not-allowed}
+.keypad button:disabled:active{background:#fff;border-color:var(--line);transform:none}
+.lock-t{white-space:nowrap}
 
 /* ---- บัญชีทดลอง ---- */
 .demo-accounts{margin-top:20px;border:1px dashed #CFE0D9;border-radius:var(--radius);background:#fff}
@@ -287,7 +297,7 @@ ul{margin:0;padding:0;list-style:none}
 /* ==========================================================
    หน้าโครงชั่วคราว (ใช้ระหว่างยังไม่ได้ทำหน้าจริง)
    ========================================================== */
-.stub{min-height:100vh;display:grid;place-items:center;background:var(--bg-soft);padding:40px 20px}
+.stub{min-height:100vh;min-height:100dvh;display:grid;place-items:center;background:var(--bg-soft);padding:40px 20px}
 .stub-card{
   width:100%;max-width:520px;background:#fff;border:1px solid var(--line);
   border-radius:var(--radius-lg);padding:38px 34px;box-shadow:var(--shadow-sm);text-align:center;
@@ -310,21 +320,21 @@ ul{margin:0;padding:0;list-style:none}
 /* ==========================================================
    APP SHELL — sidebar + topbar (ใช้ทุกหน้าหลังล็อกอิน)
    ========================================================== */
-.app{display:grid;grid-template-columns:262px minmax(0,1fr);min-height:100vh;background:var(--bg-soft)}
+.app{display:grid;grid-template-columns:262px minmax(0,1fr);min-height:100vh;min-height:100dvh;background:var(--bg-soft)}
 
 /* ---------- Sidebar ---------- */
 .side{
-  position:sticky;top:0;height:100vh;display:flex;flex-direction:column;
+  /* 100dvh = ความสูงจอที่เห็นจริง — Safari บน iPad ให้ 100vh เท่ากับตอนซ่อนแถบเครื่องมือ เมนูส่วนล่างจะจมใต้ขอบจอ (100vh ไว้ให้เบราว์เซอร์เก่า) */
+  position:sticky;top:0;height:100vh;height:100dvh;display:flex;flex-direction:column;
   /* overflow-x ต้องเป็น hidden ไม่ใช่ปล่อยให้เป็น auto ตามสเปก
      ไม่งั้นป้ายชื่อเมนูตอนย่อ (::after ที่ left:60px) จะดันให้เกิดสกรอลล์แนวนอน */
-  overflow-y:auto;overflow-x:hidden;
+  overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;
+  /* แถบเลื่อนบาง สีเข้ากับเมนู — มองเห็นตลอด ให้รู้ว่ายังมีเมนูข้างล่าง (Edge ซ่อนแถบเลื่อนจนกว่าจะชี้เมาส์) */
+  scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.28) transparent;
   background:linear-gradient(170deg,var(--deep-900),var(--deep-975));color:#A9C6BC;
 }
-/* โหมดย่อ: ต้องไม่มี overflow ที่ไหนเลยในสายนี้ ป้ายชื่อเมนูจะได้ล้นออกมาได้
-   หมายเหตุ: ตั้ง overflow-x:visible คู่กับ overflow-y:auto ไม่ได้ผล
-   เพราะสเปกบังคับให้แกนที่เหลือกลายเป็น auto ตาม แล้วป้ายจะโดนตัดอยู่ดี */
-.app--rail .side{overflow:visible}
-/* ป้ายชื่อเมนูต้องลอยอยู่เหนือเนื้อหาหน้า ไม่งั้นการ์ดสินค้าทับจนป้ายขาด */
+/* โหมดย่อ: เมนูเลื่อนได้เหมือนโหมดเต็ม (เดิม overflow:visible ให้ป้ายชื่อแบบ ::after ล้นออกได้ แต่จอเตี้ยไอคอนล่าง ๆ กดไม่ถึง)
+   ป้ายชื่อเมนูย้ายไปเป็นกล่อง .rail-tip (position:fixed) จาก inc/footer.php แทน */
 .app--rail .side{z-index:40}
 .side-head{padding:22px 22px 18px;border-bottom:1px solid rgba(255,255,255,.08)}
 .side-head .logo{font-size:1.35rem}
@@ -559,7 +569,6 @@ button,a,summary,input,select{-webkit-tap-highlight-color:rgba(14,122,95,.15)}
   }
   .side.open{transform:none;box-shadow:var(--shadow-lg)}
   .side-toggle{display:grid}
-  .side-close{display:grid}
   .side-nav a,.side-nav span.na{min-height:52px;font-size:1rem}
 
   .top{height:64px;padding:0 16px;gap:10px}
@@ -582,22 +591,24 @@ button,a,summary,input,select{-webkit-tap-highlight-color:rgba(14,122,95,.15)}
   .low{padding:14px 18px}
 }
 
-/* ตารางที่มีแต่ตัวเลขสั้น ๆ ให้คงรูปตารางไว้ อ่านง่ายกว่าแปลงเป็นการ์ด */
+/* ตารางที่มีแต่ตัวเลขสั้น ๆ ให้คงรูปตารางไว้ อ่านง่ายกว่าแปลงเป็นการ์ด
+   S6: ใช้ .tbl.tbl--compact — เดิม .tbl--compact อย่างเดียวแพ้กฎการ์ด (.tbl td ...) ที่อยู่ถัดลงไป
+       ตารางเลยกลายเป็นการ์ดที่ไม่มีหัวตารางและไม่มีชื่อช่อง */
 @media (max-width:760px){
-  .tbl--compact,.tbl--compact thead,.tbl--compact tbody,.tbl--compact tr{display:table-row-group}
-  .tbl--compact{display:table;width:100%}
-  .tbl--compact thead{display:table-header-group}
-  .tbl--compact tr{display:table-row;border:0;border-radius:0;margin:0;background:transparent}
-  .tbl--compact td,.tbl--compact th{
-    display:table-cell;text-align:right;padding:10px 8px;
+  .tbl.tbl--compact,.tbl.tbl--compact tbody{display:table-row-group}
+  .tbl.tbl--compact{display:table;width:100%}
+  .tbl.tbl--compact thead{display:table-header-group}
+  .tbl.tbl--compact tr{display:table-row;width:auto;border:0;border-radius:0;margin:0;padding:0;background:transparent}
+  .tbl.tbl--compact td,.tbl.tbl--compact th{
+    display:table-cell;width:auto;text-align:right;padding:10px 6px;
     border-bottom:1px solid var(--line-2);font-size:.84rem;
   }
-  .tbl--compact thead th{display:table-cell}
-  .tbl--compact td::before,.tbl--compact th::before{display:none}
-  .tbl--compact td:first-child,.tbl--compact th:first-child{
-    text-align:left;padding-left:14px;border-bottom:1px solid var(--line-2);margin:0;white-space:nowrap;
+  .tbl.tbl--compact thead th{display:table-cell}
+  .tbl.tbl--compact td::before,.tbl.tbl--compact th::before{display:none}
+  .tbl.tbl--compact td:first-child,.tbl.tbl--compact th:first-child{
+    display:table-cell;text-align:left;padding:10px 6px 10px 14px;border-bottom:1px solid var(--line-2);margin:0;white-space:nowrap;
   }
-  .tbl--compact td:last-child,.tbl--compact th:last-child{padding-right:14px}
+  .tbl.tbl--compact td:last-child,.tbl.tbl--compact th:last-child{padding-right:14px}
 }
 
 /* ---------- ตารางกลายเป็นการ์ดบนจอแคบ ----------
@@ -611,12 +622,14 @@ button,a,summary,input,select{-webkit-tap-highlight-color:rgba(14,122,95,.15)}
     margin:0 16px 12px;background:#fff;
   }
   .tbl tbody tr:last-child{margin-bottom:4px}
+  /* S6: ค่าชิดขวาเป็นกลุ่มเดียว (flex-end) · ชื่อช่องชิดซ้ายด้วย margin-right:auto
+     เดิม space-between — ช่องที่มีค่า 2 ชิ้น เช่น วันที่ + <small>เวลา · วิธีจ่าย</small> ชิ้นแรกจะไปอยู่กลางการ์ด */
   .tbl td{
-    display:flex;align-items:center;justify-content:space-between;gap:14px;
+    display:flex;align-items:center;justify-content:flex-end;gap:14px;
     padding:9px 16px;border-bottom:0;text-align:right;
   }
   .tbl td::before{
-    content:attr(data-label);flex:0 0 auto;
+    content:attr(data-label);flex:0 0 auto;margin-right:auto;
     font-size:.8rem;font-weight:500;color:var(--ink-3);text-align:left;
   }
   .tbl td:first-child{
@@ -625,6 +638,12 @@ button,a,summary,input,select{-webkit-tap-highlight-color:rgba(14,122,95,.15)}
   }
   .tbl td:first-child::before{display:none}
   .tbl td small{text-align:left}
+  .tbl:not(.tbl-mv) td:not(:first-child) small{text-align:right}   /* S6: ช่องค่าชิดขวา บรรทัดเล็กที่ตัดหลายบรรทัดก็ชิดขวาด้วย */
+  /* S6: ช่องที่ใส่ class td-stack — <small> แต่ละอันขึ้นบรรทัดใหม่ ชิดขวา
+     ใช้กับ ค่าหลัก + บรรทัดเล็ก (วันที่ + <small>เวลา · วิธีจ่าย</small>) หรือรายการหลายบรรทัด (<small> หลายอัน)
+     ห้ามใช้กับช่องที่มี <small> อันเดียวไม่มีค่าหลัก (ค่าจะหล่นไปบรรทัดล่าง ชื่อช่องค้างอยู่บรรทัดบนคนเดียว) หรือตัวเลข + หน่วย */
+  .tbl td.td-stack{flex-wrap:wrap;row-gap:2px}
+  .tbl td.td-stack > small{flex-basis:100%;text-align:right}
   .tbl .r{text-align:right}
   .card-body--flush .tbl tbody tr{margin-top:12px}
 }
@@ -663,6 +682,16 @@ button,a,summary,input,select{-webkit-tap-highlight-color:rgba(14,122,95,.15)}
 }
 .side-close:active{background:rgba(255,255,255,.14)}
 .side-close .ico{width:18px;height:18px}
+/* ลิ้นชักเมนูบนจอเล็ก (ผลทดสอบ S2) — ต้องอยู่หลังกฎ .side-close / .side-backdrop / .app--rail .side ด้านบน ไม่งั้นโดนทับ
+   - ปุ่ม × แสดง · ฉากหลังแสดงตอนเปิด (แตะแล้วปิด)
+   - เมนูเลื่อนได้ทั้งโหมดเต็มและโหมดย่อ (โหมดย่อเป็นค่าเริ่มต้นของพนักงาน)
+   - เลื่อนสุดแล้วไม่ลามไปเลื่อนหน้าด้านหลัง · หน้าด้านหลังล็อกไว้ตอนเปิด (html.nav-lock จาก inc/footer.php) */
+@media (max-width:900px){
+  .side-close{display:grid}
+  .side-backdrop.open{display:block}
+  .side,.app--rail .side{overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain}
+  html.nav-lock,html.nav-lock body{overflow:hidden}
+}
 
 /* ---------- แนวนอนเตี้ย (มือถือหมุนจอ) ---------- */
 @media (max-height:480px) and (orientation:landscape){
@@ -842,18 +871,25 @@ button,a,summary,input,select{-webkit-tap-highlight-color:rgba(14,122,95,.15)}
 }
 .app--rail .side-nav .nf-t{display:none}
 
-/* ป้ายชื่อเมนูตอนชี้เมาส์ (เฉพาะอุปกรณ์ที่มีเมาส์) */
-@media (hover:hover){
-  .app--rail .side-nav a::after,
-  .app--rail .side-nav span.na::after{
-    content:attr(data-t);position:absolute;left:60px;top:50%;transform:translateY(-50%);
-    background:var(--deep-975);color:#fff;font-size:.82rem;font-weight:500;line-height:1.4;
-    padding:7px 11px;border-radius:8px;white-space:nowrap;box-shadow:var(--shadow);
-    opacity:0;pointer-events:none;transition:opacity .12s ease;z-index:70;
-  }
-  .app--rail .side-nav a:hover::after,
-  .app--rail .side-nav a:focus-visible::after,
-  .app--rail .side-nav span.na:hover::after{opacity:1}
+/* ป้ายชื่อเมนูตอนชี้เมาส์ / โฟกัสด้วยคีย์บอร์ด (โหมดย่อ เฉพาะอุปกรณ์ที่มีเมาส์) — กล่องเดียวที่ inc/footer.php สร้างและวางตำแหน่งให้
+   ใช้ position:fixed เพราะเมนูเลื่อนได้ (overflow) — ป้ายแบบ ::after ในเมนูจะโดนตัดที่ขอบ */
+.rail-tip{
+  position:fixed;left:0;top:0;transform:translateY(-50%);z-index:70;
+  background:var(--deep-975);color:#fff;font-size:.82rem;font-weight:500;line-height:1.4;
+  padding:7px 11px;border-radius:8px;white-space:nowrap;box-shadow:var(--shadow);
+  opacity:0;pointer-events:none;transition:opacity .12s ease;
+}
+.rail-tip.on{opacity:1}
+
+/* จอคอมที่ใช้เมาส์ + จอเตี้ย: เมนูกระชับขึ้น จอ 860 px เห็นเมนูครบไม่ต้องเลื่อน (จอสัมผัสยังเป็นปุ่มใหญ่ 46 px ไว้กดด้วยนิ้ว) */
+@media (min-width:901px) and (max-height:900px) and (hover:hover) and (pointer:fine){
+  .side-head{padding-top:16px;padding-bottom:14px}
+  .side-nav{padding-top:10px;padding-bottom:16px}
+  .side-group{margin-top:12px;padding-bottom:6px}
+  .side-nav a,.side-nav span.na{min-height:38px;padding-top:7px;padding-bottom:7px}
+  .app--rail .side-head{padding-top:12px;padding-bottom:10px}
+  .app--rail .side-nav{padding-top:10px;padding-bottom:14px}
+  .app--rail .side-nav a,.app--rail .side-nav span.na{padding-top:9px;padding-bottom:9px}
 }
 
 /* ปุ่มย่อ/ขยาย — แสดงเฉพาะจอที่มีเมนูข้างจริง */
@@ -1054,7 +1090,8 @@ button,a,summary,input,select{-webkit-tap-highlight-color:rgba(14,122,95,.15)}
 /* ---------- โครงหน้าขาย ---------- */
 .sale-wrap{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:20px;align-items:start}
 .sale-pick{padding:18px 20px 20px}
-.sale-cart{display:grid;gap:20px;position:sticky;top:88px}
+/* คอลัมน์ขวาค้างขอบบน · สูงเกินจอ = inc/footer.php ตั้ง --cart-top ติดลบ ให้ท้ายคอลัมน์ (ปุ่มรับเงิน / หมายเหตุ) ค้างเหนือขอบล่างแทน */
+.sale-cart{display:grid;gap:20px;position:sticky;top:var(--cart-top,88px)}
 
 .sale-find{display:flex;gap:10px;margin-bottom:14px}
 .find-in{position:relative;flex:1}
@@ -1278,6 +1315,8 @@ button,a,summary,input,select{-webkit-tap-highlight-color:rgba(14,122,95,.15)}
 .btn-sm .ico{width:16px;height:16px}
 .alert-warn{background:var(--warn-bg);color:#7A4B08;border:1px solid #EFDCBB}
 .alert{flex-wrap:wrap}
+/* ข้อความยาวต้องตัดบรรทัดในตัวเอง ไม่ใช่ตกไปอยู่ใต้ไอคอนทั้งก้อน (เจอที่ข้อความล็อกหน้าเข้าสู่ระบบ · 8 ต.ค.) */
+.alert > span{flex:1 1 0%;min-width:0}
 .alert-act{margin-left:auto}
 
 /* ---------- แก้จำนวนในตะกร้า ---------- */
@@ -1310,7 +1349,7 @@ button,a,summary,input,select{-webkit-tap-highlight-color:rgba(14,122,95,.15)}
 .modal[hidden]{display:none}
 .modal-back{position:absolute;inset:0;background:rgba(3,16,13,.55);backdrop-filter:blur(2px)}
 .modal-card{
-  position:relative;width:100%;max-width:460px;max-height:calc(100vh - 40px);
+  position:relative;width:100%;max-width:460px;max-height:calc(100vh - 40px);max-height:calc(100dvh - 40px);
   display:flex;flex-direction:column;background:#fff;border-radius:var(--radius-lg);
   box-shadow:var(--shadow-lg);overflow:hidden;
   animation:cf-in .16s ease-out;
@@ -1392,6 +1431,7 @@ button,a,summary,input,select{-webkit-tap-highlight-color:rgba(14,122,95,.15)}
 .cf-lead b{color:var(--brand);font-weight:700}
 .alert-act{display:flex;flex-wrap:wrap;gap:8px;margin-left:auto}
 .tl-act{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.hp-act{display:inline-flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;align-items:center}   /* บิลของวันก่อน: ดู / พิมพ์ + รับคืน */
 @media (max-width:760px){
   .alert-act{margin-left:0;width:100%}
   .alert-act form,.alert-act .btn-sm{flex:1}
@@ -1423,7 +1463,8 @@ button,a,summary,input,select{-webkit-tap-highlight-color:rgba(14,122,95,.15)}
 .lvl .lvl-low{background:var(--warn)}
 .lvl .lvl-out{background:var(--down);min-width:3px}
 
-@media (max-width:1180px){
+/* S6: เริ่มที่ 601px — ถ้าไม่ตั้ง จะทับกฎมือถือ (≤600px = การ์ดแถวละใบ) การ์ด 2 ใบเบียดกันจนดันหน้าล้นจอ */
+@media (min-width:601px) and (max-width:1180px){
   .kpis{grid-template-columns:repeat(2,1fr)}
 }
 @media (max-width:760px){
@@ -1436,16 +1477,24 @@ button,a,summary,input,select{-webkit-tap-highlight-color:rgba(14,122,95,.15)}
   .tbl-stock,.tbl-stock tbody,.tbl-stock tr,.tbl-stock td{display:block;width:auto}
   .tbl-stock tr{border-bottom:1px solid var(--line-2);padding:13px 16px}
   .tbl-stock tr:last-child{border-bottom:0}
-  .tbl-stock td{border:0;padding:3px 0;display:flex;justify-content:space-between;gap:14px;align-items:baseline}
+  .tbl-stock td{border:0;padding:3px 0;display:flex;justify-content:flex-end;gap:14px;align-items:baseline}   /* S6: แบบเดียวกับ .tbl td */
   .tbl-stock td::before{
-    content:attr(data-label);flex:0 0 auto;font-size:.8rem;color:var(--ink-3);
+    content:attr(data-label);flex:0 0 auto;margin-right:auto;font-size:.8rem;color:var(--ink-3);
   }
+  .tbl-stock td[data-label="คงเหลือ"]{column-gap:0}             /* หน่วยติดตัวเลข (small มี margin-left เอง) */
   .tbl-stock td[data-label="สินค้า"]{display:block;padding-bottom:7px}
   .tbl-stock td[data-label="สินค้า"]::before{display:none}
   .tbl-stock td[data-label="สินค้า"] .doc{font-size:.95rem}
   .tbl-stock td[data-label="ระดับสต๊อก"]{padding:7px 0 3px}
   .tbl-stock td[data-label="คงเหลือ"] small{display:inline;margin-left:4px}
   .tbl-stock tfoot{display:none}
+  /* หน้าสินค้าบนมือถือ: รายการเรียงต่อกันมีเส้นคั่น (ผู้ใช้เลือกแบบ ก 2026-10-08)
+     ใช้ .tbl.tbl-stock — เดิม .tbl-stock tr แพ้กฎการ์ดทั่วไป (.tbl tbody tr) กลายเป็นการ์ดซ้อนการ์ดที่ไม่มีขอบใน ชื่อช่อง / ค่าติดขอบ */
+  .tbl.tbl-stock tbody tr{border:0;border-bottom:1px solid var(--line-2);border-radius:0;margin:0;padding:13px 16px;background:transparent}
+  .tbl.tbl-stock tbody tr:last-child{border-bottom:0;margin-bottom:0}
+  .tbl.tbl-stock td:first-child{padding:0 0 7px;border-bottom:0;margin-bottom:0}
+  .tbl.tbl-stock tbody tr.st-out{background:#FFFBFA}             /* สินค้าหมด: ระบายทั้งแถว แทนระบายทีละช่อง */
+  .tbl.tbl-stock tbody tr.st-out td{background:transparent}
 }
 
 /* การ์ดสรุปที่กดเพื่อกรองได้ + แถบบอกว่ากำลังกรองอยู่ */
@@ -1473,6 +1522,9 @@ button,a,summary,input,select{-webkit-tap-highlight-color:rgba(14,122,95,.15)}
   .kpi--tap::after{display:none}
   .filtered{margin:-2px 0 14px}
   .filtered .btn-sm{width:100%}
+}
+@media (max-width:600px){
+  .kpi--tap{display:flex}          /* S6: การ์ดที่แตะกรองได้ จัดแบบมือถือเหมือนการ์ดอื่น (display:block ด้านบนทับไว้) */
 }
 
 /* ==========================================================
@@ -1558,8 +1610,8 @@ button,a,summary,input,select{-webkit-tap-highlight-color:rgba(14,122,95,.15)}
   .tbl-recv thead{display:none}
   .tbl-recv,.tbl-recv tbody,.tbl-recv tr,.tbl-recv td{display:block;width:auto}
   .tbl-recv tr{border-bottom:1px solid var(--line-2);padding:13px 16px}
-  .tbl-recv td{border:0;padding:3px 0;display:flex;justify-content:space-between;gap:14px;align-items:center}
-  .tbl-recv td::before{content:attr(data-label);font-size:.8rem;color:var(--ink-3)}
+  .tbl-recv td{border:0;padding:3px 0;display:flex;justify-content:flex-end;gap:14px;align-items:center}   /* S6: แบบเดียวกับ .tbl td */
+  .tbl-recv td::before{content:attr(data-label);margin-right:auto;font-size:.8rem;color:var(--ink-3)}
   .tbl-recv td[data-label="สินค้า"]{display:block;padding-bottom:8px}
   .tbl-recv td[data-label="สินค้า"]::before{display:none}
   .tbl-recv td[data-label="หมวด"]{display:none}
@@ -1826,6 +1878,17 @@ table.sr-only{display:block}
 .recv-list .cl-s{grid-area:s}
 .recv-list .cl-x{grid-area:x;align-self:start}
 
+/* ตะกร้าหน้าขายก็แคบแบบเดียวกัน (310–380px) — เดิมชื่อเหลือคำละบรรทัดและปุ่ม × ตกไปแถวล่างเดี่ยว ๆ (12 ต.ค.)
+   → แถวบน: ชื่อเต็มแถว + ปุ่ม × · แถวล่าง: ปุ่มจำนวนชิดซ้าย ยอดรวมชิดขวา */
+.cart-list:not(.recv-list) li{
+  grid-template-columns:auto minmax(0,1fr) auto;
+  grid-template-areas:"t t x" "q . s";row-gap:8px;column-gap:10px;align-items:center;
+}
+.cart-list:not(.recv-list) .cl-t{grid-area:t}
+.cart-list:not(.recv-list) .cl-q{grid-area:q}
+.cart-list:not(.recv-list) .cl-s{grid-area:s}
+.cart-list:not(.recv-list) .cl-del{grid-area:x;align-self:start;justify-self:end}
+
 /* ---------- ตรวจนับ: รอบการนับ + แท็บ ---------- */
 .round{display:grid;gap:9px;margin:16px 20px 0;padding:13px 15px;border-radius:12px;
   background:var(--brand-50);border:1px solid #C9E6DC}
@@ -1860,7 +1923,7 @@ table.sr-only{display:block}
 
 /* ---------- ประวัติเคลื่อนไหวรายสินค้า ---------- */
 .mv-wrap{display:grid;grid-template-columns:340px minmax(0,1fr);gap:20px;align-items:start}
-.mv-pick{position:sticky;top:88px;max-height:calc(100vh - 110px);display:flex;flex-direction:column}
+.mv-pick{position:sticky;top:88px;max-height:calc(100vh - 110px);max-height:calc(100dvh - 110px);display:flex;flex-direction:column}
 .mv-find{display:grid;gap:10px;padding:0 16px 12px}
 .mv-find .find-in input{width:100%;font:inherit;font-size:16px;min-height:44px;padding:0 14px 0 40px;
   background:var(--bg-soft);border:1px solid var(--line);border-radius:11px;color:var(--ink)}
@@ -1977,6 +2040,24 @@ table.sr-only{display:block}
 .ret-stock.keep{background:var(--warn-bg);color:var(--warn)}
 .ret-go{padding:0 22px 22px}
 .ret-go small{display:block;margin-top:8px;color:var(--ink-3)}
+
+/* ===== ปุ่มบันทึกที่ยังกรอกไม่ครบ (8 ต.ค.) — ดูจางแต่กดได้ กดแล้วเลื่อนไปช่องที่ขาด (button[data-need] · aoNeedSync ใน inc/footer.php) ===== */
+.btn-primary[aria-disabled="true"],.btn-primary[aria-disabled="true"]:hover,
+.btn-in[aria-disabled="true"],.btn-in[aria-disabled="true"]:hover,
+.btn-out[aria-disabled="true"],.btn-out[aria-disabled="true"]:hover{background:var(--line);border-color:var(--line);color:var(--ink-3)}
+.need-msg{display:flex;align-items:flex-start;gap:8px;margin:10px 0 0;padding:9px 12px;border-radius:10px;
+  background:var(--down-bg);color:var(--down);font-weight:600;line-height:1.45}
+.need-msg .ico{width:17px;height:17px;flex-shrink:0;margin-top:2px}
+.card > .need-msg{margin:14px 22px 0}
+.input.need-on,.input.need-on:focus{border-color:var(--down);box-shadow:0 0 0 3px var(--down-bg)}
+.why.need-on .why-o input:not(:checked) + span{border-color:var(--down)}
+.need-flash{animation:need-flash 2.2s ease}
+.why.need-flash{border-radius:12px}
+@keyframes need-flash{
+  0%,20%,40%,60%{box-shadow:0 0 0 3px var(--down)}
+  10%,30%,50%,100%{box-shadow:0 0 0 3px transparent}
+}
+@media (max-width:760px){.card > .need-msg{margin:12px 16px 0}}
 @media (max-width:640px){.ret-find{flex-direction:column}.ret-tbl .ret-q{width:100%}}
 #ret-form{display:grid;gap:20px}
 
@@ -2067,6 +2148,13 @@ table.sr-only{display:block}
 .btn-pay:disabled{opacity:.5;cursor:not-allowed}
 .dash-reopen{display:flex;gap:6px;margin-top:8px}
 .dash-reopen .input{min-height:36px;padding:4px 10px;font-size:.85rem;max-width:180px}
+/* ปิดร้านย้อนหลัง (ช่วงที่ 17) — พับไว้ใต้ชื่อสาขา กดแล้วกางฟอร์มของแต่ละวัน */
+.dash-late{margin-top:6px}
+.dash-late>summary{cursor:pointer;color:var(--brand);font-size:.85rem;font-weight:600;display:inline-block}
+.dash-late-f{display:grid;gap:4px;margin-top:8px;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--bg-soft);max-width:300px}
+.dash-late-f label{font-size:.8rem;color:var(--ink-2);margin-top:2px}
+.dash-late-f .input{min-height:36px;padding:4px 10px;font-size:.85rem}
+.dash-late-f .btn{justify-self:start;margin-top:4px}
 
 /* ===== ประวัติรวมทุกสาขา (ผู้ดูแล) ===== */
 .hist-filter .acct-row{gap:8px}
@@ -2121,6 +2209,8 @@ table.sr-only{display:block}
   .hist-all td::before,.adm-stock td::before,.ret-view td::before{margin-right:auto}
   .hist-all td .hist-n,.adm-stock td .hist-n{flex-basis:100%}
   .hist-all td:first-child .hist-n,.adm-stock td:first-child .hist-n{text-align:left}
+  /* S6: ชื่อรายการยาว ตัดบรรทัดอยู่ข้างชื่อช่อง (เดิมหล่นไปบรรทัดใหม่ ชื่อช่องค้างอยู่บรรทัดบนคนเดียว) */
+  .hist-all td:not(:first-child) .hist-t,.adm-stock td:not(:first-child) .hist-t{flex:1 1 0;min-width:0;padding-left:8px;text-align:right}
 }
 .cover{font-weight:600;color:var(--ink-2)}
 .cover-warn{color:#9A6400}
@@ -2294,7 +2384,7 @@ table.sr-only{display:block}
 .ds-pr{margin:6px 0 4px;text-align:right}
 
 /* ===== สรุปยอดขายรายวัน (adm-report-daily.php) — ตารางเลื่อนแนวนอน วันที่ / รวม ติดขอบ ===== */
-.dly-wrap{overflow:auto;max-height:calc(100vh - 150px);border-top:1px solid var(--line-2)}
+.dly-wrap{overflow:auto;max-height:calc(100vh - 150px);max-height:calc(100dvh - 150px);border-top:1px solid var(--line-2)}
 .dly{border-collapse:separate;border-spacing:0;width:100%;font-size:.9rem}
 .dly th,.dly td{padding:7px 12px;border-bottom:1px solid var(--line-2);white-space:nowrap;background:#fff}
 .dly td{background:linear-gradient(rgba(18,148,111,var(--h,0)),rgba(18,148,111,var(--h,0))),#fff}
@@ -2326,6 +2416,19 @@ table.sr-only{display:block}
 .bill-bar b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .bill-bar .btn,.bill-bar .segs{flex:0 0 auto}
 @media (max-width:560px){.bill-bar{flex-wrap:wrap}.bill-bar b{flex:1 1 100%}}
+
+/* ===== ช่วงที่ 16: เพิ่มสินค้าใหม่จากหน้านำเข้า (receive.php #np-modal · inc/receive-live.php) ===== */
+.sale-find .np-open{white-space:nowrap}
+.np-first{gap:10px}
+.np-first b{color:var(--deep-900);font-size:1rem}
+.np-first .btn{margin-top:6px}
+.np-sku{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;min-height:48px}
+.np-sku-in,.np-cat-new{margin-top:8px}
+.np-nocat{color:var(--ink-2);line-height:1.6}
+@media (max-width:760px){
+  .sale-find .btn.np-open{display:inline-flex;padding:0 14px}
+  .np-open .np-t{display:none}
+}
 
 /* ===== popup ฟอร์ม (เพิ่มสาขา ฯลฯ) ===== */
 .br-add .card-head{border-bottom:0}
@@ -2401,3 +2504,5 @@ table.sr-only{display:block}
 .store-cash-f{display:grid;grid-template-columns:1.4fr 1fr 2fr auto;gap:10px;align-items:end}
 .store-cash-f .field{margin:0}
 @media (max-width:720px){.store-cash-f{grid-template-columns:1fr 1fr}.store-cash-f .field-why,.store-cash-f .btn{grid-column:1/-1}}
+/* การ์ด “เปิดร้านใหม่” — เว้นระยะช่องกับปุ่มแบบเดียวกับฟอร์มผู้ดูแล (.adm-fields .field) · เดิมปุ่มติดใต้ช่องเหตุผล */
+.store-reopen-f .field{margin:0 0 16px}

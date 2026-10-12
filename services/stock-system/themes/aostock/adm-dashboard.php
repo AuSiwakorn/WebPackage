@@ -9,6 +9,9 @@
  *   - [x] ช่วงที่ 7: สถานะร้าน / ยอดขาย / เปิดใหม่หลังปิด / วันที่ลืมปิดร้าน อ่านจากตาราง · เอาแถบ "ข้อมูลสมมติ" ออก
  *   - [x] ช่วงที่ 8: แก้ "ตัดออก — สูญหาย" ในรายการที่ต้องตรวจ ให้อ่านใบตัดออกของวันนี้จากตาราง (เดิมอ่าน $_SESSION['issue'] ที่ไม่มีแล้ว)
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
+ *   - [x] ช่วงที่ 17: ปิดร้านย้อนหลัง (act=close_past) ตรงรายการ “ยังไม่ได้ปิดร้าน” · รายการที่ต้องตรวจมีชนิด “ปิดร้านย้อนหลัง”
+ *   - [x] S6: ตารางสต๊อกแยกสาขาเลิกใช้ tbl--compact — 5 คอลัมน์ + รายชื่อสินค้า คงรูปตารางบนมือถือไม่พอดีจอ ให้เป็นการ์ดมีชื่อช่องแทน
+ *            ช่อง “ต้องสั่งก่อน” ใส่ td-stack — รายชื่อสินค้าเรียงลงทีละบรรทัด ชิดขวา
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -48,6 +51,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['act']) && $_POST['act
     exit;
 }
 
+/* ผู้ดูแล: ปิดร้านย้อนหลัง — วันที่ลืมปิดร้าน (ช่วงที่ 17) · ใช้เมื่อพนักงานเปิดร้านวันใหม่ไปแล้ว หรือค้างหลายวัน */
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['act']) && $_POST['act'] === 'close_past') {
+    $rb = isset($_POST['b']) ? (string) $_POST['b'] : '';
+    $bb = branches_all();
+    if (!csrf_check(isset($_POST['csrf']) ? $_POST['csrf'] : null) || !isset($bb[$rb])) {
+        $_SESSION['flash'] = 'เซสชันหมดอายุ หรือไม่พบสาขา';
+    } else {
+        $day = isset($_POST['d']) ? (string) $_POST['d'] : '';
+        $r   = Stock_closePastDay($rb, $day, $user,
+                                  isset($_POST['counted']) ? preg_replace('/[^0-9.]/', '', $_POST['counted']) : 0,
+                                  isset($_POST['keep']) ? preg_replace('/[^0-9.]/', '', $_POST['keep']) : 0,
+                                  isset($_POST['note']) ? $_POST['note'] : '');
+        $_SESSION['flash'] = isset($r['error']) ? $r['error']
+                           : 'ปิดร้าน' . branch_name($rb) . 'ของวัน' . thai_date_full(strtotime($day)) . 'ย้อนหลังแล้ว';
+    }
+    header('Location: ' . url('adm-dashboard.php?branch=ALL'));
+    exit;
+}
+
 $branch = resolve_branch($user, isset($_GET['branch']) ? $_GET['branch'] : null);
 
 $PAGE_TITLE = 'ภาพรวมผู้ดูแล';
@@ -73,6 +95,15 @@ foreach ($__codes as $c) {
         $row['prev'] = true;
     }
     $row['unclosed'] = store_unclosed_days($c);       // วันก่อนที่ลืมปิดร้าน
+    $row['late']     = array();                       // ฟอร์มปิดย้อนหลัง 5 วันล่าสุด (ช่วงที่ 17)
+    foreach (array_slice($row['unclosed'], 0, 5) as $ymd) {
+        $dr = store_day_row($c, date('Y-m-d', strtotime($ymd)));
+        if ($dr !== null) {
+            $dc = Stock_getDayCash($dr['day_id']);
+            $row['late'][] = array('ymd' => $ymd, 'expected' => $dc['expected'],
+                                   'keep' => min((float) branch_default_float($c), max(0, $dc['expected'])));
+        }
+    }
     if ($row['diff'] !== null) {
         $__tot['diff'] += $row['diff'];           // นับเฉพาะผลล่าสุดของแต่ละสาขา ไม่นับซ้ำ
     }
@@ -95,6 +126,9 @@ foreach ($__codes as $c) {
             $kind = 'รับคืน / คืนเงิน';
         } elseif ($r['type'] === 'open' && strpos($r['title'], 'เปิดร้านใหม่') === 0) {
             $kind = 'เปิดร้านใหม่หลังปิด';
+        } elseif ($r['type'] === 'close' && strpos($r['title'], 'ปิดร้านย้อนหลัง') === 0) {
+            $kind = 'ปิดร้านย้อนหลัง';                // ช่วงที่ 17 — ลืมปิดร้านวันก่อน
+            $why  = (isset($r['detail']['ผลต่าง']) ? $r['detail']['ผลต่าง'] : '') . (isset($r['detail']['หมายเหตุ']) ? ' — ' . $r['detail']['หมายเหตุ'] : '');
         } elseif ($r['type'] === 'close' && isset($r['detail']['ผลต่าง']) && strpos($r['detail']['ผลต่าง'], 'ตรงพอดี') === false) {
             $kind = 'เงินไม่ตรงตอนปิดร้าน';
             $why  = $r['detail']['ผลต่าง'] . (isset($r['detail']['หมายเหตุ']) ? ' — ' . $r['detail']['หมายเหตุ'] : '');
@@ -118,7 +152,8 @@ foreach ($__codes as $c) {
 }
 usort($__review, 'dash_review_cmp');
 $__tones = array('ยกเลิกเอกสาร' => 'bdg-out', 'แก้ไขเอกสาร' => 'bdg-warn', 'รับคืน / คืนเงิน' => 'bdg-out',
-                 'เปิดร้านใหม่หลังปิด' => 'bdg-warn', 'เงินไม่ตรงตอนปิดร้าน' => 'bdg-out', 'ตัดออก — สูญหาย' => 'bdg-out');
+                 'เปิดร้านใหม่หลังปิด' => 'bdg-warn', 'เงินไม่ตรงตอนปิดร้าน' => 'bdg-out', 'ตัดออก — สูญหาย' => 'bdg-out',
+                 'ปิดร้านย้อนหลัง' => 'bdg-warn');
 ?>
 
 <section class="mini num adm-kpi" aria-label="สรุปวันนี้">
@@ -142,6 +177,30 @@ $__tones = array('ยกเลิกเอกสาร' => 'bdg-out', 'แก้
               <td data-label="สาขา"><b><?php echo e(branch_name($r['code'])) ?></b>
                 <?php if ($r['unclosed']) { ?>
                   <small class="warn-txt">ยังไม่ได้ปิดร้าน: <?php echo e(implode(', ', array_map(function ($d) { return thai_day_month(strtotime($d)); }, array_slice($r['unclosed'], 0, 5)))) ?><?php echo count($r['unclosed']) > 5 ? ' …' : '' ?></small>
+                  <details class="dash-late">
+                    <summary>ปิดย้อนหลัง</summary>
+                    <?php foreach ($r['late'] as $lt) { $lid = e($r['code'] . $lt['ymd']); ?>
+                      <form class="dash-late-f" method="post" action="adm-dashboard.php">
+                        <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
+                        <input type="hidden" name="act" value="close_past">
+                        <input type="hidden" name="b" value="<?php echo e($r['code']) ?>">
+                        <input type="hidden" name="d" value="<?php echo e($lt['ymd']) ?>">
+                        <b>วัน<?php echo e(thai_date_full(strtotime($lt['ymd']))) ?></b>
+                        <small>ควรมีในลิ้นชัก <?php echo e(money2($lt['expected'])) ?> บาท</small>
+                        <label for="lc-<?php echo $lid ?>">นับได้จริง</label>
+                        <input class="input" type="number" id="lc-<?php echo $lid ?>" name="counted" min="0" step="0.01" inputmode="decimal"
+                               value="<?php echo e(number_format($lt['expected'], 2, '.', '')) ?>">
+                        <label for="lk-<?php echo $lid ?>">แยกเงินทอนไว้ <small>(ยกไปวันถัดไป ถ้าวันถัดไปยังไม่ได้เปิดร้าน)</small></label>
+                        <input class="input" type="number" id="lk-<?php echo $lid ?>" name="keep" min="0" step="0.01" inputmode="decimal"
+                               value="<?php echo e(number_format($lt['keep'], 2, '.', '')) ?>">
+                        <label for="ln-<?php echo $lid ?>">หมายเหตุ <i class="req">จำเป็น</i></label>
+                        <input class="input" type="text" id="ln-<?php echo $lid ?>" name="note" required maxlength="255" autocomplete="off"
+                               placeholder="เช่น พนักงานลืมกดปิดร้าน — นับเงินแล้วตรง">
+                        <button class="btn btn-ghost btn-sm" type="submit"><svg class="ico"><use href="#i-store-off"/></svg> ปิดวันนี้ย้อนหลัง</button>
+                      </form>
+                    <?php } ?>
+                    <?php if (count($r['unclosed']) > 5) { ?><small>ปิด 5 วันนี้แล้ว วันที่เก่ากว่าจะขึ้นต่อ</small><?php } ?>
+                  </details>
                 <?php } ?>
               </td>
               <td data-label="ร้าน">
@@ -184,7 +243,7 @@ $__tones = array('ยกเลิกเอกสาร' => 'bdg-out', 'แก้
 
 <!-- ==================== รายการที่ต้องตรวจ ==================== -->
 <section class="card">
-  <div class="card-head"><div><h3>รายการที่ต้องตรวจ</h3><p>ยกเลิก / แก้เอกสาร · รับคืนและเงินคืน · เปิดร้านใหม่หลังปิด · ตัดออกเพราะสูญหาย · เงินไม่ตรงตอนปิดร้าน</p></div></div>
+  <div class="card-head"><div><h3>รายการที่ต้องตรวจ</h3><p>ยกเลิก / แก้เอกสาร · รับคืนและเงินคืน · เปิดร้านใหม่หลังปิด · ปิดร้านย้อนหลัง · ตัดออกเพราะสูญหาย · เงินไม่ตรงตอนปิดร้าน</p></div></div>
   <?php if (!$__review) { ?>
     <p class="empty"><svg class="ico"><use href="#i-check"/></svg>วันนี้ยังไม่มีรายการที่ต้องตรวจ</p>
   <?php } else { ?>
@@ -217,7 +276,7 @@ $__tones = array('ยกเลิกเอกสาร' => 'bdg-out', 'แก้
   <div class="card-head"><div><h3>สต๊อกแยกตามสาขา</h3><p>มูลค่าตามทุน · สินค้าที่ถึงจุดสั่งซื้อ</p></div></div>
   <div class="card-body card-body--flush">
     <div class="tbl-wrap">
-      <table class="tbl tbl--compact num">
+      <table class="tbl num">
         <thead><tr><th>สาขา</th><th class="r">มูลค่าสต๊อก</th><th class="r">ใกล้หมด</th><th class="r">หมด</th><th>ต้องสั่งก่อน</th></tr></thead>
         <tbody>
           <?php foreach ($__codes as $c) { $s = stock_summary($c); $lw = low_stock_products($c, 2); ?>
@@ -226,7 +285,7 @@ $__tones = array('ยกเลิกเอกสาร' => 'bdg-out', 'แก้
               <td class="r" data-label="มูลค่าสต๊อก"><?php echo e(money($s['value'])) ?></td>
               <td class="r" data-label="ใกล้หมด"><?php echo $s['low'] ? '<span class="bdg bdg-warn">' . number_format($s['low']) . '</span>' : '—' ?></td>
               <td class="r" data-label="หมด"><?php echo $s['out'] ? '<span class="bdg bdg-out">' . number_format($s['out']) . '</span>' : '—' ?></td>
-              <td data-label="ต้องสั่งก่อน">
+              <td class="td-stack" data-label="ต้องสั่งก่อน">
                 <?php if (!$lw) { ?>—<?php } ?>
                 <?php foreach ($lw as $l) { ?><small><?php echo e($l['product']['name']) ?> · เหลือ <?php echo number_format($l['qty']) ?></small><?php } ?>
               </td>

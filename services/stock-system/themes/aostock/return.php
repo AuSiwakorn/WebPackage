@@ -9,6 +9,13 @@
  *   - [x] ช่วงที่ 7: ใบรับคืน + บิลเดิม + รูปแนบ อ่านเขียนตาราง
  *   - [x] ช่วงที่ 11: ไม่มีสิทธิ์คืนเงินสด (refund_cash) = ไม่มีช่องคืนเงิน บันทึกเป็นรับคืนแบบไม่คืนเงิน · ลิงก์ไปเปิดร้านตามสิทธิ์
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
+ *   - [x] ร้านปิดแล้ววันนี้ แยกข้อความจาก “ร้านยังไม่เปิด” · ลิงก์ไปเปิดร้านใหม่เฉพาะคนที่มีสิทธิ์ store_reopen
+ *   - [x] ผลทดสอบ 7 ต.ค.: ปุ่มบันทึกกดไม่ได้ → บอกใต้ปุ่มว่ายังขาดอะไร (I3) · แนบรูปเลือกจากคลังรูปได้ ไม่บังคับเปิดกล้อง (S5)
+ *   - [x] S6: ช่อง “วันที่ขาย” บนมือถือ เวลา · วิธีจ่ายอยู่ใต้วันที่ ชิดขวา (class td-stack)
+ *   - [x] 8 ต.ค.: ยังกรอกไม่ครบแล้วกดบันทึก → เลื่อนไปช่องแรกที่ขาด กะพริบ + ข้อความ (data-need · aoNeedSync ใน inc/footer.php)
+ *         · ร้านปิด / ยังไม่เปิด → เลื่อนขึ้นไปที่แถบแจ้งด้านบน
+ *   - [x] 12 ต.ค.: ช่อง “ผู้รับคืน” ขึ้น “พนักงาน” แม้เป็นผู้จัดการสาขา → ใช้ user_role_label() แบบเดียวกับแถบบน
+ *   - [x] 12 ต.ค.: “แสดงย้อนหลัง N วัน” ตามกำหนดคืนของสาขา + 7 (return_lookback_days($code))
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -29,6 +36,7 @@ $code = work_branch($user);
 
 $allowed = can($user, 'refund');
 $isOpen  = store_is_open($code);
+$isShut  = !$isOpen && store_is_closed($code);       // ปิดร้านแล้ววันนี้ (ต่างจากยังไม่เปิด)
 $q       = isset($_GET['q']) ? trim($_GET['q']) : '';
 $billNo  = isset($_GET['bill']) ? trim($_GET['bill']) : '';
 $err     = '';
@@ -95,8 +103,18 @@ require dirname(__FILE__) . '/inc/header.php';
   <?php require dirname(__FILE__) . '/inc/footer.php'; exit; ?>
 <?php } ?>
 
-<?php if (!$isOpen) { ?>
-  <div class="alert alert-info" role="status">
+<?php if ($isShut) { ?>
+  <div class="alert alert-info" id="store-alert" role="status">
+    <svg class="ico"><use href="#i-info"/></svg>
+    <span>ร้านปิดแล้ววันนี้ — ค้นบิลได้ แต่บันทึกรับคืนไม่ได้ เพราะเงินคืนจ่ายเป็นเงินสดจากลิ้นชักของวันนี้<?php echo can($user, 'store_reopen') ? '' : ' · ถ้าต้องรับคืนวันนี้ ติดต่อผู้จัดการสาขาหรือผู้ดูแลให้เปิดร้านอีกครั้ง' ?></span>
+    <?php if (can($user, 'store_reopen') && page_ok($user, 'store.php')) { ?>
+    <div class="alert-act">
+      <a class="btn btn-ghost btn-sm" href="store.php"><svg class="ico"><use href="#i-store"/></svg> ไปเปิดร้านใหม่</a>
+    </div>
+    <?php } ?>
+  </div>
+<?php } elseif (!$isOpen) { ?>
+  <div class="alert alert-info" id="store-alert" role="status">
     <svg class="ico"><use href="#i-info"/></svg>
     <span>ร้านยังไม่เปิด — ค้นบิลได้ แต่บันทึกรับคืนไม่ได้ เพราะเงินคืนจ่ายเป็นเงินสดจากลิ้นชักของวันนี้</span>
     <?php if (page_ok($user, 'store.php')) { ?>
@@ -132,7 +150,7 @@ require dirname(__FILE__) . '/inc/header.php';
     <div class="card-head">
       <div>
         <h2>ค้นหาบิลที่ลูกค้าจะคืน</h2>
-        <span class="sub">ค้นจากเลขบิล ชื่อสินค้า หรือ SKU · แสดงย้อนหลัง <?php echo return_lookback_days() ?> วัน</span>
+        <span class="sub">ค้นจากเลขบิล ชื่อสินค้า หรือ SKU · แสดงย้อนหลัง <?php echo return_lookback_days($code) ?> วัน</span>
       </div>
     </div>
     <form class="ret-find" method="get" action="return.php">
@@ -160,7 +178,7 @@ require dirname(__FILE__) . '/inc/header.php';
                 foreach ($b['lines'] as $l) { $names[] = $l['name'] . ' ×' . $l['qty']; } ?>
               <tr class="<?php echo $st['ok'] ? '' : 'off' ?>">
                 <td class="doc" data-label="เลขบิล"><?php echo e($b['no']) ?><small><?php echo e($b['by']) ?></small></td>
-                <td data-label="วันที่ขาย">
+                <td class="td-stack" data-label="วันที่ขาย">
                   <?php echo bill_age_days($b) === 0 ? 'วันนี้' : e(thai_day_month(strtotime($b['date']))) ?>
                   <small><?php echo e($b['time']) ?> น. · <?php echo $b['method'] === 'cash' ? 'เงินสด' : 'โอน / พร้อมเพย์' ?></small>
                 </td>
@@ -212,7 +230,7 @@ require dirname(__FILE__) . '/inc/header.php';
     <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
     <input type="hidden" name="bill" value="<?php echo e($bill['no']) ?>">
 
-    <section class="card">
+    <section class="card" id="ret-items">
       <div class="card-head"><div><h2>รายการที่คืน</h2><span class="sub">ใส่จำนวนเฉพาะรายการที่ลูกค้าคืน · คืนบางชิ้นได้</span></div></div>
       <div class="tbl-wrap">
         <table class="tbl num ret-tbl">
@@ -267,7 +285,7 @@ require dirname(__FILE__) . '/inc/header.php';
 
         <div class="field">
           <label for="photos">รูปถ่ายสินค้าที่คืน <small class="adm-none">(ไม่บังคับ · ไม่เกิน 3 รูป · รูปละไม่เกิน 5 MB)</small></label>
-          <input class="input ret-photos" type="file" id="photos" name="photos[]" accept="image/jpeg,image/png,image/webp" capture="environment" multiple>
+          <input class="input ret-photos" type="file" id="photos" name="photos[]" accept="image/jpeg,image/png,image/webp" multiple>
           <small class="adm-hint">ถ่ายจุดที่ชำรุด / สภาพกล่อง / ใบเสร็จ — ผู้ดูแลใช้ตรวจสอบภายหลัง</small>
           <div class="ret-thumbs" id="ret-thumbs"></div>
         </div>
@@ -276,7 +294,7 @@ require dirname(__FILE__) . '/inc/header.php';
           <label>ผู้รับคืน</label>
           <div class="who-box">
             <span class="av"><?php echo e($user['initials']) ?></span>
-            <div><b><?php echo e($user['name']) ?></b><small><?php echo e(role_name($user['role'])) ?> · <?php echo e(branch_name($code)) ?></small></div>
+            <div><b><?php echo e($user['name']) ?></b><small><?php echo e(user_role_label($user)) ?> · <?php echo e(branch_name($code)) ?></small></div>
           </div>
         </div>
 
@@ -306,10 +324,12 @@ require dirname(__FILE__) . '/inc/header.php';
       <p class="ret-stock" id="ret-stock" hidden></p>
 
       <div class="ret-go">
-        <button class="btn btn-primary btn-xl" type="submit" id="ret-go" <?php echo $isOpen ? '' : 'disabled' ?>>
+        <button class="btn btn-primary btn-xl" type="submit" id="ret-go" data-need aria-disabled="true"<?php echo $isOpen ? '' : ' data-closed="1"' ?>>
           <svg class="ico"><use href="#i-coin"/></svg> <?php echo can($user, 'refund_cash') ? 'บันทึกรับคืนและคืนเงิน' : 'บันทึกรับคืน' ?>
         </button>
-        <?php if (!$isOpen) { ?><small>ต้องเปิดร้านก่อนจึงบันทึกได้</small><?php } ?>
+        <?php if (!$isOpen) { ?><small><?php echo $isShut ? 'ร้านปิดแล้ว — บันทึกไม่ได้' : 'ต้องเปิดร้านก่อนจึงบันทึกได้' ?></small><?php } else { ?>
+        <small class="ret-hint" id="ret-hint" aria-live="polite" hidden></small>
+        <?php } ?>
       </div>
     </section>
   </form>
@@ -369,8 +389,10 @@ require dirname(__FILE__) . '/inc/header.php';
   var note   = document.getElementById('note');
   var stock  = document.getElementById('ret-stock');
   var go     = document.getElementById('ret-go');
+  var hint   = document.getElementById('ret-hint');
   var noCash  = (refund.type === 'hidden');          // ไม่มีสิทธิ์คืนเงินสด (ช่วงที่ 11) — ยอดคืน 0 เสมอ
   var touched = noCash || refund.value !== '';
+  var lack    = null;                                 // [ช่องแรกที่ยังขาด, ข้อความ] — ให้ปุ่มบันทึกพาไป
 
   function fmt(n) { return n.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
   function num(v) { return Number(String(v).replace(/[^0-9.]/g, '')) || 0; }
@@ -400,12 +422,31 @@ require dirname(__FILE__) . '/inc/header.php';
       stock.hidden = true;
     }
     if (!go.hasAttribute('data-closed')) {
-      go.disabled = (pcs === 0 || !w || (!noteRq.hidden && note.value.trim() === '')
-                     || num(refund.value) > calc + 0.001 || (diff && rn && rn.value.trim() === ''));
+      /* บอกใต้ปุ่มว่ายังขาดอะไร (ผลทดสอบ I3) · กดปุ่มแล้วพาไปที่ช่องนั้น (8 ต.ค.) */
+      lack = pcs === 0 ? ['qty', 'ใส่จำนวนที่คืนอย่างน้อย 1 รายการ']
+           : !w ? ['why', 'เลือกเหตุผลการคืนก่อน']
+           : (!noteRq.hidden && note.value.trim() === '') ? ['note', 'เหตุผลนี้ต้องกรอกรายละเอียดด้วย']
+           : num(refund.value) > calc + 0.001 ? ['refund', 'ยอดเงินคืนเกินยอดที่ขาย (' + fmt(calc) + ' บาท)']
+           : (diff && rn && rn.value.trim() === '') ? ['rn', 'ยอดเงินคืนไม่เท่ากับยอดคำนวณ — ใส่เหตุผลที่ปรับยอด']
+           : null;
+      if (hint) { hint.textContent = lack ? lack[1] : ''; hint.hidden = !lack; }
     }
+    if (window.aoNeedSync) { window.aoNeedSync(go); }
   }
 
-  if (go.disabled) { go.setAttribute('data-closed', '1'); }
+  /* ช่องที่ปุ่มบันทึกพาไป (inc/footer.php) · ร้านปิด / ยังไม่เปิด = แถบแจ้งด้านบน */
+  go.aoNeed = function () {
+    if (go.hasAttribute('data-closed')) { return { box: document.getElementById('store-alert') }; }
+    if (!lack) { return null; }
+    var k = lack[0];
+    if (k === 'qty') { return { box: document.getElementById('ret-items'), field: qs[0] || null, msg: lack[1] }; }
+    if (k === 'why') {
+      var g = form.querySelector('.why');
+      return { box: g, field: g.querySelector('input[name="why"]'), after: g, msg: lack[1] };
+    }
+    var f = (k === 'note') ? note : (k === 'refund') ? refund : rn;
+    return { box: f, field: f, after: f, msg: lack[1] };
+  };
   refund.addEventListener('input', function () { touched = true; sync(); });
   form.addEventListener('input', sync);
   form.addEventListener('change', sync);

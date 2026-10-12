@@ -11,6 +11,7 @@
  *   - [x] ช่วงที่ 9: ค่าตั้งการแจ้งเตือน + ประวัติการส่งอยู่ในตาราง (ao_stock_setting / ao_stock_notify_log) · ตัวอย่างข้อความจากข้อมูลจริง
  *         · บอกเวลาที่ cron ทำงานล่าสุด / อีเมลส่งล่าสุด · ปุ่มทดสอบส่งอีเมล (SMTP) คงไว้แบบเดิม
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
+ *   - [x] 12 ต.ค.: คำเตือนเรื่อง cron บอกให้แจ้งคนดูแลเว็บ (เลิกพูดถึงหลังบ้านบนหน้าจอ)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -407,7 +408,7 @@ $msg = function ($s) use ($err, $flash) {
   <?php if ($mailOn && ($cronAt === '' || strtotime($cronAt) < time() - 1800)) { ?>
     <div class="alert adm-ok nt-warn" role="note"><svg class="ico"><use href="#i-info"/></svg>
       <span>ตัวส่งอีเมลอัตโนมัติ (cron) <?php echo $cronAt === '' ? 'ยังไม่เคยทำงาน' : 'ไม่ได้ทำงานมาตั้งแต่ ' . e(thai_day_month(strtotime($cronAt))) . ' ' . date('H:i', strtotime($cronAt)) . ' น.' ?>
-        — อีเมลรายวันจะยังไม่ถูกส่ง แจ้งผู้ดูแลระบบให้ตั้ง Cron Jobs ของโฮสต์ (ดูหน้า “AOSTOCK — สถานะระบบ” ในหลังบ้าน)</span></div>
+        — อีเมลรายวันจะยังไม่ถูกส่ง แจ้งคนดูแลเว็บให้ตั้งตัวส่งอัตโนมัติ (Cron Jobs) ของโฮสต์</span></div>
   <?php } ?>
   <form class="adm-sec" method="post" action="adm-notify.php#nt-mail" id="mail-form">
     <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">

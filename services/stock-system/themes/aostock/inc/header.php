@@ -11,6 +11,7 @@
  *   - [x] ช่วงที่ 12: เมนู "พนักงานในสาขา" (เฉพาะผู้จัดการสาขา) · ใต้ชื่อแสดง "ผู้จัดการสาขา" (user_role_label)
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  *   - [x] ป้ายบนเมนูข้างที่ยังเข้าไม่ได้เพราะร้านยังไม่เปิด / ปิดแล้ว (ภาพรวมของฉัน · ขายสินค้า) · โหมดย่อแสดงเป็นจุด · ปุ่มขายบนแถบบนผ่าน sale.php ให้ได้ข้อความด้วย
+ *   - [x] 8 ต.ค.: จอสัมผัส (iPad) ที่ยังไม่เคยเลือกโหมดเมนู เปิดมาเป็นเมนูแบบเต็ม (ไอคอนอย่างเดียวไม่มีป้ายชื่อบนจอสัมผัส)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -127,6 +128,7 @@ if ($user['role'] === 'staff') {
 /* โหมดเมนูด้านข้าง
    - พนักงาน              : ย่อเป็นแถบไอคอน (rail) เป็นค่าเริ่มต้น
    - ผู้ดูแลระบบ           : กางเต็มเป็นค่าเริ่มต้น
+   - จอสัมผัส (iPad ฯลฯ)    : กางเต็มเป็นค่าเริ่มต้น (สคริปต์ต่อจาก <div id="app"> — server ไม่รู้ว่าเป็นจอสัมผัส)
    ผู้ใช้กดสลับเองได้ และจำไว้ใน cookie */
 $navMode = ($user['role'] === 'admin') ? 'full' : 'rail';
 if (isset($_COOKIE['ao_nav']) && in_array($_COOKIE['ao_nav'], array('rail', 'full'), true)) {
@@ -198,6 +200,15 @@ $branches = visible_branches($user);
 </svg>
 
 <div class="app<?php echo $navMode === 'rail' ? ' app--rail' : '' ?>" id="app">
+<?php if ($navMode === 'rail' && !isset($_COOKIE['ao_nav'])) { ?>
+<script>
+/* จอสัมผัส (iPad แนวนอน ฯลฯ) ไม่มีเมาส์ให้ชี้ดูชื่อไอคอน — ยังไม่เคยเลือกโหมดเมนูเอง ให้เปิดมาแบบเต็ม
+   รันตรงนี้ (ก่อนวาดเมนู) หน้าจอจะไม่กระพริบจากแบบย่อเป็นแบบเต็ม · กดย่อแล้วจำใน cookie ao_nav ตามปกติ */
+if (window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches) {
+  document.getElementById('app').classList.remove('app--rail');
+}
+</script>
+<?php } ?>
 
   <!-- ===== SIDEBAR ===== -->
   <aside class="side" id="side">

@@ -7,6 +7,8 @@
  * TODO:
  *   - [x] ช่วงที่ 10: แยกจาก api.php เดิม (ย้ายโค้ดทั้งก้อน ไม่แก้ตรรกะ) · จัดฟังก์ชันที่เคยปนอยู่หมวดอื่นให้มาอยู่หมวดนี้
  *   - [x] ช่วงที่ 11: ส่วนลดท้ายบิลต้องมีสิทธิ์ discount · ปุ่มแก้ / ยกเลิกบิลหลังบันทึกต้องมีสิทธิ์ bill_fix
+ *   - [x] ปุ่ม “ดู / พิมพ์บิล” หลังบันทึกบิล — แสดงทุกครั้ง ไม่ต้องมีสิทธิ์แก้บิล
+ *   - [x] 12 ต.ค.: bill_save รับเงินที่รับมาเป็นทศนิยม 2 ตำแหน่ง (เดิมตัดเป็นบาทเต็ม)
  *
  * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
  */
@@ -228,6 +230,7 @@ function bill_by_no($code, $no)
  * TODO:
  *   - [x] INSERT ao_stock_sale + sale_item + stock_move · เลขบิลจาก stock_doc_seq (vat / novat · YYYYMM)
  *   - [x] บิลที่ทำแทนบิล "ยกเลิกเพื่อแก้ไข" ใส่ edit_of_id
+ *   - [x] 12 ต.ค.: เงินที่รับมารับสตางค์ได้ (เดิม (int) ตัดทศนิยม)
  */
 function bill_save($code, $user, $method, $received, $vat = false, $net = null)
 {
@@ -249,7 +252,8 @@ function bill_save($code, $user, $method, $received, $vat = false, $net = null)
     }
     $total    = ($net !== null && $net > 0 && $net <= $subtotal) ? round($net, 2) : $subtotal;
     $discount = round($subtotal - $total, 2);
-    $recv     = ($method === 'cash') ? (float) (int) $received : $total;
+    /* เงินที่รับมารับสตางค์ได้ 2 ตำแหน่ง (12 ต.ค. — เดิมตัดเป็นบาทเต็ม) · เพดานตามคอลัมน์ decimal(12,2) */
+    $recv     = ($method === 'cash') ? round(min(max((float) $received, 0), 9999999999.99), 2) : $total;
     if ($recv < $total) {
         $recv = $total;
     }
@@ -496,36 +500,35 @@ function sale_flash($err, $done, $voided, $oob)
         }
         echo '</span>';
 
+        /* ดู / พิมพ์บิลให้ลูกค้า — ทุกคนที่ขายได้ */
+        echo '<div class="alert-act">' . Stock_buildBillPrintButton($done);
+
         /* กดผิดก็แก้ได้ทันทีจากตรงนี้ — ทั้งสองทางต้องกรอกหมายเหตุก่อน · ต้องมีสิทธิ์แก้บิลของตัวเอง (ช่วงที่ 11) */
-        if (!can_void_doc(current_user(), $done, 'bill')) {
-            echo '</div></div>';
-            return;
+        if (can_void_doc(current_user(), $done, 'bill')) {
+            $atts = ' data-bill="' . e($done['no']) . '" data-total="' . money2($done['total']) . '"'
+                  . ' data-qty="' . (int) $done['qty'] . '" data-items="' . (int) $done['items'] . '"'
+                  . ' hx-post="sale.php" hx-target="#sale-live" hx-swap="outerHTML"';
+
+            echo '<form method="post" action="sale.php" data-confirm="edit" hx-confirm="แก้ไขบิล"' . $atts . '>'
+               . '<input type="hidden" name="csrf" value="' . e(csrf_token()) . '">'
+               . '<input type="hidden" name="act" value="edit">'
+               . '<input type="hidden" name="no" value="' . e($done['no']) . '">'
+               . '<input class="reason-fb" type="text" name="reason" value=""'
+               . ' placeholder="หมายเหตุ (จำเป็น)" aria-label="หมายเหตุการแก้ไขบิล">'
+               . '<button class="btn btn-ghost btn-sm" type="submit">'
+               . '<svg class="ico"><use href="#i-arrow"/></svg> แก้ไขบิลนี้</button>'
+               . '</form>';
+
+            echo '<form method="post" action="sale.php" data-confirm="void" hx-confirm="ยกเลิกบิล"' . $atts . '>'
+               . '<input type="hidden" name="csrf" value="' . e(csrf_token()) . '">'
+               . '<input type="hidden" name="act" value="void">'
+               . '<input type="hidden" name="no" value="' . e($done['no']) . '">'
+               . '<input class="reason-fb" type="text" name="reason" value=""'
+               . ' placeholder="หมายเหตุ (จำเป็น)" aria-label="หมายเหตุการยกเลิกบิล">'
+               . '<button class="btn btn-ghost btn-sm" type="submit">'
+               . '<svg class="ico"><use href="#i-ban"/></svg> ยกเลิกบิลนี้</button>'
+               . '</form>';
         }
-        $atts = ' data-bill="' . e($done['no']) . '" data-total="' . money2($done['total']) . '"'
-              . ' data-qty="' . (int) $done['qty'] . '" data-items="' . (int) $done['items'] . '"'
-              . ' hx-post="sale.php" hx-target="#sale-live" hx-swap="outerHTML"';
-
-        echo '<div class="alert-act">';
-
-        echo '<form method="post" action="sale.php" data-confirm="edit" hx-confirm="แก้ไขบิล"' . $atts . '>'
-           . '<input type="hidden" name="csrf" value="' . e(csrf_token()) . '">'
-           . '<input type="hidden" name="act" value="edit">'
-           . '<input type="hidden" name="no" value="' . e($done['no']) . '">'
-           . '<input class="reason-fb" type="text" name="reason" value=""'
-           . ' placeholder="หมายเหตุ (จำเป็น)" aria-label="หมายเหตุการแก้ไขบิล">'
-           . '<button class="btn btn-ghost btn-sm" type="submit">'
-           . '<svg class="ico"><use href="#i-arrow"/></svg> แก้ไขบิลนี้</button>'
-           . '</form>';
-
-        echo '<form method="post" action="sale.php" data-confirm="void" hx-confirm="ยกเลิกบิล"' . $atts . '>'
-           . '<input type="hidden" name="csrf" value="' . e(csrf_token()) . '">'
-           . '<input type="hidden" name="act" value="void">'
-           . '<input type="hidden" name="no" value="' . e($done['no']) . '">'
-           . '<input class="reason-fb" type="text" name="reason" value=""'
-           . ' placeholder="หมายเหตุ (จำเป็น)" aria-label="หมายเหตุการยกเลิกบิล">'
-           . '<button class="btn btn-ghost btn-sm" type="submit">'
-           . '<svg class="ico"><use href="#i-ban"/></svg> ยกเลิกบิลนี้</button>'
-           . '</form>';
 
         echo '</div>';
 

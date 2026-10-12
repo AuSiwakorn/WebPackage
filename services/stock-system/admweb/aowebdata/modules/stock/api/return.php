@@ -7,6 +7,7 @@
  * TODO:
  *   - [x] ช่วงที่ 10: แยกจาก api.php เดิม (ย้ายโค้ดทั้งก้อน ไม่แก้ตรรกะ) · จัดฟังก์ชันที่เคยปนอยู่หมวดอื่นให้มาอยู่หมวดนี้
  *   - [x] ช่วงที่ 11: ไม่มีสิทธิ์คืนเงินสด (refund_cash) = ยอดคืนเป็น 0 เสมอ
+ *   - [x] 12 ต.ค.: ค้นบิลย้อนหลังตามกำหนดคืนของสาขา + 7 วัน (return_lookback_days) เดิม 14 วันตายตัว
  *
  * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
  */
@@ -31,10 +32,13 @@
      รูปถ่าย      uploads/stock/returns/{เลขที่ใบ}-{ลำดับ}.{jpg|png|webp} · path เก็บเป็น JSON ใน stock_return.photos
    ========================================================== */
 
-/** ค้นบิลย้อนหลังได้กี่วัน — มากกว่ากำหนดคืน เพื่อให้เห็นบิลที่เกินกำหนดด้วย */
-function return_lookback_days()
+/** ค้นบิลย้อนหลังได้กี่วัน — มากกว่ากำหนดคืน เพื่อให้เห็นบิลที่เกินกำหนดด้วย
+    = กำหนดคืนของสาขา (backdate_days) + 7 วัน อย่างน้อย 14 · ไม่ระบุสาขา = 14
+    TODO:
+      - [x] 12 ต.ค.: เดิม 14 วันตายตัว — สาขาตั้งกำหนดคืนได้ถึง 60 วัน แต่บิลที่เก่ากว่า 14 วันค้นไม่เจอ */
+function return_lookback_days($code = null)
 {
-    return 14;
+    return $code === null ? 14 : max(14, backdate_days($code) + 7);
 }
 
 /* ---------- เหตุผลการคืน ----------
@@ -80,7 +84,7 @@ function return_find_bills($code, $q, $limit = 100)
 {
     $q      = trim((string) $q);
     $where  = 'b.code = ? AND s.status = \'paid\' AND s.sale_date >= ?';
-    $params = array((string) $code, date('Y-m-d', strtotime('-' . return_lookback_days() . ' day', strtotime(date('Y-m-d')))));
+    $params = array((string) $code, date('Y-m-d', strtotime('-' . return_lookback_days($code) . ' day', strtotime(date('Y-m-d')))));
     if ($q !== '') {
         $like     = '%' . addcslashes($q, '%_\\') . '%';
         $where   .= ' AND (s.doc_no LIKE ? OR EXISTS (SELECT 1 FROM ' . sdb_tb('sale_item') . ' i'
