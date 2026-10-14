@@ -10,6 +10,7 @@
  *   - [x] ช่วงที่ 10: แก้ File Header ให้ตรงกับระบบจริง
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  *   - [x] ผลทดสอบ 7 ต.ค. (C11): ปุ่ม “แก้ไข” ท้ายทุกแถว (เดิมต้องรู้ว่าแตะชื่อสินค้า)
+ *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 4): ตารางครั้งละ 60 แถว + ปุ่ม “แสดงเพิ่ม” — htmx ?from= ส่งกลับแค่แถวชุดถัดไป (เดิมวาดทุกแถว สินค้า 3,000 ตัว = 4.4 MB)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -162,6 +163,37 @@ $th = function ($k, $label, $cls = '') use ($fSort, $fDir, $pq) {
          . e($label) . $mark . '</a></th>';
 };
 
+/* แถวสินค้าหนึ่งแถว — ใช้ทั้งตอนวาดตาราง และตอนกด “แสดงเพิ่ม” */
+$row = function ($r) use ($br, $flowDays) {
+    $p = $r['p']; ?>
+            <tr<?php echo $p['active'] ? '' : ' class="prod-off"' ?>>
+              <td data-label="สินค้า">
+                <b class="hist-t"><a href="adm-product-edit.php?sku=<?php echo e(rawurlencode($p['sku'])) ?>" title="แก้ไขสินค้า"><?php echo e($p['name']) ?></a></b>
+                <small class="hist-n"><?php echo e($p['sku']) ?> · <?php echo e($p['cat']) ?><?php echo $p['active'] ? '' : ' · เลิกขาย' ?></small>
+              </td>
+              <?php foreach ($r['cells'] as $c => $x) { ?>
+                <td data-label="<?php echo e($br[$c]['short']) ?>" class="r num nowrap"><span class="stk stk-<?php echo e($x['st']) ?>"><?php echo number_format($x['qty']) ?></span></td>
+              <?php } ?>
+              <td data-label="รวม" class="r num nowrap"><b><?php echo number_format($r['sortqty']) ?></b> <small><?php echo e($p['unit']) ?></small></td>
+              <td data-label="รับเข้าล่าสุด" class="nowrap"><?php echo $r['last'] !== '' ? e(thai_day_month(strtotime($r['last']))) . ' <small>(' . (int) round((strtotime(date('Y-m-d')) - strtotime($r['last'])) / 86400) . ' วันก่อน)</small>' : '<small>เกิน ' . $flowDays . ' วัน</small>' ?></td>
+              <td data-label="มูลค่า (ทุน)" class="r num nowrap"><?php echo e(money2($r['value'])) ?></td>
+              <td data-label="สถานะ"><span class="bdg <?php echo $r['focus'] === 'out' ? 'bdg-out' : ($r['focus'] === 'low' ? 'bdg-adj' : 'bdg-ok') ?>"><?php echo e(stock_label($r['focus'])) ?></span></td>
+              <td class="r nowrap"><a class="btn btn-ghost btn-sm" href="adm-product-edit.php?sku=<?php echo e(rawurlencode($p['sku'])) ?>" aria-label="แก้ไข <?php echo e($p['name']) ?>">แก้ไข</a></td>
+            </tr>
+<?php
+};
+
+/* ตารางครั้งละ 60 แถว + ปุ่ม “แสดงเพิ่ม” (งานความเร็ว ช่วง 4) — htmx ?from= ส่งกลับแค่แถวชุดถัดไป */
+list($from, $end) = Stock_getListRange();
+$cols = count($br) + 6;
+if (isset($_SERVER['HTTP_HX_REQUEST']) && $_SERVER['HTTP_HX_REQUEST'] === 'true' && isset($_GET['from'])) {
+    foreach (array_slice($rows, $from, $end - $from) as $r) {
+        $row($r);
+    }
+    Stock_renderMoreButton($end, count($rows), $pq(array()), $cols);
+    exit;
+}
+
 $branch         = 'ALL';
 $NO_BRANCH_PICK = true;
 $PAGE_TITLE     = 'สินค้าในสต๊อก';
@@ -258,22 +290,8 @@ require dirname(__FILE__) . '/inc/header.php';
           </tr>
         </thead>
         <tbody>
-          <?php foreach ($rows as $r) { $p = $r['p']; ?>
-            <tr<?php echo $p['active'] ? '' : ' class="prod-off"' ?>>
-              <td data-label="สินค้า">
-                <b class="hist-t"><a href="adm-product-edit.php?sku=<?php echo e(rawurlencode($p['sku'])) ?>" title="แก้ไขสินค้า"><?php echo e($p['name']) ?></a></b>
-                <small class="hist-n"><?php echo e($p['sku']) ?> · <?php echo e($p['cat']) ?><?php echo $p['active'] ? '' : ' · เลิกขาย' ?></small>
-              </td>
-              <?php foreach ($r['cells'] as $c => $x) { ?>
-                <td data-label="<?php echo e($br[$c]['short']) ?>" class="r num nowrap"><span class="stk stk-<?php echo e($x['st']) ?>"><?php echo number_format($x['qty']) ?></span></td>
-              <?php } ?>
-              <td data-label="รวม" class="r num nowrap"><b><?php echo number_format($r['sortqty']) ?></b> <small><?php echo e($p['unit']) ?></small></td>
-              <td data-label="รับเข้าล่าสุด" class="nowrap"><?php echo $r['last'] !== '' ? e(thai_day_month(strtotime($r['last']))) . ' <small>(' . (int) round((strtotime(date('Y-m-d')) - strtotime($r['last'])) / 86400) . ' วันก่อน)</small>' : '<small>เกิน ' . $flowDays . ' วัน</small>' ?></td>
-              <td data-label="มูลค่า (ทุน)" class="r num nowrap"><?php echo e(money2($r['value'])) ?></td>
-              <td data-label="สถานะ"><span class="bdg <?php echo $r['focus'] === 'out' ? 'bdg-out' : ($r['focus'] === 'low' ? 'bdg-adj' : 'bdg-ok') ?>"><?php echo e(stock_label($r['focus'])) ?></span></td>
-              <td class="r nowrap"><a class="btn btn-ghost btn-sm" href="adm-product-edit.php?sku=<?php echo e(rawurlencode($p['sku'])) ?>" aria-label="แก้ไข <?php echo e($p['name']) ?>">แก้ไข</a></td>
-            </tr>
-          <?php } ?>
+          <?php foreach (array_slice($rows, 0, $end) as $r) { $row($r); } ?>
+          <?php Stock_renderMoreButton($end, count($rows), $pq(array()), $cols); ?>
         </tbody>
       </table>
     </div>

@@ -7,6 +7,7 @@
  * TODO:
  *   - [x] ช่วงที่ 10: แยกจาก api.php เดิม (ย้ายโค้ดทั้งก้อน ไม่แก้ตรรกะ) · จัดฟังก์ชันที่เคยปนอยู่หมวดอื่นให้มาอยู่หมวดนี้
  *   - [x] ช่วงที่ 17: งานค้าง "ยังไม่ได้ปิดร้าน" บอกวิธีปิดย้อนหลัง
+ *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 5): pending_tasks นับสินค้าที่ยังไม่นับด้วย SQL · product_sales ดึงสินค้าในรายงานคิวรีเดียว — เดิมโหลดสินค้าทั้งร้าน
  *
  * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
  */
@@ -19,20 +20,16 @@
 function pending_tasks($branch)
 {
     $codes = ($branch === 'ALL') ? array_keys(branches_active()) : array($branch);
-    $prods = products_list();
     $rows  = array();
     $count = menu_enabled('stocktake.php');            // ปิดเมนูตรวจนับจากหลังบ้าน = ไม่มีงานค้างของการตรวจนับ (ช่วงที่ 9)
+    /* นับด้วย SQL (งานความเร็ว ช่วง 5) — เดิมโหลดสินค้าทั้งร้านมานับใน PHP ทุกครั้งที่เปิดหน้าแรก */
+    $nAll  = $count ? Stock_searchPickProducts('ALL', '', '', 0, 0)['total'] : 0;
     foreach ($codes as $c) {
         $done = $count ? count_status_all($c) : array();
-        $left = 0;
-        foreach ($count ? $prods : array() as $p) {
-            if (!isset($done[$p['sku']])) {
-                $left++;
-            }
-        }
+        $left = $count ? Stock_searchPickProducts($c, '', '', 0, 0, null, array_keys($done))['total'] : 0;   // สินค้าที่ขายอยู่และยังไม่นับ
         if ($left > 0) {
             $rd     = count_round($c);
-            $rows[] = array('type' => 'count', 'title' => 'ตรวจนับรอบนี้ยังไม่ครบ · เหลือ ' . number_format($left) . ' จาก ' . number_format(count($prods)) . ' รายการ',
+            $rows[] = array('type' => 'count', 'title' => 'ตรวจนับรอบนี้ยังไม่ครบ · เหลือ ' . number_format($left) . ' จาก ' . number_format($nAll) . ' รายการ',
                             'sub' => branch_name($c) . ' · ครบกำหนด ' . thai_day_month($rd['end']) . ' (อีก ' . $rd['left'] . ' วัน)',
                             'link' => 'stocktake.php');
         }
@@ -430,7 +427,9 @@ function product_sales($codes, $from, $to)
          . ' WHERE s.status = \'paid\' AND s.sale_date BETWEEN ? AND ? AND ' . $in
          . ' GROUP BY i.sku, b.code ORDER BY first_at, i.sku';
     $out = array();
-    foreach (sdb_rows($sql, $params) as $r) {
+    $rs  = sdb_rows($sql, $params);
+    Stock_prefetchProducts(array_column($rs, 'sku'));      // สินค้าทุกตัวในรายงานคิวรีเดียว (ช่วง 5)
+    foreach ($rs as $r) {
         $k = $r['sku'];
         if (!isset($out[$k])) {
             $p = product_by_sku($k);

@@ -9,6 +9,12 @@
  *   - [x] ใบที่บันทึกแล้วอยู่ในตาราง (ช่วงที่ 6) — ไฟล์นี้แสดงเฉพาะร่าง
  *   - [x] ช่วงที่ 16: ปุ่ม "เพิ่มสินค้าใหม่" ข้างช่องค้นหา (สิทธิ์ product_add) · ระบบยังไม่มีสินค้า = กล่อง "เพิ่มสินค้าแรก"
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
+ *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 3): แตะสินค้า / ปุ่มในใบ → ส่งกลับแค่ใบ (#recv-cart) + การ์ดใบที่แตะ (hx-swap-oob)
+ *         เดิมส่งการ์ดสินค้าทุกใบกลับมาวาดใหม่ทุกครั้ง · สคริปต์ recvSync ย้ายเข้าไปใน aside
+ *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 4): การ์ดครั้งละ 60 ใบ + ปุ่ม “แสดงเพิ่ม” ($LIVE_PART 'more' = ส่งกลับแค่ชุดถัดไป)
+ *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 5): ค้นสินค้าด้วย SQL แบบแบ่งหน้า (Stock_searchPickProducts) — ฐานข้อมูลกรอง / นับ ส่งมาแค่ 60 ตัวที่จะวาด (เดิมดึงทั้งร้านมากรองใน PHP)
+ *   - [x] 14 ต.ค. (ผู้ใช้เลือก): + / − นับในเครื่องก่อนแล้วบันทึกเบื้องหลัง — ปุ่ม data-step · ช่อง data-qty (JS ใน inc/footer.php) · เดิมกดรัว ๆ แล้วหาย
+ *   - [x] 14 ต.ค. (ผู้ใช้เลือก): แตะสินค้าตัวใหม่ขึ้นใบทันที — แถวเป็น $row ใช้ทั้งวาดใบและแม่แบบ #pick-row · การ์ดมี data-pick · hx-ext="ao-live" (คำตอบที่มาช้าลงตัวที่อยู่บนจอ)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -17,6 +23,7 @@ if (!defined('ALLOW_DIRECT_ACCESS')) {
 /* ==========================================================
    ส่วนที่ htmx สลับได้ของหน้านำเข้าสินค้า
    ต้องกำหนดก่อน include: $user $code $q $cat
+     $LIVE_PART  (ไม่บังคับ) 'all' = ทั้งส่วน #recv-live · 'cart' = เฉพาะใบ #recv-cart + การ์ดของ $OOB_SKUS (hx-swap-oob) · 'more' = การ์ดชุดถัดไป (?from=) + ปุ่มแสดงเพิ่ม
    ----------------------------------------------------------
    ปุ่มในนี้ใช้ hx-post บน <button> ตรง ๆ ไม่ห่อด้วย <form>
    เพราะทั้งหน้าอยู่ในฟอร์มบันทึกอยู่แล้ว ฟอร์มซ้อนฟอร์มไม่ได้
@@ -24,22 +31,89 @@ if (!defined('ALLOW_DIRECT_ACCESS')) {
 
 require_once dirname(__FILE__) . '/../include/function.php';
 
-$list  = sale_products($code, $q, $cat);
+$LIVE_PART = (isset($LIVE_PART) && in_array($LIVE_PART, array('cart', 'more'), true)) ? $LIVE_PART : 'all';
+list($from, $end) = Stock_getListRange();     // การ์ดครั้งละ 60 ใบ + ปุ่ม “แสดงเพิ่ม” (ช่วง 4)
+/* ฐานข้อมูลกรอง นับ และส่งมาเฉพาะการ์ดที่จะวาดรอบนี้ (ช่วง 5) — $list = การ์ดที่จะวาด · $total = จำนวนที่ตรงทั้งหมด */
+$found = ($LIVE_PART === 'cart') ? array('rows' => array(), 'total' => 0)
+       : Stock_searchPickProducts($code, $q, $cat, ($LIVE_PART === 'more') ? $from : 0, ($LIVE_PART === 'more') ? $end - $from : $end);
+$list  = $found['rows'];
+$total = $found['total'];
 $lines = rdraft_lines($code);
 $sum   = rdraft_count();
 $qs    = ($q !== '' ? 'q=' . rawurlencode($q) : '') . ($cat !== '' ? ($q !== '' ? '&' : '') . 'cat=' . rawurlencode($cat) : '');
 $base  = 'receive.php' . ($qs !== '' ? '?' . $qs : '');
 $csrf  = csrf_token();
 $canNew = can($user, 'product_add');      // ปุ่มเพิ่มสินค้าใหม่ (ช่วงที่ 16 — หน้าต่างฟอร์มอยู่ใน receive.php)
+
+/* การ์ดสินค้าหนึ่งใบ — ใช้ทั้งตอนวาดรายการ และตอนส่งกลับใบเดียวแบบ hx-swap-oob */
+$tile = function ($p, $oob) use ($base, $csrf) {
+    $inDoc = isset($_SESSION['recv_draft'][$p['sku']]) ? (int) $_SESSION['recv_draft'][$p['sku']] : 0; ?>
+            <button class="good<?php echo $inDoc > 0 ? ' is-in' : '' ?>" type="button" id="<?php echo e(Stock_buildTileId($p['sku'])) ?>" data-sku="<?php echo e($p['sku']) ?>"<?php echo $oob ? ' hx-swap-oob="true"' : '' ?>
+                    hx-post="<?php echo e($base) ?>" hx-target="#recv-cart" hx-swap="outerHTML"
+                    hx-vals='<?php echo e(json_encode(array('csrf' => $csrf, 'act' => 'add', 'sku' => $p['sku']))) ?>'
+                    data-pick='<?php echo e(json_encode(array('name' => $p['name'], 'unit' => $p['unit'], 'have' => (int) $p['qty'], 'max' => (int) STOCK_LINE_MAX))) ?>'>
+              <?php if ($inDoc > 0) { ?><i class="g-bdg"><?php echo $inDoc ?></i><?php } ?>
+              <?php echo thumb_html($p, 'thumb--lg') ?>
+              <span class="g-cat"><?php echo e($p['cat']) ?></span>
+              <span class="g-nm"><?php echo e($p['name']) ?></span>
+              <span class="g-qty">คงเหลือ <?php echo number_format($p['qty']) ?> <?php echo e($p['unit']) ?></span>
+            </button>
+<?php
+};
+
+/* แถวในใบ — ใช้วาดใบ และเป็นแม่แบบ #pick-row ให้ JS สร้างแถวตอนแตะสินค้าตัวใหม่ */
+$row = function ($l) use ($base, $csrf) { ?>
+            <li>
+              <div class="cl-t">
+                <b><?php echo e($l['name']) ?></b>
+                <small>คงเหลือ <span data-f="have"><?php echo number_format($l['have']) ?></span> →
+                       <span class="up" data-f="after"><?php echo number_format($l['after']) ?></span> <?php echo e($l['unit']) ?></small>
+              </div>
+              <?php /* + / − นับในเครื่องก่อนแล้วบันทึกเบื้องหลัง (data-step · JS ใน inc/footer.php — 14 ต.ค.) · ช่องจำนวน (data-qty) ส่ง act=set ตอน change */ ?>
+              <div class="cl-q">
+                <button type="button" aria-label="ลดจำนวน" data-step="-1">
+                  <svg class="ico"><use href="#i-minus"/></svg>
+                </button>
+                <?php /* ชื่อต้องไม่ซ้ำกัน เพราะ htmx ส่งค่าทั้งฟอร์มไปด้วย
+                         ถ้าทุกแถวชื่อ qty เหมือนกัน PHP จะอ่านได้แค่แถวสุดท้าย */ ?>
+                <input class="num rq-set" type="text" inputmode="numeric" value="<?php echo $l['qty'] ?>"
+                       autocomplete="off" aria-label="จำนวนที่รับเข้าของ <?php echo e($l['name']) ?>"
+                       name="rq_<?php echo e($l['sku']) ?>" data-qty data-tile data-no-busy data-sku="<?php echo e($l['sku']) ?>" data-min="0" data-max="<?php echo (int) STOCK_LINE_MAX ?>"
+                       hx-post="<?php echo e($base) ?>" hx-trigger="change" hx-target="#recv-cart" hx-swap="outerHTML"
+                       hx-vals='<?php echo e(json_encode(array('csrf' => $csrf, 'act' => 'set', 'sku' => $l['sku']))) ?>'>
+                <button type="button" aria-label="เพิ่มจำนวน" data-step="1">
+                  <svg class="ico"><use href="#i-plus"/></svg>
+                </button>
+              </div>
+              <div class="cl-s"><?php echo e($l['unit']) ?></div>
+              <button class="cl-x" type="button" title="เอาออกจากใบ"
+                      aria-label="เอา <?php echo e($l['name']) ?> ออกจากใบ"
+                      hx-post="<?php echo e($base) ?>" hx-target="#recv-cart" hx-swap="outerHTML"
+                      hx-vals='<?php echo e(json_encode(array('csrf' => $csrf, 'act' => 'del', 'sku' => $l['sku']))) ?>'>
+                <svg class="ico"><use href="#i-x"/></svg>
+              </button>
+            </li>
+<?php
+};
+
+/* กด “แสดงเพิ่ม” → การ์ดชุดถัดไป + ปุ่มใหม่ (สลับแทนปุ่มเดิมในกริด) */
+if ($LIVE_PART === 'more') {
+    foreach ($list as $p) {
+        $tile($p, false);
+    }
+    Stock_renderMoreButton($end, $total, $base);
+    return;
+}
 ?>
-<div class="sale-wrap" id="recv-live">
+<?php if ($LIVE_PART === 'all') { ?>
+<div class="sale-wrap" id="recv-live" hx-ext="ao-live">
 
   <!-- ==================== เลือกสินค้าเข้าใบ ==================== -->
   <section class="card sale-pick">
     <div class="card-head">
       <div>
         <h2>เลือกสินค้าที่รับเข้า</h2>
-        <span class="sub">ค้นหาแล้วแตะเพื่อเพิ่มเข้าใบ · <?php echo count($list) ?> รายการที่ตรงเงื่อนไข</span>
+        <span class="sub">ค้นหาแล้วแตะเพื่อเพิ่มเข้าใบ · <?php echo number_format($total) ?> รายการที่ตรงเงื่อนไข</span>
       </div>
     </div>
 
@@ -70,7 +144,7 @@ $canNew = can($user, 'product_add');      // ปุ่มเพิ่มสิ�
         <?php } ?>
       </div>
 
-      <?php if (!$list && !products_list()) { /* ช่วงที่ 16: ระบบยังไม่มีสินค้าเลย */ ?>
+      <?php if (!$list && Stock_searchPickProducts($code, '', '', 0, 0)['total'] === 0) { /* ช่วงที่ 16: ระบบยังไม่มีสินค้าเลย (นับด้วย SQL — ช่วง 5) */ ?>
         <div class="empty np-first">
           <svg class="ico"><use href="#i-boxes"/></svg>
           <b>ยังไม่มีสินค้าในระบบ</b>
@@ -88,25 +162,17 @@ $canNew = can($user, 'product_add');      // ปุ่มเพิ่มสิ�
         </p>
       <?php } else { ?>
         <div class="goods">
-          <?php foreach ($list as $p) { ?>
-            <?php $inDoc = isset($_SESSION['recv_draft'][$p['sku']]) ? (int) $_SESSION['recv_draft'][$p['sku']] : 0; ?>
-            <button class="good<?php echo $inDoc > 0 ? ' is-in' : '' ?>" type="button"
-                    hx-post="<?php echo e($base) ?>" hx-target="#recv-live" hx-swap="outerHTML"
-                    hx-vals='<?php echo e(json_encode(array('csrf' => $csrf, 'act' => 'add', 'sku' => $p['sku']))) ?>'>
-              <?php if ($inDoc > 0) { ?><i class="g-bdg"><?php echo $inDoc ?></i><?php } ?>
-              <?php echo thumb_html($p, 'thumb--lg') ?>
-              <span class="g-cat"><?php echo e($p['cat']) ?></span>
-              <span class="g-nm"><?php echo e($p['name']) ?></span>
-              <span class="g-qty">คงเหลือ <?php echo number_format($p['qty']) ?> <?php echo e($p['unit']) ?></span>
-            </button>
-          <?php } ?>
+          <?php foreach ($list as $p) { $tile($p, false); } ?>
+          <?php Stock_renderMoreButton($end, $total, $base); ?>
         </div>
       <?php } ?>
     </div>
   </section>
+<?php } ?>
 
   <!-- ==================== ใบรับของที่กำลังทำ ==================== -->
-  <aside class="sale-cart">
+  <aside class="sale-cart" id="recv-cart" hx-ext="ao-live">
+    <template id="pick-row" data-dir="1"><ul class="cart-list recv-list"><?php $row(array('sku' => '{sku}', 'name' => '{name}', 'unit' => '{unit}', 'qty' => 0, 'have' => 0, 'after' => 0)); ?></ul></template>
     <div class="card cart-card">
       <div class="card-head">
         <div>
@@ -115,7 +181,7 @@ $canNew = can($user, 'product_add');      // ปุ่มเพิ่มสิ�
         </div>
         <?php if ($lines) { ?>
           <button class="icon-btn" type="button" title="ล้างทั้งใบ" aria-label="ล้างทั้งใบ"
-                  hx-post="<?php echo e($base) ?>" hx-target="#recv-live" hx-swap="outerHTML"
+                  hx-post="<?php echo e($base) ?>" hx-target="#recv-cart" hx-swap="outerHTML"
                   hx-vals='<?php echo e(json_encode(array('csrf' => $csrf, 'act' => 'clear'))) ?>'>
             <svg class="ico"><use href="#i-trash"/></svg>
           </button>
@@ -129,41 +195,7 @@ $canNew = can($user, 'product_add');      // ปุ่มเพิ่มสิ�
         </p>
       <?php } else { ?>
         <ul class="cart-list recv-list">
-          <?php foreach ($lines as $l) { ?>
-            <li>
-              <div class="cl-t">
-                <b><?php echo e($l['name']) ?></b>
-                <small>คงเหลือ <?php echo number_format($l['have']) ?> →
-                       <span class="up"><?php echo number_format($l['after']) ?></span> <?php echo e($l['unit']) ?></small>
-              </div>
-              <div class="cl-q">
-                <button type="button" aria-label="ลดจำนวน"
-                        hx-post="<?php echo e($base) ?>" hx-target="#recv-live" hx-swap="outerHTML"
-                        hx-vals='<?php echo e(json_encode(array('csrf' => $csrf, 'act' => 'minus', 'sku' => $l['sku']))) ?>'>
-                  <svg class="ico"><use href="#i-minus"/></svg>
-                </button>
-                <?php /* ชื่อต้องไม่ซ้ำกัน เพราะ htmx ส่งค่าทั้งฟอร์มไปด้วย
-                         ถ้าทุกแถวชื่อ qty เหมือนกัน PHP จะอ่านได้แค่แถวสุดท้าย */ ?>
-                <input class="num rq-set" type="text" inputmode="numeric" value="<?php echo $l['qty'] ?>"
-                       autocomplete="off" aria-label="จำนวนที่รับเข้าของ <?php echo e($l['name']) ?>"
-                       name="rq_<?php echo e($l['sku']) ?>"
-                       hx-post="<?php echo e($base) ?>" hx-trigger="change" hx-target="#recv-live" hx-swap="outerHTML"
-                       hx-vals='<?php echo e(json_encode(array('csrf' => $csrf, 'act' => 'set', 'sku' => $l['sku']))) ?>'>
-                <button type="button" aria-label="เพิ่มจำนวน"
-                        hx-post="<?php echo e($base) ?>" hx-target="#recv-live" hx-swap="outerHTML"
-                        hx-vals='<?php echo e(json_encode(array('csrf' => $csrf, 'act' => 'add', 'sku' => $l['sku']))) ?>'>
-                  <svg class="ico"><use href="#i-plus"/></svg>
-                </button>
-              </div>
-              <div class="cl-s"><?php echo e($l['unit']) ?></div>
-              <button class="cl-x" type="button" title="เอาออกจากใบ"
-                      aria-label="เอา <?php echo e($l['name']) ?> ออกจากใบ"
-                      hx-post="<?php echo e($base) ?>" hx-target="#recv-live" hx-swap="outerHTML"
-                      hx-vals='<?php echo e(json_encode(array('csrf' => $csrf, 'act' => 'del', 'sku' => $l['sku']))) ?>'>
-                <svg class="ico"><use href="#i-x"/></svg>
-              </button>
-            </li>
-          <?php } ?>
+          <?php foreach ($lines as $l) { $row($l); } ?>
         </ul>
 
         <div class="pay recv-total">
@@ -174,10 +206,18 @@ $canNew = can($user, 'product_add');      // ปุ่มเพิ่มสิ�
         </div>
       <?php } ?>
     </div>
-  </aside>
 
   <script>
-  /* แจ้งหน้าหลักว่าเนื้อหาเปลี่ยนแล้ว ให้คำนวณผลต่างกับเอกสารใหม่ */
+  /* แจ้งหน้าหลักว่าเนื้อหาเปลี่ยนแล้ว ให้คำนวณผลต่างกับเอกสารใหม่ (อยู่ใน aside เพื่อให้ทำงานทุกครั้งที่สลับแค่ใบ) */
   if (window.recvSync) { window.recvSync(); }
   </script>
+  </aside>
+<?php if ($LIVE_PART === 'all') { ?>
 </div>
+<?php } else { ?>
+<?php
+    /* ส่งกลับแค่ใบ → การ์ดที่ยอดในใบเปลี่ยน สลับใบเดียวแบบ hx-swap-oob */
+    foreach (Stock_getPickProducts($code, isset($OOB_SKUS) ? $OOB_SKUS : array()) as $p) {
+        $tile($p, true);
+    }
+} ?>

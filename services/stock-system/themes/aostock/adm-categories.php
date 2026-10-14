@@ -10,6 +10,8 @@
  *   - [x] ช่วงที่ 10: แก้ File Header ให้ตรงกับระบบจริง
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  *   - [x] 12 ต.ค.: ปุ่ม “ลบหมวดนี้” ถามยืนยันก่อนลบ (เดิมลบเลย)
+ *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 4): ตารางของแต่ละหมวดครั้งละ 60 แถว + ปุ่ม “แสดงเพิ่ม” (htmx ?c=&from=) · หมวดที่พับอยู่โหลดตารางตอนกดเปิด (?part=table)
+ *         — เดิมวาดสินค้าทุกตัวทุกหมวด (3,000 ตัว = 2.6 MB)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -85,6 +87,55 @@ foreach ($cats as $c => $x) {
 }
 $first = key($rows);
 
+/* แถวสินค้าในตารางของหมวด — ใช้ทั้งตอนวาดหน้า และตอนกด “แสดงเพิ่ม” */
+$row = function ($p) use ($br) { ?>
+              <tr>
+                <td data-label="สินค้า"><b class="hist-t"><?php echo e($p['name']) ?></b><small class="hist-n"><?php echo e($p['sku']) ?> · จุดสั่งซื้อ <?php echo number_format($p['reorder']) ?> <?php echo e($p['unit']) ?></small></td>
+                <?php foreach ($br as $bc => $b) { $st = branch_status($p, $bc); ?>
+                  <td data-label="<?php echo e($b['short']) ?>" class="r num"><span class="stk stk-<?php echo e($st) ?>"><?php echo number_format(product_qty($p, $bc)) ?></span></td>
+                <?php } ?>
+                <td data-label="รวม" class="r num"><b><?php echo number_format(product_qty($p, 'ALL')) ?></b> <small><?php echo e($p['unit']) ?></small></td>
+                <td data-label="ราคาทุน / ขาย" class="r num nowrap"><?php echo e(money2($p['cost'])) ?> / <?php echo e(money2($p['price'])) ?></td>
+              </tr>
+<?php
+};
+/* ตารางของแต่ละหมวดแสดงครั้งละ 60 แถว + ปุ่ม “แสดงเพิ่ม” (งานความเร็ว ช่วง 4)
+   หมวดที่พับอยู่ยังไม่วาดตาราง — โหลดตอนกดเปิด (htmx ?c=หมวด&part=table) · htmx ?c=หมวด&from=N = แค่แถวชุดถัดไป */
+list($from, $end) = Stock_getListRange();
+$cols    = count($br) + 3;
+$moreUrl = function ($c) use ($q) { return 'adm-categories.php?c=' . rawurlencode($c) . ($q !== '' ? '&q=' . rawurlencode($q) : ''); };
+$table   = function ($c, $r) use ($br, $row, $cols, $moreUrl) { ?>
+      <div class="tbl-wrap">
+        <table class="tbl hist-all">
+          <thead>
+            <tr>
+              <th>สินค้า</th>
+              <?php foreach ($br as $bc => $b) { ?><th class="r"><?php echo e($b['short']) ?></th><?php } ?>
+              <th class="r">รวม</th>
+              <th class="r">ราคาทุน / ขาย</th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php foreach (array_slice($r['prods'], 0, PRODUCT_PAGE_SIZE) as $p) { $row($p); } ?>
+            <?php Stock_renderMoreButton(PRODUCT_PAGE_SIZE, count($r['prods']), $moreUrl($c), $cols); ?>
+          </tbody>
+        </table>
+      </div>
+<?php
+};
+if (isset($_SERVER['HTTP_HX_REQUEST']) && $_SERVER['HTTP_HX_REQUEST'] === 'true' && (isset($_GET['from']) || isset($_GET['part']))) {
+    $c = (isset($_GET['c']) && is_string($_GET['c'])) ? $_GET['c'] : '';
+    if (isset($rows[$c]) && isset($_GET['part'])) {
+        $table($c, $rows[$c]);
+    } elseif (isset($rows[$c])) {
+        foreach (array_slice($rows[$c]['prods'], $from, $end - $from) as $p) {
+            $row($p);
+        }
+        Stock_renderMoreButton($end, count($rows[$c]['prods']), $moreUrl($c), $cols);
+    }
+    exit;
+}
+
 $branch         = 'ALL';
 $NO_BRANCH_PICK = true;
 $PAGE_TITLE     = 'หมวดสินค้า';
@@ -153,30 +204,11 @@ require dirname(__FILE__) . '/inc/header.php';
     <?php } ?>
     <?php if (!$r['prods']) { ?>
       <p class="empty">ยังไม่มีสินค้าในหมวดนี้</p>
-    <?php } else { ?>
-      <div class="tbl-wrap">
-        <table class="tbl hist-all">
-          <thead>
-            <tr>
-              <th>สินค้า</th>
-              <?php foreach ($br as $bc => $b) { ?><th class="r"><?php echo e($b['short']) ?></th><?php } ?>
-              <th class="r">รวม</th>
-              <th class="r">ราคาทุน / ขาย</th>
-            </tr>
-          </thead>
-          <tbody>
-            <?php foreach ($r['prods'] as $p) { ?>
-              <tr>
-                <td data-label="สินค้า"><b class="hist-t"><?php echo e($p['name']) ?></b><small class="hist-n"><?php echo e($p['sku']) ?> · จุดสั่งซื้อ <?php echo number_format($p['reorder']) ?> <?php echo e($p['unit']) ?></small></td>
-                <?php foreach ($br as $bc => $b) { $st = branch_status($p, $bc); ?>
-                  <td data-label="<?php echo e($b['short']) ?>" class="r num"><span class="stk stk-<?php echo e($st) ?>"><?php echo number_format(product_qty($p, $bc)) ?></span></td>
-                <?php } ?>
-                <td data-label="รวม" class="r num"><b><?php echo number_format(product_qty($p, 'ALL')) ?></b> <small><?php echo e($p['unit']) ?></small></td>
-                <td data-label="ราคาทุน / ขาย" class="r num nowrap"><?php echo e(money2($p['cost'])) ?> / <?php echo e(money2($p['price'])) ?></td>
-              </tr>
-            <?php } ?>
-          </tbody>
-        </table>
+    <?php } elseif ($q !== '' || $c === $first) { ?>
+      <?php $table($c, $r); ?>
+    <?php } else { /* หมวดที่ยังพับอยู่ — โหลดตารางตอนกดเปิด (เหตุการณ์ toggle ของ details) */ ?>
+      <div class="lazy-tbl" hx-get="<?php echo e($moreUrl($c) . '&part=table') ?>" hx-trigger="toggle once from:closest details" hx-swap="outerHTML">
+        <p class="empty">กำลังโหลดรายการสินค้า…</p>
       </div>
     <?php } ?>
   </details>

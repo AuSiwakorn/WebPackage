@@ -19,6 +19,7 @@
  *   - [x] 8 ต.ค.: ล็อกจากการกรอกผิด — บอกล็อกที่นานที่สุดตั้งแต่ครั้งที่ 5 (เดิมขึ้น “รออีก 58 วินาที” แล้วโดนล็อกบัญชีต่ออีก 15 นาที)
  *         · เวลานับถอยหลังทุกวินาที (นาที:วินาที) · ระหว่างล็อกแป้น PIN / ปุ่มเข้าสู่ระบบกดไม่ได้ เฉพาะชื่อที่ติดล็อก · หมดเวลาขึ้น “ลองใหม่ได้แล้ว”
  *   - [x] 12 ต.ค.: “ลืมรหัสผ่าน?” บอกให้ติดต่อคนดูแลเว็บ (เลิกพูดถึงหลังบ้าน admweb บนหน้าจอ)
+ *   - [x] 14 ต.ค.: ?out=1 (หลุดระหว่างทำรายการ) ขึ้นข้อความ “หลุดจากระบบแล้ว”
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -253,6 +254,12 @@ foreach (users_active() as $u) {
       </div>
       <?php } ?>
 
+      <?php if ($error === '' && isset($_GET['out'])) { /* หลุดระหว่างทำรายการ (require_login) */ ?>
+        <div class="alert alert-warn" role="alert">
+          <svg class="ico"><use href="#i-alert"/></svg>
+          <span>หลุดจากระบบแล้ว — เข้าสู่ระบบอีกครั้ง ของที่ยังไม่ได้บันทึกต้องทำใหม่</span>
+        </div>
+      <?php } ?>
       <?php if ($error !== '') { $errT = explode('{t}', $error, 2); ?>
         <div class="alert alert-error" role="alert" id="lg-alert"<?php if ($lockInfo !== null) { /* ล็อก: JS นับถอยหลัง + ล็อกแป้นตามชื่อที่เลือก (8 ต.ค.) */ ?>
              data-dev="<?php echo (int) $lockInfo['dev'] ?>" data-ip="<?php echo (int) $lockInfo['ip'] ?>" data-acc="<?php echo (int) $lockInfo['acc'] ?>"

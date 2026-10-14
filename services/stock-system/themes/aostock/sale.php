@@ -11,6 +11,9 @@
  *   - [x] แจ้งเหตุผลตอนพาไปหน้าเปิดร้าน — ร้านยังไม่เปิด / ปิดแล้ว (บอกวิธีเปิดร้านอีกครั้งตามสิทธิ์)
  *   - [x] ข้อความร้านปิดเรียกปุ่มตามชื่อจริง “เปิดร้านใหม่” (เดิมเขียน “เปิดร้านอีกครั้ง” ซึ่งเป็นชื่อสิทธิ์)
  *   - [x] 12 ต.ค.: ช่อง “รับเงินมา” รับสตางค์ได้ 2 ตำแหน่ง — เดิมตัดจุดทิ้ง พิมพ์ 100.50 กลายเป็น 10,050
+ *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 3): htmx แตะสินค้า / ปุ่มในตะกร้า / รับเงิน ส่งกลับแค่ตะกร้า + การ์ดที่ยอดเปลี่ยน ($LIVE_PART / $OOB_SKUS)
+ *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 4): การ์ดครั้งละ 60 ใบ — htmx ?from= ส่งกลับแค่ชุดถัดไป
+ *   - [x] 14 ต.ค.: รับเงินเทียบยอดที่จอเห็น (full) กับตะกร้าจริง — ไม่ตรง = ไม่บันทึก (กันส่วนลดผิดจากยอดบนจอที่ยังไม่อัปเดต)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -55,6 +58,10 @@ $cat  = isset($_GET['cat']) ? trim($_GET['cat']) : '';
 $err    = '';
 $done   = null;
 $voided = null;
+/* htmx ส่งกลับส่วนไหน (งานความเร็ว ช่วง 3): แตะสินค้า / ปุ่มในตะกร้า / รับเงิน = แค่ตะกร้า + การ์ดที่ยอดเปลี่ยน
+   ค้นหา / เลือกหมวด / แก้ไข / ยกเลิกบิล = ทั้งส่วน (#sale-live) */
+$LIVE_PART = 'all';
+$OOB_SKUS  = array();
 
 /* ---------- รับคำสั่ง ---------- */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -63,6 +70,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $act = isset($_POST['act']) ? $_POST['act'] : '';
         $sku = isset($_POST['sku']) ? trim($_POST['sku']) : '';
+        if (in_array($act, array('add', 'minus', 'set', 'del'), true)) {
+            $LIVE_PART = 'cart';
+            $OOB_SKUS  = array($sku);
+        } elseif ($act === 'clear' || $act === 'pay') {
+            $LIVE_PART = 'cart';
+            $OOB_SKUS  = array_keys(cart_all());      // ล้างตะกร้า = ป้ายบนการ์ดหาย · รับเงินแล้ว = ยอดคงเหลือบนการ์ดลดลง
+        }
 
         if ($act === 'add') {
             if (!cart_add($sku, $code, 1)) {
@@ -117,7 +131,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $vat    = (isset($_POST['vat']) && $_POST['vat'] === '1');
             $netIn  = isset($_POST['net']) ? preg_replace('/[^0-9.]/', '', $_POST['net']) : '';
             $net    = ($netIn === '' || !is_numeric($netIn)) ? null : (float) $netIn;
-            if ($net !== null && ($net <= 0 || $net > cart_total() + 0.001)) {
+            if (isset($_POST['full']) && abs((float) $_POST['full'] - cart_total()) > 0.005) {
+                $err = 'ยอดในตะกร้าเพิ่งเปลี่ยน — ตรวจยอดอีกครั้งแล้วกดรับเงินใหม่';   // จอยังแสดงยอดเก่า (ส่วนลดจะคิดผิด)
+            } elseif ($net !== null && ($net <= 0 || $net > cart_total() + 0.001)) {
                 $err = 'ยอดที่ต้องชำระต้องมากกว่า 0 และไม่เกินราคาเต็ม ' . money2(cart_total()) . ' บาท';
             } else {
                 $done = bill_save($code, $user, $method, $recv, $vat, $net);
@@ -159,6 +175,12 @@ if ($voided === null && (isset($_GET['voided']) || isset($_GET['edited']))) {
 }
 
 /* ---------- คำขอจาก htmx: ส่งกลับเฉพาะส่วนที่เปลี่ยน ---------- */
+/* กด “แสดงเพิ่ม” (?from=) → แค่การ์ดชุดถัดไป — ไม่ส่งข้อความแจ้งผล (#sale-flash) ไปทับข้อความเดิมบนจอ (ช่วง 4) */
+if ($isHx && $_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['from'])) {
+    $LIVE_PART = 'more';
+    require dirname(__FILE__) . '/inc/sale-live.php';
+    exit;
+}
 if ($isHx) {
     sale_flash($err, $done, $voided, true);
     echo '<i id="cart-bdg" class="bdg' . (cart_count() > 0 ? '' : ' none') . '" hx-swap-oob="true">'
@@ -175,6 +197,7 @@ $NAV_ACTIVE = 'sale.php';
 require dirname(__FILE__) . '/inc/header.php';
 
 sale_flash($err, $done, $voided, false);
+$LIVE_PART = 'all';                  // หน้าเต็มวาดทั้งส่วนเสมอ (ฟอร์มธรรมดาที่บันทึกไม่ผ่านก็มาถึงตรงนี้)
 require dirname(__FILE__) . '/inc/sale-live.php';
 
 require dirname(__FILE__) . '/inc/footer.php';

@@ -6,6 +6,7 @@
  * TABLES: ao_stock_count, ao_stock_count_item, ao_stock_move, ao_stock_balance, ao_stock_log
  * TODO:
  *   - [x] ช่วงที่ 10: แยกจาก api.php เดิม (ย้ายโค้ดทั้งก้อน ไม่แก้ตรรกะ) · จัดฟังก์ชันที่เคยปนอยู่หมวดอื่นให้มาอยู่หมวดนี้
+ *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 5): adraft_lines ดึงสินค้าในใบคิวรีเดียว (Stock_prefetchProducts) — เดิมโหลดสินค้าทั้งร้าน
  *
  * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
  */
@@ -158,6 +159,7 @@ function adraft_meta()
 function adraft_lines($code)
 {
     $out = array();
+    Stock_prefetchProducts(array_keys(adraft_all()));    // ดึงสินค้าในใบคิวรีเดียว (ช่วง 5)
     foreach (adraft_all() as $sku => $counted) {
         $p = product_by_sku($sku);
         if ($p === null) {

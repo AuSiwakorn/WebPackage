@@ -10,6 +10,7 @@
  *   - [x] ช่วงที่ 10: แก้ File Header ให้ตรงกับระบบจริง · กัน XSS — ชื่อหมวดในกล่องยืนยันลบอ่านจาก data-ask (ไม่ต่อลง JavaScript ตรง ๆ)
  *   - [x] ช่วงที่ 11: แยกสิทธิ์เพิ่มหมวด (category_add) / ลบหมวด (category_del) — เช็กทั้งตอนแสดงฟอร์มและตอนบันทึก
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
+ *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 4): popup รายชื่อสินค้าในหมวดโหลดตอนกด (?list=) ครั้งละ 60 + “แสดงเพิ่ม” — เดิมฝังสินค้าทุกหมวดไว้ใน <template>
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -22,7 +23,7 @@ if (!defined('ALLOW_DIRECT_ACCESS')) {
    - เพิ่มหมวดใหม่ได้ (ชื่อห้ามซ้ำ) — ต้องมีสิทธิ์ category_add
    - ลบได้เฉพาะหมวดที่ยังไม่มีสินค้า — หมวดที่มีสินค้าต้องย้ายสินค้าออกก่อน · ต้องมีสิทธิ์ category_del
    - หมวดใช้ร่วมกันทุกสาขา · ทุกการเพิ่ม / ลบ ลงประวัติของสาขาที่ทำ
-   - กดจำนวนสินค้า → popup รายชื่อสินค้าในหมวด พร้อมราคาและคงเหลือของสาขาตัวเอง
+   - กดจำนวนสินค้า → popup รายชื่อสินค้าในหมวด พร้อมราคาและคงเหลือของสาขาตัวเอง (โหลดตอนกด ครั้งละ 60)
    ผู้ดูแลเพิ่ม / ลบหมวดได้ที่ adm-categories.php ด้วย
    ========================================================== */
 
@@ -35,6 +36,47 @@ $errAt = '';
 $name = '';
 $canAdd = can($user, 'category_add');
 $canDel = can($user, 'category_del');
+
+/* ---------- popup รายชื่อสินค้าในหมวด — โหลดตอนกด (งานความเร็ว ช่วง 4) ----------
+   เดิมฝังรายชื่อสินค้าของทุกหมวดไว้ในหน้า (<template>) — สินค้าเป็นพัน = หน้าใหญ่หลาย MB
+   ?list=ชื่อหมวด → หัว popup + ตาราง 60 แถวแรก · &from=N (htmx “แสดงเพิ่ม”) → แค่แถวชุดถัดไป */
+if (isset($_GET['list']) && is_string($_GET['list'])) {
+    $lc  = $_GET['list'];
+    $reg = cat_registry();
+    if (!isset($reg[$lc])) {
+        http_response_code(404);
+        exit;
+    }
+    $prods = cat_products($lc);
+    list($from, $end, $isMore) = Stock_getListRange();
+    $url   = 'categories.php?list=' . rawurlencode($lc);
+    if (!$isMore) { ?>
+    <div class="ds-head">
+      <h2><?php echo e($lc) ?></h2>
+      <p class="sub"><?php echo number_format(count($prods)) ?> รายการ · คงเหลือของ<?php echo e(branch_name($code)) ?></p>
+    </div>
+    <div class="ds-pane">
+      <table class="ds-lines">
+        <thead><tr><th>สินค้า</th><th class="r">ราคาขาย</th><th class="r">คงเหลือ</th></tr></thead>
+        <tbody>
+<?php
+    }
+    foreach (array_slice($prods, $from, $end - $from) as $p) {
+        $st = branch_status($p, $code); ?>
+            <tr><td><?php echo e($p['name']) ?> <small><?php echo e($p['sku']) ?></small></td>
+                <td class="r num"><?php echo e(money2($p['price'])) ?></td>
+                <td class="r num"><span class="stk stk-<?php echo e($st) ?>"><?php echo number_format(product_qty($p, $code)) ?></span> <small><?php echo e($p['unit']) ?></small></td></tr>
+<?php
+    }
+    Stock_renderMoreButton($end, count($prods), $url, 3);
+    if (!$isMore) { ?>
+        </tbody>
+      </table>
+    </div>
+<?php
+    }
+    exit;
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $act = isset($_POST['act']) ? $_POST['act'] : '';
@@ -113,7 +155,7 @@ require dirname(__FILE__) . '/inc/header.php';
             <td data-label="หมวด"><b><?php echo e($c) ?></b></td>
             <td data-label="สินค้า" class="r num">
               <?php if ($x['count']) { ?>
-                <button type="button" class="cell-link" data-cat-list="cl-<?php echo e(substr(md5($c), 0, 8)) ?>" title="ดูรายชื่อสินค้าในหมวดนี้"><?php echo number_format($x['count']) ?> รายการ</button>
+                <button type="button" class="cell-link" data-cat-list="<?php echo e($c) ?>" title="ดูรายชื่อสินค้าในหมวดนี้"><?php echo number_format($x['count']) ?> รายการ</button>
               <?php } else { ?><span class="adm-none">ยังไม่มีสินค้า</span><?php } ?>
             </td>
             <td data-label="ที่มา"><?php echo $x['added'] ? '<small>เพิ่ม' . ($x['by'] !== '' ? 'โดย ' . e($x['by']) . ' · ' : 'เมื่อ ') . e($x['at']) . '</small>' : '<small>หมวดตั้งต้น</small>' ?></td>
@@ -137,28 +179,7 @@ require dirname(__FILE__) . '/inc/header.php';
   </div>
 </section>
 
-<!-- ==================== รายชื่อสินค้าในแต่ละหมวด (แสดงใน popup เมื่อกดจำนวน) ==================== -->
-<?php foreach ($cats as $c => $x) { if (!$x['count']) { continue; } ?>
-  <template id="cl-<?php echo e(substr(md5($c), 0, 8)) ?>">
-    <div class="ds-head">
-      <h2><?php echo e($c) ?></h2>
-      <p class="sub"><?php echo number_format($x['count']) ?> รายการ · คงเหลือของ<?php echo e(branch_name($code)) ?></p>
-    </div>
-    <div class="ds-pane">
-      <table class="ds-lines">
-        <thead><tr><th>สินค้า</th><th class="r">ราคาขาย</th><th class="r">คงเหลือ</th></tr></thead>
-        <tbody>
-          <?php foreach (cat_products($c) as $p) { $st = branch_status($p, $code); ?>
-            <tr><td><?php echo e($p['name']) ?> <small><?php echo e($p['sku']) ?></small></td>
-                <td class="r num"><?php echo e(money2($p['price'])) ?></td>
-                <td class="r num"><span class="stk stk-<?php echo e($st) ?>"><?php echo number_format(product_qty($p, $code)) ?></span> <small><?php echo e($p['unit']) ?></small></td></tr>
-          <?php } ?>
-        </tbody>
-      </table>
-    </div>
-  </template>
-<?php } ?>
-
+<!-- ==================== รายชื่อสินค้าในหมวด — popup โหลดตอนกดจำนวน (categories.php?list=) ==================== -->
 <dialog class="ds-modal" id="cl-modal" aria-label="สินค้าในหมวด">
   <button type="button" class="icon-btn ds-close" data-cl-close aria-label="ปิด"><svg class="ico"><use href="#i-x"/></svg></button>
   <div class="ds-body" id="cl-body"></div>
@@ -170,10 +191,12 @@ require dirname(__FILE__) . '/inc/header.php';
   document.addEventListener('click', function (ev) {
     var t = ev.target.closest ? ev.target.closest('[data-cat-list]') : null;
     if (t) {
-      var tpl = document.getElementById(t.getAttribute('data-cat-list'));
-      body.innerHTML = '';
-      if (tpl) { body.appendChild(tpl.content.cloneNode(true)); }
+      body.innerHTML = '<p class="empty">กำลังโหลด…</p>';
       dlg.showModal();
+      fetch('categories.php?list=' + encodeURIComponent(t.getAttribute('data-cat-list')), { credentials: 'same-origin' })
+        .then(function (r) { if (!r.ok) { throw new Error(r.status); } return r.text(); })
+        .then(function (h) { body.innerHTML = h; if (window.htmx) { htmx.process(body); } })   /* ปุ่ม “แสดงเพิ่ม” ใช้ htmx */
+        .catch(function () { body.innerHTML = '<p class="empty">โหลดไม่สำเร็จ ลองใหม่อีกครั้ง</p>'; });
       return;
     }
     if ((ev.target.closest && ev.target.closest('[data-cl-close]')) || ev.target === dlg) { dlg.close(); }

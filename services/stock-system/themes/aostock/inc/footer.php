@@ -15,6 +15,11 @@
  *   - [x] 8 ต.ค.: ปุ่มบันทึกที่ยังกรอกไม่ครบ (button[data-need] + aoNeedSync) — กดแล้วเลื่อนไปช่องที่ขาด กะพริบ + ข้อความ แทนปุ่ม disabled ที่กดแล้วเงียบ
  *   - [x] 8 ต.ค.: คอลัมน์ขวา (.sale-cart) สูงเกินจอ → ค้างที่ขอบล่างแทน (--cart-top · aoCartFit) ปุ่มรับเงิน / ช่องหมายเหตุไม่จมใต้ขอบจอ
  *   - [x] 12 ต.ค.: กล่องยืนยันการรับเงินแสดง “รับมา” มีสตางค์ได้ · ยกเลิกใบตรวจนับบอก “ส่วนต่างที่จะปรับกลับเป็นก่อนนับ” (เดิมใช้คำของใบตัดออก)
+ *   - [x] 14 ต.ค.: ตัวโหลดกลางจอ (#ld-busy) ขึ้นเมื่อรอ htmx / เปลี่ยนหน้าเกิน 0.3 วินาที ไม่บังการแตะ · เน็ตหลุด / เซิร์ฟเวอร์ตอบผิดพลาด / รอเกิน 30 วินาที ขึ้นข้อความล่างจอ (#ld-err)
+ *   - [x] 14 ต.ค. (ผู้ใช้ขอ): กล่องโหลดขึ้นแล้วจอเป็นสีเทาและกดอะไรไม่ได้จนโหลดเสร็จ (เดิมแตะทะลุได้) — สไตล์ .ld-busy ใน assets/app.css
+ *   - [x] 14 ต.ค. (ผู้ใช้เลือก): + / − นับในเครื่องก่อนแล้วบันทึกเบื้องหลัง (data-step · input[data-qty]) — เดิมกดรัว ๆ แล้วหาย · ไม่บังจอตอนบันทึกจำนวน (data-no-busy)
+ *         · กดรับเงิน / บันทึก ([data-qty-guard]) ตอนยังส่งไม่ครบ = ส่งก่อนแล้วกดให้เอง · ตะกร้าวาดใหม่แล้วเงินที่พิมพ์ในช่องรับเงินไม่หาย
+ *   - [x] 14 ต.ค. (ผู้ใช้เลือก): แตะสินค้าตัวใหม่ขึ้นตะกร้า / ใบทันที (addRow จากแม่แบบ #pick-row) แล้วบันทึกเบื้องหลังแบบ + / −
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -111,8 +116,333 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
 })();
 </script>
 
+<!-- ===== กำลังโหลด: กล่องกลางจอระหว่างรอ (แตะปุ่ม / สินค้า และเปลี่ยนหน้า) — ขึ้นเมื่อรอเกิน 0.3 วินาที จอเป็นสีเทา กดอะไรไม่ได้จนเสร็จ ===== -->
+<div class="ld-busy" id="ld-busy" role="status" aria-live="polite" hidden>
+  <div class="ld-box">
+    <span class="lg-spin" aria-hidden="true"></span>
+    <b>กำลังโหลด…</b>
+  </div>
+</div>
+<div class="alert alert-error ld-err" id="ld-err" role="alert" hidden>
+  <svg class="ico"><use href="#i-info"/></svg>
+  <span id="ld-err-t"></span>
+  <button class="icon-btn" type="button" id="ld-err-x" aria-label="ปิด"><svg class="ico"><use href="#i-x"/></svg></button>
+</div>
+
 <!-- htmx: สลับเฉพาะส่วนที่เปลี่ยน ไม่ต้องโหลดหน้าใหม่ (เก็บไฟล์ไว้ในเครื่อง ไม่พึ่ง CDN) -->
 <script src="<?php echo e(asset_url('htmx.min.js')) ?>"></script>
+<script>
+/* ===== กำลังโหลด + แจ้งเมื่อทำรายการไม่สำเร็จ =====
+   - htmx: จำคำขอที่ค้างอยู่ (xhr) ซ่อนเมื่อทุกคำขอวาดเสร็จ (afterSettle) — ไม่ใช่ตอนได้คำตอบ (afterRequest) เพราะส่วนที่ได้มาใหญ่
+     จอยังค้างวาดอยู่อีกพัก · ไม่สำเร็จ = ซ่อนทันที · สำเร็จแต่ไม่มีการสลับเนื้อหา = ซ่อนใน 0.4 วินาที
+     เน็ตหลุด / เซิร์ฟเวอร์ตอบผิดพลาด / รอเกิน 30 วินาที → ขึ้นข้อความล่างจอ
+   - เปลี่ยนหน้า: beforeunload ครอบทุกทาง (ลิงก์ ฟอร์ม และ this.form.submit()) · ลิงก์ดาวน์โหลด (a[download]) ไม่นับ
+   - กลับมาด้วยปุ่มย้อนกลับ (pageshow) → ซ่อน */
+(function () {
+  var box = document.getElementById('ld-busy'), err = document.getElementById('ld-err'), errT = document.getElementById('ld-err-t');
+  if (!box) { return; }
+  var live = [], tm = null, errTm = null, noBusy = false;
+  function show() {
+    if (tm || !box.hidden) { return; }
+    tm = setTimeout(function () { tm = null; box.hidden = false; }, 300);
+  }
+  function hide() {
+    if (tm) { clearTimeout(tm); tm = null; }
+    box.hidden = true;
+  }
+  function fail(msg) {
+    errT.textContent = msg;
+    err.hidden = false;
+    if (errTm) { clearTimeout(errTm); }
+    errTm = setTimeout(function () { err.hidden = true; }, 8000);
+  }
+  document.getElementById('ld-err-x').addEventListener('click', function () { err.hidden = true; });
+  if (window.htmx) {
+    htmx.config.timeout = 30000;
+    /* คำตอบที่มาหลังตะกร้า / ใบถูกวาดใหม่แล้ว → ลงตัวที่อยู่บนจอ (id เดียวกัน) แทนตัวเก่าที่หลุดจากหน้า · ใช้กับปลายทางที่มี hx-ext="ao-live" */
+    htmx.defineExtension('ao-live', {
+      onEvent: function (name, ev) {
+        var t = ev.detail && ev.detail.target;
+        if (name === 'htmx:beforeSwap' && t && t.id && !document.body.contains(t) && document.getElementById(t.id)) {
+          ev.detail.target = document.getElementById(t.id);
+        }
+      }
+    });
+  }
+  function done(x) {
+    var i = live.indexOf(x);
+    if (i !== -1) { live.splice(i, 1); }
+    if (!live.length) { hide(); }
+  }
+  document.body.addEventListener('htmx:beforeRequest', function (e) {
+    if (e.detail.elt && e.detail.elt.closest && e.detail.elt.closest('[data-no-busy]')) { return; }   // บันทึกจำนวนเบื้องหลัง (+ / −) ไม่บังจอ
+    var x = e.detail.xhr;
+    live.push(x); err.hidden = true; show();
+    /* ตัวสำรองจากตัวคำขอเอง — htmx:afterRequest ยิงที่ element เดิม ถ้าถูกวาดทับไปแล้วจะไม่ถึง body */
+    if (x && x.addEventListener) {
+      x.addEventListener('loadend', function () {
+        if (x.status >= 200 && x.status < 300) { setTimeout(function () { done(x); }, 400); } else { done(x); }
+      });
+    }
+  });
+  document.body.addEventListener('htmx:afterSettle', function (e) { done(e.detail.xhr); });
+  document.body.addEventListener('htmx:sendError', function () { fail('เชื่อมต่อไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วแตะใหม่อีกครั้ง'); });
+  document.body.addEventListener('htmx:timeout', function () { fail('ระบบตอบช้าเกินไป — แตะใหม่อีกครั้ง'); });
+  document.body.addEventListener('htmx:responseError', function (e) {
+    fail('ทำรายการไม่สำเร็จ (รหัส ' + e.detail.xhr.status + ') — แตะใหม่อีกครั้ง ถ้ายังเป็นให้กลับหน้าแรกแล้วลองใหม่');
+  });
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest ? e.target.closest('a[download]') : null;
+    if (a) { noBusy = true; setTimeout(function () { noBusy = false; }, 1000); }
+  }, true);
+  window.addEventListener('beforeunload', function () { if (!noBusy) { show(); } });
+  window.addEventListener('pageshow', function () { live = []; hide(); });
+})();
+
+/* ===== + / − นับในเครื่องก่อน แล้วค่อยบันทึกเบื้องหลัง (ผู้ใช้เลือก 14 ต.ค.) =====
+   เดิมทุกครั้งที่กด + / − ต้องรอเซิร์ฟเวอร์ตอบก่อนตัวเลขจะเปลี่ยน และระหว่างรอ htmx เก็บไว้แค่การกดครั้งสุดท้าย
+   (เน็ตไป-กลับ 0.25 วินาที กดรัว ๆ 5 ครั้ง ได้แค่ 2)
+   - ปุ่ม [data-step] ในแถวตะกร้า / ใบ → ตัวเลขในช่อง input[data-qty] เปลี่ยนทันที (ไม่ต่ำกว่า data-min · ไม่เกิน data-max)
+   - แตะการ์ดสินค้าที่อยู่ในตะกร้า / ใบแล้ว (ช่องมี data-tile) = กด + ของแถวนั้น · ป้ายจำนวนบนการ์ดเปลี่ยนตาม
+   - หยุดกด 0.4 วินาที → ส่ง “จำนวน = N” ครั้งเดียว (change ของช่อง → act=set) · ไม่ขึ้นกล่องโหลด (data-no-busy)
+   - ส่งไปแล้วกดต่อ → คำตอบที่มาทีหลังไม่ทับตัวเลขใหม่ (จำค่าที่ต้องการใน want แล้วส่งซ้ำ) · เซิร์ฟเวอร์ปรับลง (เกินของที่มี) = ใช้ค่าของเซิร์ฟเวอร์
+   - ตรวจนับ: นับเกิน / ขาดคิดจากตัวเลขในช่องทันที → กล่องสาเหตุขึ้น / หายทันที (adjSync)
+   - กดรับเงิน / บันทึกใบ ([data-qty-guard]) ตอนยังส่งไม่ครบ → ส่งที่ค้างทันที รอคำตอบ แล้วกดปุ่มนั้นให้อีกครั้งเอง
+   - ล้างทั้งตะกร้า / ใบ หรือเอาแถวออก → ลืมตัวเลขที่ยังไม่ได้ส่งของแถวนั้น
+   - แตะสินค้าตัวใหม่ → สร้างแถวจากแม่แบบ #pick-row + data-pick ของการ์ดทันที แล้วส่งแบบเดียวกับ + / − (fresh = แถวที่เซิร์ฟเวอร์ยังไม่มี) */
+(function () {
+  if (!window.htmx) { return; }
+  var want = {}, sent = {}, timer = null, inflight = 0, again = '', fresh = {}, pend = {};
+  var esc = function (s) { return (window.CSS && CSS.escape) ? CSS.escape(s) : String(s).replace(/["\\]/g, '\\$&'); };
+  function field(sku) { return document.querySelector('input[data-qty][data-sku="' + esc(sku) + '"]'); }
+  var commas = function (s) { return s.replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
+  /* สร้างแถวของสินค้าที่ยังไม่อยู่ในตะกร้า / ใบ — คืนช่องจำนวน หรือ null ถ้าหน้านี้ไม่มีแม่แบบ */
+  function addRow(sku) {
+    var tpl = document.getElementById('pick-row'), d = fresh[sku];
+    if (!tpl || !d) { return null; }
+    var box = tpl.parentNode, list = box.querySelector('.cart-list'), empty = box.querySelector('.empty-cart');
+    if (!list && !empty) { return null; }
+    var ul = tpl.content.firstElementChild.cloneNode(true), li = ul.firstElementChild;
+    var js = JSON.stringify(sku).slice(1, -1);
+    var put = function (s, json) { return s.split('{sku}').join(json ? js : sku).split('{name}').join(d.name).split('{unit}').join(d.unit); };
+    [li].concat([].slice.call(li.querySelectorAll('*'))).forEach(function (el) {
+      for (var k = 0; k < el.attributes.length; k++) {
+        if (el.attributes[k].value.indexOf('{') !== -1) { el.attributes[k].value = put(el.attributes[k].value, el.attributes[k].name === 'hx-vals'); }
+      }
+    });
+    var w = document.createTreeWalker(li, NodeFilter.SHOW_TEXT), n;
+    while ((n = w.nextNode())) { if (n.nodeValue.indexOf('{') !== -1) { n.nodeValue = put(n.nodeValue, false); } }
+    var have = d.have || 0, dir = parseInt(tpl.getAttribute('data-dir') || '0', 10), price = commas((d.price || 0).toFixed(2));
+    var val = { price: price, qty: '1', sum: price, have: commas(String(have)), after: commas(String(have + dir)) };
+    li.querySelectorAll('[data-f]').forEach(function (s) { s.textContent = val[s.getAttribute('data-f')]; });
+    var inp = li.querySelector('input[data-qty]');
+    inp.value = '0';
+    inp.setAttribute('data-max', d.max);
+    li.setAttribute('data-fresh', '');
+    if (list) { list.appendChild(li); } else { empty.parentNode.replaceChild(ul, empty); }
+    htmx.process(li);
+    if (want[sku] !== undefined) { paint(inp, want[sku]); }
+    if (window.recvSync) { window.recvSync(); }        // แถบล่างหน้านำเข้า / ตัดออกนับแถวใหม่ทันที
+    if (window.issueSync) { window.issueSync(); }
+    return inp;
+  }
+  /* ตะกร้าวาดใหม่ก่อนเซิร์ฟเวอร์รับแถวใหม่ → ใส่แถวกลับ · เซิร์ฟเวอร์มีแถวนั้นแล้ว → เลิกจำ */
+  function keepFresh() {
+    Object.keys(fresh).forEach(function (sku) {
+      var i = field(sku);
+      if (i) { if (!i.closest('[data-fresh]')) { delete fresh[sku]; } return; }
+      if (want[sku] > 0 && (pend[sku] > 0 || sent[sku] !== want[sku])) { addRow(sku); }
+    });
+  }
+  function dirty() { return timer !== null || inflight > 0 || Object.keys(want).length > 0; }
+  function bounds(inp) {
+    return [parseInt(inp.getAttribute('data-min') || '0', 10),
+            inp.hasAttribute('data-max') ? parseInt(inp.getAttribute('data-max'), 10) : 99999];
+  }
+  function tile(sku, v) {
+    var t = document.querySelector('.goods [data-sku="' + esc(sku) + '"]');
+    var b = t ? (t.matches('button') ? t : t.querySelector('button')) : null;
+    if (!b) { return; }
+    var g = b.querySelector('.g-bdg');
+    if (v > 0) {
+      if (!g) { g = document.createElement('i'); g.className = 'g-bdg'; b.insertBefore(g, b.firstChild); }
+      g.textContent = v;
+      b.classList.add('is-in');
+    } else {
+      if (g) { g.parentNode.removeChild(g); }
+      b.classList.remove('is-in');
+    }
+  }
+  function adjLocal() {
+    var s = document.getElementById('adj-sum');
+    if (!s) { return; }
+    var over = 0, short = 0;
+    document.querySelectorAll('.adj-list li[data-have]').forEach(function (li) {
+      var i = li.querySelector('input[data-qty]');
+      if (!i) { return; }
+      var d = (parseInt(i.value, 10) || 0) - (parseInt(li.getAttribute('data-have'), 10) || 0);
+      if (d > 0) { over++; } else if (d < 0) { short++; }
+    });
+    s.setAttribute('data-over', over);
+    s.setAttribute('data-short', short);
+    if (window.adjSync) { window.adjSync(); }
+  }
+  function paint(inp, v) {
+    var b = bounds(inp), li = inp.closest('li'), box = inp.closest('.sale-cart');
+    inp.value = v;
+    if (li) {
+      li.classList.add('is-pending');
+      li.querySelectorAll('[data-step]').forEach(function (x) {
+        var d = parseInt(x.getAttribute('data-step'), 10) || 0;
+        x.disabled = (d < 0) ? v <= b[0] : v >= b[1];
+      });
+    }
+    if (box) { box.classList.add('is-dirty'); }
+    if (inp.hasAttribute('data-tile')) { tile(inp.getAttribute('data-sku'), v); }
+    if (inp.closest('.adj-list')) { adjLocal(); }
+  }
+  /* ส่งทีละแถว — ส่งพร้อมกันแล้วคำตอบที่มาทีหลังเป็นของตะกร้าเก่า (ยอดรวมบนจอไม่ตรง) */
+  function flush() {
+    if (timer) { clearTimeout(timer); timer = null; }
+    if (inflight > 0) { return; }                         // รอคำตอบก่อน — afterSettle ตั้งเวลาส่งที่เหลือให้เอง
+    var keys = Object.keys(want);
+    for (var k = 0; k < keys.length; k++) {
+      var sku = keys[k];
+      if (sent[sku] === want[sku]) { continue; }          // ส่งค่านี้ไปแล้ว
+      var i = field(sku);
+      if (!i) { delete want[sku]; continue; }
+      i.value = want[sku];
+      sent[sku] = want[sku];
+      htmx.trigger(i, 'change');
+      return;
+    }
+  }
+  var lastTap = 0;
+  function schedule() {
+    if (timer) { return; }
+    timer = setTimeout(flush, Math.max(0, 400 - (Date.now() - lastTap)));
+  }
+  function step(inp, d) {
+    var b = bounds(inp);
+    var v = parseInt(String(inp.value).replace(/\D/g, ''), 10) || 0;
+    var n = Math.max(b[0], Math.min(b[1], v + d));
+    if (n === v) { return; }
+    want[inp.getAttribute('data-sku')] = n;
+    paint(inp, n);
+    lastTap = Date.now();
+    if (timer) { clearTimeout(timer); timer = null; }
+    schedule();
+  }
+  function forget(sku) {
+    if (sku === null) { want = {}; sent = {}; fresh = {}; if (timer) { clearTimeout(timer); timer = null; } return; }
+    delete want[sku];
+    delete sent[sku];
+    delete fresh[sku];
+  }
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest) { return; }
+    var b = e.target.closest('[data-step]');
+    if (b) {
+      e.preventDefault();
+      e.stopPropagation();
+      var li = b.closest('li'), inp = li ? li.querySelector('input[data-qty]') : null;
+      if (inp && !b.disabled) { step(inp, parseInt(b.getAttribute('data-step'), 10) || 0); }
+      return;
+    }
+    var t = e.target.closest('.goods [data-sku]');
+    if (t) {
+      var sk = t.getAttribute('data-sku'), f = field(sk);
+      if (!f && t.hasAttribute('data-pick')) {
+        try { fresh[sk] = JSON.parse(t.getAttribute('data-pick')); } catch (er) { fresh[sk] = null; }
+        f = addRow(sk);
+        if (!f) { delete fresh[sk]; }                   // ไม่มีแม่แบบ → ส่งแบบเดิม (รอเซิร์ฟเวอร์)
+      }
+      if (f && f.hasAttribute('data-tile')) { e.preventDefault(); e.stopPropagation(); step(f, 1); }
+      return;
+    }
+    var x = e.target.closest('.sale-cart .cl-x, .sale-cart .cl-del');
+    if (x) {
+      var row = x.closest('li'), ri = row ? row.querySelector('input[data-qty]') : null;
+      if (ri) { forget(ri.getAttribute('data-sku')); }
+      return;
+    }
+    if (e.target.closest('.sale-cart .card-head')) { forget(null); return; }   // ล้างทั้งตะกร้า / ใบ
+    var g = e.target.closest('[data-qty-guard]');
+    if (g && dirty()) {
+      e.preventDefault();
+      e.stopPropagation();
+      again = g.getAttribute('data-qty-guard');
+      flush();
+    }
+  }, true);
+  /* พิมพ์จำนวนเองในช่อง → ใช้ค่าที่พิมพ์ (ลืมค่าที่กดค้างของแถวนั้น) */
+  document.addEventListener('input', function (e) {
+    var i = e.target;
+    if (i && i.matches && i.matches('input[data-qty]')) { forget(i.getAttribute('data-sku')); }
+  }, true);
+  /* นับคำขอที่ค้างจากตัวคำขอเอง (loadend ของ XHR) — htmx:afterRequest ยิงที่ช่องเดิม ซึ่งถูกวาดทับไปแล้ว จึงไม่ถึง body
+     (เคยทำให้นับค้างที่ 1 แล้วไม่ส่งครั้งต่อไปเลย) · loadend มาหลังสลับเนื้อหา ก่อน afterSettle */
+  document.body.addEventListener('htmx:beforeRequest', function (e) {
+    var el = e.detail.elt, x = e.detail.xhr;
+    if (!el || !el.closest || !el.closest('[data-no-busy]') || !x) { return; }
+    var i = el.matches('input[data-qty]') ? el : el.querySelector('input[data-qty]');
+    var sku = i ? i.getAttribute('data-sku') : null;
+    inflight++;
+    if (sku !== null) { pend[sku] = (pend[sku] || 0) + 1; }
+    x.addEventListener('loadend', function () {
+      inflight = Math.max(0, inflight - 1);
+      if (sku !== null) { pend[sku] = Math.max(0, (pend[sku] || 1) - 1); }
+      if (x.status < 200 || x.status >= 300) {            // ส่งไม่สำเร็จ (เน็ตหลุด ฯลฯ — ข้อความแจ้งขึ้นจากตัวโหลด) → ค่านี้ยังไม่ถึงเซิร์ฟเวอร์
+        if (sku !== null) { delete sent[sku]; }
+        again = '';                                       // ไม่กดรับเงิน / บันทึกให้เอง — กดใหม่แล้วระบบส่งที่ค้างก่อน
+      }
+    });
+  });
+  /* หน้าขาย: ตะกร้าวาดใหม่หลังบันทึกจำนวนเบื้องหลัง → เงินที่พิมพ์ไว้ในช่อง “รับเงินมา” (เมื่อพิมพ์เอง) · VAT · วิธีจ่าย ไม่หาย */
+  var keep = null;
+  document.body.addEventListener('htmx:beforeSwap', function (e) {
+    var t = e.detail.target;
+    keep = null;
+    if (!t || t.id !== 'sale-cart') { return; }
+    var rec = document.getElementById('received');
+    var pick = function (n) { var r = t.querySelector('input[name="' + n + '"]:checked'); return r ? r.value : null; };
+    keep = { rec: (rec && rec.getAttribute('data-touched')) ? rec.value : null, vat: pick('vat'), method: pick('method') };
+  });
+  function restore() {
+    if (!keep) { return; }
+    var k = keep, c = document.getElementById('sale-cart');
+    keep = null;
+    if (!c) { return; }
+    ['vat', 'method'].forEach(function (n) {
+      var r = k[n] !== null ? c.querySelector('input[name="' + n + '"][value="' + k[n] + '"]') : null;
+      if (r && !r.checked) { r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true })); }
+    });
+    var rec = document.getElementById('received');
+    if (rec && k.rec !== null) {
+      rec.value = k.rec;
+      rec.setAttribute('data-touched', '1');
+      rec.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  }
+  document.body.addEventListener('htmx:afterSwap', keepFresh);
+  document.body.addEventListener('htmx:afterSettle', function () {
+    restore();
+    keepFresh();
+    Object.keys(want).forEach(function (sku) {
+      var i = field(sku);
+      if (!i) { forget(sku); return; }
+      if (sent[sku] === want[sku] && inflight === 0) { forget(sku); return; }   // คำตอบของค่าล่าสุดมาแล้ว — ค่าของเซิร์ฟเวอร์คือค่าจริง
+      paint(i, want[sku]);                                                    // คำตอบเก่ากว่าที่กดไว้ — ทาตัวเลขที่กดไว้กลับ แล้วส่งใหม่
+      if (sent[sku] !== want[sku]) { schedule(); }
+    });
+    if (again && !dirty()) {
+      var g = document.querySelector('[data-qty-guard="' + again + '"]');
+      again = '';
+      if (g) { g.click(); }
+    }
+  });
+})();
+</script>
 <script>
 (function () {
   /* เมนูด้านข้างบนจอเล็ก */

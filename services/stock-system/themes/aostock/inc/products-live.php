@@ -10,6 +10,8 @@
  *   - [x] ช่วงที่ 10: แก้ File Header ให้ตรงกับระบบจริง
  *   - [x] ช่วงที่ 11: ลิงก์ไปประวัติเคลื่อนไหวตามสิทธิ์ (page_ok)
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
+ *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 4): ตารางครั้งละ 60 แถว + ปุ่ม “แสดงเพิ่ม” ($LIVE_PART 'more' = ส่งกลับแค่แถวชุดถัดไป)
+ *         เดิมวาดทุกแถว — สินค้า 3,000 ตัว = หน้า 5 MB เปิด 9 วินาทีบน iPad
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -18,11 +20,61 @@ if (!defined('ALLOW_DIRECT_ACCESS')) {
 /* ==========================================================
    ส่วนที่ htmx สลับได้ของหน้ารายการสินค้า
    ต้องกำหนดก่อน include: $user $code $q $cat $st $sort
+     $LIVE_PART  (ไม่บังคับ) 'more' = แค่แถวชุดถัดไป (?from=) + ปุ่มแสดงเพิ่ม
    ========================================================== */
 
 require_once dirname(__FILE__) . '/../include/function.php';
 
 $rows = stock_rows($code, $q, $cat, $st, $sort);      // ที่แสดงในตารางจริง ๆ
+list($from, $end) = Stock_getListRange();             // ครั้งละ 60 แถว + ปุ่ม “แสดงเพิ่ม” (ช่วง 4)
+$more = 'products.php' . stock_qs($q, $cat, $st, $sort);
+
+/* แถวสินค้าหนึ่งแถว — ใช้ทั้งตอนวาดตาราง และตอนกด “แสดงเพิ่ม” */
+$row = function ($r) use ($user) {
+    $p = $r['p']; ?>
+              <tr class="st-<?php echo e($r['status']) ?>">
+                <td data-label="สินค้า">
+                  <span class="pcell">
+                    <?php echo thumb_html($p) ?>
+                    <span class="pcell-t">
+                      <?php if (page_ok($user, 'movements.php')) { ?>
+                        <a class="doc doc-link" href="movements.php?sku=<?php echo e(rawurlencode($p['sku'])) ?>"
+                           title="ดูความเคลื่อนไหวของสินค้านี้"><?php echo e($p['name']) ?></a>
+                      <?php } else { ?>
+                        <span class="doc"><?php echo e($p['name']) ?></span>
+                      <?php } ?>
+                      <small><?php echo e($p['sku']) ?></small>
+                    </span>
+                  </span>
+                </td>
+                <td data-label="หมวด"><?php echo e($p['cat']) ?></td>
+                <td data-label="คงเหลือ" class="r">
+                  <b class="num qty-<?php echo e($r['status']) ?>"><?php echo number_format($r['qty']) ?></b>
+                  <small><?php echo e($p['unit']) ?></small>
+                </td>
+                <td data-label="จุดสั่งซื้อ" class="r num"><?php echo number_format($p['reorder']) ?></td>
+                <td data-label="ระดับสต๊อก">
+                  <span class="lvl" title="<?php echo $r['pct'] ?>% ของจุดสั่งซื้อ">
+                    <i class="lvl-<?php echo e($r['status']) ?>" style="width:<?php echo max(2, min(100, $r['pct'])) ?>%"></i>
+                  </span>
+                </td>
+                <td data-label="ราคาขาย" class="r num"><?php echo money2(product_price($p)) ?></td>
+                <td data-label="สถานะ">
+                  <span class="badge b-<?php echo e(stock_tone($r['status'])) ?>"><?php echo e(stock_label($r['status'])) ?></span>
+                </td>
+              </tr>
+<?php
+};
+
+/* กด “แสดงเพิ่ม” → แถวชุดถัดไป + ปุ่มใหม่ (สลับแทนแถวของปุ่มเดิม) */
+if (isset($LIVE_PART) && $LIVE_PART === 'more') {
+    foreach (array_slice($rows, $from, $end - $from) as $r) {
+        $row($r);
+    }
+    Stock_renderMoreButton($end, count($rows), $more, 7);
+    return;
+}
+
 $view = stock_view_sum($rows);
 
 /* การ์ดด้านบนนับจากคำค้น + หมวด แต่ยังไม่กรองสถานะ
@@ -162,40 +214,8 @@ $words = stock_filter_words($q, $cat, $st);
             </tr>
           </thead>
           <tbody>
-            <?php foreach ($rows as $r) { ?>
-              <?php $p = $r['p']; ?>
-              <tr class="st-<?php echo e($r['status']) ?>">
-                <td data-label="สินค้า">
-                  <span class="pcell">
-                    <?php echo thumb_html($p) ?>
-                    <span class="pcell-t">
-                      <?php if (page_ok($user, 'movements.php')) { ?>
-                        <a class="doc doc-link" href="movements.php?sku=<?php echo e(rawurlencode($p['sku'])) ?>"
-                           title="ดูความเคลื่อนไหวของสินค้านี้"><?php echo e($p['name']) ?></a>
-                      <?php } else { ?>
-                        <span class="doc"><?php echo e($p['name']) ?></span>
-                      <?php } ?>
-                      <small><?php echo e($p['sku']) ?></small>
-                    </span>
-                  </span>
-                </td>
-                <td data-label="หมวด"><?php echo e($p['cat']) ?></td>
-                <td data-label="คงเหลือ" class="r">
-                  <b class="num qty-<?php echo e($r['status']) ?>"><?php echo number_format($r['qty']) ?></b>
-                  <small><?php echo e($p['unit']) ?></small>
-                </td>
-                <td data-label="จุดสั่งซื้อ" class="r num"><?php echo number_format($p['reorder']) ?></td>
-                <td data-label="ระดับสต๊อก">
-                  <span class="lvl" title="<?php echo $r['pct'] ?>% ของจุดสั่งซื้อ">
-                    <i class="lvl-<?php echo e($r['status']) ?>" style="width:<?php echo max(2, min(100, $r['pct'])) ?>%"></i>
-                  </span>
-                </td>
-                <td data-label="ราคาขาย" class="r num"><?php echo money2(product_price($p)) ?></td>
-                <td data-label="สถานะ">
-                  <span class="badge b-<?php echo e(stock_tone($r['status'])) ?>"><?php echo e(stock_label($r['status'])) ?></span>
-                </td>
-              </tr>
-            <?php } ?>
+            <?php foreach (array_slice($rows, 0, $end) as $r) { $row($r); } ?>
+            <?php Stock_renderMoreButton($end, count($rows), $more, 7); ?>
           </tbody>
           <tfoot>
             <tr>

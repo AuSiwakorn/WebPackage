@@ -8,6 +8,12 @@
  *   - [x] ย้ายจาก demo/ เข้า themes/aostock/ (วิ่งผ่าน router ของ admweb)
  *   - [x] สถานะ "นับแล้ว" อ่านจากตาราง (ช่วงที่ 6)
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
+ *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 3): แตะสินค้า / ปุ่มในใบ → ส่งกลับแค่ผลการนับ (#adj-cart) + การ์ดใบที่แตะ (hx-swap-oob)
+ *         เดิมส่งการ์ดสินค้าทุกใบกลับมาวาดใหม่ทุกครั้ง กล่อง “ทำไมยอดถึงไม่ตรง” จึงโผล่ช้า · สคริปต์ adjSync ย้ายเข้าไปใน aside
+ *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 4): การ์ดครั้งละ 60 ใบ + ปุ่ม “แสดงเพิ่ม” ($LIVE_PART 'more' = ส่งกลับแค่ชุดถัดไป)
+ *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 5): ค้นสินค้าด้วย SQL แบบแบ่งหน้า (Stock_searchPickProducts) — ฐานข้อมูลกรอง / นับ ส่งมาแค่ 60 ตัวที่จะวาด (เดิมดึงทั้งร้านมากรองใน PHP)
+ *   - [x] 14 ต.ค. (ผู้ใช้เลือก): + / − นับในเครื่องก่อนแล้วบันทึกเบื้องหลัง — ปุ่ม data-step · ช่อง data-qty (JS ใน inc/footer.php) · เดิมกดรัว ๆ แล้วหาย
+ *   - [x] 14 ต.ค.: hx-ext="ao-live" — คำตอบที่มาหลังใบถูกวาดใหม่ลงตัวที่อยู่บนจอ
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -16,29 +22,37 @@ if (!defined('ALLOW_DIRECT_ACCESS')) {
 /* ==========================================================
    ส่วนที่ htmx สลับได้ของหน้าตรวจนับ / ปรับยอด
    ต้องกำหนดก่อน include: $user $code $q $cat
+     $LIVE_PART  (ไม่บังคับ) 'all' = ทั้งส่วน #adj-live · 'cart' = เฉพาะผลการนับ #adj-cart + การ์ดของ $OOB_SKUS (hx-swap-oob) · 'more' = การ์ดชุดถัดไป (?from=) + ปุ่มแสดงเพิ่ม
+                 ใบเต็ม / ไม่เต็ม (ร้านเปิด นับได้ครั้งละ N) → สคริปต์ท้าย #adj-cart ล็อก / ปลดล็อกการ์ดทุกใบ + ข้อความ #adj-open ส่งแบบ oob
    ========================================================== */
 
 require_once dirname(__FILE__) . '/../include/function.php';
 
+$LIVE_PART = (isset($LIVE_PART) && in_array($LIVE_PART, array('cart', 'more'), true)) ? $LIVE_PART : 'all';
 $tabs  = count_tabs();
 $tab   = (isset($tab) && isset($tabs[$tab])) ? $tab : 'todo';
 $round = count_round($code);
 $stAll = count_status_all($code);
 
-/* นับจำนวนของแต่ละแท็บ ตามคำค้นและหมวดที่เลือกอยู่ */
-$found = sale_products($code, $q, $cat);
-$tabN  = array('todo' => 0, 'done' => 0, 'all' => count($found));
+/* นับจำนวนของแต่ละแท็บ ตามคำค้นและหมวดที่เลือกอยู่ แล้วดึงเฉพาะการ์ดที่จะวาดรอบนี้ (ส่งกลับแค่ผลการนับ = ไม่ต้องใช้)
+   ฐานข้อมูลกรอง / นับให้ (ช่วง 5) — นับแล้ว = SKU ที่อยู่ใน $stAll · ยังไม่นับ = ไม่อยู่ · $list = การ์ดที่จะวาด · $total = จำนวนในแท็บนี้ */
+list($from, $end) = Stock_getListRange();     // การ์ดครั้งละ 60 ใบ + ปุ่ม “แสดงเพิ่ม” (ช่วง 4)
+$tabN  = array('todo' => 0, 'done' => 0, 'all' => 0);
 $list  = array();
-foreach ($found as $p) {
-    $isDone = isset($stAll[$p['sku']]);
-    $tabN[$isDone ? 'done' : 'todo']++;
-    if ($tab === 'all' || ($tab === 'done') === $isDone) {
-        $list[] = $p;
-    }
+$total = 0;
+if ($LIVE_PART !== 'cart') {
+    $counted      = array_keys($stAll);
+    $tabN['all']  = Stock_searchPickProducts($code, $q, $cat, 0, 0)['total'];
+    $tabN['done'] = $counted ? Stock_searchPickProducts($code, $q, $cat, 0, 0, $counted)['total'] : 0;
+    $tabN['todo'] = $tabN['all'] - $tabN['done'];
+    $found = Stock_searchPickProducts($code, $q, $cat, ($LIVE_PART === 'more') ? $from : 0, ($LIVE_PART === 'more') ? $end - $from : $end,
+                                      ($tab === 'done') ? $counted : null, ($tab === 'todo') ? $counted : null);
+    $list  = $found['rows'];
+    $total = $found['total'];
 }
 
 /* ความคืบหน้าของรอบ (ทั้งสาขา ไม่สนตัวกรอง) */
-$nAll  = count(products_list());
+$nAll  = ($LIVE_PART === 'all') ? Stock_searchPickProducts($code, '', '', 0, 0)['total'] : 0;
 $nDone = count($stAll);
 $pct   = $nAll > 0 ? (int) floor($nDone * 100 / $nAll) : 0;
 
@@ -51,8 +65,57 @@ $qs    = adj_qs($q, $cat, $tab);
 $base  = 'stocktake.php' . $qs;
 $csrf  = csrf_token();
 $valT  = ($sum['value'] < 0 ? '−' : ($sum['value'] > 0 ? '+' : '')) . money2(abs($sum['value'])) . ' บาท';
+
+/* ข้อความ “ร้านเปิดอยู่ นับได้ครั้งละ N” — ใบเต็มแล้วเปลี่ยนเป็น “บันทึกรายการนี้ก่อน” (ส่งกลับแบบ hx-swap-oob ตอนสลับแค่ผลการนับด้วย) */
+$openNote = function ($oob) use ($limit, $full) {
+    if ($limit === null) {
+        return;
+    } ?>
+        <p class="open-note<?php echo $full ? ' is-full' : '' ?>" id="adj-open"<?php echo $oob ? ' hx-swap-oob="true"' : '' ?>>
+          <svg class="ico"><use href="#i-store"/></svg>
+          <span>
+            <?php if ($full) { ?>
+              <b>บันทึกรายการนี้ก่อน</b> แล้วค่อยนับตัวถัดไป — ร้านเปิดอยู่ นับได้ครั้งละ <?php echo (int) $limit ?> รายการ
+            <?php } else { ?>
+              ร้านเปิดอยู่ · <b>นับได้ครั้งละ <?php echo (int) $limit ?> รายการ</b> นับเสร็จแล้วบันทึกทันที ตัวเลขจะไม่คลาดจากการขาย
+            <?php } ?>
+          </span>
+        </p>
+<?php
+};
+
+/* การ์ดสินค้าหนึ่งใบ — ใช้ทั้งตอนวาดรายการ และตอนส่งกลับใบเดียวแบบ hx-swap-oob */
+$tile = function ($p, $oob) use ($base, $csrf, $full, $stAll) {
+    $inDoc = isset($_SESSION['adj_draft'][$p['sku']]);
+    $lock  = (!$inDoc && $full);        // ร้านเปิด ใบเต็มแล้ว → ต้องบันทึกใบนี้ก่อน ?>
+            <button class="good<?php echo $inDoc ? ' is-in is-count' : '' ?><?php echo $lock ? ' is-lock' : '' ?>" type="button" id="<?php echo e(Stock_buildTileId($p['sku'])) ?>"<?php echo $oob ? ' hx-swap-oob="true"' : '' ?>
+                    <?php echo ($inDoc || $lock) ? 'disabled' : '' ?>
+                    hx-post="<?php echo e($base) ?>" hx-target="#adj-cart" hx-swap="outerHTML"
+                    hx-vals='<?php echo e(json_encode(array('csrf' => $csrf, 'act' => 'pick', 'sku' => $p['sku']))) ?>'>
+              <?php if ($inDoc) { ?><i class="g-bdg"><svg class="ico"><use href="#i-check"/></svg></i><?php } ?>
+              <?php echo thumb_html($p, 'thumb--lg') ?>
+              <span class="g-cat"><?php echo e($p['cat']) ?></span>
+              <span class="g-nm"><?php echo e($p['name']) ?></span>
+              <span class="g-qty"><?php echo $inDoc ? 'อยู่ในใบแล้ว' : 'ในระบบ ' . number_format($p['qty']) . ' ' . e($p['unit']) ?></span>
+              <?php if (isset($stAll[$p['sku']])) { ?>
+                <?php $cn = count_note($stAll[$p['sku']]); ?>
+                <span class="g-cnt"><?php echo e($cn['when']) ?> · <span class="dchip <?php echo e($cn['tone']) ?>"><?php echo e($cn['res']) ?></span></span>
+              <?php } ?>
+            </button>
+<?php
+};
+
+/* กด “แสดงเพิ่ม” → การ์ดชุดถัดไป (ตามแท็บ / หมวด / คำค้นเดิม) + ปุ่มใหม่ */
+if ($LIVE_PART === 'more') {
+    foreach ($list as $p) {
+        $tile($p, false);
+    }
+    Stock_renderMoreButton($end, $total, $base);
+    return;
+}
 ?>
-<div class="sale-wrap" id="adj-live">
+<?php if ($LIVE_PART === 'all') { ?>
+<div class="sale-wrap" id="adj-live" hx-ext="ao-live">
 
   <!-- ==================== เลือกสินค้าที่จะนับ ==================== -->
   <section class="card sale-pick">
@@ -94,18 +157,7 @@ $valT  = ($sum['value'] < 0 ? '−' : ($sum['value'] > 0 ? '+' : '')) . money2(a
         </div>
       </div>
 
-      <?php if ($limit !== null) { ?>
-        <p class="open-note<?php echo $full ? ' is-full' : '' ?>">
-          <svg class="ico"><use href="#i-store"/></svg>
-          <span>
-            <?php if ($full) { ?>
-              <b>บันทึกรายการนี้ก่อน</b> แล้วค่อยนับตัวถัดไป — ร้านเปิดอยู่ นับได้ครั้งละ <?php echo (int) $limit ?> รายการ
-            <?php } else { ?>
-              ร้านเปิดอยู่ · <b>นับได้ครั้งละ <?php echo (int) $limit ?> รายการ</b> นับเสร็จแล้วบันทึกทันที ตัวเลขจะไม่คลาดจากการขาย
-            <?php } ?>
-          </span>
-        </p>
-      <?php } ?>
+      <?php $openNote(false); ?>
 
       <div class="segs count-tabs" role="tablist" hx-target="#adj-live" hx-swap="outerHTML" hx-push-url="true">
         <?php foreach ($tabs as $k => $label) { ?>
@@ -143,33 +195,16 @@ $valT  = ($sum['value'] < 0 ? '−' : ($sum['value'] > 0 ? '+' : '')) . money2(a
         </p>
       <?php } else { ?>
         <div class="goods">
-          <?php foreach ($list as $p) { ?>
-            <?php
-            $inDoc = isset($_SESSION['adj_draft'][$p['sku']]);
-            $lock  = (!$inDoc && $full);        // ร้านเปิด ใบเต็มแล้ว → ต้องบันทึกใบนี้ก่อน
-            ?>
-            <button class="good<?php echo $inDoc ? ' is-in is-count' : '' ?><?php echo $lock ? ' is-lock' : '' ?>" type="button"
-                    <?php echo ($inDoc || $lock) ? 'disabled' : '' ?>
-                    hx-post="<?php echo e($base) ?>" hx-target="#adj-live" hx-swap="outerHTML"
-                    hx-vals='<?php echo e(json_encode(array('csrf' => $csrf, 'act' => 'pick', 'sku' => $p['sku']))) ?>'>
-              <?php if ($inDoc) { ?><i class="g-bdg"><svg class="ico"><use href="#i-check"/></svg></i><?php } ?>
-              <?php echo thumb_html($p, 'thumb--lg') ?>
-              <span class="g-cat"><?php echo e($p['cat']) ?></span>
-              <span class="g-nm"><?php echo e($p['name']) ?></span>
-              <span class="g-qty"><?php echo $inDoc ? 'อยู่ในใบแล้ว' : 'ในระบบ ' . number_format($p['qty']) . ' ' . e($p['unit']) ?></span>
-              <?php if (isset($stAll[$p['sku']])) { ?>
-                <?php $cn = count_note($stAll[$p['sku']]); ?>
-                <span class="g-cnt"><?php echo e($cn['when']) ?> · <span class="dchip <?php echo e($cn['tone']) ?>"><?php echo e($cn['res']) ?></span></span>
-              <?php } ?>
-            </button>
-          <?php } ?>
+          <?php foreach ($list as $p) { $tile($p, false); } ?>
+          <?php Stock_renderMoreButton($end, $total, $base); ?>
         </div>
       <?php } ?>
     </div>
   </section>
+<?php } ?>
 
   <!-- ==================== ผลการนับ ==================== -->
-  <aside class="sale-cart">
+  <aside class="sale-cart" id="adj-cart" hx-ext="ao-live">
     <div class="card cart-card">
       <div class="card-head">
         <div>
@@ -178,7 +213,7 @@ $valT  = ($sum['value'] < 0 ? '−' : ($sum['value'] > 0 ? '+' : '')) . money2(a
         </div>
         <?php if ($lines) { ?>
           <button class="icon-btn" type="button" title="ล้างทั้งใบ" aria-label="ล้างทั้งใบ"
-                  hx-post="<?php echo e($base) ?>" hx-target="#adj-live" hx-swap="outerHTML"
+                  hx-post="<?php echo e($base) ?>" hx-target="#adj-cart" hx-swap="outerHTML"
                   hx-vals='<?php echo e(json_encode(array('csrf' => $csrf, 'act' => 'clear'))) ?>'>
             <svg class="ico"><use href="#i-trash"/></svg>
           </button>
@@ -205,27 +240,26 @@ $valT  = ($sum['value'] < 0 ? '−' : ($sum['value'] > 0 ? '+' : '')) . money2(a
                   </small>
                 <?php } ?>
               </div>
+              <?php /* + / − นับในเครื่องก่อนแล้วบันทึกเบื้องหลัง (data-step · JS ใน inc/footer.php — 14 ต.ค.)
+                       นับได้ 0 = ยังอยู่ในใบ (ไม่มี data-tile — ป้ายบนการ์ดตรวจนับเป็นเครื่องหมายถูก ไม่ใช่จำนวน) */ ?>
               <div class="cl-q">
-                <button type="button" aria-label="ลดจำนวน" <?php echo $l['counted'] <= 0 ? 'disabled' : '' ?>
-                        hx-post="<?php echo e($base) ?>" hx-target="#adj-live" hx-swap="outerHTML"
-                        hx-vals='<?php echo e(json_encode(array('csrf' => $csrf, 'act' => 'minus', 'sku' => $l['sku']))) ?>'>
+                <button type="button" aria-label="ลดจำนวน" data-step="-1" <?php echo $l['counted'] <= 0 ? 'disabled' : '' ?>>
                   <svg class="ico"><use href="#i-minus"/></svg>
                 </button>
                 <input class="num rq-set" type="text" inputmode="numeric" value="<?php echo $l['counted'] ?>"
                        autocomplete="off" aria-label="จำนวนที่นับได้ของ <?php echo e($l['name']) ?>"
                        name="aq_<?php echo e($l['sku']) ?>" id="aq_<?php echo e($l['sku']) ?>"
-                       hx-post="<?php echo e($base) ?>" hx-trigger="change" hx-target="#adj-live" hx-swap="outerHTML"
+                       data-qty data-no-busy data-sku="<?php echo e($l['sku']) ?>" data-min="0" data-max="<?php echo (int) STOCK_LINE_MAX ?>"
+                       hx-post="<?php echo e($base) ?>" hx-trigger="change" hx-target="#adj-cart" hx-swap="outerHTML"
                        hx-vals='<?php echo e(json_encode(array('csrf' => $csrf, 'act' => 'set', 'sku' => $l['sku']))) ?>'>
-                <button type="button" aria-label="เพิ่มจำนวน"
-                        hx-post="<?php echo e($base) ?>" hx-target="#adj-live" hx-swap="outerHTML"
-                        hx-vals='<?php echo e(json_encode(array('csrf' => $csrf, 'act' => 'plus', 'sku' => $l['sku']))) ?>'>
+                <button type="button" aria-label="เพิ่มจำนวน" data-step="1">
                   <svg class="ico"><use href="#i-plus"/></svg>
                 </button>
               </div>
               <div class="cl-s"><?php echo e($l['unit']) ?></div>
               <button class="cl-x" type="button" title="เอาออกจากใบ"
                       aria-label="เอา <?php echo e($l['name']) ?> ออกจากใบ"
-                      hx-post="<?php echo e($base) ?>" hx-target="#adj-live" hx-swap="outerHTML"
+                      hx-post="<?php echo e($base) ?>" hx-target="#adj-cart" hx-swap="outerHTML"
                       hx-vals='<?php echo e(json_encode(array('csrf' => $csrf, 'act' => 'del', 'sku' => $l['sku']))) ?>'>
                 <svg class="ico"><use href="#i-x"/></svg>
               </button>
@@ -279,9 +313,30 @@ $valT  = ($sum['value'] < 0 ? '−' : ($sum['value'] > 0 ? '+' : '')) . money2(a
                value="<?php echo e($meta['note']) ?>" placeholder="เช่น เจอเคส 3 ชิ้นตกอยู่หลังตู้โชว์">
       </div>
     </div>
-  </aside>
 
   <script>
+  /* อยู่ใน aside เพื่อให้ทำงานทุกครั้งที่สลับแค่ผลการนับ (โชว์ / ซ่อนกล่องสาเหตุทันที) */
   if (window.adjSync) { window.adjSync(); }
+  /* ร้านเปิด ใบเต็มแล้ว → การ์ดที่ยังไม่อยู่ในใบล็อกทุกใบ · ไม่เต็ม → ปลดล็อก
+     สลับในเบราว์เซอร์เอง ไม่ต้องส่งการ์ดทุกใบกลับมาใหม่ (สินค้าเป็นพันตัว = หลาย MB) */
+  (function () {
+    var full = <?php echo $full ? 'true' : 'false' ?>;
+    var gs = document.querySelectorAll('#adj-live .goods .good');
+    for (var i = 0; i < gs.length; i++) {
+      if (gs[i].classList.contains('is-in')) { continue; }
+      gs[i].classList.toggle('is-lock', full);
+      gs[i].disabled = full;
+    }
+  })();
   </script>
+  </aside>
+<?php if ($LIVE_PART === 'all') { ?>
 </div>
+<?php } else { ?>
+<?php
+    /* ส่งกลับแค่ผลการนับ → การ์ดที่เข้า / ออกจากใบ สลับใบเดียวแบบ hx-swap-oob + ข้อความร้านเปิด (เต็ม / ไม่เต็ม) */
+    foreach (Stock_getPickProducts($code, isset($OOB_SKUS) ? $OOB_SKUS : array()) as $p) {
+        $tile($p, true);
+    }
+    $openNote(true);
+} ?>

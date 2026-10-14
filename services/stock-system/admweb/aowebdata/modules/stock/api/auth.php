@@ -10,6 +10,7 @@
  *   - [x] ช่วงที่ 12: ผู้ดูแลเปิด team.php → ไปหน้าจัดการพนักงาน
  *   - [x] ช่วงที่ 13: พนักงานเข้าด้วยชื่อผู้ใช้ + PIN · เครื่องจำชื่อคนที่เคยเข้า (known_*) · จำกัดการกรอกผิดตาม IP (ip_* / client_ip หลัง Cloudflare)
  *   - [x] 12 ต.ค.: ข้อความตอนเปิดหน้าของเมนูที่ถูกปิด บอกให้ติดต่อคนดูแลเว็บ (เดิมผู้ดูแลระบบ — ผู้ดูแลของร้านเปิดเมนูเองไม่ได้)
+ *   - [x] 14 ต.ค.: Stock_sendRedirect — หลุดระหว่างแตะ (htmx) พาไปหน้าเข้าสู่ระบบทั้งหน้าพร้อมข้อความ แทนการเอาหน้าเข้าสู่ระบบไปวางในตะกร้า
  *
  * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
  */
@@ -535,44 +536,51 @@ function current_page()
     return basename($_SERVER['SCRIPT_NAME']);
 }
 
-/** ใส่บรรทัดนี้ไว้บนสุดของทุกหน้าที่ต้องล็อกอินก่อน */
+/** พาไปหน้าอื่นแล้วจบ request — คำขอจาก htmx ใช้ HX-Redirect ให้เปลี่ยนทั้งหน้า (302 ธรรมดา htmx จะเอาหน้าปลายทางมาวางในตะกร้า)
+    TODO:
+      - [x] 14 ต.ค.: ใหม่ — ใช้ใน require_login */
+function Stock_sendRedirect($to)
+{
+    $isHx = isset($_SERVER['HTTP_HX_REQUEST']) && $_SERVER['HTTP_HX_REQUEST'] === 'true';
+    header(($isHx ? 'HX-Redirect: ' : 'Location: ') . url($to));
+    exit;
+}
+
+/** ใส่บรรทัดนี้ไว้บนสุดของทุกหน้าที่ต้องล็อกอินก่อน
+    TODO:
+      - [x] 14 ต.ค.: หลุดระหว่างแตะ / ส่งฟอร์ม → หน้าเข้าสู่ระบบบอกว่าหลุด (login.php?out=1) · พาไปหน้าอื่นด้วย Stock_sendRedirect */
 function require_login()
 {
     if (!is_logged_in() && remember_login() === null) {     // จดจำการเข้าสู่ระบบ 30 วัน (ช่วงที่ 10)
-        header('Location: ' . url('login.php'));
-        exit;
+        $busy = (isset($_SERVER['HTTP_HX_REQUEST']) || $_SERVER['REQUEST_METHOD'] === 'POST');
+        Stock_sendRedirect($busy ? 'login.php?out=1' : 'login.php');
     }
     $u = current_user();
     /* ฝ่ายบัญชีเข้าได้เฉพาะหน้าของบัญชี — ไม่เห็นงานขาย/งานคลัง */
     $page = current_page();
     if ($u['role'] === 'account' && !in_array($page, account_pages(), true)) {
-        header('Location: ' . url('account.php'));
-        exit;
+        Stock_sendRedirect('account.php');
     }
     /* พนักงานที่ถูกปิดใช้งาน / บทบาทถูกปิดจากหลังบ้าน ระหว่างที่ยังเข้าระบบอยู่ → ออกจากระบบ */
     $all = users_all();
     if (!isset($all[$u['username']]) || !user_active($all[$u['username']]) || !role_enabled($u['role'])) {
         logout_user();
-        header('Location: ' . url('login.php'));
-        exit;
+        Stock_sendRedirect('login.php');
     }
     /* หน้าของกลุ่มฟีเจอร์ที่ผู้ดูแลระบบปิดไว้ (หลังบ้าน admweb) → กลับหน้าแรก (ช่วงที่ 9) */
     if (in_array($page, feature_pages_off(), true)) {
         $_SESSION['flash'] = 'เมนูนี้ถูกปิดใช้งานอยู่ — ติดต่อคนดูแลเว็บถ้าต้องการใช้';
-        header('Location: ' . url(home_page($u)));
-        exit;
+        Stock_sendRedirect(home_page($u));
     }
     /* ระบบใหม่ยังไม่มีสาขาเลย → ผู้ดูแลไปเพิ่มสาขาแรกก่อน (หน้าอื่นต้องมีสาขา) */
     if ($u['role'] === 'admin' && !branches_active() && !in_array($page, array('adm-branches.php', 'logout.php'), true)) {
         $_SESSION['flash'] = 'ยังไม่มีสาขาในระบบ — เพิ่มสาขาแรกก่อน แล้วจึงเพิ่มพนักงานและสินค้า';
-        header('Location: ' . url('adm-branches.php'));
-        exit;
+        Stock_sendRedirect('adm-branches.php');
     }
     /* แยกชุดหน้า: ผู้ดูแลใช้หน้า adm-* · พนักงานเข้าหน้า adm-* ไม่ได้ */
     $isAdm = (strpos($page, 'adm-') === 0);
     if ($isAdm && $u['role'] !== 'admin') {
-        header('Location: ' . url(home_page($u)));
-        exit;
+        Stock_sendRedirect(home_page($u));
     }
     if (!$isAdm && $u['role'] === 'admin' && !in_array($page, admin_shared_pages(), true)) {
         $map = admin_page_map();
@@ -586,16 +594,14 @@ function require_login()
             $_SESSION['flash'] = 'หน้านี้เป็นงานของพนักงานที่ได้รับมอบหมาย — ผู้ดูแลตรวจสอบได้จากเมนูของผู้ดูแล';
             $to = home_page($u);
         }
-        header('Location: ' . url($to));
-        exit;
+        Stock_sendRedirect($to);
     }
     /* หน้าที่ต้องมีสิทธิ์เฉพาะ (page_perm — ช่วงที่ 11 บางหน้ามีได้หลายสิทธิ์ ตัวใดตัวหนึ่งก็เข้าได้) */
     if (!page_perm_ok($u, $page)) {
         $need = (array) page_perm($page);
         $pl   = perm_list();
         $_SESSION['flash'] = 'ไม่มีสิทธิ์เข้าหน้า “' . $pl[$need[0]]['short'] . '” — ติดต่อผู้ดูแลเพื่อเปิดสิทธิ์';
-        header('Location: ' . url(home_page($u)));
-        exit;
+        Stock_sendRedirect(home_page($u));
     }
     return $u;
 }

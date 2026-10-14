@@ -2,7 +2,7 @@
 
 > **สถานะ: ร่างรออนุมัติ (ช่วงที่ 15)** — ยังไม่ได้เปลี่ยนชื่อในโค้ด · ตรวจคอลัมน์ "ชื่อใหม่" แล้วแจ้งชื่อที่อยากแก้ได้เลย
 
-ฟังก์ชันทั้งหมด 473 ตัว (เดิม 468 + ตั้งชื่อตามมาตรฐานแล้ว 5 ตัว: ช่วงที่ 16 สองตัว · ปุ่มพิมพ์บิล · ช่วงที่ 17 สองตัว) อยู่ใน `admweb/aowebdata/modules/stock/api/*.php` (โหลดผ่าน `api.php`) · ธีม `themes/aostock/` และหน้า admweb ของโมดูลเรียกใช้
+ฟังก์ชันทั้งหมด 482 ตัว (เดิม 468 + ตั้งชื่อตามมาตรฐานแล้ว 14 ตัว: ช่วงที่ 16 สองตัว · ปุ่มพิมพ์บิล · ช่วงที่ 17 สองตัว · งานความเร็ว 14 ต.ค. แปดตัว · หลุดจากระบบ 14 ต.ค. หนึ่งตัว) อยู่ใน `admweb/aowebdata/modules/stock/api/*.php` (โหลดผ่าน `api.php`) · ธีม `themes/aostock/` และหน้า admweb ของโมดูลเรียกใช้
 
 ## มาตรฐานการตั้งชื่อ
 
@@ -98,7 +98,7 @@
 | `Stock_compareTotalDesc($a, $b)` | `cmp_total_desc` | ตัวเรียง (usort): ยอด total มากไปน้อย |
 | `Stock_formatThaiMonthFull($ts)` | `thai_month_full` | ชื่อเดือนไทยเต็ม + ปี พ.ศ. เช่น ตุลาคม 2569 |
 
-## `api/auth.php` — เข้า / ออกจากระบบ · CSRF · จดจำเครื่อง · ล็อกตาม IP · กันหน้า (38)
+## `api/auth.php` — เข้า / ออกจากระบบ · CSRF · จดจำเครื่อง · ล็อกตาม IP · กันหน้า (39)
 
 | ชื่อใหม่ | ชื่อเดิม | ทำอะไร |
 |---|---|---|
@@ -135,6 +135,7 @@
 | `Stock_forgetDeviceStaff($id)` | `known_forget` | เอาชื่อนี้ออกจากเครื่อง |
 | `Stock_getDeviceStaff()` | `known_staffs` | พนักงานที่เครื่องนี้จำไว้และยังเข้าระบบด้วย PIN ได้ — array( username => ข้อมูล ) คนล่าสุดก่อน |
 | `Stock_getCurrentPage()` | `current_page` | ชื่อไฟล์ของหน้าที่กำลังเปิด เช่น sale.php |
+| `Stock_sendRedirect($to)` | — (ใหม่ 14 ต.ค.) | พาไปหน้าอื่นแล้วจบ request — คำขอจาก htmx ใช้ HX-Redirect (เปลี่ยนทั้งหน้า) · อื่น ๆ ใช้ Location |
 | `Stock_requireLogin()` | `require_login` | ใส่บรรทัดนี้ไว้บนสุดของทุกหน้าที่ต้องล็อกอินก่อน |
 | `Stock_getAccountPages()` | `account_pages` | หน้าที่ฝ่ายบัญชีเข้าได้ |
 | `Stock_getHomePage($user)` | `home_page` | หน้าแรกหลังเข้าระบบของแต่ละบทบาท |
@@ -238,11 +239,11 @@
 | `Stock_setStaffPerms($username, $perms)` | `staff_set_perms` | เขียนเฉพาะสิทธิ์ (ไม่แตะชื่อ / อักษรย่อ) |
 | `Stock_doSetBranchManager($username, $on, $actor)` | `staff_act_set_manager` | ตั้ง / ปลดผู้จัดการสาขา (หน้าจัดการสาขา) — ไม่เปลี่ยน = ไม่ทำอะไร · คืน '' หรือข้อความผิดพลาด |
 
-## `api/product.php` — สินค้า · หมวด · สต๊อกคงเหลือ (46)
+## `api/product.php` — สินค้า · หมวด · สต๊อกคงเหลือ (54)
 
 | ชื่อใหม่ | ชื่อเดิม | ทำอะไร |
 |---|---|---|
-| `Stock_getProductRows($reset = false)` | `product_db_rows` | ทุกแถวของ ao_stock_product (+ ชื่อหมวด) — array( SKU => แถว ) เรียงตามหมวด แล้วตาม SKU |
+| `Stock_getProductRows($reset = false, $peek = false)` | `product_db_rows` | ทุกแถวของ ao_stock_product (+ ชื่อหมวด) — array( SKU => แถว ) เรียงตามหมวด แล้วตาม SKU |
 | `Stock_getBalanceRows($reset = false)` | `product_balance_rows` | ยอดคงเหลือจาก ao_stock_balance — array( product_id => array( รหัสสาขา => จำนวน ) ) |
 | `Stock_shapeProduct($r)` | `product_shape` | แถวในฐานข้อมูล → รูปแบบสินค้าที่หน้าเว็บใช้ (sku name cat unit cost price reorder stock ...) |
 | `Stock_getProducts($withInactive = false)` | `products_list` | สินค้าที่ขายอยู่ (หรือทั้งหมดรวมที่เลิกขาย) — รูปแบบเดียวกับ Stock_shapeProduct |
@@ -271,6 +272,14 @@
 | `Stock_addCategory($name, $user, $code)` | `cat_add` | เพิ่มหมวด — คืนข้อความผิดพลาด ('' = สำเร็จ) |
 | `Stock_deleteCategory($name, $user, $code)` | `cat_delete` | ลบหมวด — ได้เฉพาะหมวดที่ไม่มีสินค้าอ้างถึง · คืนข้อความผิดพลาด ('' = สำเร็จ) |
 | `Stock_searchSaleProducts($branch, $q, $cat)` | `sale_products` | ค้นหาสินค้าสำหรับหน้าขาย |
+| `Stock_getPickProducts($branch, $skus)` | — (ใหม่ 14 ต.ค.) | สินค้าเฉพาะ SKU ที่ระบุ (ที่ยังขายอยู่) รูปแบบเดียวกับ sale_products — วาดการ์ดใบที่เพิ่งแตะใหม่ตอนหน้าเลือกสินค้าส่งกลับแค่ตะกร้า / ใบ |
+| `Stock_getProductRowBySku($sku, $reset = false)` | — (ใหม่ 14 ต.ค.) | แถวสินค้าตัวเดียว + ยอดทุกสาขา (ไม่โหลดทั้งร้าน) — product_by_sku ใช้ตอนยังไม่ได้โหลดทั้งร้าน · ที่เก็บมีครบ 24 ตัวแล้วยังต้องดึงตัวใหม่ → คืน false ให้โหลดทั้งร้านแทน (ตัวที่อยู่ในที่เก็บแล้วคืนได้เสมอ) |
+| `Stock_searchPickProducts($branch, $q, $cat, $offset = 0, $limit = PRODUCT_PAGE_SIZE, $only = null, $skip = null)` | — (ใหม่ 14 ต.ค.) | ค้นสินค้าที่ขายอยู่ด้วย SQL แบบแบ่งหน้า — array(rows, total) · ผลเหมือน sale_products แต่ฐานข้อมูลกรอง / นับ และส่งมาแค่ช่วงที่ขอ · $only / $skip = แท็บนับแล้ว / ยังไม่นับ |
+| `Stock_getProductRowCache()` | — (ใหม่ 14 ต.ค.) | ที่เก็บแถวสินค้าที่ดึงทีละตัว / ทีละชุดต่อ request (คืนแบบ reference) — ใช้ร่วมกันระหว่าง Stock_getProductRowBySku กับ Stock_prefetchProducts |
+| `Stock_prefetchProducts($skus)` | — (ใหม่ 14 ต.ค.) | ดึงสินค้าหลายตัว + ยอดทุกสาขาในคิวรีเดียว เก็บไว้ให้ product_by_sku — เรียกก่อนวนรายการ (ตะกร้า · ร่างใบ · ความเคลื่อนไหว · รายงาน) · เกิน 300 ตัวโหลดทั้งร้านแทน |
+| `Stock_buildTileId($sku)` | — (ใหม่ 14 ต.ค.) | id ของการ์ดสินค้าในหน้าเลือกสินค้า (g- + hash ของ SKU) ใช้สลับการ์ดใบเดียวแบบ hx-swap-oob |
+| `Stock_getListRange()` | — (ใหม่ 14 ต.ค.) | ช่วงแถวที่จะวาด array(เริ่ม, จบ, เป็นคำขอแสดงเพิ่มไหม) จาก ?from (htmx กด “แสดงเพิ่ม”) / ?n (เปิดหน้า) — ทีละ PRODUCT_PAGE_SIZE (60) |
+| `Stock_renderMoreButton($end, $total, $url, $cols = 0, $tag = 'div')` | — (ใหม่ 14 ต.ค.) | ปุ่ม “แสดงเพิ่ม” ท้ายรายการสินค้า (div ในกริดการ์ด · li ใน ul · tr ในตาราง) — แสดงครบแล้วไม่ echo อะไร |
 | `Stock_getProductImageUrl($p)` | `product_img` | URL รูปสินค้า — รูปที่อัปโหลด หรือรูปตาม SKU ในธีม · ไม่มี = ว่าง |
 | `Stock_getCategoryStyle($cat)` | `cat_style` | ไอคอนและโทนสีประจำหมวด ใช้ตอนที่ยังไม่มีรูปจริง |
 | `Stock_renderThumb($p, $extra = '')` | `thumb_html` | กล่องรูปสินค้า — ใช้ได้ทั้งในตารางและบนการ์ดหน้าขาย |

@@ -9,6 +9,8 @@
  *   - [x] ความเคลื่อนไหวอ่านจาก ao_stock_move (ช่วงที่ 6)
  *   - [x] บิลขาย / รับคืนเขียน stock_move แล้ว ไม่อ่าน session (ช่วงที่ 7)
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
+ *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 4): รายการสินค้าทางซ้ายครั้งละ 60 + ปุ่ม “แสดงเพิ่ม” (inc/movement-list.php) — เดิมวาดสินค้าทุกตัว (3,000 ตัว = 1.5 MB)
+ *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 5): รายการทางซ้ายค้นเองใน inc/movement-list.php ด้วย SQL แบบแบ่งหน้า · จำนวนสินค้านับด้วย SQL (เดิมโหลดทั้งร้าน)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -38,9 +40,6 @@ if (!isset($pers[$period])) { $period = '7'; }
 $prod = ($sku !== '') ? product_by_sku($sku) : null;
 if ($prod === null) { $sku = ''; }
 
-/* ---------- รายการสินค้าทางซ้าย ---------- */
-$list = sale_products($code, $q, $cat);
-
 if ($isHx) {
     require dirname(__FILE__) . '/inc/movement-list.php';
     exit;
@@ -65,7 +64,7 @@ require dirname(__FILE__) . '/inc/header.php';
     <div class="card-head">
       <div>
         <h2>เลือกสินค้า</h2>
-        <span class="sub"><?php echo count(products_list()) ?> รายการในสาขา</span>
+        <span class="sub"><?php echo number_format(Stock_searchPickProducts($code, '', '', 0, 0)['total']) ?> รายการในสาขา</span>
       </div>
     </div>
     <div class="mv-find">

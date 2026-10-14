@@ -8,6 +8,7 @@
  *   - [x] ย้ายจาก demo/ เข้า themes/aostock/ (วิ่งผ่าน router ของ admweb)
  *   - [x] อ่าน / เขียนข้อมูลจากตาราง ao_stock_* ผ่าน api.php (ช่วงที่ 5–9)
  *   - [x] ช่วงที่ 10: แก้ File Header ให้ตรงกับระบบจริง
+ *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 4): ตารางครั้งละ 60 แถว — htmx ?from= ส่งกลับแค่แถวชุดถัดไป
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -39,7 +40,8 @@ $__sorts = stock_sorts();
 if (!isset($__tabs[$st]))    { $st   = ''; }
 if (!isset($__sorts[$sort])) { $sort = 'urgent'; }
 
-/* คำขอจาก htmx: ส่งกลับเฉพาะส่วนที่เปลี่ยน */
+/* คำขอจาก htmx: ส่งกลับเฉพาะส่วนที่เปลี่ยน · กด “แสดงเพิ่ม” (?from=) = แค่แถวชุดถัดไป (ช่วง 4) */
+$LIVE_PART = ($isHx && isset($_GET['from'])) ? 'more' : 'all';
 if ($isHx) {
     require dirname(__FILE__) . '/inc/products-live.php';
     exit;

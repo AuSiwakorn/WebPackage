@@ -10,6 +10,9 @@
  *   - [x] ช่วงที่ 11: แก้ / ยกเลิกใบของตัวเองต้องมีสิทธิ์ doc_fix · ปุ่มแก้ / ยกเลิกและลิงก์ยอดคงเหลือแสดงตามสิทธิ์
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  *   - [x] 8 ต.ค.: ยังกรอกไม่ครบแล้วกดบันทึก → เลื่อนไปช่องแรกที่ขาด กะพริบ + ข้อความ (data-need · aoNeedSync ใน inc/footer.php)
+ *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 3): htmx แตะสินค้า / ปุ่มในใบ ส่งกลับแค่ผลการนับ + การ์ดที่แตะ ($LIVE_PART / $OOB_SKUS) · ใบเต็ม ↔ ไม่เต็ม ล็อกการ์ดในเบราว์เซอร์
+ *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 4): การ์ดครั้งละ 60 ใบ — htmx ?from= ส่งกลับแค่ชุดถัดไป
+ *   - [x] 14 ต.ค.: ปุ่มบันทึกใบ data-qty-guard — กด + / − แล้วกดบันทึกทันที ระบบส่งจำนวนที่ค้างก่อน (inc/footer.php)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -37,6 +40,10 @@ $err    = '';
 $done   = null;
 $voided = null;
 $old    = adraft_meta();
+/* htmx ส่งกลับส่วนไหน (งานความเร็ว ช่วง 3): แตะสินค้า / ปุ่มในใบ = แค่ผลการนับ + การ์ดที่แตะ · ค้นหา / แท็บ / หมวด / แก้ไข / ยกเลิก = ทั้งส่วน
+   ใบเต็ม ↔ ไม่เต็ม (ร้านเปิด นับได้ครั้งละ N) — สคริปต์ใน #adj-cart ล็อก / ปลดล็อกการ์ดทุกใบในเบราว์เซอร์เอง (inc/adjust-live.php) */
+$LIVE_PART = 'all';
+$OOB_SKUS  = array();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrf_check(isset($_POST['csrf']) ? $_POST['csrf'] : null)) {
@@ -44,6 +51,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $act = isset($_POST['act']) ? $_POST['act'] : '';
         $sku = isset($_POST['sku']) ? trim($_POST['sku']) : '';
+        if (in_array($act, array('pick', 'plus', 'minus', 'set', 'del'), true)) {
+            $LIVE_PART = 'cart';
+            $OOB_SKUS  = array($sku);
+        } elseif ($act === 'clear') {
+            $LIVE_PART = 'cart';
+            $OOB_SKUS  = array_keys(isset($_SESSION['adj_draft']) && is_array($_SESSION['adj_draft']) ? $_SESSION['adj_draft'] : array());
+        }
 
         if ($act === 'pick') {
             adraft_pick($code, $sku);
@@ -131,6 +145,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+/* กด “แสดงเพิ่ม” (?from=) → แค่การ์ดชุดถัดไป (ช่วง 4) */
+if ($isHx && $_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['from'])) {
+    $LIVE_PART = 'more';
+}
 if ($isHx) {
     require dirname(__FILE__) . '/inc/adjust-live.php';
     exit;
@@ -222,7 +240,7 @@ require dirname(__FILE__) . '/inc/header.php';
   <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
   <input type="hidden" name="act" value="save">
 
-  <?php require dirname(__FILE__) . '/inc/adjust-live.php'; ?>
+  <?php $LIVE_PART = 'all'; /* หน้าเต็มวาดทั้งส่วนเสมอ */ require dirname(__FILE__) . '/inc/adjust-live.php'; ?>
 
 
   <!-- ===== แถบสรุปติดขอบล่าง ===== -->
@@ -232,7 +250,7 @@ require dirname(__FILE__) . '/inc/header.php';
       <span id="ab-diff" class="ab-diff"></span>
       <small id="ab-hint">แตะสินค้าที่ต้องการนับ</small>
     </div>
-    <button class="btn-xl btn-in" type="submit" id="ab-go" data-need aria-disabled="true">
+    <button class="btn-xl btn-in" type="submit" id="ab-go" data-need data-qty-guard="save" aria-disabled="true">
       <svg class="ico"><use href="#i-clipboard"/></svg> <span id="ab-go-t">บันทึกผลการนับ</span>
     </button>
   </div>

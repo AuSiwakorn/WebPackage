@@ -13,6 +13,9 @@
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  *   - [x] 8 ต.ค.: ยังกรอกไม่ครบแล้วกดบันทึก → เลื่อนไปช่องแรกที่ขาด กะพริบ + ข้อความ (data-need · aoNeedSync ใน inc/footer.php)
  *   - [x] 12 ต.ค.: ช่อง “ผู้รับเข้า” ขึ้น “พนักงาน” แม้เป็นผู้จัดการสาขา → ใช้ user_role_label() แบบเดียวกับแถบบน
+ *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 3): htmx แตะสินค้า / ปุ่มในใบ ส่งกลับแค่ใบ + การ์ดที่แตะ ($LIVE_PART / $OOB_SKUS)
+ *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 4): การ์ดครั้งละ 60 ใบ — htmx ?from= ส่งกลับแค่ชุดถัดไป
+ *   - [x] 14 ต.ค.: ปุ่มบันทึกใบ data-qty-guard — กด + / − แล้วกดบันทึกทันที ระบบส่งจำนวนที่ค้างก่อน (inc/footer.php)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -46,6 +49,9 @@ $oldRef  = '';
 $oldNote = '';
 $voided  = null;
 $npErr   = '';                       // ข้อผิดพลาดของฟอร์มเพิ่มสินค้าใหม่ (ช่วงที่ 16)
+/* htmx ส่งกลับส่วนไหน (งานความเร็ว ช่วง 3): แตะสินค้า / ปุ่มในใบ = แค่ใบ + การ์ดที่แตะ · ค้นหา / เลือกหมวด / แก้ไข / ยกเลิก = ทั้งส่วน */
+$LIVE_PART = 'all';
+$OOB_SKUS  = array();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrf_check(isset($_POST['csrf']) ? $_POST['csrf'] : null)) {
@@ -53,6 +59,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $act = isset($_POST['act']) ? $_POST['act'] : '';
         $sku = isset($_POST['sku']) ? trim($_POST['sku']) : '';
+        if (in_array($act, array('add', 'minus', 'set', 'del'), true)) {
+            $LIVE_PART = 'cart';
+            $OOB_SKUS  = array($sku);
+        } elseif ($act === 'clear') {
+            $LIVE_PART = 'cart';
+            $OOB_SKUS  = array_keys(isset($_SESSION['recv_draft']) && is_array($_SESSION['recv_draft']) ? $_SESSION['recv_draft'] : array());
+        }
 
         if ($act === 'newprod') {
             /* ช่วงที่ 16: เพิ่มสินค้าใหม่ → ใส่เข้าใบ 1 ชิ้นทันที · ไม่ผ่าน = เปิดหน้าต่างค้างไว้พร้อมข้อความและค่าที่กรอก */
@@ -153,6 +166,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+/* กด “แสดงเพิ่ม” (?from=) → แค่การ์ดชุดถัดไป (ช่วง 4) */
+if ($isHx && $_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['from'])) {
+    $LIVE_PART = 'more';
+}
 /* คำขอจาก htmx: ส่งกลับเฉพาะส่วนที่เปลี่ยน */
 if ($isHx) {
     require dirname(__FILE__) . '/inc/receive-live.php';
@@ -276,7 +293,7 @@ require dirname(__FILE__) . '/inc/header.php';
     </div>
   </section>
 
-  <?php require dirname(__FILE__) . '/inc/receive-live.php'; ?>
+  <?php $LIVE_PART = 'all'; /* หน้าเต็มวาดทั้งส่วนเสมอ */ require dirname(__FILE__) . '/inc/receive-live.php'; ?>
 
   <!-- ===== แถบสรุปติดขอบล่าง ===== -->
   <div class="recv-bar" id="recv-bar">
@@ -286,7 +303,7 @@ require dirname(__FILE__) . '/inc/header.php';
       <span class="rb-diff" id="rb-diff" hidden></span>
       <small id="rb-hint">เลือกสินค้าเข้าใบก่อน</small>
     </div>
-    <button class="btn-xl btn-in" type="submit" id="rb-go" data-need aria-disabled="true">
+    <button class="btn-xl btn-in" type="submit" id="rb-go" data-need data-qty-guard="save" aria-disabled="true">
       <svg class="ico"><use href="#i-in"/></svg> บันทึกการรับเข้า
     </button>
   </div>

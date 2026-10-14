@@ -10,6 +10,12 @@
  *   - [x] ช่วงที่ 11: ช่องแก้ยอดชำระ (ส่วนลด) เฉพาะคนที่มีสิทธิ์ discount · ลิงก์ประวัติตามสิทธิ์
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  *   - [x] 12 ต.ค.: ช่อง “รับเงินมา” / ปุ่ม “พอดี” รับและใส่ยอดที่มีสตางค์ได้ (แป้น decimal) — เดิมตัดเป็นบาทเต็ม เงินทอนติดลบ
+ *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 3): แตะสินค้า / ปุ่มในตะกร้า / รับเงิน → ส่งกลับแค่ตะกร้า (#sale-cart) + การ์ดใบที่แตะ (hx-swap-oob)
+ *         เดิมส่งการ์ดสินค้าทุกใบกลับมาวาดใหม่ทุกครั้ง (สินค้า 3,000 ตัว = 3 MB ต่อการแตะ) · สคริปต์ช่องรับเงินย้ายเข้าไปใน aside
+ *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 4): การ์ดครั้งละ 60 ใบ + ปุ่ม “แสดงเพิ่ม” ($LIVE_PART 'more' = ส่งกลับแค่ชุดถัดไป)
+ *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 5): ค้นสินค้าด้วย SQL แบบแบ่งหน้า (Stock_searchPickProducts) — ฐานข้อมูลกรอง / นับ ส่งมาแค่ 60 ตัวที่จะวาด (เดิมดึงทั้งร้านมากรองใน PHP)
+ *   - [x] 14 ต.ค. (ผู้ใช้เลือก): + / − นับในเครื่องก่อนแล้วบันทึกเบื้องหลัง — ปุ่ม data-step · ช่อง data-qty (JS ใน inc/footer.php) · เดิมกดรัว ๆ แล้วหาย
+ *   - [x] 14 ต.ค. (ผู้ใช้เลือก): แตะสินค้าตัวใหม่ขึ้นตะกร้าทันที — แถวเป็น $row ใช้ทั้งวาดตะกร้าและแม่แบบ #pick-row · การ์ดมี data-pick · hx-ext="ao-live" (คำตอบที่มาช้าลงตัวที่อยู่บนจอ)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -20,21 +26,114 @@ if (!defined('ALLOW_DIRECT_ACCESS')) {
    ----------------------------------------------------------
    ต้องกำหนดก่อน include:
      $user  $code  $q  $cat
-   ไฟล์นี้ถูกเรียกสองทาง
+     $LIVE_PART  (ไม่บังคับ) 'all' = ทั้งส่วน #sale-live · 'cart' = เฉพาะตะกร้า #sale-cart + การ์ดของ $OOB_SKUS · 'more' = การ์ดชุดถัดไป (?from=) + ปุ่มแสดงเพิ่ม
+     $OOB_SKUS   (ไม่บังคับ) SKU ที่ต้องวาดการ์ดใหม่ (ตะกร้าเปลี่ยน / ขายแล้วยอดเปลี่ยน)
+   ไฟล์นี้ถูกเรียกสามทาง
      1) จาก sale.php ตอนโหลดหน้าเต็ม
-     2) ตอบกลับคำขอของ htmx เพื่อสลับเฉพาะ #sale-live
+     2) htmx ค้นหา / เลือกหมวด → สลับทั้ง #sale-live
+     3) htmx แตะสินค้า / ปุ่มในตะกร้า / รับเงิน → สลับแค่ #sale-cart + การ์ดที่แตะแบบ hx-swap-oob
+        (เดิมส่งการ์ดทุกใบกลับมาทุกครั้ง — สินค้า 3,000 ตัว = 3 MB และ 14 วินาทีบน iPad ต่อการแตะ)
    ========================================================== */
 
 require_once dirname(__FILE__) . '/../include/function.php';
 
-$list = sale_products($code, $q, $cat);
+$LIVE_PART = (isset($LIVE_PART) && in_array($LIVE_PART, array('cart', 'more'), true)) ? $LIVE_PART : 'all';
+list($from, $end) = Stock_getListRange();     // การ์ดครั้งละ 60 ใบ + ปุ่ม “แสดงเพิ่ม” (ช่วง 4)
+/* ฐานข้อมูลกรอง นับ และส่งมาเฉพาะการ์ดที่จะวาดรอบนี้ (ช่วง 5) — $list = การ์ดที่จะวาด · $total = จำนวนที่ตรงทั้งหมด */
+$found = ($LIVE_PART === 'cart') ? array('rows' => array(), 'total' => 0)
+       : Stock_searchPickProducts($code, $q, $cat, ($LIVE_PART === 'more') ? $from : 0, ($LIVE_PART === 'more') ? $end - $from : $end);
+$list  = $found['rows'];
+$total = $found['total'];
 $cart = cart_lines();
 $tot  = cart_total();
 $sum  = sale_summary($code);
 $qs   = ($q !== '' ? 'q=' . rawurlencode($q) : '') . ($cat !== '' ? ($q !== '' ? '&' : '') . 'cat=' . rawurlencode($cat) : '');
 $base = 'sale.php' . ($qs !== '' ? '?' . $qs : '');
+
+/* การ์ดสินค้าหนึ่งใบ — ใช้ทั้งตอนวาดรายการ และตอนส่งกลับใบเดียวแบบ hx-swap-oob */
+$tile = function ($p, $oob) use ($base) {
+    $inCart = isset($_SESSION['cart'][$p['sku']]) ? (int) $_SESSION['cart'][$p['sku']] : 0; ?>
+          <form method="post" action="<?php echo e($base) ?>" class="g-form" id="<?php echo e(Stock_buildTileId($p['sku'])) ?>" data-sku="<?php echo e($p['sku']) ?>"<?php echo $oob ? ' hx-swap-oob="true"' : '' ?>
+                hx-post="<?php echo e($base) ?>" hx-target="#sale-cart" hx-swap="outerHTML"
+                data-pick='<?php echo e(json_encode(array('name' => $p['name'], 'unit' => $p['unit'], 'price' => (float) $p['price'], 'have' => (int) $p['qty'], 'max' => (int) $p['qty']))) ?>'>
+            <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
+            <input type="hidden" name="act" value="add">
+            <input type="hidden" name="sku" value="<?php echo e($p['sku']) ?>">
+            <button class="good<?php echo $p['qty'] <= 0 ? ' is-out' : '' ?><?php echo $inCart > 0 ? ' is-in' : '' ?>"
+                    type="submit" <?php echo $p['qty'] <= 0 ? 'disabled' : '' ?>>
+              <?php if ($inCart > 0) { ?><i class="g-bdg"><?php echo $inCart ?></i><?php } ?>
+              <?php echo thumb_html($p, 'thumb--lg') ?>
+              <span class="g-cat"><?php echo e($p['cat']) ?></span>
+              <span class="g-nm"><?php echo e($p['name']) ?></span>
+              <span class="g-pr num"><?php echo money2($p['price']) ?><small>บาท/<?php echo e($p['unit']) ?></small></span>
+              <span class="g-qty<?php echo $p['qty'] <= 0 ? ' out' : ($p['qty'] <= $p['reorder'] ? ' low' : '') ?>">
+                <?php echo $p['qty'] <= 0 ? 'หมด' : 'เหลือ ' . number_format($p['qty']) . ' ' . e($p['unit']) ?>
+              </span>
+            </button>
+          </form>
+<?php
+};
+
+/* แถวในตะกร้า — ใช้วาดตะกร้า และเป็นแม่แบบ #pick-row ให้ JS สร้างแถวตอนแตะสินค้าตัวใหม่ ({sku} {name} {unit} · data-f = ช่องที่ JS เติม) */
+$row = function ($l, $max) use ($base) { ?>
+            <li>
+              <div class="cl-t">
+                <b><?php echo e($l['name']) ?></b>
+                <small class="num"><span data-f="price"><?php echo money2($l['price']) ?></span> × <span data-f="qty"><?php echo $l['qty'] ?></span> <?php echo e($l['unit']) ?></small>
+              </div>
+              <?php /* + / − นับในเครื่องก่อนแล้วบันทึกเบื้องหลัง (data-step · JS ใน inc/footer.php — 14 ต.ค.)
+                       ฟอร์ม + / − ไม่มี hx-post แล้ว — ปิด JavaScript ยังส่งแบบปกติได้ · ช่องจำนวน (data-qty) ส่ง act=set ตอน change */ ?>
+              <div class="cl-q" hx-target="#sale-cart" hx-swap="outerHTML">
+                <form method="post" action="<?php echo e($base) ?>">
+                  <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
+                  <input type="hidden" name="act" value="minus">
+                  <input type="hidden" name="sku" value="<?php echo e($l['sku']) ?>">
+                  <button type="submit" aria-label="ลดจำนวน" data-step="-1"><svg class="ico"><use href="#i-minus"/></svg></button>
+                </form>
+
+                <?php /* พิมพ์จำนวนแก้ได้เลยเมื่อกดผิด ไม่ต้องกดลดทีละครั้ง */ ?>
+                <form method="post" action="<?php echo e($base) ?>" hx-post="<?php echo e($base) ?>" class="cl-set"
+                      hx-trigger="submit, change" data-no-busy>
+                  <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
+                  <input type="hidden" name="act" value="set">
+                  <input type="hidden" name="sku" value="<?php echo e($l['sku']) ?>">
+                  <input class="num" type="text" inputmode="numeric" name="qty" value="<?php echo $l['qty'] ?>"
+                         aria-label="จำนวนของ <?php echo e($l['name']) ?>" autocomplete="off"
+                         data-qty data-tile data-sku="<?php echo e($l['sku']) ?>" data-min="0" data-max="<?php echo (int) $max ?>">
+                  <noscript><button type="submit">ตกลง</button></noscript>
+                </form>
+
+                <form method="post" action="<?php echo e($base) ?>">
+                  <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
+                  <input type="hidden" name="act" value="add">
+                  <input type="hidden" name="sku" value="<?php echo e($l['sku']) ?>">
+                  <button type="submit" aria-label="เพิ่มจำนวน" data-step="1"><svg class="ico"><use href="#i-plus"/></svg></button>
+                </form>
+              </div>
+              <div class="cl-s num" data-f="sum"><?php echo money2($l['sum']) ?></div>
+              <form class="cl-del" method="post" action="<?php echo e($base) ?>"
+                    hx-post="<?php echo e($base) ?>" hx-target="#sale-cart" hx-swap="outerHTML">
+                <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
+                <input type="hidden" name="act" value="del">
+                <input type="hidden" name="sku" value="<?php echo e($l['sku']) ?>">
+                <button type="submit" aria-label="เอา <?php echo e($l['name']) ?> ออกจากตะกร้า"
+                        title="เอาออกจากตะกร้า"><svg class="ico"><use href="#i-x"/></svg></button>
+              </form>
+            </li>
+<?php
+};
+
+/* กด “แสดงเพิ่ม” → การ์ดชุดถัดไป + ปุ่มใหม่ (สลับแทนปุ่มเดิมในกริด) */
+if ($LIVE_PART === 'more') {
+    foreach ($list as $p) {
+        $tile($p, false);
+    }
+    Stock_renderMoreButton($end, $total, $base);
+    return;
+}
 ?>
-<div class="sale-wrap" id="sale-live">
+<?php if ($LIVE_PART === 'all') { ?>
+<div class="sale-wrap" id="sale-live" hx-ext="ao-live">
 
   <!-- ==================== เลือกสินค้า ==================== -->
   <section class="card sale-pick">
@@ -72,32 +171,16 @@ $base = 'sale.php' . ($qs !== '' ? '?' . $qs : '');
       </p>
     <?php } else { ?>
       <div class="goods">
-        <?php foreach ($list as $p) { ?>
-          <?php $inCart = isset($_SESSION['cart'][$p['sku']]) ? (int) $_SESSION['cart'][$p['sku']] : 0; ?>
-          <form method="post" action="<?php echo e($base) ?>" class="g-form"
-                hx-post="<?php echo e($base) ?>" hx-target="#sale-live" hx-swap="outerHTML">
-            <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
-            <input type="hidden" name="act" value="add">
-            <input type="hidden" name="sku" value="<?php echo e($p['sku']) ?>">
-            <button class="good<?php echo $p['qty'] <= 0 ? ' is-out' : '' ?><?php echo $inCart > 0 ? ' is-in' : '' ?>"
-                    type="submit" <?php echo $p['qty'] <= 0 ? 'disabled' : '' ?>>
-              <?php if ($inCart > 0) { ?><i class="g-bdg"><?php echo $inCart ?></i><?php } ?>
-              <?php echo thumb_html($p, 'thumb--lg') ?>
-              <span class="g-cat"><?php echo e($p['cat']) ?></span>
-              <span class="g-nm"><?php echo e($p['name']) ?></span>
-              <span class="g-pr num"><?php echo money2($p['price']) ?><small>บาท/<?php echo e($p['unit']) ?></small></span>
-              <span class="g-qty<?php echo $p['qty'] <= 0 ? ' out' : ($p['qty'] <= $p['reorder'] ? ' low' : '') ?>">
-                <?php echo $p['qty'] <= 0 ? 'หมด' : 'เหลือ ' . number_format($p['qty']) . ' ' . e($p['unit']) ?>
-              </span>
-            </button>
-          </form>
-        <?php } ?>
+        <?php foreach ($list as $p) { $tile($p, false); } ?>
+        <?php Stock_renderMoreButton($end, $total, $base); ?>
       </div>
     <?php } ?>
   </section>
+<?php } ?>
 
   <!-- ==================== ตะกร้า ==================== -->
-  <aside class="sale-cart">
+  <aside class="sale-cart" id="sale-cart" hx-ext="ao-live">
+    <template id="pick-row" data-dir="0"><ul class="cart-list"><?php $row(array('sku' => '{sku}', 'name' => '{name}', 'unit' => '{unit}', 'price' => 0, 'qty' => 0, 'sum' => 0), 0); ?></ul></template>
     <div class="card cart-card">
       <div class="card-head">
         <div>
@@ -106,7 +189,7 @@ $base = 'sale.php' . ($qs !== '' ? '?' . $qs : '');
         </div>
         <?php if ($cart) { ?>
           <form method="post" action="<?php echo e($base) ?>" hx-post="<?php echo e($base) ?>"
-                hx-target="#sale-live" hx-swap="outerHTML">
+                hx-target="#sale-cart" hx-swap="outerHTML">
             <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
             <input type="hidden" name="act" value="clear">
             <button class="icon-btn" type="submit" title="ล้างตะกร้า" aria-label="ล้างตะกร้า">
@@ -124,55 +207,14 @@ $base = 'sale.php' . ($qs !== '' ? '?' . $qs : '');
       <?php } else { ?>
 
         <ul class="cart-list">
-          <?php foreach ($cart as $l) { ?>
-            <li>
-              <div class="cl-t">
-                <b><?php echo e($l['name']) ?></b>
-                <small class="num"><?php echo money2($l['price']) ?> × <?php echo $l['qty'] ?> <?php echo e($l['unit']) ?></small>
-              </div>
-              <div class="cl-q" hx-target="#sale-live" hx-swap="outerHTML">
-                <form method="post" action="<?php echo e($base) ?>" hx-post="<?php echo e($base) ?>">
-                  <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
-                  <input type="hidden" name="act" value="minus">
-                  <input type="hidden" name="sku" value="<?php echo e($l['sku']) ?>">
-                  <button type="submit" aria-label="ลดจำนวน"><svg class="ico"><use href="#i-minus"/></svg></button>
-                </form>
-
-                <?php /* พิมพ์จำนวนแก้ได้เลยเมื่อกดผิด ไม่ต้องกดลดทีละครั้ง */ ?>
-                <form method="post" action="<?php echo e($base) ?>" hx-post="<?php echo e($base) ?>" class="cl-set"
-                      hx-trigger="submit, change">
-                  <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
-                  <input type="hidden" name="act" value="set">
-                  <input type="hidden" name="sku" value="<?php echo e($l['sku']) ?>">
-                  <input class="num" type="text" inputmode="numeric" name="qty" value="<?php echo $l['qty'] ?>"
-                         aria-label="จำนวนของ <?php echo e($l['name']) ?>" autocomplete="off">
-                  <noscript><button type="submit">ตกลง</button></noscript>
-                </form>
-
-                <form method="post" action="<?php echo e($base) ?>" hx-post="<?php echo e($base) ?>">
-                  <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
-                  <input type="hidden" name="act" value="add">
-                  <input type="hidden" name="sku" value="<?php echo e($l['sku']) ?>">
-                  <button type="submit" aria-label="เพิ่มจำนวน"><svg class="ico"><use href="#i-plus"/></svg></button>
-                </form>
-              </div>
-              <div class="cl-s num"><?php echo money2($l['sum']) ?></div>
-              <form class="cl-del" method="post" action="<?php echo e($base) ?>"
-                    hx-post="<?php echo e($base) ?>" hx-target="#sale-live" hx-swap="outerHTML">
-                <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
-                <input type="hidden" name="act" value="del">
-                <input type="hidden" name="sku" value="<?php echo e($l['sku']) ?>">
-                <button type="submit" aria-label="เอา <?php echo e($l['name']) ?> ออกจากตะกร้า"
-                        title="เอาออกจากตะกร้า"><svg class="ico"><use href="#i-x"/></svg></button>
-              </form>
-            </li>
-          <?php } ?>
+          <?php foreach ($cart as $l) { $row($l, product_qty($l['p'], $code)); } ?>
         </ul>
 
         <form method="post" action="<?php echo e($base) ?>" class="pay" data-confirm="pay" hx-confirm="ยืนยันการรับเงิน"
-              hx-post="<?php echo e($base) ?>" hx-target="#sale-live" hx-swap="outerHTML">
+              hx-post="<?php echo e($base) ?>" hx-target="#sale-cart" hx-swap="outerHTML">
           <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
           <input type="hidden" name="act" value="pay">
+          <input type="hidden" name="full" value="<?php echo e(number_format($tot, 2, '.', '')) ?>"><?php /* ยอดที่จอเห็น — ไม่ตรงตะกร้าจริง = ไม่บันทึก */ ?>
 
           <?php /* ยอดที่ต้องชำระแก้ได้ — ลดราคาให้ลูกค้า ระบบลงเป็น "ส่วนลด" ในบิลให้เอง (เพิ่มเกินราคาจริงไม่ได้)
                    ไม่มีสิทธิ์ให้ส่วนลด = แสดงยอดเต็มอย่างเดียว (ช่วงที่ 11 — ฝั่งเซิร์ฟเวอร์คิดราคาเต็มเสมออยู่แล้ว) */ ?>
@@ -231,7 +273,7 @@ $base = 'sale.php' . ($qs !== '' ? '?' . $qs : '');
             <div class="kv1 kv-chg"><span>เงินทอน</span><b class="num" id="change">0.00</b></div>
           </div>
 
-          <button class="btn-xl btn-pay" type="submit">
+          <button class="btn-xl btn-pay" type="submit" data-qty-guard="pay">
             <svg class="ico"><use href="#i-check"/></svg> รับเงินและบันทึกบิล
           </button>
         </form>
@@ -258,8 +300,8 @@ $base = 'sale.php' . ($qs !== '' ? '?' . $qs : '');
         <?php } ?>
       <?php } ?>
     </div>
-  </aside>
 
+  <?php /* อยู่ใน aside เพื่อให้สลับไปพร้อมตะกร้า (ตอนส่งกลับแค่ #sale-cart สคริปต์ก็ทำงานใหม่ด้วย) */ ?>
   <script>
   (function () {
     var totEl = document.getElementById('total');
@@ -354,4 +396,13 @@ $base = 'sale.php' . ($qs !== '' ? '?' . $qs : '');
     }
   })();
   </script>
+  </aside>
+<?php if ($LIVE_PART === 'all') { ?>
 </div>
+<?php } else { ?>
+<?php
+    /* ส่งกลับแค่ตะกร้า → การ์ดที่ยอดในตะกร้า / ยอดคงเหลือเปลี่ยน สลับใบเดียวแบบ hx-swap-oob (ใบที่ไม่อยู่บนจอ htmx ข้ามไปเอง) */
+    foreach (Stock_getPickProducts($code, isset($OOB_SKUS) ? $OOB_SKUS : array()) as $p) {
+        $tile($p, true);
+    }
+} ?>

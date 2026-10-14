@@ -9,6 +9,9 @@
  *   - [x] ช่วงที่ 12: ประวัติการเพิ่ม / ลบหมวดเป็นชนิด category (พนักงานทุกคนเห็น — เดิมปนอยู่ในตั้งค่า)
  *   - [x] ช่วงที่ 16: พนักงานเพิ่มสินค้าใหม่จากหน้านำเข้า (Stock_doAddProduct) · SKU อัตโนมัติ P0001… (Stock_nextProductSku) หรือกรอกเอง
  *         · ตั้งชื่อตามมาตรฐานใหม่ Stock_ (ดู FUNCTIONS.md)
+ *   - [x] 14 ต.ค.: Stock_getPickProducts / Stock_buildTileId — หน้าเลือกสินค้าแตะแล้ววาดใหม่แค่ตะกร้า / ใบ + การ์ดใบที่แตะ (งานความเร็ว ช่วง 3)
+ *   - [x] 14 ต.ค.: แสดงสินค้าครั้งละ 60 + ปุ่ม “แสดงเพิ่ม” — PRODUCT_PAGE_SIZE · Stock_getListRange · Stock_renderMoreButton (งานความเร็ว ช่วง 4)
+ *   - [x] 14 ต.ค.: product_by_sku ดึงทีละตัว (Stock_getProductRowBySku) แทนโหลดทั้งร้าน · ค้นสินค้าด้วย SQL แบบแบ่งหน้า (Stock_searchPickProducts) (งานความเร็ว ช่วง 5)
  *
  * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
  */
@@ -21,10 +24,14 @@
 
 /** ทุกแถวของ ao_stock_product (+ ชื่อหมวด) — array( SKU => แถว ) เรียงตามหมวด แล้วตาม SKU
     TODO:
-      - [x] cache ต่อ request · $reset = true ล้าง cache หลังเขียน */
-function product_db_rows($reset = false)
+      - [x] cache ต่อ request · $reset = true ล้าง cache หลังเขียน
+      - [x] 14 ต.ค. (งานความเร็ว ช่วง 5): $peek = true → แค่บอกว่าโหลดทั้งร้านไว้แล้วหรือยัง (product_by_sku ใช้ตัดสินว่าจะดึงทีละตัวไหม) */
+function product_db_rows($reset = false, $peek = false)
 {
     static $rows = null;
+    if ($peek) {
+        return $rows !== null;
+    }
     if ($reset) {
         $rows = null;
         return array();
@@ -60,11 +67,16 @@ function product_balance_rows($reset = false)
     return $rows;
 }
 
-/** แถวในฐานข้อมูล → รูปแบบสินค้าที่หน้าเว็บใช้ (sku name cat unit cost price reorder stock ...) */
+/** แถวในฐานข้อมูล → รูปแบบสินค้าที่หน้าเว็บใช้ (sku name cat unit cost price reorder stock ...)
+    แถวที่มี __stock มาด้วย (ดึงทีละตัว / ค้นแบบแบ่งหน้า — ช่วง 5) ใช้ยอดนั้นเลย ไม่โหลดยอดทั้งร้าน */
 function product_shape($r)
 {
-    $bal = product_balance_rows();
     $id  = (int) $r['product_id'];
+    if (isset($r['__stock'])) {
+        $bal = array($id => $r['__stock']);
+    } else {
+        $bal = product_balance_rows();
+    }
     return array(
         'id'      => $id,
         'sku'     => $r['sku'],
@@ -101,6 +113,159 @@ function product_db_reset()
 {
     product_db_rows(true);
     product_balance_rows(true);
+    Stock_getProductRowBySku('', true);
+}
+
+/** แถวสินค้าตัวเดียว (+ ชื่อหมวด) พร้อมยอดทุกสาขาใน __stock — ไม่โหลดทั้งร้าน (งานความเร็ว ช่วง 5)
+    คืน array แถว · null = ไม่มี SKU นี้ · false = ดึงทีละตัวครบเพดานแล้ว (request นี้ใช้สินค้าหลายตัว → ให้โหลดทั้งร้านครั้งเดียวคุ้มกว่า)
+    แตะสินค้า / ปุ่มในตะกร้าใช้แค่ไม่กี่ตัว — เดิมโหลดสินค้าและยอดทั้งร้านทุกครั้ง (สินค้า 3,000 ตัว ≈ 90 ms ต่อการแตะ)
+    TODO:
+      - [x] 14 ต.ค. (งานความเร็ว ช่วง 5) · cache ต่อ request · $reset = true ล้าง (product_db_reset) */
+function Stock_getProductRowBySku($sku, $reset = false)
+{
+    $one = &Stock_getProductRowCache();
+    if ($reset) {
+        $one = array();
+        return null;
+    }
+    $sku = (string) $sku;
+    if (!array_key_exists($sku, $one)) {
+        if (count($one) >= 24) {
+            return false;
+        }
+        Stock_prefetchProducts(array($sku));
+    }
+    return $one[$sku];
+}
+
+/** ที่เก็บแถวสินค้าที่ดึงทีละตัว / ทีละชุด ต่อ request — SKU => แถว (มี __stock) หรือ null (ไม่มี SKU นี้)
+    TODO:
+      - [x] 14 ต.ค. (งานความเร็ว ช่วง 5) — ใช้ร่วมกันระหว่าง Stock_getProductRowBySku กับ Stock_prefetchProducts */
+function &Stock_getProductRowCache()
+{
+    static $cache = array();
+    return $cache;
+}
+
+/** ดึงสินค้าหลายตัวในคิวรีเดียว (+ ยอดทุกสาขา) เก็บไว้ให้ product_by_sku — ใช้ก่อนวนรายการ (ตะกร้า / ร่างใบ / ความเคลื่อนไหว / รายงาน)
+    เดิมวน product_by_sku ทีละตัว = คิวรีทีละตัว · โหลดทั้งร้านไว้แล้ว = ไม่ทำอะไร · เกิน 300 ตัว = โหลดทั้งร้านครั้งเดียวแทน
+    TODO:
+      - [x] 14 ต.ค. (งานความเร็ว ช่วง 5) */
+function Stock_prefetchProducts($skus)
+{
+    if (product_db_rows(false, true)) {
+        return;
+    }
+    $one  = &Stock_getProductRowCache();
+    $need = array();
+    foreach ($skus as $s) {
+        $s = (string) $s;
+        if (!array_key_exists($s, $one)) {
+            $need[$s] = true;
+        }
+    }
+    if (!$need) {
+        return;
+    }
+    if (count($need) > 300) {
+        product_db_rows();
+        return;
+    }
+    $need = array_keys($need);
+    $ph   = implode(',', array_fill(0, count($need), '?'));
+    $byId = array();
+    foreach ($need as $s) {
+        $one[$s] = null;
+    }
+    $sql = 'SELECT p.*, c.name AS cat_name FROM ' . sdb_tb('product') . ' p'
+         . ' LEFT JOIN ' . sdb_tb('category') . ' c ON c.cate_id = p.cate_id WHERE p.sku IN (' . $ph . ')';
+    foreach (sdb_rows($sql, $need) as $r) {
+        $r['__stock'] = array();
+        $one[$r['sku']] = $r;
+        $byId[(int) $r['product_id']] = $r['sku'];
+    }
+    if ($byId) {
+        $sql = 'SELECT b.code, s.product_id, s.qty FROM ' . sdb_tb('balance') . ' s JOIN ' . sdb_tb('branch') . ' b ON b.branch_id = s.branch_id'
+             . ' WHERE s.product_id IN (' . implode(',', array_keys($byId)) . ')';
+        foreach (sdb_rows($sql) as $x) {
+            $one[$byId[(int) $x['product_id']]]['__stock'][$x['code']] = (int) $x['qty'];
+        }
+    }
+}
+
+/** ค้นสินค้าที่ขายอยู่ด้วย SQL แบบแบ่งหน้า — คืน array('rows' => สินค้าเฉพาะช่วงที่ขอ, 'total' => จำนวนที่ตรงทั้งหมด) (งานความเร็ว ช่วง 5)
+    ผลเหมือน sale_products (หมวดตรงชื่อ · คำค้นอยู่ในชื่อหรือ SKU ไม่สนตัวพิมพ์ · เรียงตามหมวดแล้ว SKU) แต่ฐานข้อมูลกรองและนับให้
+    แล้วส่งมาแค่ $limit ตัว — เดิมดึงสินค้าทั้งร้านมากรองใน PHP แล้วค่อยตัดเหลือ 60
+    $branch = รหัสสาขา หรือ 'ALL' (รวมสาขาที่เปิดใช้งาน) · $limit = 0 → นับอย่างเดียว
+    $only / $skip = เฉพาะ / ยกเว้น SKU ในรายการ (แท็บ “นับแล้ว / ยังไม่นับ” ของหน้าตรวจนับ) · null = ไม่กรอง
+    TODO:
+      - [x] 14 ต.ค. (งานความเร็ว ช่วง 5) */
+function Stock_searchPickProducts($branch, $q, $cat, $offset = 0, $limit = PRODUCT_PAGE_SIZE, $only = null, $skip = null)
+{
+    $where = array('p.is_active = 1');
+    $args  = array();
+    if ($cat !== '') {
+        $where[] = 'c.name = ?';
+        $args[]  = $cat;
+    }
+    $q = trim((string) $q);
+    if ($q !== '') {
+        /* LOWER + utf8mb4_bin = เทียบตรงตัวแบบไม่สนตัวพิมพ์ (เหมือน stripos) — collation ปกติของตารางมองข้ามวรรณยุกต์ไทยบางตัว */
+        $like    = '%' . addcslashes(mb_strtolower($q, 'UTF-8'), '\\%_') . '%';
+        $where[] = '(LOWER(p.name) COLLATE utf8mb4_bin LIKE ? OR LOWER(p.sku) COLLATE utf8mb4_bin LIKE ?)';
+        $args[]  = $like;
+        $args[]  = $like;
+    }
+    foreach (array('IN' => $only, 'NOT IN' => $skip) as $op => $skus) {
+        if ($skus === null) {
+            continue;
+        }
+        if (!$skus) {
+            if ($op === 'IN') {
+                return array('rows' => array(), 'total' => 0);
+            }
+            continue;
+        }
+        $where[] = 'p.sku ' . $op . ' (' . implode(',', array_fill(0, count($skus), '?')) . ')';
+        $args    = array_merge($args, array_map('strval', array_values($skus)));
+    }
+    $cond  = ' FROM ' . sdb_tb('product') . ' p LEFT JOIN ' . sdb_tb('category') . ' c ON c.cate_id = p.cate_id'
+           . ' WHERE ' . implode(' AND ', $where);
+    $total = (int) sdb_val('SELECT COUNT(*)' . $cond, $args);
+    $rows  = array();
+    if ($limit <= 0 || $total <= $offset) {
+        return array('rows' => $rows, 'total' => $total);
+    }
+
+    /* ยอดของสาขานี้ (หรือรวมทุกสาขาที่เปิดใช้งาน) */
+    if ($branch === 'ALL') {
+        $ids = array();
+        foreach (branches_active() as $b) {
+            $ids[] = (int) $b['id'];
+        }
+        $bal = $ids ? '(SELECT product_id, SUM(qty) AS qty FROM ' . sdb_tb('balance') . ' WHERE branch_id IN (' . implode(',', $ids) . ') GROUP BY product_id)'
+                    : '(SELECT 0 AS product_id, 0 AS qty)';
+        $on  = '';
+        $pre = array();
+    } else {
+        $all = branches_all();
+        $bal = sdb_tb('balance');
+        $on  = ' AND s.branch_id = ?';
+        $pre = array(isset($all[$branch]) ? (int) $all[$branch]['id'] : 0);
+    }
+    $sql = 'SELECT p.*, c.name AS cat_name, COALESCE(s.qty, 0) AS b_qty FROM ' . sdb_tb('product') . ' p'
+         . ' LEFT JOIN ' . sdb_tb('category') . ' c ON c.cate_id = p.cate_id'
+         . ' LEFT JOIN ' . $bal . ' s ON s.product_id = p.product_id' . $on
+         . ' WHERE ' . implode(' AND ', $where)
+         . ' ORDER BY (c.sort IS NULL), c.sort, c.name, p.sku LIMIT ' . (int) $limit . ' OFFSET ' . (int) $offset;
+    foreach (sdb_rows($sql, array_merge($pre, $args)) as $r) {
+        $r['__stock'] = ($branch === 'ALL') ? array() : array($branch => (int) $r['b_qty']);
+        $p = product_shape($r);
+        $p['qty']   = (int) $r['b_qty'];
+        $p['price'] = product_price($p);
+        $rows[]     = $p;
+    }
+    return array('rows' => $rows, 'total' => $total);
 }
 
 /** หน่วยที่เคยใช้ (ไว้เติมในช่องหน่วยของฟอร์มสินค้า) */
@@ -361,9 +526,18 @@ function branch_status($p, $code)
     return $qty <= $p['reorder'] ? 'low' : 'ok';
 }
 
-/** ค้นสินค้าจาก SKU (รวมที่เลิกขาย — เอกสารเก่ายังอ้างถึงได้) */
+/** ค้นสินค้าจาก SKU (รวมที่เลิกขาย — เอกสารเก่ายังอ้างถึงได้)
+    TODO:
+      - [x] 14 ต.ค. (งานความเร็ว ช่วง 5): ยังไม่ได้โหลดทั้งร้าน → ดึงทีละตัว (Stock_getProductRowBySku) · ใช้หลายตัวเกินเพดาน → โหลดทั้งร้านครั้งเดียว */
 function product_by_sku($sku)
 {
+    $sku = (string) $sku;
+    if (!product_db_rows(false, true)) {
+        $r = Stock_getProductRowBySku($sku);
+        if ($r !== false) {
+            return ($r === null) ? null : product_shape($r);
+        }
+    }
     $rows = product_db_rows();
     return isset($rows[$sku]) ? product_shape($rows[$sku]) : null;
 }
@@ -586,6 +760,82 @@ function sale_products($branch, $q, $cat)
         $out[]      = $p;
     }
     return $out;
+}
+
+/** สินค้าเฉพาะ SKU ที่ระบุ (ที่ยังขายอยู่) รูปแบบเดียวกับ sale_products — ใช้วาดการ์ดสินค้าใบที่เพิ่งแตะใหม่
+    ตอนหน้าขาย / นำเข้า / เบิก / ตรวจนับส่งกลับแค่ตะกร้าหรือใบ (ไม่ส่งรายการสินค้าทั้งหมดกลับทุกครั้งที่แตะ)
+    TODO:
+      - [x] 14 ต.ค. (งานความเร็ว ช่วง 3) */
+function Stock_getPickProducts($branch, $skus)
+{
+    $out = array();
+    Stock_prefetchProducts($skus);                       // คิวรีเดียวทุกใบที่ต้องวาดใหม่ (ช่วง 5)
+    foreach (array_unique($skus) as $sku) {
+        $p = product_by_sku((string) $sku);
+        if ($p === null || !$p['active']) {
+            continue;
+        }
+        $p['qty']   = product_qty($p, $branch);
+        $p['price'] = product_price($p);
+        $out[]      = $p;
+    }
+    return $out;
+}
+
+/** id ของการ์ดสินค้าในหน้าเลือกสินค้า — ใช้สลับการ์ดใบเดียวแบบ hx-swap-oob (SKU มีอักขระที่ใช้เป็น id ไม่ได้ จึงแปลงเป็น hash)
+    TODO:
+      - [x] 14 ต.ค. (งานความเร็ว ช่วง 3) */
+function Stock_buildTileId($sku)
+{
+    return 'g-' . substr(md5((string) $sku), 0, 12);
+}
+
+/* ---------- แสดงสินค้าครั้งละ 60 รายการ + ปุ่ม “แสดงเพิ่ม” (งานความเร็ว ช่วง 4 · ผู้ใช้เลือก 14 ต.ค.) ----------
+   ร้านมีสินค้าเป็นพัน — วาดทุกตัวทีเดียว = หน้าละหลาย MB และ iPad ค้างหลายวินาที
+   ?n=N    เปิดหน้า (หรือไม่มี JavaScript) → แถว 0 ถึง N (ปัดขึ้นเป็นทีละ 60)
+   ?from=N htmx กด “แสดงเพิ่ม” → ส่งกลับแค่แถว N ถึง N+60 + ปุ่มถัดไป (สลับแทนปุ่มเดิม) */
+if (!defined('PRODUCT_PAGE_SIZE')) {
+    define('PRODUCT_PAGE_SIZE', 60);
+}
+
+/** ช่วงแถวที่จะวาด — array(แถวเริ่ม, แถวจบ (ไม่รวม), เป็นคำขอ “แสดงเพิ่ม” ไหม) ตาม ?from / ?n ด้านบน
+    TODO:
+      - [x] 14 ต.ค. (งานความเร็ว ช่วง 4) */
+function Stock_getListRange()
+{
+    $size = PRODUCT_PAGE_SIZE;
+    if (isset($_GET['from']) && is_string($_GET['from']) && ctype_digit($_GET['from'])) {
+        $from = min(100000, (int) $_GET['from']);
+        return array($from, $from + $size, true);
+    }
+    $n = (isset($_GET['n']) && is_string($_GET['n']) && ctype_digit($_GET['n'])) ? (int) $_GET['n'] : $size;
+    $n = max($size, min(100000, (int) (ceil($n / $size) * $size)));
+    return array(0, $n, false);
+}
+
+/** ปุ่ม “แสดงเพิ่ม” ท้ายรายการ — แสดงครบแล้ว = ไม่ echo อะไร
+    $url  = หน้าเดิมพร้อมตัวกรอง (ไม่มี n / from) · $cols มากกว่า 0 → <tr> ในตาราง (colspan)
+    $cols = 0 → แท็ก $tag ('div' ในกริดการ์ด · 'li' ใน <ul>)
+    htmx: แทนที่แถวของปุ่มด้วยรายการชุดถัดไป + ปุ่มใหม่ · ไม่มี JavaScript: ลิงก์เปิดหน้าเดิมแบบ n เพิ่มอีก 60
+    TODO:
+      - [x] 14 ต.ค. (งานความเร็ว ช่วง 4) */
+function Stock_renderMoreButton($end, $total, $url, $cols = 0, $tag = 'div')
+{
+    if ($end >= $total) {
+        return;
+    }
+    $sep  = (strpos($url, '?') === false) ? '?' : '&';
+    $body = '<span class="more-t">แสดง <b class="num">' . number_format($end) . '</b> จาก <b class="num">' . number_format($total) . '</b> รายการ'
+          . ' · พิมพ์ค้นหาหรือเลือกหมวดเพื่อหาเร็วขึ้น</span>'
+          . '<a class="btn btn-ghost btn-sm more-btn" href="' . e($url . $sep . 'n=' . ($end + PRODUCT_PAGE_SIZE)) . '"'
+          . ' hx-get="' . e($url . $sep . 'from=' . $end) . '" hx-target="closest .more-row" hx-swap="outerHTML" hx-push-url="false">'
+          . 'แสดงเพิ่มอีก ' . number_format(min(PRODUCT_PAGE_SIZE, $total - $end)) . ' รายการ</a>';
+    if ($cols > 0) {
+        echo '<tr class="more-row"><td colspan="' . (int) $cols . '"><div class="more-in">' . $body . '</div></td></tr>';
+    } else {
+        $tag = ($tag === 'li') ? 'li' : 'div';
+        echo '<' . $tag . ' class="more-row">' . $body . '</' . $tag . '>';
+    }
 }
 
 /* ==========================================================

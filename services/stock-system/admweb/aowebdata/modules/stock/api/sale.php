@@ -9,6 +9,7 @@
  *   - [x] ช่วงที่ 11: ส่วนลดท้ายบิลต้องมีสิทธิ์ discount · ปุ่มแก้ / ยกเลิกบิลหลังบันทึกต้องมีสิทธิ์ bill_fix
  *   - [x] ปุ่ม “ดู / พิมพ์บิล” หลังบันทึกบิล — แสดงทุกครั้ง ไม่ต้องมีสิทธิ์แก้บิล
  *   - [x] 12 ต.ค.: bill_save รับเงินที่รับมาเป็นทศนิยม 2 ตำแหน่ง (เดิมตัดเป็นบาทเต็ม)
+ *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 5): cart_lines ดึงสินค้าในตะกร้าคิวรีเดียว (Stock_prefetchProducts) — เดิมโหลดสินค้าทั้งร้าน
  *
  * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
  */
@@ -104,6 +105,7 @@ function cart_clear()
 function cart_lines()
 {
     $out = array();
+    Stock_prefetchProducts(array_keys(cart_all()));      // ดึงสินค้าในตะกร้าคิวรีเดียว (ช่วง 5)
     foreach (cart_all() as $sku => $qty) {
         $p = product_by_sku($sku);
         if ($p === null || (int) $qty <= 0) {

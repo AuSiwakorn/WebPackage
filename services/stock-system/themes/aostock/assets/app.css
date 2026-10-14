@@ -268,6 +268,48 @@ input[type="password"]::-ms-reveal,input[type="password"]::-ms-clear{display:non
   .lg-spin{animation-duration:2.4s}
 }
 
+/* ---- กำลังโหลด: กล่องกลางจอระหว่างรอ htmx / เปลี่ยนหน้า (inc/footer.php #ld-busy) ----
+   ขึ้นแล้วจอเป็นสีเทาและกดอะไรไม่ได้จนโหลดเสร็จ (ผู้ใช้ขอ 14 ต.ค. — เดิมแตะทะลุได้) · พิมพ์ในช่องค้นหาต่อได้ (บังแค่การแตะ / คลิก)
+   อยู่เหนือหน้าต่างยืนยัน (.modal z 200) เพราะกดยืนยันแล้วก็ต้องรอเหมือนกัน */
+.ld-busy{
+  position:fixed;inset:0;z-index:210;display:grid;place-items:center;padding:16px;
+  background:rgba(7,33,27,.32);cursor:progress;touch-action:none;animation:lg-fade .15s ease-out;
+}
+.ld-busy[hidden]{display:none}
+.ld-box{
+  display:grid;justify-items:center;gap:12px;min-width:180px;padding:22px 30px;
+  background:rgba(255,255,255,.97);border:1px solid var(--line-2);border-radius:var(--radius-lg);box-shadow:var(--shadow);text-align:center;
+}
+.ld-box b{font-weight:600;color:var(--deep-900)}
+/* ทำรายการไม่สำเร็จ (เน็ตหลุด / เซิร์ฟเวอร์ตอบผิดพลาด) — แถบล่างจอ ปิดเองใน 8 วินาที */
+.ld-err{
+  position:fixed;left:50%;bottom:max(16px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:220;
+  width:min(560px,calc(100% - 32px));margin:0;align-items:center;box-shadow:var(--shadow);
+}
+.ld-err[hidden]{display:none}
+.ld-err .icon-btn{margin-left:auto;flex:none}
+
+/* ---- + / − นับในเครื่องก่อนแล้วบันทึกเบื้องหลัง (inc/footer.php · 14 ต.ค.) ----
+   แถวที่ตัวเลขเปลี่ยนแล้วแต่ยังไม่ได้บันทึก: ยอดเงิน / คงเหลือในแถว และยอดรวมจางลงจนคำตอบมา (ตัวเลขในช่องเข้มตามปกติ) */
+.cart-list li.is-pending .cl-t small,
+.cart-list li.is-pending .cl-s,
+.sale-cart.is-dirty .pay-tot,
+.sale-cart.is-dirty .pay-disc,
+.sale-cart.is-dirty .card-head .sub{opacity:.45;transition:opacity .15s}
+
+/* ---- แสดงสินค้าครั้งละ 60 + ปุ่ม “แสดงเพิ่ม” (Stock_renderMoreButton · งานความเร็ว ช่วง 4) ----
+   div.more-row = แถวท้ายกริดการ์ด / รายการ (กินเต็มแถวของกริด) · tr.more-row = แถวท้ายตาราง */
+.more-row{grid-column:1 / -1;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px 14px;
+  padding:14px 12px;color:var(--ink-3);text-align:center;list-style:none}
+.more-row .more-t b{color:var(--ink-2);font-weight:600}
+.more-row .more-btn{flex:none}
+tr.more-row{display:table-row}
+tr.more-row td{padding:0}
+.more-in{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px 14px;padding:14px 12px}
+@media (prefers-reduced-motion:reduce){
+  .ld-busy{animation:none}
+}
+
 /* ---- แท็บเล็ต/มือถือ: แป้นใหญ่ขึ้น กดง่ายขึ้น ---- */
 @media (max-width:900px){
   .keypad button{min-height:66px;font-size:1.6rem}

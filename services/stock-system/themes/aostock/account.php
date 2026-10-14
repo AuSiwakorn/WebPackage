@@ -9,6 +9,7 @@
  *   - [x] ช่วงที่ 7: บิล / เงินคืนอ่านจากตาราง · เอาแถบ "ข้อมูลตัวอย่าง" ออก
  *   - [x] ช่วงที่ 8: สรุปรายเดือน (acct_month) และ CSV ทั้งเดือน (acct_bills_range) เป็น SQL ทั้งช่วง
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
+ *   - [x] 14 ต.ค.: ลิงก์ดาวน์โหลด CSV ใส่ download — ตัวโหลดกลางจอ (inc/footer.php) ไม่ขึ้นค้างตอนดาวน์โหลด
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -139,7 +140,7 @@ require dirname(__FILE__) . '/inc/header.php';
         <a class="seg<?php echo $tSel === $k ? ' on' : '' ?>" href="<?php echo e($qs(array('t' => $k))) ?>"><?php echo e($lb) ?></a>
       <?php } ?>
     </div>
-    <a class="btn btn-ghost btn-sm acct-dl" href="<?php echo e($qs(array('export' => 1))) ?>">
+    <a class="btn btn-ghost btn-sm acct-dl" download href="<?php echo e($qs(array('export' => 1))) ?>">
       <svg class="ico"><use href="#i-in"/></svg> ดาวน์โหลดบิลทั้งเดือน <?php echo e(thai_month_short($ts)) ?> (CSV / Excel)
     </a>
   </div>

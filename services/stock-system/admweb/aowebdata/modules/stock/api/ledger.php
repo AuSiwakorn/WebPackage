@@ -8,6 +8,7 @@
  *   - [x] ช่วงที่ 10: แยกจาก api.php เดิม (ย้ายโค้ดทั้งก้อน ไม่แก้ตรรกะ) · จัดฟังก์ชันที่เคยปนอยู่หมวดอื่นให้มาอยู่หมวดนี้
  *   - [x] ช่วงที่ 11: แก้ไขเอกสารย้อนหลังต้องมีสิทธิ์ของหน้างานคลังชนิดนั้นด้วย
  *   - [x] 12 ต.ค.: ผู้ดูแลย้อนดูประวัติได้ตาม return_lookback_days(สาขา) (เดิม 14 วันตายตัว)
+ *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 5): move_rows_multi ดึงสินค้าทุกตัวที่มีความเคลื่อนไหวคิวรีเดียว (Stock_prefetchProducts) — เดิมโหลดสินค้าทั้งร้าน
  *
  * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
  */
@@ -457,6 +458,11 @@ function move_rows_multi($codes, $pid = 0)
     $from = mktime(0, 0, 0) - MOVE_LOOKBACK_DAYS * 86400;
     $db   = move_db_rows($codes, $pid, $from);
     $out  = array();
+    $skus = array();                                        // ดึงสินค้าทุกตัวที่มีความเคลื่อนไหวในคิวรีเดียว (ช่วง 5)
+    foreach ($db as $bySku) {
+        $skus = array_merge($skus, array_keys($bySku));
+    }
+    Stock_prefetchProducts($skus);
     foreach ($codes as $c) {
         foreach (isset($db[$c]) ? array_keys($db[$c]) : array() as $sku) {
             $p = product_by_sku($sku);
