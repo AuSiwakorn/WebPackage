@@ -14,6 +14,8 @@
  *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 3): htmx แตะสินค้า / ปุ่มในใบ ส่งกลับแค่ใบ + การ์ดที่แตะ ($LIVE_PART / $OOB_SKUS)
  *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 4): การ์ดครั้งละ 60 ใบ — htmx ?from= ส่งกลับแค่ชุดถัดไป
  *   - [x] 14 ต.ค.: ปุ่มบันทึกใบ data-qty-guard — กด + / − แล้วกดบันทึกทันที ระบบส่งจำนวนที่ค้างก่อน (inc/footer.php)
+ *   - [x] 20 ต.ค.: บันทึกใบเทียบจำนวนบนจอ (ช่องซ่อน screen_qty) กับร่างก่อน — ไม่ตรง = ไม่บันทึก แจ้งแถวที่ต่าง (Stock_checkScreenQty)
+ *         · act=set อ่านชื่อช่องแบบที่ PHP เปลี่ยน . เป็น _ — SKU ที่มีจุดแก้จำนวนแล้วแถวไม่หาย
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -75,7 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($act === 'minus') {
             idraft_add($code, $sku, -1);
         } elseif ($act === 'set') {
-            $k = 'iq_' . $sku;
+            $k = strtr('iq_' . $sku, '. ', '__');    // PHP เปลี่ยน . ในชื่อช่องเป็น _ (SKU กรอกเองมีจุดได้ — เดิมอ่านไม่เจอ = 0 แถวหายจากใบ)
             idraft_set($code, $sku, isset($_POST[$k]) ? preg_replace('/\D/', '', $_POST[$k]) : 0);
         } elseif ($act === 'del') {
             idraft_remove($sku);
@@ -118,6 +120,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if (!$lines) {
                 $err = 'ยังไม่ได้เลือกสินค้าเข้าใบสักรายการ';
+            } elseif (($bad = Stock_checkScreenQty(idraft_all(), isset($_POST['screen_qty']) ? $_POST['screen_qty'] : null)) !== '') {
+                $err = $bad;                                // จำนวนที่ยืนยันบนจอไม่ตรงกับร่าง (บันทึกจำนวนเบื้องหลังยังไม่ถึง) — ไม่บันทึก ร่างคงเดิม
             } elseif (!isset($reasons[$why])) {
                 $err = 'กรุณาเลือกเหตุผลของการตัดออก';
             } elseif (issue_reason_needs_note($why) && $note === '') {
@@ -246,6 +250,8 @@ require dirname(__FILE__) . '/inc/header.php';
 <form method="post" action="issue.php" id="issue-form" data-confirm="issue">
   <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
   <input type="hidden" name="act" value="save">
+  <?php /* จำนวนบนจอทุกแถว (JSON) — กล่องยืนยันใส่ให้ตอนเปิด (snapQty ใน inc/footer.php) · เทียบกับร่างด้วย Stock_checkScreenQty ก่อนบันทึก */ ?>
+  <input type="hidden" name="screen_qty" value="">
 
   <!-- ===== หัวเอกสาร ===== -->
   <section class="card recv-head">

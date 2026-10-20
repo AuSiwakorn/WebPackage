@@ -15,6 +15,9 @@
  *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 5): ค้นสินค้าด้วย SQL แบบแบ่งหน้า (Stock_searchPickProducts) — ฐานข้อมูลกรอง / นับ ส่งมาแค่ 60 ตัวที่จะวาด (เดิมดึงทั้งร้านมากรองใน PHP)
  *   - [x] 14 ต.ค. (ผู้ใช้เลือก): + / − นับในเครื่องก่อนแล้วบันทึกเบื้องหลัง — ปุ่ม data-step · ช่อง data-qty (JS ใน inc/footer.php) · เดิมกดรัว ๆ แล้วหาย
  *   - [x] 14 ต.ค. (ผู้ใช้เลือก): แตะสินค้าตัวใหม่ขึ้นใบทันที — แถวเป็น $row ใช้ทั้งวาดใบและแม่แบบ #pick-row · การ์ดมี data-pick · hx-ext="ao-live" (คำตอบที่มาช้าลงตัวที่อยู่บนจอ)
+ *   - [x] 20 ต.ค.: ช่องจำนวนในใบ form="recv-rows" — ไม่ติดไปกับฟอร์มบันทึก (เดิม Enter ในช่อง = กดบันทึกใบทันที ขณะจำนวนยังส่งไม่ถึงเซิร์ฟเวอร์)
+ *   - [x] 20 ต.ค. (Enter / ยิงบาร์โค้ดในช่องค้นหา): ช่องค้นหา form="recv-find" — ไม่ติดไปกับฟอร์มบันทึก
+ *         เดิมยิงบาร์โค้ดตอนใบครบ = กล่องยืนยันขึ้น ยิงอีกครั้ง = บันทึกใบ · Enter ยังค้นทันที (อีเวนต์ search ของช่อง)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -74,9 +77,10 @@ $row = function ($l) use ($base, $csrf) { ?>
                 <button type="button" aria-label="ลดจำนวน" data-step="-1">
                   <svg class="ico"><use href="#i-minus"/></svg>
                 </button>
-                <?php /* ชื่อต้องไม่ซ้ำกัน เพราะ htmx ส่งค่าทั้งฟอร์มไปด้วย
-                         ถ้าทุกแถวชื่อ qty เหมือนกัน PHP จะอ่านได้แค่แถวสุดท้าย */ ?>
-                <input class="num rq-set" type="text" inputmode="numeric" value="<?php echo $l['qty'] ?>"
+                <?php /* ชื่อต้องไม่ซ้ำกัน (rq_SKU — receive.php อ่านช่องของ SKU ที่ส่งมา)
+                         form="recv-rows" (ไม่มีฟอร์มชื่อนี้) = ช่องไม่ติดไปกับฟอร์มบันทึกใบ แบบหน้าตรวจนับ (20 ต.ค.) — Enter ไม่ส่งฟอร์มบันทึก
+                         · ใบยาวไม่เกิน max_input_vars · htmx ยังส่งค่าช่องตัวเองตามปกติ · จำนวนบนจอไปกับใบทางช่อง screen_qty แทน */ ?>
+                <input class="num rq-set" type="text" inputmode="numeric" value="<?php echo $l['qty'] ?>" form="recv-rows"
                        autocomplete="off" aria-label="จำนวนที่รับเข้าของ <?php echo e($l['name']) ?>"
                        name="rq_<?php echo e($l['sku']) ?>" data-qty data-tile data-no-busy data-sku="<?php echo e($l['sku']) ?>" data-min="0" data-max="<?php echo (int) STOCK_LINE_MAX ?>"
                        hx-post="<?php echo e($base) ?>" hx-trigger="change" hx-target="#recv-cart" hx-swap="outerHTML"
@@ -122,7 +126,9 @@ if ($LIVE_PART === 'more') {
         <div class="find-in">
           <svg class="ico"><use href="#i-search"/></svg>
           <label class="sr-only" for="rq">ค้นหาสินค้า</label>
-          <input type="search" id="rq" name="q" value="<?php echo e($q) ?>" placeholder="ชื่อสินค้า หรือ SKU"
+          <?php /* form="recv-find" (ไม่มีฟอร์มชื่อนี้) = ช่องไม่ติดไปกับฟอร์มบันทึกใบ — Enter / เครื่องยิงบาร์โค้ดไม่กดบันทึกให้ (20 ต.ค.)
+                   · Enter ยังค้นทันทีด้วยอีเวนต์ search · htmx ส่ง q ของช่องตัวเองตามปกติ (เซิร์ฟเวอร์อ่าน q จาก $_GET เท่านั้น) */ ?>
+          <input type="search" id="rq" name="q" value="<?php echo e($q) ?>" placeholder="ชื่อสินค้า หรือ SKU" form="recv-find"
                  hx-get="receive.php" hx-trigger="input changed delay:350ms, search"
                  hx-vals='<?php echo e(json_encode(array('cat' => $cat))) ?>'
                  hx-target="#recv-live" hx-swap="outerHTML"

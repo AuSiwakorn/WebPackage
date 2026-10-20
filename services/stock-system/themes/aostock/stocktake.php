@@ -17,6 +17,9 @@
  *   - [x] 15 ต.ค. (ใบนับแบบรายการ ช่วง 5): เปลี่ยนชื่อ “ตรวจนับ / ปรับยอด” เป็น “ตรวจนับสต๊อก” · หัวหน้า / ปุ่ม / ข้อความหลังบันทึก
  *   - [x] 15 ต.ค. (ผู้ใช้เลือก): ลองใบนับแบบตาราง (ช่วง 2–3) แล้วกลับมาใช้การ์ด · เปิดหน้ามาที่แท็บ “ทั้งหมด”
  *         · Enter ในช่องจำนวน = ใช้ค่านี้ (ช่องไม่ผูกกับฟอร์มบันทึกแล้ว)
+ *   - [x] 20 ต.ค.: บันทึกใบเทียบยอดนับบนจอ (ช่องซ่อน screen_qty) กับร่างก่อน — ไม่ตรง = ไม่บันทึก แจ้งแถวที่ต่าง (Stock_checkScreenQty · นับได้ 0 ยังอยู่ในใบ)
+ *         · act=set อ่านชื่อช่องแบบที่ PHP เปลี่ยน . เป็น _ — SKU ที่มีจุดแก้ยอดนับแล้วแถวไม่หาย
+ *         · Enter ในช่องจำนวนใช้ตัวกลางใน inc/footer.php (คงเคอร์เซอร์ไว้ในช่อง) แทนตัวเดิมของหน้านี้ที่ blur ช่อง
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -69,7 +72,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($act === 'minus') {
             adraft_step($sku, -1);
         } elseif ($act === 'set') {
-            $k = 'aq_' . $sku;                       // ว่าง = เอาออกจากใบ · ยอดที่จดไว้ตอนแตะการ์ดยังเป็นตัวเทียบตอนบันทึก
+            $k = strtr('aq_' . $sku, '. ', '__');    // ว่าง = เอาออกจากใบ · ยอดที่จดไว้ตอนแตะการ์ดยังเป็นตัวเทียบตอนบันทึก
+                                                      // PHP เปลี่ยน . ในชื่อช่องเป็น _ (SKU กรอกเองมีจุดได้ — เดิมอ่านไม่เจอ = ช่องว่าง แถวหายจากใบ)
             Stock_setCountDraft($code, $sku, isset($_POST[$k]) ? $_POST[$k] : '', isset($_POST['seen']) ? $_POST['seen'] : null);
         } elseif ($act === 'del') {
             adraft_remove($sku);
@@ -117,6 +121,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if (!$lines) {
                 $err = 'ยังไม่ได้เลือกสินค้าที่นับสักรายการ';
+            } elseif (($bad = Stock_checkScreenQty(adraft_all(), isset($_POST['screen_qty']) ? $_POST['screen_qty'] : null, true)) !== '') {
+                $err = $bad;                                // ยอดนับที่ยืนยันบนจอไม่ตรงกับร่าง (นับได้ 0 ยังอยู่ในใบ) — ไม่บันทึก ร่างคงเดิม
             } elseif ($moved = adj_moved($code)) {
                 $err = 'ยอดในระบบเปลี่ยนไประหว่างที่นับ (มีการขายหรือรับเข้าแทรก) — '
                      . implode(' · ', $moved) . ' · กรุณานับตัวนี้ใหม่แล้วกดบันทึกอีกครั้ง';
@@ -242,6 +248,9 @@ require dirname(__FILE__) . '/inc/header.php';
 <form method="post" action="stocktake.php" id="adj-form" data-confirm="adjust">
   <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
   <input type="hidden" name="act" value="save">
+  <?php /* ยอดนับบนจอทุกแถว (JSON) — กล่องยืนยันใส่ให้ตอนเปิด (snapQty ใน inc/footer.php) · เทียบกับร่างด้วย Stock_checkScreenQty ก่อนบันทึก
+           (ช่องจำนวนในใบเป็น form="adj-rows" ไม่ติดไปกับฟอร์มนี้) */ ?>
+  <input type="hidden" name="screen_qty" value="">
 
   <?php $LIVE_PART = 'all'; /* หน้าเต็มวาดทั้งส่วนเสมอ */ require dirname(__FILE__) . '/inc/adjust-live.php'; ?>
 
@@ -331,14 +340,7 @@ require dirname(__FILE__) . '/inc/header.php';
   form.addEventListener('change', function (ev) {
     if (ev.target && ev.target.name === 'why') { window.adjSync(); }
   });
-  /* Enter ในช่องจำนวน = ใช้ค่านี้ (ช่องไม่ผูกกับฟอร์มบันทึก กด Enter จึงไม่ส่งอะไรเอง) */
-  document.addEventListener('keydown', function (ev) {
-    var i = ev.target;
-    if (ev.key === 'Enter' && i && i.matches && i.matches('#adj-cart .adj-list input[data-qty]')) {
-      ev.preventDefault();
-      i.blur();
-    }
-  });
+  /* Enter ในช่องจำนวน = ใช้ค่านี้ คงเคอร์เซอร์ไว้ในช่อง — ตัวกลางใน inc/footer.php (20 ต.ค. · เดิม blur ช่องที่นี่) */
   document.body.addEventListener('htmx:afterSettle', function () { window.adjSync(); });
   window.adjSync();
 

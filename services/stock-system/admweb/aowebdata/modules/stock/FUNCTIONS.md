@@ -2,7 +2,7 @@
 
 > **สถานะ: ร่างรออนุมัติ (ช่วงที่ 15)** — ยังไม่ได้เปลี่ยนชื่อในโค้ด · ตรวจคอลัมน์ "ชื่อใหม่" แล้วแจ้งชื่อที่อยากแก้ได้เลย
 
-ฟังก์ชันทั้งหมด 488 ตัว (เดิม 468 + ตั้งชื่อตามมาตรฐานแล้ว 18 ตัว: บิล VAT ต้องมีเลขภาษี 20 ต.ค. หนึ่งตัว · รูปสินค้า 16 ต.ค. หนึ่งตัว · บิลของฉันวันนี้ 16 ต.ค. สองตัว · ช่วงที่ 16 สองตัว · ปุ่มพิมพ์บิล · ช่วงที่ 17 สองตัว · งานความเร็ว 14 ต.ค. แปดตัว · หลุดจากระบบ 14 ต.ค. หนึ่งตัว) อยู่ใน `admweb/aowebdata/modules/stock/api/*.php` (โหลดผ่าน `api.php` · ลบ staff_goal 15 ต.ค. · ใบนับแบบรายการ: เพิ่ม Stock_setCountDraft ลบ adj_limit · adj_full · ลบ count_open_limit · ลองใบนับแบบตารางแล้วกลับมาใช้การ์ด · กลุ่มของประวัติ: เพิ่ม Stock_getLogGroups · Stock_getLogGroupOf · Stock_sumLogGroups · เมนูประวัติแยกหน้า: เพิ่ม Stock_getAllowedLogGroups · Stock_getHistoryPerms) · ธีม `themes/aostock/` และหน้า admweb ของโมดูลเรียกใช้
+ฟังก์ชันทั้งหมด 489 ตัว (เดิม 468 + ตั้งชื่อตามมาตรฐานแล้ว 19 ตัว: บิล VAT ต้องมีเลขภาษี 20 ต.ค. หนึ่งตัว · เทียบจำนวนบนจอก่อนบันทึกใบ 20 ต.ค. หนึ่งตัว · รูปสินค้า 16 ต.ค. หนึ่งตัว · บิลของฉันวันนี้ 16 ต.ค. สองตัว · ช่วงที่ 16 สองตัว · ปุ่มพิมพ์บิล · ช่วงที่ 17 สองตัว · งานความเร็ว 14 ต.ค. แปดตัว · หลุดจากระบบ 14 ต.ค. หนึ่งตัว) อยู่ใน `admweb/aowebdata/modules/stock/api/*.php` (โหลดผ่าน `api.php` · ลบ staff_goal 15 ต.ค. · ใบนับแบบรายการ: เพิ่ม Stock_setCountDraft ลบ adj_limit · adj_full · ลบ count_open_limit · ลองใบนับแบบตารางแล้วกลับมาใช้การ์ด · กลุ่มของประวัติ: เพิ่ม Stock_getLogGroups · Stock_getLogGroupOf · Stock_sumLogGroups · เมนูประวัติแยกหน้า: เพิ่ม Stock_getAllowedLogGroups · Stock_getHistoryPerms) · ธีม `themes/aostock/` และหน้า admweb ของโมดูลเรียกใช้
 
 ## มาตรฐานการตั้งชื่อ
 
@@ -305,7 +305,7 @@
 | `Stock_sumBranchStock($code)` | `stock_branch_sum` | สรุปทั้งสาขา (ไม่สนตัวกรอง) ไว้โชว์เป็นการ์ดด้านบน |
 | `Stock_getProductFlowStats($codes, $days = 30)` | `product_flow_stats` | ตัวเลขประกอบหน้าสินค้าในสต๊อกของผู้ดูแล (adm-products.php) ย้อนหลัง $days วัน รวมวันนี้ · คืน array('sold' => SKU => สาขา => จำนวน (ไม่นับบิลยกเลิก), 'recv' => SKU => สาขา => วันรับเข้าล่าสุด Ymd (ไม่นับใบยกเลิก)) |
 
-## `api/ledger.php` — สมุดสต๊อก · เอกสารคลัง · ความเคลื่อนไหว · แก้ย้อนหลัง (32)
+## `api/ledger.php` — สมุดสต๊อก · เอกสารคลัง · ความเคลื่อนไหว · แก้ย้อนหลัง (33)
 
 | ชื่อใหม่ | ชื่อเดิม | ทำอะไร |
 |---|---|---|
@@ -317,6 +317,7 @@
 | `Stock_lockQty($branchId, $productIds)` | `stock_lock_qty` | ล็อกยอดคงเหลือของสินค้าในสาขา (FOR UPDATE) — ต้องเรียกใน Stock_dbTransaction · คืน array( product_id => ยอดในฐานข้อมูล ) · สินค้าที่ยังไม่มีแถวใน stock_balance สร้างแถว 0 ก่อน · เรียง product_id เสมอกัน deadlock · เวลาในเอกสารใช้นาฬิกา PHP (Asia/Bangkok) ไม่ใช่ CURRENT_TIMESTAMP ของ MySQL |
 | `Stock_addMove($branchId, $productId, $type, $qty, $qtyAfter, $unitCost, $refType, $refId, $docNo, $note, $uid, $at)` | `stock_move_add` | เขียนความเคลื่อนไหว 1 แถว + ตั้งยอดใหม่ใน stock_balance — ต้องเรียกใน Stock_dbTransaction หลัง Stock_lockQty() |
 | `Stock_getDraftEditOf($kind, $branchId)` | `stock_draft_edit_of` | ใบที่ "ยกเลิกเพื่อแก้ไข" ซึ่งร่างตอนนี้ทำแทน — ใช้เป็น edit_of_id ของใบใหม่ (ต้องเรียกใน Stock_dbTransaction) · id เก็บใน $_SESSION['draft_edit_of'][ชนิด] ตอนดึงรายการกลับเข้าร่าง · ใบเดิมมีใบแทนแล้วไม่ใช้ซ้ำ |
+| `Stock_checkScreenQty($draft, $raw, $keepZero = false)` | — (ใหม่ 20 ต.ค.) | ก่อนบันทึกใบนำเข้า / ตัดออก / ตรวจนับ: เทียบจำนวนบนจอ (ช่องซ่อน screen_qty — JSON SKU => ตัวเลขในช่อง ชุดเดียวกับที่กล่องยืนยันแสดง) กับใบร่างใน session ทุกแถว · $keepZero = true: 0 ยังอยู่ในใบ (ตรวจนับ) · false: 0 = ไม่อยู่ในใบ · คืน '' = ตรงทุกแถว หรือข้อความบอกแถวที่ไม่ตรง (สูงสุด 5 แถว) / อ่านช่องไม่ได้ (หน้าเก่า) — ผู้เรียกไม่บันทึก ร่างคงเดิม |
 | `Stock_queryDocs($kind, $where, $params)` | `stock_docs_query` | อ่านเอกสารคลังชนิดหนึ่ง — $where ต่อท้าย WHERE (alias d = หัวใบ · b = สาขา) · คืน array ของ Stock_shapeDoc() เรียงเก่า → ใหม่ |
 | `Stock_shapeDoc($kind, $h, $items)` | `stock_doc_shape` | แถวในฐานข้อมูล → รูปเอกสารที่หน้าเว็บใช้ (no time by lines items qty value void_* ...) เหมือนตอนเก็บใน session |
 | `Stock_getDocsRange($codes, $from, $to, $kinds = array('RC', 'IS', 'AD'))` | `stock_docs_range` | เอกสารคลังของสาขาใน $codes ช่วงวันที่ $from–$to (timestamp) รวมใบที่ยกเลิก — เรียงตามเวลา |

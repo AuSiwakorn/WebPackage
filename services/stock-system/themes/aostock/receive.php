@@ -17,6 +17,9 @@
  *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 4): การ์ดครั้งละ 60 ใบ — htmx ?from= ส่งกลับแค่ชุดถัดไป
  *   - [x] 14 ต.ค.: ปุ่มบันทึกใบ data-qty-guard — กด + / − แล้วกดบันทึกทันที ระบบส่งจำนวนที่ค้างก่อน (inc/footer.php)
  *   - [x] 15 ต.ค. (ใบนับแบบรายการ ช่วง 5): เปลี่ยนชื่อ “ตรวจนับ / ปรับยอด” เป็น “ตรวจนับสต๊อก” (ข้อความยกเลิกไม่ได้)
+ *   - [x] 20 ต.ค.: บันทึกใบเทียบจำนวนบนจอ (ช่องซ่อน screen_qty) กับร่างก่อน — ไม่ตรง = ไม่บันทึก แจ้งแถวที่ต่าง (Stock_checkScreenQty)
+ *         · เดิมบันทึกจากร่างใน session เลย ถ้าคำขอบันทึกจำนวนเบื้องหลังยังไม่ถึง ใบได้จำนวนเก่า ทั้งที่กล่องยืนยันโชว์จำนวนใหม่
+ *         · act=set อ่านชื่อช่องแบบที่ PHP เปลี่ยน . เป็น _ — SKU ที่มีจุดแก้จำนวนแล้วแถวไม่หาย
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -94,7 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($act === 'minus') {
             rdraft_add($sku, -1);
         } elseif ($act === 'set') {
-            $k = 'rq_' . $sku;
+            $k = strtr('rq_' . $sku, '. ', '__');    // PHP เปลี่ยน . ในชื่อช่องเป็น _ (SKU กรอกเองมีจุดได้ — เดิมอ่านไม่เจอ = 0 แถวหายจากใบ)
             rdraft_set($sku, isset($_POST[$k]) ? preg_replace('/\D/', '', $_POST[$k]) : 0);
         } elseif ($act === 'del') {
             rdraft_remove($sku);
@@ -143,6 +146,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if (!$lines) {
                 $err = 'ยังไม่ได้เลือกสินค้าเข้าใบสักรายการ';
+            } elseif (($bad = Stock_checkScreenQty(rdraft_all(), isset($_POST['screen_qty']) ? $_POST['screen_qty'] : null)) !== '') {
+                $err = $bad;                                // จำนวนที่ยืนยันบนจอไม่ตรงกับร่าง (บันทึกจำนวนเบื้องหลังยังไม่ถึง) — ไม่บันทึก ร่างคงเดิม
             } elseif ($ref === '' && $note === '') {     // ไม่มีเอกสาร (เช่น ลูกค้าคืนไม่มีบิล) = เขียนเหตุในหมายเหตุแทน
                 $err = 'กรอกเลขที่เอกสารอ้างอิง หรือหมายเหตุ อย่างใดอย่างหนึ่ง (ไม่มีเอกสาร เช่น ลูกค้าคืนไม่มีบิล ให้เขียนในหมายเหตุ)';
             } else {
@@ -266,6 +271,8 @@ require dirname(__FILE__) . '/inc/header.php';
 <form method="post" action="receive.php" id="recv-form" data-confirm="receive">
   <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
   <input type="hidden" name="act" value="save">
+  <?php /* จำนวนบนจอทุกแถว (JSON) — กล่องยืนยันใส่ให้ตอนเปิด (snapQty ใน inc/footer.php) · เทียบกับร่างด้วย Stock_checkScreenQty ก่อนบันทึก */ ?>
+  <input type="hidden" name="screen_qty" value="">
 
   <!-- ===== หัวเอกสาร ===== -->
   <section class="card recv-head">
