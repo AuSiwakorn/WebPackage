@@ -14,6 +14,7 @@
  *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 5): ค้นสินค้าด้วย SQL แบบแบ่งหน้า (Stock_searchPickProducts) — ฐานข้อมูลกรอง / นับ ส่งมาแค่ 60 ตัวที่จะวาด (เดิมดึงทั้งร้านมากรองใน PHP)
  *   - [x] 14 ต.ค. (ผู้ใช้เลือก): + / − นับในเครื่องก่อนแล้วบันทึกเบื้องหลัง — ปุ่ม data-step · ช่อง data-qty (JS ใน inc/footer.php) · เดิมกดรัว ๆ แล้วหาย
  *   - [x] 14 ต.ค. (ผู้ใช้เลือก): แตะสินค้าตัวใหม่ขึ้นใบทันที — แถวเป็น $row ใช้ทั้งวาดใบและแม่แบบ #pick-row · การ์ดมี data-pick · hx-ext="ao-live" (คำตอบที่มาช้าลงตัวที่อยู่บนจอ)
+ *   - [x] 20 ต.ค.: ช่องจำนวนในใบ form="issue-rows" — ไม่ติดไปกับฟอร์มบันทึก (เดิม Enter ในช่อง = กดบันทึกใบทันที ขณะจำนวนยังส่งไม่ถึงเซิร์ฟเวอร์)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -84,8 +85,10 @@ $row = function ($l) use ($base, $csrf) { ?>
                 <button type="button" aria-label="ลดจำนวน" data-step="-1">
                   <svg class="ico"><use href="#i-minus"/></svg>
                 </button>
-                <?php /* ชื่อไม่ซ้ำกัน เพราะ htmx ส่งค่าทั้งฟอร์มไปด้วย */ ?>
-                <input class="num rq-set" type="text" inputmode="numeric" value="<?php echo $l['qty'] ?>"
+                <?php /* ชื่อไม่ซ้ำกัน (iq_SKU — issue.php อ่านช่องของ SKU ที่ส่งมา)
+                         form="issue-rows" (ไม่มีฟอร์มชื่อนี้) = ช่องไม่ติดไปกับฟอร์มบันทึกใบ แบบหน้าตรวจนับ (20 ต.ค.) — Enter ไม่ส่งฟอร์มบันทึก
+                         · ใบยาวไม่เกิน max_input_vars · htmx ยังส่งค่าช่องตัวเองตามปกติ · จำนวนบนจอไปกับใบทางช่อง screen_qty แทน */ ?>
+                <input class="num rq-set" type="text" inputmode="numeric" value="<?php echo $l['qty'] ?>" form="issue-rows"
                        autocomplete="off" aria-label="จำนวนที่ตัดออกของ <?php echo e($l['name']) ?>"
                        name="iq_<?php echo e($l['sku']) ?>" data-qty data-tile data-no-busy data-sku="<?php echo e($l['sku']) ?>" data-min="0" data-max="<?php echo max(0, (int) $l['have']) ?>"
                        hx-post="<?php echo e($base) ?>" hx-trigger="change" hx-target="#issue-cart" hx-swap="outerHTML"

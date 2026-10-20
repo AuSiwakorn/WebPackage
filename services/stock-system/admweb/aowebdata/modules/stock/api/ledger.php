@@ -125,6 +125,68 @@ function stock_draft_edit_of($kind, $branchId)
     return (sdb_val($sql, array($id, $branchId)) !== null) ? $id : null;
 }
 
+/** ก่อนบันทึกใบนำเข้า / ตัดออก / ตรวจนับ: จำนวนบนจอ (ชุดเดียวกับที่กล่องยืนยันแสดง) ต้องตรงกับใบร่างใน session ทุกแถว
+ *  $draft = SKU => จำนวนในร่าง (rdraft_all / idraft_all / adraft_all) · $raw = ช่องซ่อน screen_qty (JSON SKU => ตัวเลขในช่อง)
+ *  $keepZero = true: 0 ยังอยู่ในใบ (ตรวจนับ — ช่องว่าง = ไม่อยู่) · false: 0 = ไม่อยู่ในใบ (นำเข้า / ตัดออก)
+ *  คืน '' = ตรงทุกแถว · ข้อความ = ไม่ตรง หรืออ่านช่องไม่ได้ (ผู้เรียกไม่บันทึก ร่างคงเดิม)
+ *  TODO:
+ *    - [x] 20 ต.ค.: กันใบบันทึกจำนวนไม่ตรงกับที่ยืนยัน (คำขอบันทึกจำนวนเบื้องหลังยังไม่ถึงเซิร์ฟเวอร์ แล้วกดบันทึกใบ) */
+function Stock_checkScreenQty($draft, $raw, $keepZero = false)
+{
+    $stale  = 'อ่านจำนวนบนจอไม่ได้ — ยังไม่ได้บันทึก โหลดหน้านี้ใหม่ ตรวจจำนวนในใบอีกครั้งแล้วกดบันทึก';
+    $screen = (is_string($raw) && strlen($raw) <= 200000) ? json_decode($raw, true) : null;
+    if (!is_array($screen)) {
+        return $stale;                                     // ไม่มีช่อง (หน้าเก่าที่เปิดค้างไว้) / JSON เสีย
+    }
+    $want = array();
+    $seen = array();                                       // ตัวเลขที่จอแสดง (รวม 0 ที่กำลังจะเอาออก) — ใช้ในข้อความ
+    foreach ($screen as $sku => $v) {
+        $v = is_int($v) ? (string) $v : (is_string($v) ? trim($v) : null);
+        if ($v === null || !preg_match('/^\d{0,9}$/', $v)) {
+            return $stale;
+        }
+        if ($v !== '') {
+            $seen[(string) $sku] = (int) $v;
+        }
+        if ($v === '' || (!$keepZero && (int) $v === 0)) {
+            continue;
+        }
+        $want[(string) $sku] = (int) $v;
+    }
+    $have = array();
+    foreach ($draft as $sku => $q) {
+        if ($keepZero || (int) $q > 0) {
+            $have[(string) $sku] = (int) $q;
+        }
+    }
+
+    $bad = array();
+    foreach ($want + $have as $sku => $x) {
+        $s = array_key_exists($sku, $want) ? $want[$sku] : null;
+        $d = array_key_exists($sku, $have) ? $have[$sku] : null;
+        if ($s !== $d) {
+            $bad[(string) $sku] = array($s, $d);
+        }
+    }
+    if (!$bad) {
+        return '';
+    }
+    Stock_prefetchProducts(array_keys($bad));
+    $out = array();
+    foreach ($bad as $sku => $x) {
+        if (count($out) === 5) {
+            $out[] = 'และอีก ' . number_format(count($bad) - 5) . ' รายการ';
+            break;
+        }
+        $p     = product_by_sku((string) $sku);
+        $out[] = ($p !== null ? $p['name'] : $sku) . ': '
+               . (array_key_exists($sku, $seen) ? 'บนจอ ' . number_format($seen[$sku]) : 'บนจอไม่มี') . ' · '
+               . ($x[1] === null ? 'ในใบยังไม่มี' : 'ในใบ ' . number_format($x[1]));
+    }
+    return 'จำนวนบนจอไม่ตรงกับที่ระบบบันทึกไว้ในใบ — ' . implode(' · ', $out)
+         . ' · ยังไม่ได้บันทึก จำนวนในใบตอนนี้คือที่ระบบมีจริง ตรวจ / แก้จำนวนแล้วกดบันทึกอีกครั้ง';
+}
+
 /** อ่านเอกสารคลังชนิดหนึ่ง — $where ต่อท้าย WHERE (alias d = หัวใบ · b = สาขา) · คืน array ของ stock_doc_shape() เรียงเก่า → ใหม่ */
 function stock_docs_query($kind, $where, $params)
 {
