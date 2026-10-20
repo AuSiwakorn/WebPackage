@@ -228,9 +228,12 @@ require dirname(__FILE__) . '/inc/header.php';
       <table class="tbl num">
         <thead><tr><th>สาขา</th><th class="r">บิล VAT</th><th class="r">บิลไม่ VAT</th><th class="r">ก่อน VAT (บิล VAT)</th><th class="r">VAT</th><th class="r">ยอดขายรวม</th></tr></thead>
         <tbody>
-          <?php foreach ($codes as $c) { $m = $month[$c]; ?>
+          <?php foreach ($codes as $c) { $m = $month[$c]; $tx = acct_setting($c, 'tax_id'); ?>
             <tr>
-              <td data-label="สาขา"><b><?php echo e(branch_name($c)) ?></b><small>เลขผู้เสียภาษี <?php echo e(acct_setting($c, 'tax_id')) ?> · สาขาที่ <?php echo e(acct_setting($c, 'tax_branch')) ?></small></td>
+              <td data-label="สาขา"><b><?php echo e(branch_name($c)) ?></b><small>เลขผู้เสียภาษี <?php
+                /* ว่าง = บอกให้ชัด + ลิงก์ไปตั้ง (20 ต.ค. — เดิมเว้นว่าง ดูเหมือนข้อมูลหาย) · CSV ยังเว้นว่างเหมือนเดิม */
+                echo $tx !== '' ? e($tx) : '<a class="acct-unset" href="account-settings.php#b-' . e(rawurlencode($c)) . '">ยังไม่ได้ตั้ง</a>' ?>
+                · สาขาที่ <?php echo e(acct_setting($c, 'tax_branch')) ?></small></td>
               <td class="r" data-label="บิล VAT"><?php echo number_format($m['v']) ?></td>
               <td class="r" data-label="บิลไม่ VAT"><?php echo number_format($m['n']) ?></td>
               <td class="r" data-label="มูลค่าก่อน VAT"><?php echo e(money2($m['base'])) ?></td>

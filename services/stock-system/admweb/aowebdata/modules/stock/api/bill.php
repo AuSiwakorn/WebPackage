@@ -13,7 +13,7 @@
 define('VAT_RATE', 7);
 define('BILL_RUN_DIGITS', 4);
 
-/* ---------- เลขที่บิล / VAT: แยกชุด VAT / ไม่ VAT รายสาขา · {รหัส}{ปี}-{เดือน}-{เลข 4 หลัก} นับใหม่ทุกเดือน · ราคารวม VAT แล้ว ---------- */
+/* ---------- เลขที่บิล / VAT: แยกชุด VAT / ไม่ VAT รายสาขา · {รหัส}{ปี}-{เดือน}-{เลข 4 หลัก} (รหัสลงท้ายด้วยเลขมี - คั่นหน้าปี) นับใหม่ทุกเดือน · ราคารวม VAT แล้ว ---------- */
 
 /** ชื่อค่าตั้งบัญชี / หัวบิล → คอลัมน์ใน ao_stock_branch ('' = ไม่มีค่านี้) */
 function acct_setting_col($key)
@@ -69,6 +69,24 @@ function bill_head($code)
     $h['tax_id']     = acct_setting($code, 'tax_id');
     $h['tax_branch'] = acct_setting($code, 'tax_branch');
     return $h;
+}
+
+/** สิ่งที่สาขายังขาดสำหรับออกบิล VAT (ใบกำกับภาษีอย่างย่อ) — array ว่าง = ออกบิล VAT ได้
+    TODO:
+      - [x] 20 ต.ค.: เลขผู้เสียภาษี 13 หลัก · ชื่อบนหัวบิล · เลขที่สาขา 5 หลัก — เดิมเช็กแค่รหัสนำหน้า สาขาใหม่ (branch_create ตั้งรหัสให้เอง) จึงออกบิล VAT ที่ไม่มีเลขภาษีได้ */
+function Stock_getVatMissing($code)
+{
+    $miss = array();
+    if (strlen(preg_replace('/\D/', '', acct_setting($code, 'tax_id'))) !== 13) {
+        $miss[] = 'เลขประจำตัวผู้เสียภาษี';
+    }
+    if (trim(acct_setting($code, 'company')) === '') {
+        $miss[] = 'ชื่อร้าน / บริษัทบนหัวบิล';
+    }
+    if (!preg_match('/^\d{5}$/', acct_setting($code, 'tax_branch'))) {
+        $miss[] = 'เลขที่สาขา';
+    }
+    return $miss;
 }
 
 /** เลขผู้เสียภาษีแบบอ่านง่าย 0-1055-66012-34-5 */
@@ -210,10 +228,11 @@ function bill_prefix($code, $vat)
     return acct_setting($code, $vat ? 'prefix_vat' : 'prefix_novat');
 }
 
-/** ประกอบเลขที่บิล เช่น BP2026-01-0001 */
+/** ประกอบเลขที่บิล เช่น BP2026-01-0001 · รหัสลงท้ายด้วยตัวเลขมีขีดคั่น QA1-2026-01-0001 (20 ต.ค. — เดิม QA12026-… อ่านแยกรหัสกับปีไม่ออก) */
 function bill_no_format($prefix, $ts, $n)
 {
-    return $prefix . date('Y', $ts) . '-' . date('m', $ts) . '-' . str_pad($n, BILL_RUN_DIGITS, '0', STR_PAD_LEFT);
+    $sep = preg_match('/\d$/', (string) $prefix) ? '-' : '';
+    return $prefix . $sep . date('Y', $ts) . '-' . date('m', $ts) . '-' . str_pad($n, BILL_RUN_DIGITS, '0', STR_PAD_LEFT);
 }
 
 /** แยกยอดรวม (รวม VAT แล้ว) เป็น array(ก่อน VAT, VAT) */

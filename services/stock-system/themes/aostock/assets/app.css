@@ -2162,7 +2162,11 @@ table.sr-only{display:block}
 .acct-dl{margin-left:auto}
 .acct-prefix{max-width:140px;text-transform:uppercase;letter-spacing:.05em}
 .acct-eg{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.85rem;color:var(--ink-2);background:var(--bg-soft);padding:6px 10px;border-radius:8px}
+.acct-unset{color:var(--warn);font-weight:600}
+.acc-item > summary .acct-miss{color:var(--warn);font-weight:600}
 .pay-vat{margin-top:14px}
+.pay-how label.off{opacity:.5;cursor:not-allowed}
+.pay-off{margin-top:8px;font-size:.82rem;line-height:1.6;color:var(--warn)}
 @media (max-width:640px){.acct-dl{margin-left:0}}
 
 /* ===== จัดการสาขา ===== */

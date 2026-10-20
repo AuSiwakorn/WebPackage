@@ -23,7 +23,7 @@ if (!defined('ALLOW_DIRECT_ACCESS')) {
      3) ชุดบิลไม่ VAT — รหัสนำหน้า หัวกระดาษ และเลือกได้ว่าจะพิมพ์เลขผู้เสียภาษีด้วยไหม
    กด "ดูตัวอย่างบิล" เปิดบิลตัวอย่างตามค่าที่บันทึกแล้ว (bill-print.php?sample=…)
    แต่ละสาขามีรหัสนำหน้า 2 ชุด: บิล VAT และบิลไม่ VAT
-   รูปแบบเลขที่ {รหัส}{ปี}-{เดือน}-{เลขรัน 4 หลัก} เช่น BP2026-01-0001 · เลขรันนับใหม่ทุกเดือน
+   รูปแบบเลขที่ {รหัส}{ปี}-{เดือน}-{เลขรัน 4 หลัก} เช่น BP2026-01-0001 · รหัสลงท้ายด้วยเลขมีขีดคั่น QA1-2026-01-0001 · เลขรันนับใหม่ทุกเดือน
    พร้อมเลขประจำตัวผู้เสียภาษี และเลขที่สาขา (00000 = สำนักงานใหญ่) ที่พิมพ์บนบิล VAT
    การแก้ทุกครั้งบันทึกลงประวัติของสาขานั้น
    แสดงแบบแอคคอร์เดียน (เปิดทีละสาขา · สาขาแรกเปิดไว้)
@@ -150,6 +150,12 @@ $openB = $okB !== '' && isset($br[$okB]) ? $okB : ($old ? key($old) : '');
         <h2><?php echo e($b['name']) ?></h2>
         <span class="sub">VAT <b><?php echo e(acct_setting($bc, 'prefix_vat')) ?></b> · ไม่ VAT <b><?php echo e(acct_setting($bc, 'prefix_novat')) ?></b>
           · บิลใบถัดไป <?php echo e(bill_next_no_series($bc, true)) ?> / <?php echo e(bill_next_no_series($bc, false)) ?></span>
+        <?php /* ยังขาดข้อมูลบิล VAT → หน้าขายปิดปุ่ม VAT ของสาขานี้ไว้ (20 ต.ค.) — บอกตรงหัวที่พับอยู่ให้เห็นก่อนเปิด */
+        if ($vMiss = Stock_getVatMissing($bc)) { ?>
+          <span class="sub acct-miss">ยังออกบิล VAT ไม่ได้ — ยังไม่ได้ตั้ง<?php echo e(implode(' · ', $vMiss)) ?>
+            <?php /* บิลไม่ VAT ไม่บังคับชื่อร้าน (ผู้ใช้เลือก 20 ต.ค.) — บอกผลที่จะเห็นบนบิล */
+            if (trim(acct_setting($bc, 'company')) === '') { ?>· บิลไม่ VAT ยังออกได้ แต่หัวบิลจะขึ้นแค่ชื่อสาขา<?php } ?></span>
+        <?php } ?>
       </div>
       <svg class="ico acc-chev" aria-hidden="true"><use href="#i-arrow"/></svg>
     </summary>
@@ -210,7 +216,7 @@ $openB = $okB !== '' && isset($br[$okB]) ? $okB : ($old ? key($old) : '');
             <div class="adm-unit">
               <input class="input acct-prefix" type="text" id="<?php echo e($bc) ?>-pv" name="prefix_vat" value="<?php echo e($v['prefix_vat']) ?>"
                      maxlength="6" pattern="[A-Za-z0-9]{1,6}" required autocomplete="off" data-demo="<?php echo e(date('Y-m')) ?>">
-              <span class="acct-eg"><?php echo e($v['prefix_vat'] . date('Y-m') . '-0001') ?></span>
+              <span class="acct-eg"><?php echo e(bill_no_format($v['prefix_vat'], time(), 1)) ?></span>
             </div>
             <small class="adm-hint">ภาษาอังกฤษพิมพ์ใหญ่หรือตัวเลข 1–6 ตัว · ห้ามซ้ำกับชุดอื่น · เลขรันแยกจากบิลไม่ VAT</small>
           </div>
@@ -243,9 +249,9 @@ $openB = $okB !== '' && isset($br[$okB]) ? $okB : ($old ? key($old) : '');
             <div class="adm-unit">
               <input class="input acct-prefix" type="text" id="<?php echo e($bc) ?>-pn" name="prefix_novat" value="<?php echo e($v['prefix_novat']) ?>"
                      maxlength="6" pattern="[A-Za-z0-9]{1,6}" required autocomplete="off" data-demo="<?php echo e(date('Y-m')) ?>">
-              <span class="acct-eg"><?php echo e($v['prefix_novat'] . date('Y-m') . '-0001') ?></span>
+              <span class="acct-eg"><?php echo e(bill_no_format($v['prefix_novat'], time(), 1)) ?></span>
             </div>
-            <small class="adm-hint">เช่น BP → BP<?php echo e(date('Y-m')) ?>-0001 · เลขรันแยกจากบิล VAT</small>
+            <small class="adm-hint">เช่น BP → BP<?php echo e(date('Y-m')) ?>-0001 · ลงท้ายด้วยตัวเลขมีขีดคั่น QA1 → QA1-<?php echo e(date('Y-m')) ?>-0001 · เลขรันแยกจากบิล VAT</small>
           </div>
           <div class="field">
             <label for="<?php echo e($bc) ?>-tn">หัวกระดาษ</label>
@@ -278,7 +284,7 @@ document.addEventListener('change', function (ev) {
     ins[i].addEventListener('input', function () {
       this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
       var eg = this.parentNode.querySelector('.acct-eg');
-      if (eg) { eg.textContent = (this.value || '—') + this.getAttribute('data-demo') + '-0001'; }
+      if (eg) { eg.textContent = (this.value || '—') + (/\d$/.test(this.value) ? '-' : '') + this.getAttribute('data-demo') + '-0001'; }   // เหมือน bill_no_format
     });
   }
 })();

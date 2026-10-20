@@ -265,6 +265,11 @@ function bill_save($code, $user, $method, $received, $vat = false, $net = null)
     if ($prefix === '') {
         return array('error' => 'สาขานี้ยังไม่ได้ตั้งรหัสเลขที่บิล' . ($vat ? ' VAT' : '') . ' — แจ้งฝ่ายบัญชี / ผู้ดูแล');
     }
+    /* บิล VAT = ใบกำกับภาษีอย่างย่อ ต้องมีเลขผู้เสียภาษี + ชื่อบนหัวบิล (20 ต.ค. — เดิมเช็กแค่รหัสนำหน้า ซึ่งสาขาใหม่ได้มาเอง) · ตะกร้ายังอยู่ */
+    if ($vat && ($miss = Stock_getVatMissing($code))) {
+        return array('error' => 'ออกบิล VAT ไม่ได้ — สาขานี้ยังไม่ได้ตั้ง' . implode(' · ', $miss)
+                              . ' (ฝ่ายบัญชี / ผู้ดูแลตั้งได้ที่หน้า “ตั้งค่าเลขที่บิล”) · เลือก “ไม่ VAT” เพื่อขายต่อ');
+    }
 
     $no = sdb_tx(function () use ($code, $bid, $user, $method, $vat, $lines, $subtotal, $total, $discount, $recv, $prefix) {
         $day = sdb_row('SELECT day_id, status FROM ' . sdb_tb('store_day') . ' WHERE branch_id = ? AND store_date = ? LOCK IN SHARE MODE',

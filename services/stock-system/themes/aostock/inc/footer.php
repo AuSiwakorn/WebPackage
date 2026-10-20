@@ -503,7 +503,7 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
     if (!c) { return; }
     ['vat', 'method'].forEach(function (n) {
       var r = k[n] !== null ? c.querySelector('input[name="' + n + '"][value="' + k[n] + '"]') : null;
-      if (r && !r.checked) { r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true })); }
+      if (r && !r.checked && !r.disabled) { r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true })); }   // VAT ที่สาขายังตั้งไม่ครบ = ปิดไว้ ไม่ติ๊กคืน
     });
     var rec = document.getElementById('received');
     if (rec && k.rec !== null) {
@@ -818,7 +818,7 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
          + '<div class="cf-r"><span>ยอดชำระ</span><b class="num">' + esc(tot ? tot.textContent : '') + ' บาท</b></div>'
          + '<div class="cf-r"><span>ชำระโดย</span><b>' + (isCash ? 'เงินสด' : 'โอน / พร้อมเพย์') + '</b></div>';
       var vatOn = form.querySelector('input[name="vat"][value="1"]');
-      h += '<div class="cf-r"><span>ประเภทบิล</span><b>' + (vatOn && vatOn.checked ? 'บิล VAT' : 'บิลธรรมดา (ไม่ VAT)') + '</b></div>';
+      h += '<div class="cf-r"><span>ประเภทบิล</span><b>' + (vatOn && vatOn.checked && !vatOn.disabled ? 'บิล VAT' : 'บิลธรรมดา (ไม่ VAT)') + '</b></div>';
       if (isCash) {
         h += '<div class="cf-r"><span>รับมา</span><b class="num">'
            + (Number(String(rec.value).replace(/[^0-9.]/g, '')) || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' บาท</b></div>'

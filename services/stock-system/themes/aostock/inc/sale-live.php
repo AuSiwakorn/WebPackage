@@ -239,11 +239,18 @@ if ($LIVE_PART === 'more') {
           <p class="pay-err" id="net-err" hidden>ยอดชำระต้องมากกว่า 0 และไม่เกินราคาเต็ม <?php echo money2($tot) ?> บาท</p>
           <?php } ?>
 
-          <?php /* บิล VAT กับไม่ VAT ใช้เลขที่คนละชุด — พนักงานเลือกตามที่ลูกค้าต้องการ */ ?>
+          <?php /* บิล VAT กับไม่ VAT ใช้เลขที่คนละชุด — พนักงานเลือกตามที่ลูกค้าต้องการ
+                   สาขายังไม่ได้ตั้งเลขผู้เสียภาษี / ชื่อบนหัวบิล → ปุ่ม VAT กดไม่ได้ + บอกว่าขาดอะไร (20 ต.ค. · bill_save ตรวจซ้ำ) */
+          $vatMiss = Stock_getVatMissing($code); ?>
           <div class="pay-how pay-vat">
             <label class="on"><input type="radio" name="vat" value="0" checked> ไม่ VAT</label>
-            <label><input type="radio" name="vat" value="1"> VAT</label>
+            <label<?php echo $vatMiss ? ' class="off"' : '' ?>><input type="radio" name="vat" value="1"<?php echo $vatMiss ? ' disabled aria-describedby="vat-off"' : '' ?>> VAT</label>
           </div>
+          <?php if ($vatMiss) { ?>
+          <?php /* หน้าขายมีแต่พนักงาน (ผู้ดูแล / บัญชีถูกพาไปหน้าของตัวเอง) — จึงบอกให้แจ้งคนที่ตั้งได้ ไม่มีลิงก์ */ ?>
+          <p class="pay-off" id="vat-off">ออกบิล VAT ไม่ได้ — สาขานี้ยังไม่ได้ตั้ง<?php echo e(implode(' · ', $vatMiss)) ?>
+            · แจ้งฝ่ายบัญชี / ผู้ดูแลให้ตั้งที่หน้า “ตั้งค่าเลขที่บิล”</p>
+          <?php } ?>
 
           <div class="pay-how" id="pay-how">
             <label class="on"><input type="radio" name="method" value="cash" checked> เงินสด</label>
@@ -371,13 +378,14 @@ if ($LIVE_PART === 'more') {
       }
     }
 
-    /* ปุ่มเลือกบิล VAT / ไม่ VAT */
+    /* ปุ่มเลือกบิล VAT / ไม่ VAT (ปุ่มที่ปิดไว้คง class off) */
     var vw = document.querySelector('.pay-vat');
     if (vw) {
       var vl = vw.querySelectorAll('label');
       var vsync = function () {
         for (var v = 0; v < vl.length; v++) {
-          vl[v].className = vl[v].querySelector('input').checked ? 'on' : '';
+          var vi = vl[v].querySelector('input');
+          vl[v].className = vi.disabled ? 'off' : (vi.checked ? 'on' : '');
         }
       };
       for (var v2 = 0; v2 < vl.length; v2++) {

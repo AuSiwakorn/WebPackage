@@ -2,7 +2,7 @@
 
 > **สถานะ: ร่างรออนุมัติ (ช่วงที่ 15)** — ยังไม่ได้เปลี่ยนชื่อในโค้ด · ตรวจคอลัมน์ "ชื่อใหม่" แล้วแจ้งชื่อที่อยากแก้ได้เลย
 
-ฟังก์ชันทั้งหมด 487 ตัว (เดิม 468 + ตั้งชื่อตามมาตรฐานแล้ว 17 ตัว: รูปสินค้า 16 ต.ค. หนึ่งตัว · บิลของฉันวันนี้ 16 ต.ค. สองตัว · ช่วงที่ 16 สองตัว · ปุ่มพิมพ์บิล · ช่วงที่ 17 สองตัว · งานความเร็ว 14 ต.ค. แปดตัว · หลุดจากระบบ 14 ต.ค. หนึ่งตัว) อยู่ใน `admweb/aowebdata/modules/stock/api/*.php` (โหลดผ่าน `api.php` · ลบ staff_goal 15 ต.ค. · ใบนับแบบรายการ: เพิ่ม Stock_setCountDraft ลบ adj_limit · adj_full · ลบ count_open_limit · ลองใบนับแบบตารางแล้วกลับมาใช้การ์ด · กลุ่มของประวัติ: เพิ่ม Stock_getLogGroups · Stock_getLogGroupOf · Stock_sumLogGroups · เมนูประวัติแยกหน้า: เพิ่ม Stock_getAllowedLogGroups · Stock_getHistoryPerms) · ธีม `themes/aostock/` และหน้า admweb ของโมดูลเรียกใช้
+ฟังก์ชันทั้งหมด 488 ตัว (เดิม 468 + ตั้งชื่อตามมาตรฐานแล้ว 18 ตัว: บิล VAT ต้องมีเลขภาษี 20 ต.ค. หนึ่งตัว · รูปสินค้า 16 ต.ค. หนึ่งตัว · บิลของฉันวันนี้ 16 ต.ค. สองตัว · ช่วงที่ 16 สองตัว · ปุ่มพิมพ์บิล · ช่วงที่ 17 สองตัว · งานความเร็ว 14 ต.ค. แปดตัว · หลุดจากระบบ 14 ต.ค. หนึ่งตัว) อยู่ใน `admweb/aowebdata/modules/stock/api/*.php` (โหลดผ่าน `api.php` · ลบ staff_goal 15 ต.ค. · ใบนับแบบรายการ: เพิ่ม Stock_setCountDraft ลบ adj_limit · adj_full · ลบ count_open_limit · ลองใบนับแบบตารางแล้วกลับมาใช้การ์ด · กลุ่มของประวัติ: เพิ่ม Stock_getLogGroups · Stock_getLogGroupOf · Stock_sumLogGroups · เมนูประวัติแยกหน้า: เพิ่ม Stock_getAllowedLogGroups · Stock_getHistoryPerms) · ธีม `themes/aostock/` และหน้า admweb ของโมดูลเรียกใช้
 
 ## มาตรฐานการตั้งชื่อ
 
@@ -490,7 +490,7 @@
 | `Stock_getReturnsRange($codes, $from, $to)` | `returns_range` | ใบรับคืนของหลายสาขา ช่วงวันที่ $from–$to (หน้าตรวจสอบของผู้ดูแล) — หัวใบ + รายการ 2 คิวรี เรียงตามเวลาที่ออกใบ |
 | `Stock_findReturn($code, $no)` | `return_doc_find` | หาใบรับคืนจากเลขที่ RT-ปปดดวว-NNNN (วันไหนก็ได้) |
 
-## `api/bill.php` — บัญชี · หัวบิล · เลขที่บิล · VAT (29)
+## `api/bill.php` — บัญชี · หัวบิล · เลขที่บิล · VAT (30)
 
 | ชื่อใหม่ | ชื่อเดิม | ทำอะไร |
 |---|---|---|
@@ -498,6 +498,7 @@
 | `Stock_getAccountSetting($code, $key)` | `acct_setting` | ค่าตั้งบัญชี / หัวบิลของสาขา (string เสมอ — novat_tax = '1' / '0') |
 | `Stock_getBillHeadKeys()` | `bill_head_keys` | สิ่งที่พิมพ์บนบิล (ตั้งได้ทุกสาขาที่หน้า "ตั้งค่าเลขที่บิล" ของฝ่ายบัญชี) · company · bill_address (ว่าง = ที่อยู่สาขา) · bill_phone (ว่าง = เบอร์สาขา) · bill_extra · title_vat · title_novat · footer · paper (80 / a4) · novat_tax (1 / 0) |
 | `Stock_getBillHead($code)` | `bill_head` | ข้อมูลหัวบิลที่จะพิมพ์จริงของสาขา (ที่อยู่ / เบอร์ว่าง → ใช้ของสาขา) |
+| `Stock_getVatMissing($code)` | — (ใหม่ 20 ต.ค.) | สิ่งที่สาขายังขาดสำหรับออกบิล VAT (ใบกำกับภาษีอย่างย่อ): เลขประจำตัวผู้เสียภาษี 13 หลัก · ชื่อร้าน / บริษัทบนหัวบิล · เลขที่สาขา 5 หลัก — array ของชื่อที่ขาด (ว่าง = ออกได้) · Stock_saveBill ปฏิเสธบิล VAT · หน้าขายปิดปุ่ม VAT · หน้าตั้งค่าเลขที่บิลขึ้นป้าย |
 | `Stock_formatTaxId($id)` | `tax_id_format` | เลขผู้เสียภาษีแบบอ่านง่าย 0-1055-66012-34-5 |
 | `Stock_formatTaxBranch($no)` | `tax_branch_label` | ข้อความสาขาตามแบบกรมสรรพากร: 00000 = สำนักงานใหญ่ |
 | `Stock_findBill($code, $ts, $no)` | `bill_find` | หาบิลจากเลขที่ของวันหนึ่ง (รวมบิลที่ยกเลิก — หน้าพิมพ์แสดงตราว่ายกเลิก) |
@@ -509,7 +510,7 @@
 | `Stock_buildBillPrintButton($bill)` | — (ใหม่ หลังช่วงที่ 16) | HTML ปุ่ม “ดู / พิมพ์บิล” ที่เปิด popup บิล — หน้าขาย (หลังบันทึก) · ประวัติวันนี้ · บิลของวันก่อน · $bill จาก sale_bills_query (ใช้ branch / ts / no) · พนักงานเปิดได้เฉพาะบิลสาขาตัวเอง (bill-print.php เช็กซ้ำ) |
 | `Stock_setAccountSetting($code, $key, $val)` | `acct_setting_set` | บันทึกค่าตั้งบัญชี / หัวบิลของสาขา |
 | `Stock_getBillPrefix($code, $vat)` | `bill_prefix` | รหัสนำหน้าของชุดเลข: $vat = true → ชุด VAT |
-| `Stock_formatBillNo($prefix, $ts, $n)` | `bill_no_format` | ประกอบเลขที่บิล เช่น BP2026-01-0001 |
+| `Stock_formatBillNo($prefix, $ts, $n)` | `bill_no_format` | ประกอบเลขที่บิล เช่น BP2026-01-0001 · รหัสลงท้ายด้วยตัวเลขมีขีดคั่นหน้าปี QA1-2026-01-0001 (20 ต.ค.) |
 | `Stock_splitVat($total)` | `vat_split` | แยกยอดรวม (รวม VAT แล้ว) เป็น array(ก่อน VAT, VAT) |
 | `Stock_getBillTypeLabel($vat)` | `bill_type_label` | ชื่อชุดเลข |
 | `Stock_getNextBillNoPreview($code, $vat)` | `bill_next_no_series` | เลขที่บิลใบถัดไปของเดือนนี้ (แสดงตัวอย่างเท่านั้น — เลขจริงออกตอนบันทึกบิลใน Stock_saveBill) · เลขของบิลที่ถูกยกเลิกไม่นำมาใช้ซ้ำ |
