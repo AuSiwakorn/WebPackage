@@ -5,9 +5,7 @@
  * DEPENDS: api.php (function ทั้งหมดของ AOSTOCK — ฝั่งหลังบ้าน admweb ไม่ได้โหลด api.php ให้เอง)
  * TABLES: -
  * TODO:
- *   - [x] โหลด api.php + ตั้งการเชื่อมต่อเป็น utf8mb4 (sdb())
- *   - [x] CSRF token ของหน้าในโมดูล — ใช้ csrf_token() / csrf_check() ของ api.php (session เดียวกับหน้า POS)
- *   - [x] ช่วงที่ 9: helper อ่าน / เขียน ao_stock_setting อยู่ใน api.php (stock_setting_get / stock_setting_set) — ใช้ร่วมกับหน้า POS
+ *   - [x] ประวัติการแก้ไขดู docs/CHANGELOG.md
  */
 require_once __DIR__ . '/api.php';
 

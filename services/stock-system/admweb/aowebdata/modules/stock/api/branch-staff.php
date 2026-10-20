@@ -2,28 +2,16 @@
 /**
  * FILE: admweb/aowebdata/modules/stock/api/branch-staff.php
  * ROLE: สาขา · พนักงาน / ผู้ดูแล / ฝ่ายบัญชี · ค่าตั้งของสาขา · PIN · ตัวช่วยของหน้าจัดการสาขา / พนักงาน
- * DEPENDS: โหลดโดย admweb/aowebdata/modules/stock/api.php (ตัวโหลด — ห้าม include ไฟล์นี้ตรง ๆ) · ใช้ function จากไฟล์อื่นใน api/ ได้ทุกตัว
+ * DEPENDS: api.php (ตัวโหลด — ห้าม include ตรง)
  * TABLES: ao_stock_branch, ao_stock_staff, ao_stock_staff_branch, ao_stock_remember (ลบตอนลบพนักงาน) · ตาราง ao_stock_* อื่น (เช็กก่อนลบสาขา / พนักงาน)
  * TODO:
- *   - [x] ช่วงที่ 10: แยกจาก api.php เดิม (ย้ายโค้ดทั้งก้อน ไม่แก้ตรรกะ) · จัดฟังก์ชันที่เคยปนอยู่หมวดอื่นให้มาอยู่หมวดนี้
- *   - [x] ช่วงที่ 11: สิทธิ์ในคอลัมน์ perms มีตัวบอกรุ่น (perm_csv) · แปลงสิทธิ์ชุดเดิมตอนอ่าน · ช่องติ๊กสิทธิ์แบ่งหมวด · สรุป / ประวัติการเปลี่ยนสิทธิ์
- *   - [x] ช่วงที่ 12: งานจัดการพนักงานใช้ร่วมกัน (staff_act_*) ระหว่างผู้ดูแลกับผู้จัดการสาขา · ยืนยัน PIN ของผู้จัดการ · ประวัติชนิด category ไม่นับเป็นข้อมูลสาขา
- *   - [x] ช่วงที่ 13: ชื่อผู้ใช้ของพนักงานต้องกรอก (staff_username_error — เลิกตั้ง staffN ให้อัตโนมัติ) · เปลี่ยนชื่อผู้ใช้ได้ (staff_act_save + staff_rename)
- *   - [x] ช่วงที่ 14: จำนวนสาขาสูงสุดที่ admweb กำหนด (branch_limit* · นับรวมสาขาที่ปิดใช้งาน) — branch_create ตรวจซ้ำใน transaction
- *   - [x] 12 ต.ค.: ข้อความตอนสาขาครบ (branch_limit_error) บอกให้ติดต่อคนดูแลเว็บ — เดิมบอกให้ติดต่อผู้ดูแลระบบ ซึ่งคือคนที่เห็นข้อความเอง
- *
- * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
+ *   - [x] ประวัติการแก้ไขดู docs/CHANGELOG.md
+ * ⚠ โหลดทุก request — มีได้แค่ define() + function (ห้าม echo / header / query ตอนโหลด)
  */
 
-/* ---------- สาขา (ตาราง ao_stock_branch) ----------
-   ผู้ดูแลเพิ่ม / แก้ไข / ปิดใช้งาน / ลบ ได้ที่หน้า "จัดการสาขา" (adm-branches.php)
-   - รหัสสาขา (code เช่น HQ, RS) คือตัวอ้างอิงหลักในหน้าเว็บ — ตั้งตอนเพิ่มแล้วเปลี่ยนไม่ได้
-   - ปิดใช้งาน = is_active 0 (ประวัติ บิล รายงานยังอยู่) · ลบได้เฉพาะสาขาที่ยังไม่มีข้อมูล
-   - อ่านทั้งตารางครั้งเดียวต่อ request (static) — function ที่เขียนเรียก branch_db_rows(true) ล้าง cache ให้เอง */
+/* ---------- สาขา: รหัส (code) ตั้งแล้วเปลี่ยนไม่ได้ · ปิดใช้งาน = is_active 0 · อ่านทั้งตารางครั้งเดียวต่อ request (เขียนแล้วล้าง cache) ---------- */
 
-/** ทุกแถวของ ao_stock_branch เรียงตาม sort — array( รหัส => แถว )
-    TODO:
-      - [x] cache ต่อ request · $reset = true ล้าง cache หลังเขียน */
+/** ทุกแถวของ ao_stock_branch เรียงตาม sort — array( รหัส => แถว ) */
 function branch_db_rows($reset = false)
 {
     static $rows = null;
@@ -47,9 +35,7 @@ function branch_row($code)
     return isset($rows[$code]) ? $rows[$code] : null;
 }
 
-/** ทุกสาขา รวมที่ปิดใช้งาน — ใช้ตอนต้องแสดงประวัติ / ชื่อสาขาเก่า
-    TODO:
-      - [x] อ่านจาก ao_stock_branch (เดิม demo_branches_all) */
+/** ทุกสาขา รวมที่ปิดใช้งาน — ใช้ตอนต้องแสดงประวัติ / ชื่อสาขาเก่า */
 function branches_all()
 {
     $out = array();
@@ -66,9 +52,7 @@ function branches_all()
     return $out;
 }
 
-/** สาขาที่เปิดใช้งาน — ใช้ทั่วไป (ตัวเลือกสาขา ย้ายพนักงาน ภาพรวม)
-    TODO:
-      - [x] เดิม demo_branches */
+/** สาขาที่เปิดใช้งาน — ใช้ทั่วไป (ตัวเลือกสาขา ย้ายพนักงาน ภาพรวม) */
 function branches_active()
 {
     $out = array();
@@ -80,12 +64,7 @@ function branches_active()
     return $out;
 }
 
-/** เพิ่มสาขาใหม่ — $info: name short address phone · $settings: ค่าตั้ง 4 ค่า (branch_setting_rules)
-    เลขที่บิลเริ่มต้น {รหัส}V / {รหัส} · เลขผู้เสียภาษีคัดลอกจากสาขาแรก · เลขที่สาขา (ภาษี) = สูงสุด + 1
-    คืน branch_id · 0 = ครบจำนวนสาขาสูงสุดแล้ว (ช่วงที่ 14 — ตรวจซ้ำใน transaction กันกดเพิ่มพร้อมกันเกินจำนวน)
-    TODO:
-      - [x] INSERT ao_stock_branch ใน transaction · คืน branch_id
-      - [x] ช่วงที่ 14: ตรวจจำนวนสาขาสูงสุด (ล็อกแถว branch_limit ไว้ คนที่กดพร้อมกันต่อคิวกัน) */
+/** เพิ่มสาขาใหม่ · คืน branch_id (0 = ครบจำนวนสาขาสูงสุดแล้ว) */
 function branch_create($code, $info, $settings)
 {
     return sdb_tx(function () use ($code, $info, $settings) {
@@ -142,10 +121,7 @@ function branch_set_active($code, $on)
     branch_db_rows(true);
 }
 
-/** ลบสาขา — เรียกหลังเช็ก branch_data_reason() แล้วเท่านั้น (สาขาที่ยังไม่มีข้อมูล)
-    ประวัติชนิด setting ของสาขานี้ (เพิ่ม / แก้ / ปิด–เปิดสาขา) ลบไปด้วย ไม่ให้เหลือแถวที่ชี้สาขาที่ไม่มีแล้ว
-    TODO:
-      - [x] DELETE สาขา + ประวัติ setting ใน transaction */
+/** ลบสาขา (เรียกหลังเช็ก branch_data_reason เท่านั้น) + ลบประวัติ setting ของสาขานั้น */
 function branch_delete($code)
 {
     $id = branch_id_of($code);
@@ -159,31 +135,22 @@ function branch_delete($code)
     branch_db_rows(true);
 }
 
-/* ---------- จำนวนสาขาสูงสุด (ช่วงที่ 14) ----------
-   ผู้ดูแลระบบตั้งที่หลังบ้าน admweb (AOSTOCK → ตั้งค่า POS · ao_stock_setting key branch_limit) · ว่าง / 0 = ไม่จำกัด
-   นับทุกสาขาในระบบ รวมที่ปิดใช้งาน (ข้อ 2ข — กันปิดสาขาเก่าแล้วเปิดสาขาใหม่วนไป) → เปิดสาขาที่ปิดไว้กลับมาได้เสมอ (จำนวนไม่เปลี่ยน)
-   ได้โควตาคืนเมื่อลบสาขา (ลบได้เฉพาะสาขาที่ยังไม่มีข้อมูล) · ตั้งต่ำกว่าที่มีอยู่ = สาขาเดิมใช้งานต่อได้ทั้งหมด แค่เพิ่มใหม่ไม่ได้ */
+/* ---------- จำนวนสาขาสูงสุด: ตั้งที่หลังบ้าน (setting branch_limit · ว่าง / 0 = ไม่จำกัด) · นับรวมสาขาที่ปิดใช้งาน ---------- */
 
-/** จำนวนสาขาสูงสุด (0 = ไม่จำกัด)
-    TODO:
-      - [x] ช่วงที่ 14 */
+/** จำนวนสาขาสูงสุด (0 = ไม่จำกัด) */
 function branch_limit()
 {
     $n = (int) stock_setting_get('branch_limit', '0');
     return ($n > 0) ? $n : 0;
 }
 
-/** ข้อความของจำนวนสาขาสูงสุด เช่น "3 สาขา" / "ไม่จำกัด"
-    TODO:
-      - [x] ช่วงที่ 14 */
+/** ข้อความของจำนวนสาขาสูงสุด เช่น "3 สาขา" / "ไม่จำกัด" */
 function branch_limit_label($n)
 {
     return ($n > 0) ? number_format($n) . ' สาขา' : 'ไม่จำกัด';
 }
 
-/** ตั้งจำนวนสาขาสูงสุด (หลังบ้าน admweb) + ลงประวัติของระบบ — คืน true ถ้าค่าเปลี่ยน · $by = ชื่อผู้แก้สำหรับประวัติ
-    TODO:
-      - [x] ช่วงที่ 14 */
+/** ตั้งจำนวนสาขาสูงสุด + ลงประวัติ · คืน true ถ้าค่าเปลี่ยน */
 function branch_limit_set($n, $by)
 {
     $n      = max(0, (int) $n);
@@ -200,9 +167,7 @@ function branch_limit_set($n, $by)
     return true;
 }
 
-/** เพิ่มสาขาใหม่ได้อีกไหม — '' = ได้ · ไม่ได้ = ข้อความบอกผู้ดูแล POS
-    TODO:
-      - [x] ช่วงที่ 14 */
+/** เพิ่มสาขาใหม่ได้อีกไหม — '' = ได้ · ไม่ได้ = ข้อความบอกผู้ดูแล POS */
 function branch_limit_error()
 {
     $max = branch_limit();
@@ -212,11 +177,7 @@ function branch_limit_error()
     return '';
 }
 
-/* ---------- ค่าตั้งของสาขา (ผู้ดูแลแก้ได้ที่หน้า "จัดการสาขา") — คอลัมน์ใน ao_stock_branch ----------
-   count_day        รอบตรวจนับเริ่มทุกวันที่เท่าไรของเดือน (1–28) รอบละ 1 เดือน
-   backdate_days    แก้เอกสาร / รับคืนสินค้าย้อนหลังได้กี่วัน
-   count_open_limit ระหว่างร้านเปิด นับได้ครั้งละกี่รายการ (0 = ไม่จำกัด)
-   default_float    เงินทอนมาตรฐานของสาขา                                       */
+/* ---------- ค่าตั้งของสาขา (คอลัมน์ใน ao_stock_branch): count_day · backdate_days · default_float ---------- */
 
 /** ช่วงค่าที่ยอมให้ตั้ง: array(ต่ำสุด, สูงสุด) */
 function branch_setting_rules()
@@ -224,9 +185,7 @@ function branch_setting_rules()
     return array(
         'count_day'        => array(1, 28),
         'backdate_days'    => array(0, 60),
-        'count_open_limit' => array(0, 50),
         'default_float'    => array(0, 100000),
-        'daily_goal'       => array(0, 100000),     // เป้าชิ้นต่อคนต่อวัน (ช่วงที่ 10) · 0 = ไม่ตั้งเป้า
     );
 }
 
@@ -254,33 +213,17 @@ function count_round_day($code)
     return branch_setting($code, 'count_day');
 }
 
-/** ระหว่างร้านเปิด นับได้ครั้งละกี่รายการ (0 = ไม่จำกัด)
-    นับทีละรายการแล้วบันทึกทันที โอกาสที่จะมีการขายแทรกระหว่างนับแทบไม่มี
-    ร้านยังไม่เปิด / ปิดแล้ว ไม่จำกัด */
-function count_open_limit($code = null)
-{
-    return $code === null ? 1 : branch_setting($code, 'count_open_limit');
-}
-
-/** ย้อนหลังได้ไม่เกินกี่วัน (สิทธิ์ backdate / refund) — ผู้ดูแลตั้งรายสาขา
-    ระบบจริง: ao_stock_branch.backdate_days                                  */
+/** ย้อนหลังได้ไม่เกินกี่วัน (สิทธิ์ backdate / refund) — ตั้งรายสาขา */
 function backdate_days($code = null)
 {
     return $code === null ? 7 : branch_setting($code, 'backdate_days');
 }
 
-/* ---------- ผู้ใช้ระบบ (ตาราง ao_stock_staff + ao_stock_staff_branch) ----------
-   - username คือตัวอ้างอิงหลักในหน้าเว็บ · staff_id ใช้ในเอกสาร (created_by)
-   - พนักงาน (staff) เข้าด้วยชื่อผู้ใช้ + PIN 4 หลัก (เครื่องที่เคยเข้าแล้วแตะปุ่มชื่อได้ · ช่วงที่ 13) · ผู้ดูแล (admin) / ฝ่ายบัญชี (account) เข้าด้วยชื่อผู้ใช้ + รหัสผ่าน
-   - PIN / รหัสผ่านเก็บเป็น password_hash() · กรอกผิด STAFF_LOCK_FAILS ครั้ง ล็อก STAFF_LOCK_MINUTES นาที (ต่อคน)
-   - พนักงานจัดการที่หน้า "จัดการพนักงาน" ของ POS · ผู้ดูแล / บัญชี จัดการที่หลังบ้าน admweb (โมดูล stock → ผู้ดูแล POS)
-   - ประวัติการประจำสาขาอยู่ใน ao_stock_staff_branch (แถวปัจจุบัน date_to = NULL) — ยอดเก่าผูกกับสาขาเดิมเสมอ */
+/* ---------- ผู้ใช้ระบบ: username อ้างในหน้าเว็บ · staff_id อ้างในเอกสาร · PIN / รหัสผ่านเป็น password_hash · สาขาย้อนหลังใน staff_branch ---------- */
 define('STAFF_LOCK_FAILS', 5);
 define('STAFF_LOCK_MINUTES', 15);
 
-/** ทุกแถวของ ao_stock_staff (+ รหัสสาขา) — array( username => แถว ) · มี hash ด้วย ใช้ภายในเท่านั้น
-    TODO:
-      - [x] cache ต่อ request · $reset = true ล้าง cache หลังเขียน */
+/** ทุกแถวของ ao_stock_staff (+ รหัสสาขา) — array( username => แถว ) · มี hash ด้วย ใช้ภายในเท่านั้น */
 function staff_db_rows($reset = false)
 {
     static $rows = null;
@@ -325,9 +268,7 @@ function staff_db_reset()
     staff_db_history(true);
 }
 
-/** สิทธิ์จากคอลัมน์ perms (คั่นด้วย ,) — เฉพาะที่มีใน perm_list เรียงตามลำดับเดิม
-    TODO:
-      - [x] ช่วงที่ 11: ไม่มีตัวบอกรุ่น PERM_VER = สิทธิ์ชุดเดิม → แปลงเป็นชุดใหม่ (perm_from_legacy) */
+/** สิทธิ์จากคอลัมน์ perms (คั่นด้วย ,) — เฉพาะที่มีใน perm_list เรียงตามลำดับเดิม */
 function staff_perms_csv($csv)
 {
     $have = array_values(array_filter(array_map('trim', explode(',', (string) $csv)), 'strlen'));
@@ -337,22 +278,13 @@ function staff_perms_csv($csv)
     return perm_clean($have);
 }
 
-/** สิทธิ์ → ค่าที่เก็บในคอลัมน์ perms (มีตัวบอกรุ่นนำหน้าเสมอ)
-    TODO:
-      - [x] ช่วงที่ 11 */
+/** สิทธิ์ → ค่าที่เก็บในคอลัมน์ perms (มีตัวบอกรุ่นนำหน้าเสมอ) */
 function perm_csv($perms)
 {
     return implode(',', array_merge(array(PERM_VER), perm_clean($perms)));
 }
 
-/**
- * ผู้ใช้ทุกคน รวมที่พักงาน — array( username => ข้อมูล )
- *   id name role branch(รหัสสาขาปัจจุบัน) initials perms active
- *   since   = วันเริ่มประจำสาขาปัจจุบัน · history = ช่วงที่เคยอยู่สาขาอื่น array(branch, from, to)
- * ไม่มี hash ของ PIN / รหัสผ่าน (ดู staff_auth_row)
- * TODO:
- *   - [x] อ่านจาก ao_stock_staff + ao_stock_staff_branch (เดิม demo_users_all)
- */
+/** ผู้ใช้ทุกคน รวมที่พักงาน — array(username => ข้อมูล) ไม่มี hash ของ PIN / รหัสผ่าน */
 function users_all()
 {
     $hist = staff_db_history();
@@ -397,9 +329,7 @@ function branch_id_of($code)
     return ($row !== null) ? (int) $row['branch_id'] : 0;
 }
 
-/** เพิ่มผู้ใช้ — $d: username name initials role branch(รหัส) perms(array) และ pin (staff) หรือ password (admin / account)
-    TODO:
-      - [x] INSERT ao_stock_staff + แถวประจำสาขาใน transaction · คืน staff_id */
+/** เพิ่มผู้ใช้ — $d: username name initials role branch(รหัส) perms(array) และ pin (staff) หรือ password (admin / account) */
 function staff_create($d)
 {
     return sdb_tx(function () use ($d) {
@@ -436,10 +366,7 @@ function staff_update($username, $name, $initials, $perms)
     staff_db_reset();
 }
 
-/** เปลี่ยนชื่อผู้ใช้ (ตรวจด้วย staff_username_error ก่อนเรียก) — เอกสาร / ประวัติ / การจดจำเครื่อง ผูกกับ staff_id จึงไม่ต้องแก้ที่อื่น
-    คนที่กำลังเข้าระบบอยู่ด้วยชื่อเดิมถูกพาออกจากระบบที่หน้าถัดไป (require_login หาชื่อเดิมไม่เจอ) แล้วเข้าใหม่ด้วยชื่อใหม่
-    TODO:
-      - [x] ช่วงที่ 13 */
+/** เปลี่ยนชื่อผู้ใช้ (ตรวจด้วย staff_username_error ก่อน) — ที่อื่นผูกกับ staff_id ไม่ต้องแก้ */
 function staff_rename($username, $new)
 {
     sdb_update('staff', array('username' => $new), array('username' => $username));
@@ -459,13 +386,11 @@ function staff_set_password($username, $password)
 {
     sdb_update('staff', array('password_hash' => password_hash($password, PASSWORD_DEFAULT), 'fail_count' => 0, 'locked_until' => null),
                array('username' => $username));
-    remember_forget_staff($username);                // เปลี่ยนรหัสผ่าน = ทุกเครื่องที่จดจำไว้ต้องเข้าระบบใหม่ (ช่วงที่ 10)
+    remember_forget_staff($username);                // เปลี่ยนรหัสผ่าน = ทุกเครื่องที่จดจำไว้ต้องเข้าระบบใหม่
     staff_db_reset();
 }
 
-/** ย้ายสาขาตั้งแต่วันนี้ — ปิดช่วงเดิม (ถึงเมื่อวาน) แล้วเปิดช่วงใหม่ · ย้ายซ้ำในวันเดียวกัน = แก้แถวของวันนี้
-    TODO:
-      - [x] transaction · ยอดเก่ายังผูกกับสาขาเดิม (user_branch_on) */
+/** ย้ายสาขาตั้งแต่วันนี้ (ปิดช่วงเดิมถึงเมื่อวาน · ย้ายซ้ำในวันเดียว = แก้แถววันนี้) */
 function staff_move($username, $toCode)
 {
     sdb_tx(function () use ($username, $toCode) {
@@ -492,7 +417,7 @@ function staff_set_active($username, $on)
 {
     sdb_update('staff', array('is_active' => $on ? 1 : 0), array('username' => $username));
     if (!$on) {
-        remember_forget_staff($username);            // พักงาน = ยกเลิกการจดจำทุกเครื่อง (ช่วงที่ 10)
+        remember_forget_staff($username);            // พักงาน = ยกเลิกการจดจำทุกเครื่อง
     }
     staff_db_reset();
 }
@@ -548,8 +473,7 @@ function staff_login_ok($username)
     staff_db_reset();
 }
 
-/** สาขาที่กำลังทำงานอยู่
-    พนักงานผูกกับสาขาตัวเองเสมอ · ผู้ดูแลเลือกสาขาจากแถบบน (?branch=) แล้วระบบจำไว้ */
+/** สาขาที่กำลังทำงาน (พนักงาน = สาขาตัวเอง · ผู้ดูแล = ที่เลือกจากแถบบน) */
 function work_branch($user)
 {
     if (!$user || $user['role'] !== 'admin') {
@@ -649,37 +573,16 @@ function branch_label($code)
     return $code === 'ALL' ? 'ทุกสาขา' : branch_name($code);
 }
 
-/* ==========================================================
-   รายงานยอดขาย (report-sales.php)
-   ----------------------------------------------------------
-   หลักการสำคัญ (ตอบเรื่องพนักงานย้ายสาขา)
+/* ---------- รายงานยอดขาย: บิลเก็บ branch_id ณ วันที่ขาย + created_by — พนักงานย้ายสาขาแล้วยอดเก่าไม่ย้ายตาม ---------- */
 
-   ทุกบิลเก็บ 2 อย่างคู่กันเสมอ
-     branch_id  = สาขา "ณ วันที่ขาย"   → ใช้ตอบคำถาม "สาขานี้ขายได้เท่าไร"
-     created_by = คนขาย                → ใช้ตอบคำถาม "ฉันขายได้เท่าไร"
-
-   สาขาถูกปั๊มลงในบิลตอนบันทึก ไม่ใช่ไปอ่านจากโปรไฟล์ตอนออกรายงาน
-   ถ้าอ่านจากโปรไฟล์ พอพนักงานย้ายสาขา ยอดเก่าของสาขาเดิมจะย้ายตามไปด้วย
-   ซึ่งผิด — ยอดของเดือนที่แล้วต้องไม่เปลี่ยนไม่ว่าจะย้ายคนไปไหน
-
-   ทุกวันอ่านจาก ao_stock_sale (บิลที่ยกเลิกไม่นับ) ทั้งช่วงในคิวรีเดียว — sales_agg()
-   ========================================================== */
-
-/**
- * ข้อมูลเต็มของผู้ใช้ (รวมประวัติการย้ายสาขา) — session เก็บไว้แค่ไม่กี่ฟิลด์เพื่อให้เบา
- */
+/** ข้อมูลเต็มของผู้ใช้ (session เก็บแค่ไม่กี่ฟิลด์) */
 function full_user($user)
 {
     $all = users_all();
     return isset($all[$user['username']]) ? $all[$user['username']] : $user;
 }
 
-/** สาขานี้มีข้อมูลแล้วหรือยัง — คืนเหตุผล (ว่าง = ยังไม่มี ลบได้)
-    ประวัติชนิด setting (ผู้ดูแลเพิ่ม / แก้สาขา) และ category (เพิ่ม / ลบหมวด · ช่วงที่ 12) ไม่นับ — ลบไปพร้อมสาขาใน branch_delete()
-    TODO:
-      - [x] เช็กจากตาราง ao_stock_* (พนักงาน ประวัติประจำสาขา เอกสาร สต๊อก ประวัติการทำรายการ)
-      - [x] ช่วงที่ 6: เอกสารคลังเช็กจากตารางแล้ว ไม่ดู session
-      - [x] ช่วงที่ 7: บิล / เปิด–ปิดร้าน / รับคืน อยู่ในตารางแล้ว — ไม่ดู session อีก */
+/** สาขานี้มีข้อมูลแล้วหรือยัง — คืนเหตุผล (ว่าง = ยังไม่มี ลบได้) */
 function branch_data_reason($code)
 {
     $row = branch_row($code);
@@ -776,9 +679,7 @@ function perm_names($keys)
     return $out ? implode(' · ', $out) : 'ไม่มี';
 }
 
-/** สิทธิ์ที่เปลี่ยน สำหรับลงประวัติ — array('เพิ่มสิทธิ์' => ชื่อ, 'เอาสิทธิ์ออก' => ชื่อ) เฉพาะฝั่งที่มี
-    TODO:
-      - [x] ช่วงที่ 11: สิทธิ์มีหลายตัวขึ้น ประวัติบอกเฉพาะที่เพิ่ม / เอาออก แทนการลงทั้งชุดเดิมและชุดใหม่ */
+/** สิทธิ์ที่เพิ่ม / เอาออก สำหรับลงประวัติ */
 function perm_changes($before, $after)
 {
     $out = array();
@@ -793,10 +694,7 @@ function perm_changes($before, $after)
     return $out;
 }
 
-/** สรุปสิทธิ์รายหมวด สำหรับตารางรายชื่อ — array( หมวด => array(have, total, names) ) เฉพาะหมวดที่มีอย่างน้อย 1 ตัว
-    ไม่นับ manager — ตำแหน่งผู้จัดการแสดงเป็นป้ายข้างชื่อแทน (ช่วงที่ 12)
-    TODO:
-      - [x] ช่วงที่ 11 */
+/** สรุปสิทธิ์รายหมวดสำหรับตารางรายชื่อ (ไม่นับ manager) */
 function perm_summary($perms)
 {
     $out = array();
@@ -830,11 +728,7 @@ function auto_initials($name)
     return $out !== '' ? $out : '-';
 }
 
-/** เคยทำรายการแล้วหรือยัง — คืนเหตุผล (ว่าง = ยังไม่เคย ลบได้)
-    TODO:
-      - [x] เช็กจากตาราง ao_stock_* (created_by / opened_by / closed_by / void_by)
-      - [x] ช่วงที่ 6: เอกสารคลังเช็กจากตารางแล้ว ไม่ดู session
-      - [x] ช่วงที่ 7: บิล / เปิด–ปิดร้าน / รับคืน อยู่ในตารางแล้ว — ไม่ดู session อีก */
+/** เคยทำรายการแล้วหรือยัง — คืนเหตุผล (ว่าง = ยังไม่เคย ลบได้) */
 function staff_data_reason($k)
 {
     $r = staff_auth_row($k);
@@ -864,16 +758,14 @@ function staff_data_reason($k)
     return '';
 }
 
-/** อ่านสิทธิ์จากฟอร์ม (เรียงตามลำดับใน perm_list · ตัดสิทธิ์ที่ขาดตัวที่ต้องมีออก — ช่วงที่ 11) */
+/** อ่านสิทธิ์จากฟอร์ม (เรียงตามลำดับใน perm_list · ตัดสิทธิ์ที่ขาดตัวที่ต้องมีออก) */
 function read_perms()
 {
     $in = (isset($_POST['perms']) && is_array($_POST['perms'])) ? $_POST['perms'] : array();
     return perm_clean(array_filter($in, 'is_string'));
 }
 
-/** ลายนิ้วมือของ PIN = HMAC-SHA256 ด้วย AOSTOCK_SECRET_KEY — เทียบ PIN ซ้ำได้โดยไม่ต้องรู้ PIN จริง · ไม่มีกุญแจ = null
-    TODO:
-      - [x] ช่วงที่ 10: คืนการเช็ก PIN ซ้ำตอนย้ายสาขา / เปิดใช้งานกลับ (ข้อ 4ก) */
+/** ลายนิ้วมือของ PIN = HMAC-SHA256 ด้วย AOSTOCK_SECRET_KEY — เทียบ PIN ซ้ำได้โดยไม่ต้องรู้ PIN จริง · ไม่มีกุญแจ = null */
 function pin_fp($pin)
 {
     if (!defined('AOSTOCK_SECRET_KEY') || strlen((string) AOSTOCK_SECRET_KEY) < 16) {
@@ -882,11 +774,7 @@ function pin_fp($pin)
     return hash_hmac('sha256', 'pin|' . preg_replace('/\D/', '', (string) $pin), (string) AOSTOCK_SECRET_KEY);
 }
 
-/** PIN ซ้ำกับใครในสาขา (ว่าง = ไม่ซ้ำ) — ใช้ตอนตั้ง PIN ใหม่ (รู้ PIN จริง)
-    คนที่มีลายนิ้วมือเทียบด้วย pin_fp · คนที่ยังไม่มี (ยังไม่ได้เข้าระบบหลังช่วงที่ 10) เทียบด้วย password_verify
-    TODO:
-      - [x] เทียบกับ pin_hash ของพนักงานที่ใช้งานอยู่ในสาขา
-      - [x] ช่วงที่ 10: เทียบ pin_fp ก่อน (เร็วกว่า password_verify ทีละคน) */
+/** PIN ซ้ำกับใครในสาขา (ตอนตั้ง PIN ใหม่) — ว่าง = ไม่ซ้ำ */
 function pin_owner($branch, $pin, $except)
 {
     $fp = pin_fp($pin);
@@ -909,10 +797,7 @@ function pin_owner($branch, $pin, $except)
     return '';
 }
 
-/** PIN ของ $username ซ้ำกับพนักงานที่ใช้งานอยู่ในสาขา $branch ไหม (ใช้ตอนย้ายสาขา / เปิดใช้งานกลับ — ไม่รู้ PIN จริง)
-    คืนชื่อคนที่ซ้ำ · ว่าง = ไม่ซ้ำ หรือเช็กไม่ได้ (คนใดคนหนึ่งยังไม่มีลายนิ้วมือ PIN)
-    TODO:
-      - [x] ช่วงที่ 10: เทียบ pin_fp (ข้อ 4ก) */
+/** PIN ของคนนี้ซ้ำกับใครในสาขาปลายทาง (ตอนย้าย / เปิดใช้งานกลับ) — ว่าง = ไม่ซ้ำหรือเช็กไม่ได้ */
 function staff_pin_conflict($username, $branch)
 {
     $me = staff_auth_row($username);
@@ -928,11 +813,7 @@ function staff_pin_conflict($username, $branch)
     return '';
 }
 
-/** ช่องติ๊กสิทธิ์ แยกตามหมวด (perm_groups) — สิทธิ์ที่ต้องมีตัวอื่นก่อนมี data-needs ให้ footer.php ปิด/เปิดช่องตาม
-    $only = หมวดที่แสดง (null = ทุกหมวด · หน้าผู้จัดการสาขาไม่แสดงหมวดสิทธิ์เสริม)
-    TODO:
-      - [x] ช่วงที่ 11: แบ่ง 6 หมวด · คำอธิบายใต้สิทธิ์ · บอกว่าต้องมีสิทธิ์ไหนก่อน
-      - [x] ช่วงที่ 12: เลือกหมวดที่แสดงได้ · ผู้จัดการสาขาไม่อยู่ในช่องติ๊ก — เลือกที่ "ตำแหน่ง" (staff_position_field) */
+/** ช่องติ๊กสิทธิ์แยกหมวด · $only = หมวดที่แสดง (null = ทุกหมวด) */
 function perm_boxes($checked, $branch, $only = null)
 {
     $pl   = perm_list();
@@ -945,8 +826,9 @@ function perm_boxes($checked, $branch, $only = null)
         'cash'         => 'เติมเงินทอน / หยิบเงินออกระหว่างวัน',
         'refund'       => 'บิลย้อนหลังได้ ' . $days,
         'refund_cash'  => 'ไม่ติ๊ก = รับคืนได้แต่ไม่คืนเงินสด',
-        'product_add'  => 'ตั้งราคาขายได้ด้วย — มีผลกับบิลทันที',                 // ช่วงที่ 16
+        'product_add'  => 'ตั้งราคาขายได้ด้วย — มีผลกับบิลทันที',
         'backdate'     => 'ย้อนหลังได้ ' . $days,
+        'hist_sale'    => 'รายการตั้งค่า (เพิ่ม / แก้พนักงาน ฯลฯ) เห็นเฉพาะผู้จัดการสาขา',         // สิทธิ์ดูประวัติรายเมนู
     );
     foreach (perm_groups() as $g => $title) {
         if ($only !== null && !in_array($g, $only, true)) {
@@ -978,17 +860,9 @@ function perm_boxes($checked, $branch, $only = null)
     }
 }
 
-/* ==========================================================
-   งานจัดการพนักงาน — ใช้ร่วมกันระหว่างผู้ดูแล (adm-users.php / adm-user-add.php) และผู้จัดการสาขา (team.php) · ช่วงที่ 12
-   ----------------------------------------------------------
-   staff_act_*: ตรวจข้อมูล → เขียน → ลงประวัติของสาขา (ชนิด setting) · คืน '' = สำเร็จ หรือข้อความผิดพลาด
-   ใครแก้ใครได้ เช็กที่หน้า: ผู้ดูแลแก้พนักงานได้ทุกคน · ผู้จัดการสาขาใช้ manager_target_error ก่อนเรียก
-   ข้อความผิดพลาด / ประวัติ เหมือนของหน้าผู้ดูแลเดิมทุกคำ (ย้ายมาจาก adm-users.php / adm-user-add.php)
-   ========================================================== */
+/* ---------- งานจัดการพนักงาน (ผู้ดูแล + ผู้จัดการสาขา): staff_act_* ตรวจ → เขียน → ลงประวัติ · คืน '' = สำเร็จ ---------- */
 
-/** บทบาทของผู้ทำ ต่อท้ายชื่อในประวัติ — (ผู้ดูแล) / (ผู้จัดการสาขา)
-    TODO:
-      - [x] ช่วงที่ 12 */
+/** บทบาทของผู้ทำ ต่อท้ายชื่อในประวัติ — (ผู้ดูแล) / (ผู้จัดการสาขา) */
 function actor_label($user)
 {
     if ($user['role'] === 'admin') {
@@ -997,10 +871,7 @@ function actor_label($user)
     return user_role_label($user);
 }
 
-/** ตรวจชื่อผู้ใช้ของพนักงาน — '' = ใช้ได้ · $except = ชื่อเดิมของคนที่กำลังแก้ (ไม่เปลี่ยน = ผ่านเสมอ แม้รูปแบบเก่าจะไม่ตรงกติกา)
-    พนักงานพิมพ์ชื่อนี้คู่กับ PIN ตอนเข้าระบบบนเครื่องใหม่ (ช่วงที่ 13) จึงต้องกรอกเองทุกครั้ง
-    TODO:
-      - [x] ช่วงที่ 13 */
+/** ตรวจชื่อผู้ใช้ของพนักงาน — '' = ใช้ได้ · $except = ชื่อเดิม (ไม่เปลี่ยน = ผ่าน) */
 function staff_username_error($uname, $except = '')
 {
     if ($except !== '' && $uname === $except) {
@@ -1020,10 +891,7 @@ function staff_username_error($uname, $except = '')
 }
 
 /** เพิ่มพนักงาน — $in: name username initials branch pin perms
-    คืน array('username' => ชื่อผู้ใช้ที่ได้) หรือ array('error' => ข้อความ)
-    TODO:
-      - [x] ช่วงที่ 12: ย้ายจาก adm-user-add.php ให้ team.php ใช้ด้วย
-      - [x] ช่วงที่ 13: ชื่อผู้ใช้ต้องกรอก (staff_username_error) */
+    คืน array('username' => ชื่อผู้ใช้ที่ได้) หรือ array('error' => ข้อความ) */
 function staff_act_add($in, $actor)
 {
     $br    = branches_active();
@@ -1036,7 +904,7 @@ function staff_act_add($in, $actor)
 
     if ($name === '') {
         return array('error' => 'กรุณากรอกชื่อพนักงาน');
-    } elseif (($ue = staff_username_error($uname)) !== '') {      // ช่วงที่ 13: ต้องกรอก (เลิกตั้ง staffN ให้อัตโนมัติ)
+    } elseif (($ue = staff_username_error($uname)) !== '') {      // ต้องกรอก (เลิกตั้ง staffN ให้อัตโนมัติ)
         return array('error' => $ue);
     } elseif (!isset($br[$bc])) {
         return array('error' => 'กรุณาเลือกสาขาที่ประจำ');
@@ -1059,10 +927,7 @@ function staff_act_add($in, $actor)
     return array('username' => $uname);
 }
 
-/** แก้ชื่อ / อักษรย่อ / สิทธิ์ / ชื่อผู้ใช้ ($name ตัดช่องว่างซ้ำแล้ว · $newUser = null คือไม่เปลี่ยนชื่อผู้ใช้)
-    TODO:
-      - [x] ช่วงที่ 12: ย้ายจาก adm-users.php (act=save)
-      - [x] ช่วงที่ 13: เปลี่ยนชื่อผู้ใช้ได้ (ผู้ดูแล / ผู้จัดการสาขา) — ตรวจครบก่อนเขียน · ลงประวัติรายการเดียวกัน */
+/** แก้ชื่อ / อักษรย่อ / สิทธิ์ / ชื่อผู้ใช้ ($newUser = null ไม่เปลี่ยน) */
 function staff_act_save($username, $name, $ini, $perms, $actor, $newUser = null)
 {
     $all = staff_all();
@@ -1088,7 +953,7 @@ function staff_act_save($username, $name, $ini, $perms, $actor, $newUser = null)
     if ($name !== $u['name']) {
         $changes['ชื่อ'] = $u['name'] . ' → ' . $name;
     }
-    $changes = array_merge($changes, perm_changes($before, $perms));     // ช่วงที่ 11: บอกเฉพาะที่เพิ่ม / เอาออก
+    $changes = array_merge($changes, perm_changes($before, $perms));     // บอกเฉพาะที่เพิ่ม / เอาออก
     staff_update($newUser, $name, $ini, $perms);
     if ($changes) {
         $changes['แก้โดย'] = $actor['name'] . ' (' . actor_label($actor) . ')';
@@ -1097,9 +962,7 @@ function staff_act_save($username, $name, $ini, $perms, $actor, $newUser = null)
     return '';
 }
 
-/** รีเซ็ต PIN (ห้ามซ้ำกับคนอื่นในสาขา · ประวัติไม่แสดงเลข PIN)
-    TODO:
-      - [x] ช่วงที่ 12: ย้ายจาก adm-users.php (act=pin) */
+/** รีเซ็ต PIN (ห้ามซ้ำกับคนอื่นในสาขา · ประวัติไม่แสดงเลข PIN) */
 function staff_act_pin($username, $pin, $actor)
 {
     $all = staff_all();
@@ -1120,9 +983,7 @@ function staff_act_pin($username, $pin, $actor)
     return '';
 }
 
-/** พักงาน / ลาออก ($on = false) หรือเปิดใช้งานอีกครั้ง ($on = true)
-    TODO:
-      - [x] ช่วงที่ 12: ย้ายจาก adm-users.php (act=off / on) */
+/** พักงาน / ลาออก ($on = false) หรือเปิดใช้งานอีกครั้ง ($on = true) */
 function staff_act_active($username, $on, $why, $actor)
 {
     $all = staff_all();
@@ -1135,7 +996,7 @@ function staff_act_active($username, $on, $why, $actor)
     if ($on && !isset($br[$u['branch']])) {
         return 'สาขาเดิมของ ' . $u['name'] . ' ถูกปิดใช้งานแล้ว — เปิดสาขาก่อน หรือย้ายสาขาก่อนเปิดใช้งาน';
     } elseif ($on && $u['role'] === 'staff' && ($dup = staff_pin_conflict($username, $u['branch'])) !== '') {
-        return 'PIN ของ ' . $u['name'] . ' ซ้ำกับ ' . $dup . ' ในสาขาเดียวกันแล้ว — รีเซ็ต PIN ก่อนเปิดใช้งาน';     // ช่วงที่ 10
+        return 'PIN ของ ' . $u['name'] . ' ซ้ำกับ ' . $dup . ' ในสาขาเดียวกันแล้ว — รีเซ็ต PIN ก่อนเปิดใช้งาน';
     }
     staff_set_active($username, $on);
     log_add($u['branch'], 'setting', $actor, ($on ? 'เปิดใช้งาน ' : 'พักงาน / ลาออก ') . $u['name'], array(
@@ -1145,9 +1006,7 @@ function staff_act_active($username, $on, $why, $actor)
     return '';
 }
 
-/** ลบพนักงาน — ได้เฉพาะคนที่ยังไม่เคยทำรายการ และต้องติ๊กยืนยัน ($sure)
-    TODO:
-      - [x] ช่วงที่ 12: ย้ายจาก adm-users.php (act=delete) */
+/** ลบพนักงาน — ได้เฉพาะคนที่ยังไม่เคยทำรายการ และต้องติ๊กยืนยัน ($sure) */
 function staff_act_delete($username, $sure, $actor)
 {
     $all = staff_all();
@@ -1166,10 +1025,7 @@ function staff_act_delete($username, $sure, $actor)
     return '';
 }
 
-/** ผู้จัดการสาขาแก้พนักงานคนนี้ได้ไหม — '' = ได้ หรือเหตุผลที่ไม่ได้
-    ได้เฉพาะพนักงาน (ไม่ใช่ผู้จัดการ รวมตัวเอง) ที่ประจำสาขาเดียวกัน · ผู้จัดการคนอื่น / ย้ายสาขา / ตั้งผู้จัดการ เป็นของผู้ดูแล
-    TODO:
-      - [x] ช่วงที่ 12 (ข้อ 2ข) */
+/** ผู้จัดการสาขาแก้พนักงานคนนี้ได้ไหม — '' = ได้ หรือเหตุผล */
 function manager_target_error($manager, $username)
 {
     $all = staff_all();
@@ -1186,19 +1042,14 @@ function manager_target_error($manager, $username)
     return '';
 }
 
-/** สิทธิ์หลังผู้จัดการสาขาบันทึก = สิทธิ์ที่ติ๊กมา (เฉพาะหมวดที่ผู้จัดการให้ได้) + สิทธิ์เสริมเดิมของคนนั้น (ผู้ดูแลให้ไว้ ห้ามหาย)
-    TODO:
-      - [x] ช่วงที่ 12 (ข้อ 2ก) */
+/** สิทธิ์หลังผู้จัดการบันทึก = ที่ติ๊กมา (หมวดที่ให้ได้) + สิทธิ์เสริมเดิม */
 function perm_merge_by_manager($ticked, $before)
 {
     $grant = perm_manager_grantable();
     return perm_clean(array_merge(array_intersect((array) $ticked, $grant), array_diff((array) $before, $grant)));
 }
 
-/** ยืนยันตัวตนด้วย PIN ของตัวเองก่อนจัดการพนักงาน (เครื่อง POS ใช้ร่วมกัน) — '' = ผ่าน
-    กรอกผิดนับรวมกับการเข้าระบบ: ครบ STAFF_LOCK_FAILS ครั้ง ล็อก STAFF_LOCK_MINUTES นาที (เข้าระบบใหม่ก็ไม่ได้จนพ้นเวลา)
-    TODO:
-      - [x] ช่วงที่ 12 (ข้อ 3ก) */
+/** ยืนยันตัวตนด้วย PIN ของตัวเองก่อนจัดการพนักงาน — '' = ผ่าน (ผิดนับรวมกับการเข้าระบบ) */
 function staff_pin_confirm($username, $pin)
 {
     $left = staff_locked_left($username);
@@ -1218,13 +1069,9 @@ function staff_pin_confirm($username, $pin)
     return '';
 }
 
-/* ---------- ตำแหน่ง: พนักงาน / ผู้จัดการสาขา (ช่วงที่ 12 ข้อ ก + ข) ----------
-   ผู้จัดการสาขา = สิทธิ์ manager ในคอลัมน์ perms เหมือนเดิม แต่หน้าจอให้เลือกเป็น "ตำแหน่ง" แยกจากช่องติ๊กสิทธิ์
-   ตั้งได้ 2 ทาง: หน้าจัดการพนักงาน (ช่องตำแหน่งบนสุด) และหน้าจัดการสาขา (เลือกผู้จัดการรายสาขา) */
+/* ---------- ตำแหน่ง: ผู้จัดการสาขา = สิทธิ์ manager แต่หน้าจอเลือกเป็น “ตำแหน่ง” (หน้าจัดการพนักงาน / จัดการสาขา) ---------- */
 
-/** สิทธิ์ชุดนี้ + ตั้ง / ปลดผู้จัดการ
-    TODO:
-      - [x] ช่วงที่ 12 */
+/** สิทธิ์ชุดนี้ + ตั้ง / ปลดผู้จัดการ */
 function perm_set_manager($perms, $on)
 {
     $p = array_values(array_diff((array) $perms, array('manager')));
@@ -1234,14 +1081,12 @@ function perm_set_manager($perms, $on)
     return perm_clean($p);
 }
 
-/** ช่องเลือกตำแหน่ง (name="position" = staff | manager) — วางบนสุดของฟอร์มเพิ่ม / แก้พนักงานของผู้ดูแล
-    TODO:
-      - [x] ช่วงที่ 12 (ข้อ ก) */
+/** ช่องเลือกตำแหน่ง (name="position" = staff | manager) — วางบนสุดของฟอร์มเพิ่ม / แก้พนักงานของผู้ดูแล */
 function staff_position_field($isManager)
 {
     $opts = array(
         'staff'   => array('พนักงาน', 'ทำงานได้ตามสิทธิ์ที่ติ๊กด้านล่าง'),
-        'manager' => array('ผู้จัดการสาขา', 'เห็นทุกอย่างในสาขา + ได้สิทธิ์ดูข้อมูลและสิทธิ์เสริมทุกตัวอัตโนมัติ · เพิ่ม / แก้ / รีเซ็ต PIN / พักงานพนักงานในสาขาเองได้ (เมนู “พนักงานในสาขา”) · งานขาย / งานคลังยังตามที่ติ๊ก'),
+        'manager' => array('ผู้จัดการสาขา', 'เห็นทุกอย่างในสาขา + ได้สิทธิ์ดูข้อมูล ดูประวัติ และสิทธิ์เสริมทุกตัวอัตโนมัติ · เพิ่ม / แก้ / รีเซ็ต PIN / พักงานพนักงานในสาขาเองได้ (เมนู “พนักงานในสาขา”) · งานขาย / งานคลังยังตามที่ติ๊ก'),
     );
     echo '<h4 class="perm-h">ตำแหน่ง</h4><div class="perm-grid staff-pos">';
     foreach ($opts as $k => $o) {
@@ -1252,18 +1097,14 @@ function staff_position_field($isManager)
     echo '</div>';
 }
 
-/** เขียนเฉพาะสิทธิ์ (ไม่แตะชื่อ / อักษรย่อ)
-    TODO:
-      - [x] ช่วงที่ 12 */
+/** เขียนเฉพาะสิทธิ์ (ไม่แตะชื่อ / อักษรย่อ) */
 function staff_set_perms($username, $perms)
 {
     sdb_update('staff', array('perms' => perm_csv($perms)), array('username' => $username));
     staff_db_reset();
 }
 
-/** ตั้ง / ปลดผู้จัดการสาขา (หน้าจัดการสาขา) — ไม่เปลี่ยน = ไม่ทำอะไร · คืน '' หรือข้อความผิดพลาด
-    TODO:
-      - [x] ช่วงที่ 12 (ข้อ ข) */
+/** ตั้ง / ปลดผู้จัดการสาขา (หน้าจัดการสาขา) — ไม่เปลี่ยน = ไม่ทำอะไร · คืน '' หรือข้อความผิดพลาด */
 function staff_act_set_manager($username, $on, $actor)
 {
     $all = staff_all();

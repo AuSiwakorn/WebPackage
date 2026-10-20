@@ -11,6 +11,7 @@
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  *   - [x] ช่วงที่ 17: ปิดร้านย้อนหลัง (act=close_past) ตรงรายการ “ยังไม่ได้ปิดร้าน” · รายการที่ต้องตรวจมีชนิด “ปิดร้านย้อนหลัง”
  *   - [x] S6: ตารางสต๊อกแยกสาขาเลิกใช้ tbl--compact — 5 คอลัมน์ + รายชื่อสินค้า คงรูปตารางบนมือถือไม่พอดีจอ ให้เป็นการ์ดมีชื่อช่องแทน
+ *   - [x] 15 ต.ค. (เมนูประวัติแยกหน้า ช่วง 2): ปุ่ม “ดูประวัติ” ในรายการที่ต้องตรวจ → รายการวันนี้ของสาขานั้น (หน้าประวัติรวมไม่มีแล้ว)
  *            ช่อง “ต้องสั่งก่อน” ใส่ td-stack — รายชื่อสินค้าเรียงลงทีละบรรทัด ชิดขวา
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
@@ -261,7 +262,7 @@ $__tones = array('ยกเลิกเอกสาร' => 'bdg-out', 'แก้
                   <?php if ($r['amount'] !== null) { ?><small>คืนเงินสด <?php echo e(money2($r['amount'])) ?> บาท</small><?php } ?>
                 </td>
                 <td data-label="ผู้ทำ"><?php echo e($r['by']) ?></td>
-                <td class="r"><a class="btn btn-ghost btn-sm" href="adm-history.php?b=<?php echo e(rawurlencode($r['code'])) ?>">ดูประวัติ</a></td>
+                <td class="r"><a class="btn btn-ghost btn-sm" href="adm-history.php?view=day&amp;b=<?php echo e(rawurlencode($r['code'])) ?>&amp;d=<?php echo date('Ymd') ?>">ดูประวัติ</a></td>
               </tr>
             <?php } ?>
           </tbody>

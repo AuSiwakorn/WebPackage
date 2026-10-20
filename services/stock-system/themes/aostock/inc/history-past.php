@@ -15,6 +15,7 @@
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  *   - [x] ปุ่ม “ดู / พิมพ์บิล” ทุกบิลของวันนั้น (รวมบิลที่ยกเลิก)
  *   - [x] 12 ต.ค.: ลำดับเหตุการณ์ทั้งวัน — ผู้ดูแลเห็นรายการ “ตั้งค่า” ด้วย (เดิมซ่อนเพราะเช็กแค่ผู้จัดการสาขา)
+ *   - [x] 15 ต.ค. (เมนูประวัติแยกหน้า ช่วง 4): $PAST_GROUP = แสดงเฉพาะกลุ่มนั้น (เอกสารคลังชนิดนั้น / บิลขาย / เหตุการณ์ของกลุ่ม) · ไม่ตั้ง = ทั้งวัน
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -27,28 +28,39 @@ if (!defined('ALLOW_DIRECT_ACCESS')) {
    และลำดับเหตุการณ์ทั้งวันจากประวัติ (log_of_day) เรียงจากเช้าไปเย็น
    ใช้ทั้งใน history.php (พนักงาน) และ inc/adm-history-day.php (ผู้ดูแล)
    ตัวแปรที่ต้องมี: $user, $code, $pastTs, $pastDay · ฐานลิงก์ของฟอร์มมาจาก hist_url()
+   $PAST_GROUP (ไม่บังคับ) = คีย์กลุ่มของ Stock_getLogGroups — หน้าประวัติพนักงานแสดงเฉพาะกลุ่มของเมนู · ไม่ตั้ง = ทั้งวัน
    ========================================================== */
 
 require_once dirname(__FILE__) . '/../include/function.php';
 
-$docs  = past_docs($code, $pastTs);
-$bills = past_bills($code, $pastTs);
+$grp    = isset($PAST_GROUP) ? (string) $PAST_GROUP : '';
+$grpLb  = ($grp !== '') ? Stock_getLogGroups()[$grp]['label'] : '';
+$kindOf = array('receive' => 'RC', 'issue' => 'IS', 'adjust' => 'AD');       // กลุ่ม → ชนิดเอกสารคลัง
+$showD  = ($grp === '' || isset($kindOf[$grp]));
+$showB  = ($grp === '' || $grp === 'sale');
+$docs   = $showD ? past_docs($code, $pastTs) : array();
+if ($grp !== '' && $showD) {
+    $docs = array_values(array_filter($docs, function ($d) use ($kindOf, $grp) { return $d['kind'] === $kindOf[$grp]; }));
+}
+$bills = $showB ? past_bills($code, $pastTs) : array();
 $types = past_types();
+$docLb = ($grp !== '' && $showD) ? $types[$kindOf[$grp]]['label'] : 'เอกสารคลัง';
 $icons = array('RC' => 'i-in', 'IS' => 'i-out', 'AD' => 'i-clipboard');
 $docK  = array('RC' => 'recv', 'IS' => 'issue', 'AD' => 'adj');
 $age   = (int) round((strtotime(date('Y-m-d')) - $pastTs) / 86400);
 ?>
 
+<?php if ($showD) { ?>
 <section class="card">
   <div class="card-head">
     <div>
-      <h2>เอกสารคลังของวันที่ <?php echo e(thai_date_full($pastTs)) ?></h2>
+      <h2><?php echo e($docLb) ?>ของวันที่ <?php echo e(thai_date_full($pastTs)) ?></h2>
       <span class="sub">ย้อนหลัง <?php echo $age ?> วัน · ยกเลิก/แก้ไขแล้วสต๊อกจะถูกปรับวันนี้ และลงประวัติของวันนี้</span>
     </div>
   </div>
 
   <?php if (!$docs) { ?>
-    <p class="empty"><svg class="ico"><use href="#i-history"/></svg>วันนี้ไม่มีเอกสารคลัง<br><small>(วันอาทิตย์ร้านปิด หรือไม่มีการรับเข้า/เบิก/ตรวจนับ)</small></p>
+    <p class="empty"><svg class="ico"><use href="#i-history"/></svg>วันนี้ไม่มี<?php echo e($docLb) ?><br><small>(วันอาทิตย์ร้านปิด หรือไม่มีการรับเข้า/เบิก/ตรวจนับ)</small></p>
   <?php } else { ?>
     <ol class="tl">
       <?php foreach ($docs as $d) {
@@ -115,7 +127,9 @@ $age   = (int) round((strtotime(date('Y-m-d')) - $pastTs) / 86400);
     </ol>
   <?php } ?>
 </section>
+<?php } ?>
 
+<?php if ($showB) { ?>
 <section class="card">
   <div class="card-head">
     <div>
@@ -154,14 +168,20 @@ $age   = (int) round((strtotime(date('Y-m-d')) - $pastTs) / 86400);
     </div>
   <?php } ?>
 </section>
+<?php } ?>
 
 <?php $events = array_reverse(log_of_day($code, $pastTs, 0, $user['role'] === 'staff' && !is_branch_manager($user))); /* ช่วงที่ 12: พนักงานทั่วไปไม่เห็นรายการตั้งค่า · ผู้ดูแลเห็น (12 ต.ค.) */ ?>
+<?php $events = ($grp !== '') ? log_filter($events, $grp) : $events; ?>
 <section class="card">
   <div class="card-head">
     <div>
-      <h2>ลำดับเหตุการณ์ทั้งวัน</h2>
+      <h2><?php echo ($grp === '') ? 'ลำดับเหตุการณ์ทั้งวัน' : 'ลำดับเหตุการณ์' ?></h2>
+      <?php if ($grp === '') { ?>
       <span class="sub">ทุกรายการที่บันทึกของ<?php echo e(branch_name($code)) ?>วันที่ <?php echo e(thai_date_full($pastTs)) ?> เรียงจากเช้าไปเย็น
         · เปิด–ปิดร้าน เงินเข้า / ออกลิ้นชัก บิล ยกเลิก รับคืน และเอกสารคลัง</span>
+      <?php } else { ?>
+      <span class="sub">รายการ<?php echo e($grpLb) ?>ของ<?php echo e(branch_name($code)) ?>วันที่ <?php echo e(thai_date_full($pastTs)) ?> เรียงจากเช้าไปเย็น</span>
+      <?php } ?>
     </div>
   </div>
   <?php if (!$events) { ?>

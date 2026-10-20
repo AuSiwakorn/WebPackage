@@ -2,14 +2,11 @@
 /**
  * FILE: admweb/aowebdata/modules/stock/main_status.php
  * ROLE: หน้าสถานะระบบ AOSTOCK — ติดตั้งตาราง ao_stock_* ครบหรือยัง, charset ของการเชื่อมต่อ, ลิงก์ไปหน้าติดตั้งและหน้า POS
- * DEPENDS: aModuleConfig.php ($aTablename), function.php → api.php (sdb_rows / sdb_val — admweb โหลด function.php ให้อัตโนมัติ)
+ * DEPENDS: aModuleConfig.php ($aTablename), function.php → api.php
  * TABLES: - (อ่านรายชื่อตารางด้วย SHOW TABLES) · ao_stock_setting, ao_stock_notify_log (สถานะการแจ้งเตือน / cron — ผ่าน api.php)
  * TODO:
- *   - [x] แสดงตารางที่ติดตั้งแล้ว / ยังขาด + ลิงก์ไปหน้า Reinstall
- *   - [x] แสดง charset ของการเชื่อมต่อ (ต้องเป็น utf8mb4)
- *   - [ ] สรุปจำนวนสาขา / พนักงาน / สินค้า เมื่อมีหน้าจัดการข้อมูล (ช่วงที่ 5)
- *   - [x] ช่วงที่ 14: บรรทัดสาขา — มีอยู่กี่สาขา / จำนวนสาขาสูงสุดที่ตั้งไว้ (ลิงก์ไปหน้าตั้งค่า POS)
- *   - [x] ช่วงที่ 9: สถานะการแจ้งเตือน — กุญแจเข้ารหัส · Telegram · อีเมลรายวัน · cron ทำงานล่าสุด + คำสั่งที่ต้องตั้ง · เมนูที่ปิดอยู่
+ *   - [ ] สรุปจำนวนสาขา / พนักงาน / สินค้า เมื่อมีหน้าจัดการข้อมูล
+ *   - [x] ประวัติการแก้ไขดู docs/CHANGELOG.md
  */
 PERMIT::_PERMIT(_MODULE_, 'module|mp', 'สามารถเปิด สถานะระบบ AOSTOCK ได้', 'redirect', 'SET');
 
@@ -34,14 +31,14 @@ $isAllOk = ($numInstalled === $numTotal);
 
 $linkInstall = _admin_buil_link('index.php?module=siteconfig&mp=db');
 
-// ---- สาขา / จำนวนสาขาสูงสุด (ช่วงที่ 14) — ตารางยังไม่ครบ = ข้าม ----
+// ---- สาขา / จำนวนสาขาสูงสุด — ตารางยังไม่ครบ = ข้าม ----
 $aBr = null;
 if (in_array(_DBPREFIX_ . 'stock_branch', $aAllTables, true) && in_array(_DBPREFIX_ . 'stock_setting', $aAllTables, true)) {
 	$aBr = array('all' => count(branches_all()), 'on' => count(branches_active()), 'max' => branch_limit());
 }
 $linkSettings = 'index.php?module=' . _MODULE_ . '&mp=settings';
 
-// ---- การแจ้งเตือน / cron (ช่วงที่ 9) — ตารางยังไม่ครบ = ข้าม ----
+// ---- การแจ้งเตือน / cron — ตารางยังไม่ครบ = ข้าม ----
 $aNt = null;
 if (in_array(_DBPREFIX_ . 'stock_setting', $aAllTables, true) && in_array(_DBPREFIX_ . 'stock_notify_log', $aAllTables, true)) {
 	$cronAt = (string) stock_setting_get('cron_last_run', '');

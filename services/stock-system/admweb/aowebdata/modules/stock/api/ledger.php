@@ -2,15 +2,11 @@
 /**
  * FILE: admweb/aowebdata/modules/stock/api/ledger.php
  * ROLE: สมุดสต๊อก (stock_move / stock_balance) · เลขที่เอกสาร · อ่าน / ยกเลิกเอกสารคลัง · ประวัติเคลื่อนไหวรายสินค้า · แก้ / ยกเลิกเอกสารย้อนหลัง
- * DEPENDS: โหลดโดย admweb/aowebdata/modules/stock/api.php (ตัวโหลด — ห้าม include ไฟล์นี้ตรง ๆ) · ใช้ function จากไฟล์อื่นใน api/ ได้ทุกตัว
+ * DEPENDS: api.php (ตัวโหลด — ห้าม include ตรง)
  * TABLES: ao_stock_move, ao_stock_balance, ao_stock_doc_seq, ao_stock_receive / issue / count (+ _item), ao_stock_sale (ชนิด SA), ao_stock_log
  * TODO:
- *   - [x] ช่วงที่ 10: แยกจาก api.php เดิม (ย้ายโค้ดทั้งก้อน ไม่แก้ตรรกะ) · จัดฟังก์ชันที่เคยปนอยู่หมวดอื่นให้มาอยู่หมวดนี้
- *   - [x] ช่วงที่ 11: แก้ไขเอกสารย้อนหลังต้องมีสิทธิ์ของหน้างานคลังชนิดนั้นด้วย
- *   - [x] 12 ต.ค.: ผู้ดูแลย้อนดูประวัติได้ตาม return_lookback_days(สาขา) (เดิม 14 วันตายตัว)
- *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 5): move_rows_multi ดึงสินค้าทุกตัวที่มีความเคลื่อนไหวคิวรีเดียว (Stock_prefetchProducts) — เดิมโหลดสินค้าทั้งร้าน
- *
- * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
+ *   - [x] ประวัติการแก้ไขดู docs/CHANGELOG.md
+ * ⚠ โหลดทุก request — มีได้แค่ define() + function (ห้าม echo / header / query ตอนโหลด)
  */
 
 /* ---------- ประวัติเคลื่อนไหวรายสินค้า: ย้อนหลังกี่วัน (+ วันนี้) — move_rows_multi() ---------- */
@@ -18,24 +14,10 @@ define('MOVE_LOOKBACK_DAYS', 13);
 
 define('STOCK_LINE_MAX', 1000000);       // จำนวนสูงสุดต่อรายการในใบ (กันตัวเลขล้นคอลัมน์ int)
 
-/* ==========================================================
-   หลักการ (ดู database.php)
-   - ยอดคงเหลือ = ผลรวมของ ao_stock_move · ao_stock_balance เป็น cache ที่อัปเดตในทรานแซกชันเดียวกัน
-   - เอกสารคลัง 3 ชนิด: RC ใบรับเข้า (ao_stock_receive) · IS ใบเบิก / ตัดออก (ao_stock_issue) · AD ใบตรวจนับ (ao_stock_count)
-   - บันทึก = ล็อกยอดของสินค้าในใบ (FOR UPDATE เรียงตาม product_id กัน deadlock) → ออกเลขที่ → หัวใบ + รายการ
-              → stock_move ทีละรายการ + ยอดใหม่ใน stock_balance → stock_log — ทั้งหมดใน sdb_tx เดียว
-   - ยกเลิก = status 'void' + stock_move กลับรายการ (ไม่ลบ) · แก้ไข = ยกเลิกแบบ void_mode 'edit' แล้วใบใหม่ใส่ edit_of_id ชี้ใบเดิม
-   - บิลขาย (SA) / ใบรับคืน (RT) ใช้ ledger เดียวกัน (stock_move ชนิด sale / sale_void / return) — หมวด: ขายสินค้า / รับคืนสินค้า
-   - ยอดติดลบไม่ได้ทั้งเอกสารคลังและการขาย (ไม่ใช้ allow_negative ของสาขา — ตะกร้าจำกัดไม่ให้เกินยอดอยู่แล้ว)
-   - เวลาในเอกสารใช้นาฬิกาของ PHP (Asia/Bangkok จาก fix.<โดเมน>.php) ไม่ใช้ DEFAULT CURRENT_TIMESTAMP ของ MySQL
-   - ไม่มียอดสต๊อกใน session แล้ว (ช่วงที่ 7) — ทุกเครื่องเห็นยอดเดียวกันจาก stock_balance
-   ========================================================== */
+/* ---------- สมุดสต๊อก: ยอด = ผลรวม ao_stock_move (stock_balance = cache ในทรานแซกชันเดียวกัน) · ยกเลิก = void + move กลับรายการ ไม่ลบ
+   บันทึก: ล็อกยอด FOR UPDATE เรียง product_id → ออกเลขที่ → หัวใบ + รายการ → move + balance → log ใน sdb_tx เดียว · ยอดติดลบไม่ได้ ---------- */
 
-/** ชนิดเอกสาร: ตาราง · คอลัมน์ id · ชนิดใน stock_move · ชนิดใน stock_log (บันทึก / ยกเลิก)
-    RC IS AD ใช้ stock_docs_query / stock_doc_void_core · SA (บิลขาย) ใช้เฉพาะ stock_draft_edit_of — บิลมีชุด function ของตัวเอง
-    TODO:
-      - [x] RC IS AD
-      - [x] SA บิลขาย (ช่วงที่ 7 — ใบใหม่ที่ทำแทนบิล "ยกเลิกเพื่อแก้ไข") */
+/** ชนิดเอกสาร: ตาราง · คอลัมน์ id · ชนิดใน stock_move / stock_log */
 function stock_doc_kinds()
 {
     return array(
@@ -46,9 +28,7 @@ function stock_doc_kinds()
     );
 }
 
-/** staff_id ของผู้ใช้ที่ล็อกอิน (session เก่าที่ยังไม่มี id → หาจาก username) · ไม่พบ = 0
-    TODO:
-      - [x] ใช้กับ created_by / void_by ทุกตาราง */
+/** staff_id ของผู้ใช้ที่ล็อกอิน (session เก่าที่ยังไม่มี id → หาจาก username) · ไม่พบ = 0 */
 function stock_uid($user)
 {
     if (!empty($user['id'])) {
@@ -64,10 +44,7 @@ function stock_cut($s, $len)
     return mb_substr(trim((string) $s), 0, $len, 'UTF-8');
 }
 
-/** เลขรันถัดไปของชุด (สาขา + ชุด + งวด) — ต้องเรียกใน sdb_tx
-    INSERT ... ON DUPLICATE KEY UPDATE ล็อกแถวตัวนับไว้จน COMMIT → เครื่องที่บันทึกพร้อมกันต้องรอ เลขไม่ซ้ำ ไม่ข้าม
-    TODO:
-      - [x] ใช้ร่วมกันทั้งเอกสาร (RC IS AD RT · งวด ปปดดวว) และบิล (vat / novat · งวด YYYYMM) */
+/** เลขรันถัดไปของชุด (สาขา + ชุด + งวด) — ต้องเรียกใน sdb_tx */
 function stock_seq_next($branchId, $series, $period)
 {
     $tb = sdb_tb('doc_seq');
@@ -77,21 +54,14 @@ function stock_seq_next($branchId, $series, $period)
                          array($branchId, $series, $period));
 }
 
-/** ออกเลขที่เอกสาร {ชุด}-{ปปดดวว}-{NNNN} รันต่อสาขาต่อวัน — ต้องเรียกใน sdb_tx
-    TODO:
-      - [x] RC IS AD
-      - [x] RT ใบรับคืน (ช่วงที่ 7) */
+/** ออกเลขที่เอกสาร {ชุด}-{ปปดดวว}-{NNNN} รันต่อสาขาต่อวัน — ต้องเรียกใน sdb_tx */
 function stock_doc_next_no($branchId, $series)
 {
     $period = date('ymd');
     return $series . '-' . $period . '-' . str_pad((string) stock_seq_next($branchId, $series, $period), 4, '0', STR_PAD_LEFT);
 }
 
-/** ล็อกยอดคงเหลือของสินค้าในสาขา (FOR UPDATE) — ต้องเรียกใน sdb_tx · คืน array( product_id => ยอดในฐานข้อมูล )
-    สินค้าที่ยังไม่มีแถวใน stock_balance สร้างแถว 0 ให้ก่อน · ล็อกเรียงตาม product_id เสมอ กัน deadlock
-    TODO:
-      - [x] ใช้กับบันทึก / ยกเลิกเอกสารคลัง
-      - [x] บิลขาย / ยกเลิกบิล / รับคืน (ช่วงที่ 7) */
+/** ล็อกยอดคงเหลือ (FOR UPDATE เรียง product_id) — ต้องเรียกใน sdb_tx · คืน array(product_id => ยอด) */
 function stock_lock_qty($branchId, $productIds)
 {
     $ids = array_values(array_unique(array_map('intval', $productIds)));
@@ -140,8 +110,7 @@ function stock_move_add($branchId, $productId, $type, $qty, $qtyAfter, $unitCost
           array($qtyAfter, $branchId, $productId));
 }
 
-/** ใบที่ "ยกเลิกเพื่อแก้ไข" ซึ่งร่างตอนนี้ทำแทน — ใช้เป็น edit_of_id ของใบใหม่ (ต้องเรียกใน sdb_tx)
-    id เก็บใน $_SESSION['draft_edit_of'][ชนิด] ตอนดึงรายการกลับเข้าร่าง · ใบเดิมมีใบแทนแล้วจะไม่ใช้ซ้ำ */
+/** ใบเดิมที่ร่างนี้ทำแทน (edit_of_id ของใบใหม่) — ต้องเรียกใน sdb_tx */
 function stock_draft_edit_of($kind, $branchId)
 {
     $id = isset($_SESSION['draft_edit_of'][$kind]) ? (int) $_SESSION['draft_edit_of'][$kind] : 0;
@@ -156,9 +125,7 @@ function stock_draft_edit_of($kind, $branchId)
     return (sdb_val($sql, array($id, $branchId)) !== null) ? $id : null;
 }
 
-/** อ่านเอกสารคลังชนิดหนึ่ง — $where ต่อท้าย WHERE (alias d = หัวใบ · b = สาขา) · คืน array ของ stock_doc_shape() เรียงเก่า → ใหม่
-    TODO:
-      - [x] รายการในใบ 1 คิวรีต่อชนิด (ไม่วนทีละใบ) */
+/** อ่านเอกสารคลังชนิดหนึ่ง — $where ต่อท้าย WHERE (alias d = หัวใบ · b = สาขา) · คืน array ของ stock_doc_shape() เรียงเก่า → ใหม่ */
 function stock_docs_query($kind, $where, $params)
 {
     $k   = stock_doc_kinds();
@@ -192,8 +159,7 @@ function stock_docs_query($kind, $where, $params)
     return $out;
 }
 
-/** แถวในฐานข้อมูล → รูปเอกสารที่หน้าเว็บใช้ (no time by lines items qty value void_* ...) เหมือนตอนเก็บใน session
-    มูลค่าคิดจากราคาทุนที่ snapshot ไว้ในรายการของใบ (ไม่ใช่ทุนปัจจุบัน) */
+/** แถวในฐานข้อมูล → รูปเอกสารที่หน้าเว็บใช้ (มูลค่าจากทุนที่ snapshot ไว้ในใบ) */
 function stock_doc_shape($kind, $h, $items)
 {
     $ts  = strtotime($h['add_date']);
@@ -259,9 +225,7 @@ function stock_doc_shape($kind, $h, $items)
     return $doc;
 }
 
-/** เอกสารคลังของสาขาใน $codes ช่วงวันที่ $from–$to (timestamp) รวมใบที่ยกเลิก — เรียงตามเวลา
-    TODO:
-      - [x] คิวรีเดียวต่อชนิดทั้งช่วง (หน้าผู้ดูแลเดิมวนทีละวันทีละสาขา) */
+/** เอกสารคลังของสาขาใน $codes ช่วงวันที่ $from–$to (timestamp) รวมใบที่ยกเลิก — เรียงตามเวลา */
 function stock_docs_range($codes, $from, $to, $kinds = array('RC', 'IS', 'AD'))
 {
     $codes = array_values($codes);
@@ -280,8 +244,7 @@ function stock_docs_range($codes, $from, $to, $kinds = array('RC', 'IS', 'AD'))
     return $out;
 }
 
-/** เอกสารคลังใบเดียวจากเลขที่ (ชนิดดูจากตัวหน้า RC / IS / AD)
-    $day: 'today' = เฉพาะใบของวันนี้ · 'past' = เฉพาะใบของวันก่อน · '' = วันไหนก็ได้ · $kind = บังคับชนิด (ว่าง = ตามเลขที่) */
+/** เอกสารคลังใบเดียวจากเลขที่ · $day = today | past | '' · $kind = บังคับชนิด */
 function stock_doc_by_no($code, $no, $day = '', $kind = '')
 {
     if (!preg_match('/^(RC|IS|AD)-\d{6}-\d{4,}$/', (string) $no, $m) || ($kind !== '' && $m[1] !== $kind)) {
@@ -300,11 +263,7 @@ function stock_doc_by_no($code, $no, $day = '', $kind = '')
     return $r ? $r[0] : null;
 }
 
-/** ยกเลิกเอกสารคลัง: status void + stock_move กลับรายการ + ประวัติ — ทั้งหมดใน transaction เดียว
-    $log = array(หัวข้อ, รายละเอียด, จำนวน) ของประวัติการทำรายการ
-    คืน true | null (ใบถูกยกเลิกไปก่อนแล้ว) | array('short' => รายการที่ของไม่พอให้ถอย)
-    TODO:
-      - [x] ใบรับเข้า / ใบตรวจนับที่ปรับเพิ่ม: ถอยแล้วยอดต้องไม่ติดลบ (ของถูกขาย / เบิกไปแล้ว) */
+/** ยกเลิกเอกสารคลัง (void + move กลับรายการ + ประวัติ) ใน transaction เดียว */
 function stock_doc_void_core($doc, $user, $reason, $redo, $log)
 {
     $k   = stock_doc_kinds();
@@ -359,15 +318,7 @@ function stock_doc_void_core($doc, $user, $reason, $redo, $log)
     return $res;
 }
 
-/* ==========================================================
-   ประวัติเคลื่อนไหวรายสินค้า
-   ----------------------------------------------------------
-   รวมทุกอย่างที่ทำให้ยอดของสินค้าหนึ่งตัวขยับ: ขาย รับเข้า ตัดออก ตรวจนับ
-   และการยกเลิกเอกสารเหล่านั้น แล้วเรียงตามเวลา พร้อมยอดคงเหลือหลังแต่ละรายการ
-
-   ที่มา: ao_stock_move ย้อนหลัง MOVE_LOOKBACK_DAYS วัน + วันนี้ (ขาย รับคืน รับเข้า ตัดออก ตรวจนับ และการยกเลิก)
-   ยอดคงเหลือคำนวณย้อนจาก "ยอดตอนนี้" เสมอ (เท่ากับ qty_after ของแต่ละแถว)
-   ========================================================== */
+/* ---------- เคลื่อนไหวรายสินค้า: ao_stock_move ย้อนหลัง MOVE_LOOKBACK_DAYS วัน + วันนี้ · คงเหลือคำนวณย้อนจากยอดตอนนี้ ---------- */
 
 function move_types()
 {
@@ -390,7 +341,7 @@ function move_type_of($k)
     return isset($t[$k]) ? $t[$k] : array('label' => $k, 'tone' => 'adj', 'icon' => 'i-info');
 }
 
-/** กลุ่มสรุปบนหัวหน้า: รับเข้า / ขาย / ตัดออก / ปรับยอด */
+/** กลุ่มสรุปบนหัวหน้า: รับเข้า / ขาย / ตัดออก / ตรวจนับ */
 function move_group($type)
 {
     if ($type === 'sale' || $type === 'void' || $type === 'return') { return 'sale'; }     // รับคืนเข้าสต๊อก = หักยอดขาย
@@ -408,10 +359,7 @@ function move_type_key($t)
     return isset($map[$t]) ? $map[$t] : $t;
 }
 
-/** ความเคลื่อนไหวใน ao_stock_move ตั้งแต่ $fromTs ของสาขาใน $codes (เฉพาะสินค้า $pid ถ้าระบุ)
-    คืน array( สาขา => array( SKU => array( แถว ts seq type delta doc by note ) ) ) เรียงเก่า → ใหม่
-    TODO:
-      - [x] คิวรีเดียวทุกสาขา / ทุกสินค้า */
+/** แถว ao_stock_move ตั้งแต่ $fromTs ของสาขาใน $codes (เฉพาะ $pid ถ้าระบุ) เก่า → ใหม่ */
 function move_db_rows($codes, $pid, $fromTs)
 {
     $codes = array_values($codes);
@@ -446,13 +394,7 @@ function move_db_rows($codes, $pid, $fromTs)
 
 /* ---------- อ่านความเคลื่อนไหวย้อนหลังจาก ao_stock_move ---------- */
 
-/**
- * ความเคลื่อนไหวของสินค้าในสาขาใน $codes (ทุกสินค้า หรือเฉพาะ $pid) ย้อนหลัง MOVE_LOOKBACK_DAYS วัน + วันนี้
- * คืน array( สาขา => array( SKU => แถวเรียงเก่า → ใหม่ พร้อม 'bal' = คงเหลือหลังรายการนั้น ) )
- * bal คำนวณย้อนจากยอดปัจจุบัน (product_qty) — สินค้าที่เลิกขายไม่แสดง
- * TODO:
- *   - [x] ao_stock_move (ช่วงที่ 7: ไม่มีบิลใน session แล้ว)
- */
+/** เคลื่อนไหวรายสินค้าของสาขาใน $codes พร้อม 'bal' (คงเหลือหลังแต่ละรายการ) */
 function move_rows_multi($codes, $pid = 0)
 {
     $from = mktime(0, 0, 0) - MOVE_LOOKBACK_DAYS * 86400;
@@ -481,11 +423,7 @@ function move_rows_multi($codes, $pid = 0)
     return $out;
 }
 
-/**
- * ความเคลื่อนไหวทั้งหมดของสินค้าหนึ่งตัวในสาขาหนึ่ง เรียงเก่า → ใหม่ พร้อม 'bal' = คงเหลือหลังรายการนั้น
- * TODO:
- *   - [x] อ่านจาก ao_stock_move (move_rows_multi) แทนข้อมูลสมมติ
- */
+/** เคลื่อนไหวของสินค้าหนึ่งตัวในสาขาหนึ่ง เก่า → ใหม่ พร้อม 'bal' */
 function move_rows($code, $p)
 {
     $m = move_rows_multi(array($code), $p['id']);
@@ -547,13 +485,7 @@ function move_qs($q, $cat, $sku, $period, $extra = array())
     return $a ? '?' . implode('&', $a) : '';
 }
 
-/**
- * รายการเคลื่อนไหวล่าสุดของทุกสินค้า (ใช้ตอนยังไม่ได้เลือกสินค้า)
- * $codes = สาขาที่ต้องการ · $period = today | 7 | 14 · คืนรายการใหม่สุดก่อน ไม่เกิน $limit แถว
- * แต่ละแถวมี p (สินค้า) และ branch เพิ่มจาก move_rows()
- * TODO:
- *   - [x] คิวรีเดียวทุกสินค้า (move_rows_multi) — เดิมวนทีละสินค้าทีละสาขา
- */
+/** เคลื่อนไหวล่าสุดของทุกสินค้า (ตอนยังไม่เลือกสินค้า) · $period = today | 7 | 14 */
 function movement_feed($codes, $period, $limit = 100)
 {
     $out = array();
@@ -574,20 +506,7 @@ function movement_feed($codes, $period, $limit = 100)
     return array('rows' => array_slice($out, 0, $limit), 'total' => count($out));
 }
 
-/* ==========================================================
-   แก้ / ยกเลิกเอกสารย้อนหลัง (สิทธิ์เสริม backdate)
-   ----------------------------------------------------------
-   ใช้กับเอกสารคลัง 3 ชนิด: ใบรับเข้า (RC) · ใบเบิก/ตัดออก (IS) · ใบตรวจนับ (AD)
-   บิลขายของวันก่อนไม่ยกเลิกย้อนหลัง — ใช้ "รับคืนสินค้า" แทน (เงินต้องคืนจากลิ้นชักวันนี้)
-
-   กติกา
-   - พนักงาน: ต้องมีสิทธิ์ backdate · ย้อนได้ไม่เกิน backdate_days(สาขา)
-              ใบของคนอื่นต้องมีสิทธิ์ void_others เพิ่มด้วย
-   - ผู้ดูแล: ย้อนได้ทุกวันที่ระบบมีข้อมูล
-   - ต้องกรอกเหตุผลเสมอ · ใบเดิมไม่ถูกลบ ขึ้นว่า "ยกเลิกย้อนหลัง" พร้อมชื่อคนยกเลิก
-   - สต๊อกถูกปรับ "วันนี้" (stock_move ลงวันที่วันนี้ อ้าง ref_id ใบเดิม) และลงประวัติของวันนี้
-   - แก้ไข = ยกเลิกใบเดิม แล้วดึงรายการมาเป็นใบใหม่ของวันนี้ ให้แก้แล้วบันทึก (ใบใหม่ edit_of_id = ใบเดิม)
-   ========================================================== */
+/* ---------- แก้ / ยกเลิกเอกสารคลังย้อนหลัง (สิทธิ์ backdate · ผู้ดูแลได้ทุกวัน): ต้องมีเหตุผล · สต๊อกปรับวันนี้ · บิลขายใช้รับคืนแทน ---------- */
 
 /** ชนิดเอกสารที่แก้ย้อนหลังได้ */
 function past_types()
@@ -608,11 +527,7 @@ function backdate_limit($user, $code)
     return can($user, 'backdate') ? backdate_days($code) : 0;
 }
 
-/**
- * เอกสารคลังของสาขาในวันหนึ่ง (รวมใบที่ยกเลิก) เรียงตามเวลา — ใช้กับประวัติย้อนหลัง
- * TODO:
- *   - [x] อ่านจาก ao_stock_receive / issue / count (เดิมข้อมูลสมมติ + สถานะยกเลิกใน session)
- */
+/** เอกสารคลังของสาขาในวันหนึ่ง (รวมใบที่ยกเลิก) เรียงตามเวลา */
 function past_docs($code, $ts)
 {
     return stock_docs_range(array($code), $ts, $ts);
@@ -652,12 +567,7 @@ function past_can_edit($user, $doc)
     return array(true, '');
 }
 
-/**
- * ยกเลิก (หรือยกเลิกเพื่อแก้ไข) เอกสารย้อนหลัง — สต๊อกถูกปรับวันนี้ และลงประวัติของวันนี้
- * คืนค่า array('doc' => ใบเดิม, 'page' => หน้าที่ต้องไปแก้ต่อ) หรือ array('error' => ข้อความ)
- * TODO:
- *   - [x] status void + stock_move กลับรายการ (stock_doc_void_core) — เดิมเก็บสถานะใน $_SESSION['past_void']
- */
+/** ยกเลิก / ยกเลิกเพื่อแก้ไขเอกสารย้อนหลัง · คืน array('doc', 'page') หรือ array('error') */
 function past_doc_void($code, $no, $user, $reason, $redo)
 {
     $doc = past_doc($code, $no);
@@ -674,7 +584,7 @@ function past_doc_void($code, $no, $user, $reason, $redo)
     }
     $t = past_types();
     $t = $t[$doc['kind']];
-    /* แก้ไข = ทำใบใหม่ในหน้างานคลังของชนิดนั้น → ต้องเข้าหน้านั้นได้ด้วย (ช่วงที่ 11) */
+    /* แก้ไข = ทำใบใหม่ในหน้างานคลังของชนิดนั้น → ต้องเข้าหน้านั้นได้ด้วย */
     if ($redo && $user['role'] !== 'admin' && !page_perm_ok($user, $t['page'])) {
         return array('error' => 'ไม่มีสิทธิ์ทำ' . $t['label'] . ' — ยกเลิกใบนี้ได้ แต่แก้ไขไม่ได้');
     }
@@ -695,7 +605,7 @@ function past_doc_void($code, $no, $user, $reason, $redo)
         'ใบเดิม'       => $doc['no'] . ' · ' . thai_date_full(strtotime($doc['date'])) . ' ' . $doc['time'] . ' น. โดย ' . $doc['by'],
         'รายการ'       => implode(' · ', $names),
         'ย้อนหลัง'      => past_age($doc) . ' วัน',
-        'สต๊อก'        => 'ปรับยอดวันนี้ให้ตรงกับการยกเลิก',
+        'สต๊อก'        => 'แก้ยอดสต๊อกของวันนี้ให้ตรงกับการยกเลิก',
         'เหตุผล'       => $reason,
     );
     if ($redo) {
@@ -709,9 +619,9 @@ function past_doc_void($code, $no, $user, $reason, $redo)
     }
     if (is_array($r)) {
         return array('error' => 'ยกเลิกไม่ได้ เพราะของบางส่วนถูกขาย/เบิกไปแล้ว — ' . implode(' · ', $r['short'])
-                              . ' · กรณีนี้ให้ใช้การตรวจนับ/ปรับยอดแทน');
+                              . ' · กรณีนี้ให้ตรวจนับสต๊อกแทน');
     }
-    notify_on_backdate($code, $doc, $user, $reason, $redo);   // Telegram (ช่วงที่ 9)
+    notify_on_backdate($code, $doc, $user, $reason, $redo);   // Telegram
 
     if ($redo) {
         if ($doc['kind'] === 'RC') {

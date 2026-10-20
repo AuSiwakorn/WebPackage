@@ -5,10 +5,8 @@
  * DEPENDS: database.php (schema ของตารางด้านล่าง)
  * TABLES: ao_stock_* 25 ตาราง
  * TODO:
- *   - [x] ลงทะเบียน 23 ตารางตาม database.php
- *   - [x] ช่วงที่ 10: เพิ่ม stock_remember (จดจำการเข้าสู่ระบบ)
- *   - [x] ช่วงที่ 13: เพิ่ม stock_login_ip (นับการกรอกผิดตาม IP)
  *   - [ ] เพิ่มตารางใหม่ใน database.php เมื่อไร ต้องเติมชื่อในนี้ด้วย
+ *   - [x] ประวัติการแก้ไขดู docs/CHANGELOG.md
  */
 
 $sqlType    = 'php';
@@ -44,8 +42,8 @@ $aTablename = array(
 	_DBPREFIX_ . 'stock_notify_log',
 );
 
-// โฟลเดอร์ที่ต้องเขียนได้ — รูปสินค้า uploads/stock/products (ช่วงที่ 5)
-// และรูปแนบใบรับคืน uploads/stock/returns (ช่วงที่ 7 — ตอนนี้ POS ยังเก็บที่ uploads/returns)
+// โฟลเดอร์ที่ต้องเขียนได้ — รูปสินค้า uploads/stock/products
+// และรูปแนบใบรับคืน uploads/stock/returns
 $aPermission = array(
 	PATH_UPLOAD . '/stock',
 );

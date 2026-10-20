@@ -2,40 +2,16 @@
 /**
  * FILE: admweb/aowebdata/modules/stock/api/return.php
  * ROLE: รับคืนสินค้า — ค้นบิล · เช็กกำหนดคืน · บันทึกใบรับคืน + รูปแนบ · อ่านใบรับคืนทั้งช่วง
- * DEPENDS: โหลดโดย admweb/aowebdata/modules/stock/api.php (ตัวโหลด — ห้าม include ไฟล์นี้ตรง ๆ) · ใช้ function จากไฟล์อื่นใน api/ ได้ทุกตัว
+ * DEPENDS: api.php (ตัวโหลด — ห้าม include ตรง)
  * TABLES: ao_stock_return, ao_stock_return_item, ao_stock_sale, ao_stock_sale_item, ao_stock_move, ao_stock_balance, ao_stock_store_day, ao_stock_log · uploads/stock/returns/
  * TODO:
- *   - [x] ช่วงที่ 10: แยกจาก api.php เดิม (ย้ายโค้ดทั้งก้อน ไม่แก้ตรรกะ) · จัดฟังก์ชันที่เคยปนอยู่หมวดอื่นให้มาอยู่หมวดนี้
- *   - [x] ช่วงที่ 11: ไม่มีสิทธิ์คืนเงินสด (refund_cash) = ยอดคืนเป็น 0 เสมอ
- *   - [x] 12 ต.ค.: ค้นบิลย้อนหลังตามกำหนดคืนของสาขา + 7 วัน (return_lookback_days) เดิม 14 วันตายตัว
- *
- * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
+ *   - [x] ประวัติการแก้ไขดู docs/CHANGELOG.md
+ * ⚠ โหลดทุก request — มีได้แค่ define() + function (ห้าม echo / header / query ตอนโหลด)
  */
 
-/* ==========================================================
-   รับคืนสินค้า
-   ----------------------------------------------------------
-   ค้นบิลเก่า → ดูว่ายังอยู่ในกำหนดวันไหม → เลือกรายการ/จำนวนที่คืน
-   → เลือกเหตุผล → ยืนยันยอดเงินคืน → ออกใบรับคืน (RT-)
+/* ---------- รับคืนสินค้า (ใบ RT): ภายใน backdate_days ของสาขา · คืนไม่เกินที่ซื้อ · คืนเงินสดจากลิ้นชักวันนี้ · เข้าสต๊อกเฉพาะเหตุผลที่ขายต่อได้ ---------- */
 
-   กติกาที่ตกลงไว้
-   - ต้องมีสิทธิ์เสริม refund
-   - บิลต้องไม่เก่ากว่า backdate_days(สาขา) วัน (ผู้ดูแลตั้ง ค่าเริ่มต้น 7) · เกินกำหนดผู้ดูแลขยายจำนวนวันได้
-   - คืนบางรายการ / บางชิ้นได้ · คืนเกินจำนวนที่ซื้อ (หักที่คืนไปแล้ว) ไม่ได้
-   - ของกลับเข้าสต๊อกเฉพาะเหตุผลที่ขายต่อได้ (ซื้อผิดรุ่น/ผิดแบบ) — stock_move ชนิด return
-     เหตุผลอื่นไม่เข้าสต๊อก — แยกเก็บไว้ เพราะไม่ควรเอาไปขายต่อ
-   - คืนเป็นเงินสดจากลิ้นชักของวันนี้เท่านั้น (ไม่คืนด้วยการโอน)
-     จึงต้องเปิดร้านก่อน · ยอดเงินคืนแก้ได้ แต่ไม่เกินราคาที่ลูกค้าจ่าย และถ้าแก้ต้องใส่เหตุผล
-
-     ใบรับคืน     ao_stock_return + ao_stock_return_item (sale_item_id ชี้แถวในบิลเดิม)
-     คืนไปแล้ว    SUM(return_item.qty) ของบิลนั้น — เช็กซ้ำหลังล็อกบิล กันคืนเกินจากสองเครื่องพร้อมกัน
-     รูปถ่าย      uploads/stock/returns/{เลขที่ใบ}-{ลำดับ}.{jpg|png|webp} · path เก็บเป็น JSON ใน stock_return.photos
-   ========================================================== */
-
-/** ค้นบิลย้อนหลังได้กี่วัน — มากกว่ากำหนดคืน เพื่อให้เห็นบิลที่เกินกำหนดด้วย
-    = กำหนดคืนของสาขา (backdate_days) + 7 วัน อย่างน้อย 14 · ไม่ระบุสาขา = 14
-    TODO:
-      - [x] 12 ต.ค.: เดิม 14 วันตายตัว — สาขาตั้งกำหนดคืนได้ถึง 60 วัน แต่บิลที่เก่ากว่า 14 วันค้นไม่เจอ */
+/** ค้นบิลย้อนหลังได้กี่วัน (กำหนดคืน + 7 อย่างน้อย 14 — ให้เห็นบิลที่เกินกำหนดด้วย) */
 function return_lookback_days($code = null)
 {
     return $code === null ? 14 : max(14, backdate_days($code) + 7);
@@ -59,9 +35,7 @@ function return_reason_label($k)
     return isset($r[$k]) ? $r[$k]['label'] : $k;
 }
 
-/* ==========================================================
-   บิลที่ค้นได้
-   ========================================================== */
+/* ---------- บิลที่ค้นได้ ---------- */
 
 /** สินค้าจาก SKU (รวมที่เลิกขาย — บิลเก่ายังอ้างถึงได้) */
 function ret_product($sku)
@@ -69,17 +43,13 @@ function ret_product($sku)
     return product_by_sku($sku);
 }
 
-/** บิลทั้งหมดของสาขาในวันหนึ่ง รวมบิลที่ยกเลิก — ใช้กับประวัติย้อนหลัง
-    TODO:
-      - [x] อ่านจาก ao_stock_sale (เดิมข้อมูลสมมติ) */
+/** บิลทั้งหมดของสาขาในวันหนึ่ง รวมบิลที่ยกเลิก — ใช้กับประวัติย้อนหลัง */
 function past_bills($code, $ts)
 {
     return acct_bills($code, $ts);
 }
 
-/** ค้นบิลย้อนหลัง return_lookback_days() วัน — เลขบิล ชื่อสินค้า หรือ SKU · ใหม่สุดขึ้นก่อน (ไม่รวมบิลที่ยกเลิก)
-    TODO:
-      - [x] คิวรีเดียว (เดิมวนทีละวัน) */
+/** ค้นบิลย้อนหลัง return_lookback_days() วัน — เลขบิล ชื่อสินค้า หรือ SKU · ใหม่สุดขึ้นก่อน (ไม่รวมบิลที่ยกเลิก) */
 function return_find_bills($code, $q, $limit = 100)
 {
     $q      = trim((string) $q);
@@ -110,13 +80,9 @@ function bill_age_days($b)
     return (int) round((strtotime(date('Y-m-d')) - $d) / 86400);
 }
 
-/* ==========================================================
-   จำนวนที่คืนไปแล้ว
-   ========================================================== */
+/* ---------- จำนวนที่คืนไปแล้ว ---------- */
 
-/** จำนวนที่คืนไปแล้วของบิล — array( SKU => จำนวน ) (1 SKU มีแถวเดียวในบิล เพราะตะกร้าแยกตาม SKU)
-    TODO:
-      - [x] รวมจาก ao_stock_return_item (เดิม $_SESSION['ret_by_bill'] + ใบรับคืนสมมติ) */
+/** จำนวนที่คืนไปแล้วของบิล — array( SKU => จำนวน ) (1 SKU มีแถวเดียวในบิล เพราะตะกร้าแยกตาม SKU) */
 function returned_of_bill($no, $bill = null)
 {
     if ($bill !== null && !empty($bill['id'])) {
@@ -160,11 +126,7 @@ function return_lines($bill)
     return $out;
 }
 
-/**
- * สถานะของบิลสำหรับการคืน
- * คืน array('ok' => bool, 'code' => ok|late|done, 'msg' => ข้อความ, 'left' => วันที่เหลือ)
- * บิลที่เกินกำหนดคืนไม่ได้ (ผู้ดูแลไม่ทำรับคืนเอง — ขยายจำนวนวันของสาขาได้)
- */
+/** สถานะของบิลสำหรับการคืน — array('ok', 'code' => ok | late | done, 'msg', 'left') */
 function bill_return_status($bill, $user = null)
 {
     $age   = bill_age_days($bill);
@@ -186,9 +148,7 @@ function bill_return_status($bill, $user = null)
                  'msg' => $left === 0 ? 'คืนได้ถึงวันนี้' : 'คืนได้อีก ' . $left . ' วัน', 'left' => $left);
 }
 
-/* ==========================================================
-   ใบรับคืน
-   ========================================================== */
+/* ---------- ใบรับคืน ---------- */
 
 /** อ่านใบรับคืน — $where ต่อท้าย WHERE (alias r = ใบรับคืน · b = สาขา · s = บิลเดิม) · เรียงตามเวลา */
 function returns_query($where, $params)
@@ -254,9 +214,7 @@ function returns_query($where, $params)
     return $out;
 }
 
-/** ใบรับคืนของสาขาวันนี้
-    TODO:
-      - [x] อ่านจาก ao_stock_return (เดิม $_SESSION['ret']) */
+/** ใบรับคืนของสาขาวันนี้ */
 function returns_today($code)
 {
     return returns_of_day($code, time());
@@ -269,14 +227,7 @@ function return_by_no($code, $no)
     return $r ? $r[0] : null;
 }
 
-/**
- * บันทึกการรับคืน — ล็อกบิลเดิม → เช็กร้านเปิด + คืนไม่เกินที่เหลือ → ใบรับคืน + รายการ + stock_move (ถ้าเข้าสต๊อก) + ประวัติ
- * $qtys   = array( SKU => จำนวนที่คืน )
- * $refund = ยอดเงินคืนที่พนักงานยืนยัน (ว่าง = ใช้ยอดคำนวณ)
- * คืนค่า array('doc' => ใบรับคืน) หรือ array('error' => ข้อความ)
- * TODO:
- *   - [x] INSERT ao_stock_return + return_item + stock_move (return) · เลขที่ RT จาก stock_doc_seq
- */
+/** บันทึกการรับคืน (ล็อกบิลเดิม → เช็ก → ใบ + รายการ + move + ประวัติ) · คืน array('doc') หรือ array('error') */
 function return_save($code, $user, $bill, $qtys, $reason, $note, $refund, $refundNote)
 {
     if ($user['role'] !== 'staff' || !can($user, 'refund')) {
@@ -319,7 +270,7 @@ function return_save($code, $user, $bill, $qtys, $reason, $note, $refund, $refun
         return array('error' => 'ยังไม่ได้ใส่จำนวนที่คืนสักรายการ');
     }
     $calc   = round($calc, 2);
-    /* ไม่มีสิทธิ์คืนเงินสด = รับคืนแบบไม่คืนเงิน ยอดคืนเป็น 0 เสมอ (ช่วงที่ 11 ข้อ 2ก) */
+    /* ไม่มีสิทธิ์คืนเงินสด = รับคืนแบบไม่คืนเงิน ยอดคืนเป็น 0 เสมอ */
     if (!can($user, 'refund_cash')) {
         $refund     = 0;
         $refundNote = 'รับคืนแบบไม่คืนเงินสด (ผู้รับคืนไม่มีสิทธิ์คืนเงิน)';
@@ -419,16 +370,12 @@ function return_save($code, $user, $bill, $qtys, $reason, $note, $refund, $refun
     product_db_reset();
     $rt = return_by_no($code, $no);
     if ($rt !== null) {
-        notify_on_refund($code, $rt);            // Telegram (ช่วงที่ 9)
+        notify_on_refund($code, $rt);            // Telegram
     }
     return array('doc' => $rt);
 }
 
-/* ==========================================================
-   รูปถ่ายแนบใบรับคืน (พนักงานถ่าย / เลือกรูปตอนรับคืน)
-   เก็บไฟล์ที่ uploads/stock/returns/{เลขที่ใบ}-{ลำดับ}.{jpg|png|webp} (UpFile ของ admweb) · ไม่เกิน 3 รูป · รูปละไม่เกิน 5 MB
-   uploads/.htaccess กันไฟล์สคริปต์ทุกชนิด · ตรวจเนื้อไฟล์ด้วย getimagesize ก่อนรับ
-   ========================================================== */
+/* ---------- รูปถ่ายแนบใบรับคืน: ไม่เกิน 3 รูป รูปละ ≤ 5 MB · ตรวจเนื้อไฟล์ด้วย getimagesize ---------- */
 
 /** ตรวจรูปที่อัปโหลดมา — คืน array('files' => รายการไฟล์ที่ผ่าน) หรือ array('error' => ข้อความ) */
 function return_photos_check($field)
@@ -461,9 +408,7 @@ function return_photos_check($field)
     return array('files' => $out);
 }
 
-/** เก็บรูปที่ตรวจแล้ว แล้วผูกกับใบรับคืน (stock_return.photos) — คืน path ที่บันทึกได้ (ใต้ uploads/)
-    TODO:
-      - [x] UpFile → uploads/stock/returns · UPDATE ao_stock_return.photos (เดิม uploads/returns + session) */
+/** เก็บรูปที่ตรวจแล้ว แล้วผูกกับใบรับคืน (stock_return.photos) — คืน path ที่บันทึกได้ (ใต้ uploads/) */
 function return_photos_store($code, $no, $files)
 {
     if (!$files) {
@@ -486,17 +431,13 @@ function return_photos_store($code, $no, $files)
     return $paths;
 }
 
-/** ใบรับคืนของวันหนึ่ง
-    TODO:
-      - [x] อ่านจาก ao_stock_return (เดิม session + ข้อมูลสมมติ) */
+/** ใบรับคืนของวันหนึ่ง */
 function returns_of_day($code, $ts)
 {
     return returns_query('b.code = ? AND r.doc_date = ?', array((string) $code, date('Y-m-d', $ts)));
 }
 
-/** ใบรับคืนของหลายสาขา ช่วงวันที่ $from–$to (หน้าตรวจสอบของผู้ดูแล) — หัวใบ + รายการ 2 คิวรี เรียงตามเวลาที่ออกใบ
-    TODO:
-      - [x] ช่วงที่ 8: ทั้งช่วงในคิวรีเดียว (เดิมวน returns_of_day ทีละวันทีละสาขา) */
+/** ใบรับคืนหลายสาขาช่วง $from–$to (หน้าตรวจสอบผู้ดูแล) เรียงตามเวลา */
 function returns_range($codes, $from, $to)
 {
     list($in, $params) = sdb_in('b.code', $codes);

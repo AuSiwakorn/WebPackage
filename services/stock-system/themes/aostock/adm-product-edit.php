@@ -8,6 +8,7 @@
  *   - [x] เพิ่มสินค้าใหม่ · แก้ไข (SKU เปลี่ยนไม่ได้) · รูปสินค้า (UpFile → uploads/stock/products/) · เปิด / เลิกขาย
  *   - [ ] ยอดยกมาของสินค้าใหม่ = ทำใบรับเข้า (หน้า "นำเข้าสินค้า" ของพนักงาน)
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
+ *   - [x] 15 ต.ค. (ผู้ใช้ขอ): มีเมนูแยก “เพิ่มสินค้า” ชี้มาหน้านี้ — เพิ่มใหม่ไฮไลต์เมนูนั้น · แก้ไขไฮไลต์ “สินค้าในสต๊อก”
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -30,13 +31,20 @@ $p     = $isNew ? null : product_by_sku($sku);
 $err   = '';
 $old   = array();
 $okMsg = array('add' => 'เพิ่มสินค้าแล้ว — สินค้าใหม่มียอด 0 ทุกสาขา ให้พนักงานทำใบรับเข้า', 'save' => 'บันทึกแล้ว มีผลทันที',
-               'off' => 'เลิกขายแล้ว — ไม่ขึ้นในหน้าขาย / นำเข้า / ตรวจนับ', 'on' => 'เปิดขายอีกครั้งแล้ว', 'img' => 'ลบรูปแล้ว');
+               'off' => 'เลิกขายแล้ว — ไม่ขึ้นในหน้าขาย / นำเข้า / ตรวจนับ', 'on' => 'เปิดขายอีกครั้งแล้ว', 'img' => 'ลบรูปแล้ว',
+               'addimg' => 'เพิ่มสินค้าแล้ว แต่รูปบันทึกไม่ผ่าน', 'saveimg' => 'บันทึกข้อมูลสินค้าแล้ว แต่รูปบันทึกไม่ผ่าน');
 $ok    = (isset($_GET['ok']) && is_string($_GET['ok']) && isset($okMsg[$_GET['ok']])) ? $_GET['ok'] : '';
+$imgErr = ($ok === 'addimg' || $ok === 'saveimg');     // รูปไม่ผ่าน: แจ้งเป็นสีแดงแทน "บันทึกแล้ว"
+$imgWhy = ($imgErr && isset($_SESSION['img_err'])) ? (string) $_SESSION['img_err'] : '';
+unset($_SESSION['img_err']);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $act = isset($_POST['act']) ? $_POST['act'] : '';
     $go  = '';
-    if (!csrf_check(isset($_POST['csrf']) ? $_POST['csrf'] : null)) {
+    if (!$_POST && !empty($_SERVER['CONTENT_LENGTH'])) {          // ไฟล์ใหญ่เกิน post_max_size → PHP ทิ้งทั้งฟอร์ม
+        $err = 'ไฟล์ที่ส่งมาใหญ่เกินที่เซิร์ฟเวอร์รับได้ — ยังไม่ได้บันทึกอะไร ลองเลือกรูปที่เล็กลงแล้วกดบันทึกอีกครั้ง';
+
+    } elseif (!csrf_check(isset($_POST['csrf']) ? $_POST['csrf'] : null)) {
         $err = 'เซสชันหมดอายุ กรุณาลองใหม่อีกครั้ง';
 
     } elseif ($act === 'save') {
@@ -46,9 +54,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             product_save($isNew, $d);
             $img = product_image_store($d['sku'], 'image', $isNew ? '' : $p['image']);
             if (isset($img['error'])) {
-                $_SESSION['flash'] = 'บันทึกข้อมูลสินค้าแล้ว แต่' . $img['error'];
+                $_SESSION['img_err'] = $img['error'];
             }
-            $go = 'adm-product-edit.php?sku=' . rawurlencode($d['sku']) . '&ok=' . ($isNew ? 'add' : 'save');
+            $go = 'adm-product-edit.php?sku=' . rawurlencode($d['sku']) . '&ok=' . ($isNew ? 'add' : 'save') . (isset($img['error']) ? 'img' : '');
         }
 
     } elseif ($isNew) {
@@ -83,7 +91,7 @@ $branch         = 'ALL';
 $NO_BRANCH_PICK = true;
 $PAGE_TITLE     = $isNew ? 'เพิ่มสินค้า' : 'แก้ไขสินค้า';
 $PAGE_SUB       = $isNew ? 'สินค้าใหม่เริ่มที่ยอด 0 ทุกสาขา — รับของเข้าที่หน้า "นำเข้าสินค้า"' : $p['sku'] . ' · ' . $p['name'];
-$NAV_ACTIVE     = 'adm-products.php';
+$NAV_ACTIVE     = $isNew ? 'adm-product-edit.php' : 'adm-products.php';   // เพิ่มใหม่ = เมนู “เพิ่มสินค้า”
 require dirname(__FILE__) . '/inc/header.php';
 ?>
 
@@ -91,6 +99,8 @@ require dirname(__FILE__) . '/inc/header.php';
 
 <?php if ($err !== '') { ?>
   <div class="alert alert-error" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span><?php echo e($err) ?></span></div>
+<?php } elseif ($imgErr) { ?>
+  <div class="alert alert-error" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span><?php echo e($okMsg[$ok] . ($imgWhy !== '' ? ' — ' . $imgWhy : '')) ?> · เลือกรูปใหม่ที่ช่อง “รูปสินค้า” แล้วกดบันทึกอีกครั้ง</span></div>
 <?php } elseif ($ok !== '') { ?>
   <div class="alert alert-ok" role="status"><svg class="ico"><use href="#i-check"/></svg><span><?php echo e($okMsg[$ok]) ?></span></div>
 <?php } ?>
@@ -155,9 +165,12 @@ require dirname(__FILE__) . '/inc/header.php';
         <input class="input" type="text" id="p-barcode" name="barcode" value="<?php echo e($v('barcode', $p ? $p['barcode'] : '')) ?>" maxlength="40" autocomplete="off">
       </div>
       <div class="field">
-        <label for="p-image">รูปสินค้า <small class="adm-none">(ไม่บังคับ · JPG / PNG / WEBP ไม่เกิน 2 MB)</small></label>
-        <input class="input" type="file" id="p-image" name="image" accept="image/jpeg,image/png,image/webp">
+        <label for="p-image">รูปสินค้า <small class="adm-none">(ไม่บังคับ · JPG / PNG / WEBP · รูปใหญ่ระบบย่อให้เอง)</small></label>
+        <input class="input" type="file" id="p-image" name="image" accept="image/jpeg,image/png,image/webp" data-shrink data-prev="p-image-prev" data-note="p-image-note">
+        <?php if ($imgErr) { ?><small class="adm-hint hist-void">รูปไม่ผ่าน<?php echo $imgWhy !== '' ? ': ' . e($imgWhy) : ' — เลือกรูปใหม่อีกครั้ง' ?></small><?php } ?>
         <?php if ($img !== '') { ?><small class="adm-hint">มีรูปอยู่แล้ว — เลือกไฟล์ใหม่เพื่อแทนที่</small><?php } ?>
+        <img class="prod-edit-img img-prev" id="p-image-prev" alt="" hidden>
+        <small class="adm-hint img-note" id="p-image-note" hidden></small>
       </div>
     </div>
     <button class="btn btn-primary" type="submit"<?php echo $cats ? '' : ' disabled' ?>><svg class="ico"><use href="#i-<?php echo $isNew ? 'plus' : 'check' ?>"/></svg> <?php echo $isNew ? 'เพิ่มสินค้า' : 'บันทึก' ?></button>
@@ -173,25 +186,35 @@ require dirname(__FILE__) . '/inc/header.php';
       }
       echo e($parts ? implode(' · ', $parts) : '—');
   ?></span></div></div>
-  <div class="adm-sec">
+  <?php /* รูปซ้าย คำอธิบาย + ปุ่มลบรูปขวา · แถวล่าง = สถานะการขาย */ ?>
+  <div class="adm-sec prod-media">
     <?php if ($img !== '') { ?>
-      <p><img class="prod-edit-img" src="<?php echo e($img) ?>" alt="<?php echo e($p['name']) ?>" loading="lazy"></p>
+      <img class="prod-edit-img" src="<?php echo e($img) ?>" alt="<?php echo e($p['name']) ?>" loading="lazy">
+    <?php } else { ?>
+      <?php echo thumb_html($p, 'prod-edit-thumb') ?>
+    <?php } ?>
+    <div class="prod-media-t">
+      <b>รูปสินค้า</b>
+      <small class="adm-hint"><?php echo $img !== '' ? 'ใช้บนการ์ดหน้าขาย / นำเข้า / เบิก / ตรวจนับ · เปลี่ยนรูปที่ช่อง “รูปสินค้า” ด้านบน'
+                                                 : 'ยังไม่มีรูป — การ์ดจะแสดงไอคอนตามหมวดแทน · เพิ่มรูปที่ช่อง “รูปสินค้า” ด้านบน' ?></small>
       <?php if ($p['image'] !== '') { ?>
         <form method="post" action="adm-product-edit.php?sku=<?php echo e(rawurlencode($sku)) ?>">
           <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
           <input type="hidden" name="act" value="noimg">
-          <button class="btn btn-ghost btn-sm" type="submit">ลบรูป</button>
+          <button class="btn btn-ghost btn-sm" type="submit"><svg class="ico"><use href="#i-trash"/></svg> ลบรูป</button>
         </form>
       <?php } ?>
-    <?php } else { ?>
-      <p class="adm-hint">ยังไม่มีรูป — หน้าขายจะแสดงไอคอนตามหมวดแทน</p>
-    <?php } ?>
+    </div>
+  </div>
+  <div class="adm-sec prod-state">
+    <b>สถานะ</b>
+    <span class="bdg <?php echo $p['active'] ? 'bdg-ok' : 'bdg-out' ?>"><?php echo $p['active'] ? 'ขายอยู่' : 'เลิกขายแล้ว' ?></span>
     <form method="post" action="adm-product-edit.php?sku=<?php echo e(rawurlencode($sku)) ?>">
       <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
       <input type="hidden" name="act" value="<?php echo $p['active'] ? 'off' : 'on' ?>">
       <button class="btn <?php echo $p['active'] ? 'btn-ghost' : 'btn-primary' ?> btn-sm" type="submit"><?php echo $p['active'] ? 'เลิกขายสินค้านี้' : 'เปิดขายอีกครั้ง' ?></button>
-      <small class="adm-hint"><?php echo $p['active'] ? 'ซ่อนจากหน้าขาย / นำเข้า / ตรวจนับ · ประวัติและรายงานยังอยู่ครบ' : 'กลับมาขาย / นำเข้า / ตรวจนับได้ตามปกติ' ?></small>
     </form>
+    <small class="adm-hint"><?php echo $p['active'] ? 'เลิกขาย = ซ่อนจากหน้าขาย / นำเข้า / ตรวจนับ · ประวัติและรายงานยังอยู่ครบ' : 'เปิดขายอีกครั้ง = กลับมาขาย / นำเข้า / ตรวจนับได้ตามปกติ' ?></small>
   </div>
 </section>
 <?php } ?>

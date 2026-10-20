@@ -2,25 +2,14 @@
 /**
  * FILE: admweb/aowebdata/modules/stock/api/issue.php
  * ROLE: เบิก / ตัดออกจากสต๊อก — เหตุผล · ใบร่าง (session) · บันทึก / ยกเลิก / แก้ไขใบตัดออก · อ่านใบตัดออกทั้งช่วง
- * DEPENDS: โหลดโดย admweb/aowebdata/modules/stock/api.php (ตัวโหลด — ห้าม include ไฟล์นี้ตรง ๆ) · ใช้ function จากไฟล์อื่นใน api/ ได้ทุกตัว
+ * DEPENDS: api.php (ตัวโหลด — ห้าม include ตรง)
  * TABLES: ao_stock_issue, ao_stock_issue_item, ao_stock_move, ao_stock_balance, ao_stock_log
  * TODO:
- *   - [x] ช่วงที่ 10: แยกจาก api.php เดิม (ย้ายโค้ดทั้งก้อน ไม่แก้ตรรกะ) · จัดฟังก์ชันที่เคยปนอยู่หมวดอื่นให้มาอยู่หมวดนี้
- *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 5): idraft_lines ดึงสินค้าในใบคิวรีเดียว (Stock_prefetchProducts) — เดิมโหลดสินค้าทั้งร้าน
- *
- * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
+ *   - [x] ประวัติการแก้ไขดู docs/CHANGELOG.md
+ * ⚠ โหลดทุก request — มีได้แค่ define() + function (ห้าม echo / header / query ตอนโหลด)
  */
 
-/* ==========================================================
-   เบิก / ตัดออกจากสต๊อก
-   ----------------------------------------------------------
-   ใช้กับของที่ออกจากสต๊อกโดย "ไม่ได้ขาย" เช่น เบิกใช้ภายใน ชำรุด หมดอายุ สูญหาย
-   ทำเป็นใบแบบเดียวกับใบรับเข้า: เลือกสินค้า → ปรับจำนวน → เลือกเหตุผล → บันทึกทั้งใบ
-
-     ใบที่กำลังทำ   $_SESSION['issue_draft'][ SKU ] = จำนวน (ร่าง — ยังไม่ใช่ข้อมูลจริง)
-     หัวใบที่ค้างไว้  $_SESSION['issue_meta'] = reason / ref / note (ใช้ตอนดึงใบเก่ามาแก้)
-     ใบที่บันทึกแล้ว ao_stock_issue + ao_stock_issue_item + ao_stock_move (หมวด: สมุดสต๊อก)
-   ========================================================== */
+/* ---------- เบิก / ตัดออก (ของที่ออกโดยไม่ได้ขาย): ร่างใน session (issue_draft / issue_meta) → บันทึกทั้งใบ ---------- */
 
 /* ---------- เหตุผลการตัดออก ----------
    note = ต้องกรอกหมายเหตุประกอบเสมอ (กรณีที่ต้องตรวจสอบย้อนหลังได้) */
@@ -49,11 +38,7 @@ function issue_reason_needs_note($key)
     return isset($r[$key]) && $r[$key]['note'];
 }
 
-/* ==========================================================
-   ใบที่กำลังทำ (ร่าง)
-   ต่างจากใบรับเข้าตรงที่ "ตัดเกินของที่มีไม่ได้"
-   ทุกครั้งที่เพิ่ม/แก้จำนวน จะถูกจำกัดไว้ไม่เกินยอดคงเหลือของสาขา
-   ========================================================== */
+/* ---------- ใบที่กำลังทำ (ร่าง) — จำนวนไม่เกินยอดคงเหลือของสาขา ---------- */
 
 function idraft_all()
 {
@@ -169,13 +154,9 @@ function idraft_cost($lines)
     return $sum;
 }
 
-/* ==========================================================
-   ใบที่บันทึกแล้ว
-   ========================================================== */
+/* ---------- ใบที่บันทึกแล้ว ---------- */
 
-/** ใบเบิก / ตัดออกของสาขาวันนี้ (รวมที่ยกเลิก) เรียงตามเวลา
-    TODO:
-      - [x] อ่านจาก ao_stock_issue (เดิม $_SESSION['issue']) */
+/** ใบเบิก / ตัดออกของสาขาวันนี้ (รวมที่ยกเลิก) เรียงตามเวลา */
 function issues_today($code)
 {
     return stock_docs_range(array($code), time(), time(), array('IS'));
@@ -187,10 +168,7 @@ function issue_by_no($code, $no)
     return stock_doc_by_no($code, $no, 'today', 'IS');
 }
 
-/**
- * ตรวจก่อนบันทึกว่าของยังพอ (ระหว่างทำใบ อาจมีคนขายตัวเดียวกันออกไปแล้ว)
- * คืนค่า array ของรายการที่ไม่พอ — ว่าง = ผ่าน · issue_save() เช็กซ้ำอีกครั้งหลังล็อกยอด
- */
+/** รายการที่ของไม่พอแล้ว (ว่าง = ผ่าน) — issue_save เช็กซ้ำหลังล็อกยอด */
 function issue_shortage($lines)
 {
     $short = array();
@@ -203,13 +181,7 @@ function issue_shortage($lines)
     return $short;
 }
 
-/**
- * บันทึกการตัดออก: ลดสต๊อก + ลง ledger + ประวัติ ในทรานแซกชันเดียว
- * คืนค่า: ใบที่บันทึก | array('error' => ข้อความ) เมื่อของไม่พอ (เช็กหลังล็อกยอดแล้ว)
- * TODO:
- *   - [x] INSERT ao_stock_issue + issue_item + stock_move · ตัดเกินยอดคงเหลือไม่ได้
- *   - [x] ใบที่ทำแทนใบ "ยกเลิกเพื่อแก้ไข" ใส่ edit_of_id
- */
+/** บันทึกการตัดออกในทรานแซกชันเดียว · คืนใบ หรือ array('error') */
 function issue_save($code, $user, $reason, $ref, $note, $lines)
 {
     $bid = branch_id_of($code);
@@ -306,18 +278,12 @@ function issue_save($code, $user, $reason, $ref, $note, $lines)
     product_db_reset();
     $doc = issue_by_no($code, $no);
     if ($doc !== null) {
-        notify_on_issue($code, $doc);            // Telegram: สูญหาย / ชำรุด (ช่วงที่ 9)
+        notify_on_issue($code, $doc);            // Telegram: สูญหาย / ชำรุด
     }
     return $doc;
 }
 
-/**
- * ยกเลิกใบตัดออกของวันนี้ — คืนยอดกลับเข้าสต๊อก (ทำได้เสมอ เพราะเป็นการบวกกลับ)
- * $reopen = true คือยกเลิกเพื่อดึงรายการกลับมาแก้
- * คืนค่า: ใบที่ยกเลิก | null ถ้าไม่พบ / ยกเลิกไปแล้ว
- * TODO:
- *   - [x] status void + stock_move issue_void (stock_doc_void_core)
- */
+/** ยกเลิกใบตัดออกของวันนี้ (บวกกลับ) · $reopen = ดึงกลับมาแก้ · คืนใบ / null */
 function issue_void($code, $no, $user, $reason, $reopen = false)
 {
     $d = issue_by_no($code, $no);
@@ -340,7 +306,7 @@ function issue_void($code, $no, $user, $reason, $reopen = false)
     if ($r !== true) {
         return null;
     }
-    notify_on_void($code, 'IS', $d, $user, $reason, $reopen);   // Telegram (ช่วงที่ 9)
+    notify_on_void($code, 'IS', $d, $user, $reason, $reopen);   // Telegram
     return issue_by_no($code, $no);
 }
 
@@ -360,15 +326,9 @@ function idraft_from_issue($doc)
     return idraft_count();
 }
 
-/* ==========================================================
-   รายการเบิก / ตัดออกแบบรายสินค้า + ใบรับเข้า — ใช้กับหน้าตรวจสอบของผู้ดูแล (adm-issue.php / adm-receive.php)
-   อ่านจากฐานข้อมูลทั้งช่วงวันในคิวรีเดียว · มูลค่าใช้ราคาทุนที่ snapshot ไว้ในใบ
-   ========================================================== */
+/* ---------- รายการรายสินค้าของใบเบิก / รับเข้า (หน้าผู้ดูแล) — คิวรีเดียวทั้งช่วง · มูลค่าจากทุน snapshot ---------- */
 
-/** หนึ่งแถวต่อสินค้าหนึ่งรายการในใบเบิก ของสาขาใน $codes ช่วง $from–$to
-    ราคาทุน / มูลค่า = ตาม snapshot ในใบ · ราคาขาย = ราคาปัจจุบันของสินค้า
-    TODO:
-      - [x] อ่านทั้งช่วงจาก ao_stock_issue (เดิมวนทีละวัน) */
+/** แถวรายสินค้าในใบเบิกของสาขาใน $codes ช่วง $from–$to */
 function issue_rows_range($codes, $from, $to)
 {
     $rows = array();

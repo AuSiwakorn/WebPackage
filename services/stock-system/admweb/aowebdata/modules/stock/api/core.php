@@ -2,15 +2,11 @@
 /**
  * FILE: admweb/aowebdata/modules/stock/api/core.php
  * ROLE: ค่าคงที่ของระบบ · ตัวช่วยทั่วไป (escape, URL, เงิน, วันที่ไทย, CSV) · สวิตช์เมนู / บทบาท / สิทธิ์
- * DEPENDS: โหลดโดย admweb/aowebdata/modules/stock/api.php (ตัวโหลด — ห้าม include ไฟล์นี้ตรง ๆ) · ใช้ function จากไฟล์อื่นใน api/ ได้ทุกตัว
+ * DEPENDS: api.php (ตัวโหลด — ห้าม include ตรง)
  * TABLES: ao_stock_setting (สวิตช์เมนู ผ่าน stock_setting_get)
  * TODO:
- *   - [x] ช่วงที่ 10: แยกจาก api.php เดิม (ย้ายโค้ดทั้งก้อน ไม่แก้ตรรกะ) · จัดฟังก์ชันที่เคยปนอยู่หมวดอื่นให้มาอยู่หมวดนี้
- *   - [x] ช่วงที่ 11: แตกสิทธิ์พนักงานเป็น 18 ตัว + สิทธิ์เสริม 3 ตัว · สิทธิ์ที่พ่วงกัน (needs) · แปลงสิทธิ์ชุดเดิม · page_ok สำหรับเมนู / ลิงก์
- *   - [x] ช่วงที่ 12: สิทธิ์ผู้จัดการสาขา (manager) ได้สิทธิ์ดูข้อมูล + สิทธิ์เสริมอัตโนมัติ · หน้า team.php · ชื่อบทบาท "ผู้จัดการสาขา"
- *   - [x] ช่วงที่ 16: สิทธิ์ "เพิ่มสินค้าใหม่" (product_add · หมวดงานคลัง · ต้องมีนำเข้า) — ไม่อยู่ในค่าเริ่มต้นของพนักงานใหม่ (ข้อ 1ก)
- *
- * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
+ *   - [x] ประวัติการแก้ไขดู docs/CHANGELOG.md
+ * ⚠ โหลดทุก request — มีได้แค่ define() + function (ห้าม echo / header / query ตอนโหลด)
  */
 
 /* ---------- ค่าคงที่ของระบบ (ย้ายจาก themes/aostock/inc/config.php) ---------- */
@@ -21,33 +17,22 @@ define('APP_OWNER', 'บริษัท เอโอซอฟต์ จำกั
 /* path ของหน้า AOSTOCK = โฟลเดอร์ที่ติดตั้งเว็บ (เช่น /aostock) — มาจาก $webBase ใน fix.<โดเมน>.php ผ่าน URL_WEB_ROOT */
 define('APP_BASE', defined('URL_WEB_ROOT') ? rtrim((string) parse_url(URL_WEB_ROOT, PHP_URL_PATH), '/') : '');
 
-/* ==========================================================
-   สวิตช์เปิด–ปิดเมนู / บทบาท
-   ----------------------------------------------------------
-   active_roles / active_menus = สิ่งที่ระบบมี (นักพัฒนาแก้ในโค้ด)
-   feature_groups = กลุ่มฟีเจอร์ที่ผู้ดูแลระบบปิดได้จากหลังบ้าน admweb (AOSTOCK → เปิด–ปิดเมนู · main_settings.php)
-     เก็บกลุ่มที่ปิดไว้ใน ao_stock_setting key features_off (JSON) — ปิดแล้วซ่อนเมนู + เปิด URL ตรงไม่ได้ (require_login)
-     เมนูหลัก (ขาย เปิด–ปิดร้าน รับเข้า เบิก สินค้า ประวัติ หน้าผู้ดูแล) ปิดไม่ได้
-   ========================================================== */
+/* ---------- สวิตช์เมนู / บทบาท: active_* = ที่ระบบมี · feature_groups = กลุ่มที่ปิดได้จากหลังบ้าน (setting features_off) ---------- */
 
-/** บทบาทที่เปิดใช้งานอยู่ตอนนี้ — ฝ่ายบัญชีปิดได้จากหลังบ้าน (กลุ่ม account)
-    TODO:
-      - [x] ช่วงที่ 9: ตัดฝ่ายบัญชีออกเมื่อกลุ่ม account ถูกปิด */
+/** บทบาทที่เปิดใช้งานอยู่ตอนนี้ — ฝ่ายบัญชีปิดได้จากหลังบ้าน (กลุ่ม account) */
 function active_roles()
 {
     $roles = array('staff', 'admin', 'account');   // ไม่มีหัวหน้าคลัง — ใช้สิทธิ์เสริมของพนักงานแทน
     return feature_group_on('account') ? $roles : array('staff', 'admin');
 }
 
-/** กลุ่มฟีเจอร์ที่เปิด–ปิดได้จากหลังบ้าน: คีย์ => array(label, hint, pages = หน้าที่ปิดตาม, role = บทบาทที่ปิดตาม)
-    TODO:
-      - [x] ช่วงที่ 9: 7 กลุ่มตามที่ตกลง (ข้อ 3ก) */
+/** กลุ่มฟีเจอร์ที่เปิด–ปิดได้จากหลังบ้าน: คีย์ => array(label, hint, pages = หน้าที่ปิดตาม, role = บทบาทที่ปิดตาม) */
 function feature_groups()
 {
     return array(
         'refund'    => array('label' => 'รับคืนสินค้า', 'hint' => 'พนักงานรับคืนสินค้า / คืนเงินสด และหน้าตรวจใบรับคืนของผู้ดูแล',
                              'pages' => array('return.php', 'adm-return.php')),
-        'stocktake' => array('label' => 'ตรวจนับ / ปรับยอด', 'hint' => 'หน้าตรวจนับของพนักงาน และงานค้าง "ตรวจนับรอบนี้ยังไม่ครบ"',
+        'stocktake' => array('label' => 'ตรวจนับสต๊อก', 'hint' => 'หน้าตรวจนับของพนักงาน และงานค้าง "ตรวจนับรอบนี้ยังไม่ครบ"',
                              'pages' => array('stocktake.php')),
         'category'  => array('label' => 'หมวดสินค้า (ฝั่งพนักงาน)', 'hint' => 'พนักงานที่มีสิทธิ์เพิ่ม / ลบหมวดเอง — ผู้ดูแลยังจัดการหมวดได้ตามปกติ',
                              'pages' => array('categories.php')),
@@ -74,9 +59,7 @@ function feature_group_on($key)
     return !in_array($key, features_off(), true);
 }
 
-/** บันทึกกลุ่มที่ปิด — คืนรายการที่เปลี่ยน array(คีย์ => true เปิด | false ปิด)
-    TODO:
-      - [x] ช่วงที่ 9: ใช้ในหน้า main_settings.php ของหลังบ้าน */
+/** บันทึกกลุ่มที่ปิด — คืนรายการที่เปลี่ยน array(คีย์ => true เปิด | false ปิด) */
 function features_off_set($off, $uid = 0)
 {
     $off    = array_values(array_intersect(array_keys(feature_groups()), (array) $off));
@@ -105,17 +88,15 @@ function feature_pages_off()
 /** เมนูที่ทำเสร็จแล้วและเปิดให้ใช้ (ยังไม่หักกลุ่มที่ปิด — ใช้ menu_enabled) */
 function active_menus()
 {
-    return array('dashboard.php', 'store.php', 'sale.php', 'products.php', 'categories.php', 'receive.php', 'issue.php', 'stocktake.php', 'movements.php',
+    return array('dashboard.php', 'store.php', 'sale.php', 'products.php', 'product-add.php', 'categories.php', 'receive.php', 'issue.php', 'stocktake.php', 'movements.php',
                  'history.php', 'return.php', 'report-sales.php', 'team.php',
                  'account.php', 'account-settings.php',
-                 'adm-dashboard.php', 'adm-products.php', 'adm-categories.php', 'adm-receive.php', 'adm-issue.php', 'adm-return.php', 'adm-history.php',
+                 'adm-dashboard.php', 'adm-products.php', 'adm-product-edit.php', 'adm-categories.php', 'adm-receive.php', 'adm-issue.php', 'adm-return.php', 'adm-history.php',
                  'adm-movements.php', 'adm-report.php', 'adm-report-daily.php', 'adm-report-branch.php', 'adm-report-staff.php', 'adm-report-products.php', 'adm-users.php', 'adm-user-add.php', 'adm-branches.php',
                  'adm-notify.php');
 }
 
-/** ส่วนประกอบที่ยังไม่ได้ใช้ เปิดทีหลังโดยเติมชื่อลงใน array นี้
-    'search'      = ช่องค้นหาบนแถบบน
-    'branch_pick' = ตัวเลือกสาขาบนแถบบน (พนักงานผูกสาขาเดียวอยู่แล้ว) */
+/** ส่วนประกอบที่ยังไม่ใช้ ('search' · 'branch_pick') — เปิดโดยเติมชื่อ */
 function active_features()
 {
     return array();
@@ -131,9 +112,7 @@ function role_enabled($role)
     return in_array($role, active_roles(), true);
 }
 
-/** เมนูนี้เปิดให้ใช้ไหม — ต้องมีในระบบ และกลุ่มของเมนูไม่ได้ถูกปิดจากหลังบ้าน
-    TODO:
-      - [x] ช่วงที่ 9: หักหน้าของกลุ่มที่ปิด (feature_pages_off) */
+/** เมนูนี้เปิดให้ใช้ไหม — ต้องมีในระบบ และกลุ่มของเมนูไม่ได้ถูกปิดจากหลังบ้าน */
 function menu_enabled($file)
 {
     return in_array($file, active_menus(), true) && !in_array($file, feature_pages_off(), true);
@@ -141,9 +120,7 @@ function menu_enabled($file)
 
 /* ---------- สิทธิ์การใช้งาน ---------- */
 
-/** บทบาทในระบบ: คีย์ => array(name ชื่อ, scope ขอบเขตที่เห็น)
-    TODO:
-      - [x] ช่วงที่ 10: เปลี่ยนชื่อจาก demo_roles */
+/** บทบาทในระบบ: คีย์ => array(name ชื่อ, scope ขอบเขตที่เห็น) */
 function roles_all()
 {
     return array(
@@ -153,17 +130,10 @@ function roles_all()
     );
 }
 
-/* ---------- สิทธิ์ของพนักงาน (ช่วงที่ 11: แตกให้ละเอียด) ----------
-   ผู้ดูแลติ๊กให้รายคน · เก็บในคอลัมน์ ao_stock_staff.perms คั่นด้วย , ขึ้นต้นด้วยตัวบอกรุ่น PERM_VER
-   แถวที่ยังไม่มีตัวบอกรุ่น = สิทธิ์ชุดเดิม 7 ตัว → แปลงเป็นชุดใหม่ตอนอ่าน (perm_from_legacy) ไม่ต้อง Reinstall
-   group = หมวดบนหน้าติ๊กสิทธิ์ (perm_groups)
-   needs = ต้องมีสิทธิ์ตัวใดตัวหนึ่งในนี้ด้วย — ไม่มีแล้วสิทธิ์ตัวนี้หลุดตามเอง (perm_clean)
-   ทุกสิทธิ์เช็กที่เซิร์ฟเวอร์ ไม่ใช่แค่ซ่อนปุ่ม                                      */
+/* ---------- สิทธิ์ของพนักงาน: perms = CSV ขึ้นต้น PERM_VER · needs = ต้องมีตัวใดตัวหนึ่งด้วย · เช็กที่เซิร์ฟเวอร์เสมอ ---------- */
 define('PERM_VER', 'v2');
 
-/** รายการสิทธิ์ทั้งหมด เรียงตามที่แสดงบนหน้าติ๊กสิทธิ์
-    TODO:
-      - [x] ช่วงที่ 11: แตกสิทธิ์เมนู 7 ตัวเป็น 18 ตัว (หน้าร้าน / งานคลัง / รับคืน / หมวดสินค้า / ดูข้อมูล) + สิทธิ์เสริม 3 ตัวเดิม */
+/** รายการสิทธิ์ทั้งหมด เรียงตามที่แสดงบนหน้าติ๊กสิทธิ์ */
 function perm_list()
 {
     return array(
@@ -174,9 +144,9 @@ function perm_list()
         'cash'          => array('group' => 'shop',     'label' => 'เงินเข้า / ออกลิ้นชัก',              'short' => 'เงินเข้า / ออก'),
         'bill_fix'      => array('group' => 'shop',     'label' => 'แก้ / ยกเลิกบิลของตัวเอง (วันนี้)',     'short' => 'แก้บิลตัวเอง', 'needs' => array('sale')),
         'receive'       => array('group' => 'stock',    'label' => 'นำเข้าสินค้า (รับเข้าสต๊อก)',          'short' => 'นำเข้าสินค้า'),
-        'product_add'   => array('group' => 'stock',    'label' => 'เพิ่มสินค้าใหม่ (จากหน้านำเข้า)',       'short' => 'เพิ่มสินค้าใหม่', 'needs' => array('receive')),   // ช่วงที่ 16
+        'product_add'   => array('group' => 'stock',    'label' => 'เพิ่มสินค้าใหม่ (จากหน้านำเข้า)',       'short' => 'เพิ่มสินค้าใหม่', 'needs' => array('receive')),
         'issue'         => array('group' => 'stock',    'label' => 'เบิก / ตัดออกสินค้า',                'short' => 'เบิก / ตัดออก'),
-        'stocktake'     => array('group' => 'stock',    'label' => 'ตรวจนับ / ปรับยอด',                 'short' => 'ตรวจนับ'),
+        'stocktake'     => array('group' => 'stock',    'label' => 'ตรวจนับสต๊อก',                      'short' => 'ตรวจนับ'),
         'doc_fix'       => array('group' => 'stock',    'label' => 'แก้ / ยกเลิกเอกสารคลังของตัวเอง (วันนี้)', 'short' => 'แก้เอกสารคลังตัวเอง',
                                  'needs' => array('receive', 'issue', 'stocktake')),
         'refund'        => array('group' => 'refund',   'label' => 'รับคืนสินค้า',                      'short' => 'รับคืนสินค้า'),
@@ -184,9 +154,15 @@ function perm_list()
         'category_add'  => array('group' => 'category', 'label' => 'เพิ่มหมวดสินค้า',                    'short' => 'เพิ่มหมวด'),
         'category_del'  => array('group' => 'category', 'label' => 'ลบหมวดสินค้า',                      'short' => 'ลบหมวด'),
         'products'      => array('group' => 'view',     'label' => 'ดูสินค้าในสต๊อก',                    'short' => 'สินค้าในสต๊อก'),
-        'movements'     => array('group' => 'view',     'label' => 'ดูประวัติเคลื่อนไหวรายสินค้า',          'short' => 'ประวัติเคลื่อนไหว'),
-        'history'       => array('group' => 'view',     'label' => 'ดูประวัติการทำรายการของสาขา',         'short' => 'ประวัติรายการ'),
         'report'        => array('group' => 'view',     'label' => 'ดูรายงานยอดขายของตัวเอง',            'short' => 'รายงานยอดขาย'),
+        /* ประวัติของสาขาแยกสิทธิ์รายเมนู (คีย์ของกลุ่มอยู่ใน Stock_getLogGroups) — เดิม history ตัวเดียว */
+        'hist_sale'     => array('group' => 'history',  'label' => 'ดูประวัติขาย / ตั้งค่า',              'short' => 'ประวัติขาย'),       // ตั้งค่าเห็นเฉพาะผู้จัดการ (คำอธิบายใน perm_boxes)
+        'hist_receive'  => array('group' => 'history',  'label' => 'ดูประวัตินำเข้าสินค้า',               'short' => 'ประวัตินำเข้า'),
+        'hist_issue'    => array('group' => 'history',  'label' => 'ดูประวัติเบิก / ตัดออก',              'short' => 'ประวัติตัดออก'),
+        'hist_count'    => array('group' => 'history',  'label' => 'ดูประวัติตรวจนับสต๊อก',              'short' => 'ประวัติตรวจนับ'),
+        'hist_return'   => array('group' => 'history',  'label' => 'ดูประวัติรับคืนสินค้า',               'short' => 'ประวัติรับคืน'),
+        'hist_store'    => array('group' => 'history',  'label' => 'ดูประวัติเปิด / ปิดร้าน และเงินเข้า / ออก', 'short' => 'ประวัติเปิด / ปิดร้าน'),
+        'movements'     => array('group' => 'history',  'label' => 'ดูประวัติเคลื่อนไหวรายสินค้า',          'short' => 'เคลื่อนไหวรายสินค้า'),     // short ตรงกับชื่อเมนู
         'void_others'   => array('group' => 'extra',    'label' => 'แก้/ยกเลิกเอกสารของคนอื่นในสาขา',     'short' => 'แก้งานคนอื่น'),
         'backdate'      => array('group' => 'extra',    'label' => 'แก้/ยกเลิกเอกสารย้อนหลัง',           'short' => 'แก้ย้อนหลัง'),
         'report_branch' => array('group' => 'extra',    'label' => 'ดูรายงานยอดขายทั้งสาขา',            'short' => 'รายงานทั้งสาขา', 'needs' => array('report')),
@@ -194,42 +170,37 @@ function perm_list()
     );
 }
 
-/** สิทธิ์ที่ผู้จัดการสาขาได้อัตโนมัติ (ไม่ต้องติ๊กซ้ำ) — ดูข้อมูลทุกอย่าง + สิทธิ์เสริมทุกตัว
-    งานหน้าร้าน / งานคลัง / รับคืน / หมวด ยังเป็นไปตามที่ผู้ดูแลติ๊กให้รายคน
-    TODO:
-      - [x] ช่วงที่ 12: ผู้จัดการสาขา (ข้อ 1ก 2ก) */
+/** สิทธิ์ที่ผู้จัดการสาขาได้อัตโนมัติ (ดูข้อมูล · ดูประวัติ · สิทธิ์เสริม) */
 function perm_manager_implies()
 {
-    return array('products', 'movements', 'history', 'report', 'void_others', 'backdate', 'report_branch');
+    return array_merge(array('products', 'report', 'movements'), Stock_getHistoryPerms(), array('void_others', 'backdate', 'report_branch'));
 }
 
-/** สิทธิ์ที่ผู้จัดการสาขาติ๊กให้พนักงานในสาขาได้ = ทุกหมวดยกเว้นสิทธิ์เสริม (สิทธิ์เสริม + ตั้งผู้จัดการ เป็นของผู้ดูแล)
-    TODO:
-      - [x] ช่วงที่ 12 */
+/** สิทธิ์ดูประวัติรายเมนู 6 ตัว (แทนคีย์เดิม history) */
+function Stock_getHistoryPerms()
+{
+    return array('hist_sale', 'hist_receive', 'hist_issue', 'hist_count', 'hist_return', 'hist_store');
+}
+
+/** สิทธิ์ที่ผู้จัดการติ๊กให้ลูกน้องได้ = ทุกหมวดยกเว้นสิทธิ์เสริม */
 function perm_manager_grantable()
 {
     return array_keys(array_filter(perm_list(), function ($p) { return $p['group'] !== 'extra'; }));
 }
 
-/** เป็นผู้จัดการสาขาไหม (พนักงานที่ผู้ดูแลติ๊กสิทธิ์ manager — สาขาหนึ่งมีได้หลายคน)
-    TODO:
-      - [x] ช่วงที่ 12 */
+/** เป็นผู้จัดการสาขาไหม (พนักงานที่ผู้ดูแลติ๊กสิทธิ์ manager — สาขาหนึ่งมีได้หลายคน) */
 function is_branch_manager($user)
 {
     return $user && isset($user['role']) && $user['role'] === 'staff' && can($user, 'manager');
 }
 
-/** ชื่อบทบาทที่แสดงใต้ชื่อ (แถบบน / หน้าเข้าระบบ) — ผู้จัดการสาขาแยกจากพนักงาน
-    TODO:
-      - [x] ช่วงที่ 12 */
+/** ชื่อบทบาทที่แสดงใต้ชื่อ (แถบบน / หน้าเข้าระบบ) — ผู้จัดการสาขาแยกจากพนักงาน */
 function user_role_label($user)
 {
     return is_branch_manager($user) ? 'ผู้จัดการสาขา' : role_name($user['role']);
 }
 
-/** หมวดของสิทธิ์ (หัวข้อบนหน้าติ๊กสิทธิ์) — extra = สิทธิ์เสริมที่ต้องไว้ใจ
-    TODO:
-      - [x] ช่วงที่ 11 */
+/** หมวดของสิทธิ์ (หัวข้อบนหน้าติ๊กสิทธิ์) — extra = สิทธิ์เสริมที่ต้องไว้ใจ */
 function perm_groups()
 {
     return array(
@@ -238,26 +209,25 @@ function perm_groups()
         'refund'   => 'รับคืนสินค้า',
         'category' => 'หมวดสินค้า',
         'view'     => 'ดูข้อมูล',
+        'history'  => 'ดูประวัติ',                     // 1 สิทธิ์ = 1 เมนูประวัติ
         'extra'    => 'สิทธิ์เสริม (ให้เฉพาะคนที่ไว้ใจ)',
     );
 }
 
-/** สิทธิ์เริ่มต้นของพนักงานที่เพิ่มใหม่ — เท่ากับที่พนักงานใหม่ได้ก่อนช่วงที่ 11
-    (เปิดร้านอีกครั้ง / รับคืน / หมวดสินค้า / สิทธิ์เสริม ไม่ติ๊กให้ — ผู้ดูแลติ๊กเองรายคน)
-    TODO:
-      - [x] ช่วงที่ 11: ชุดใหม่ (ข้อ 3ก) */
+/** สิทธิ์เริ่มต้นของพนักงานใหม่ */
 function perm_default()
 {
-    return array('sale', 'discount', 'store', 'cash', 'bill_fix', 'receive', 'issue', 'stocktake', 'doc_fix',
-                 'products', 'movements', 'history', 'report');
+    return array_merge(array('sale', 'discount', 'store', 'cash', 'bill_fix', 'receive', 'issue', 'stocktake', 'doc_fix',
+                             'products', 'movements', 'report'), Stock_getHistoryPerms());       // history → 6 ตัว (เท่าเดิม)
 }
 
-/** เรียงตาม perm_list · ตัดคีย์ที่ไม่รู้จัก · ตัดสิทธิ์ที่ขาดตัวที่ต้องมี (needs) ออก
-    TODO:
-      - [x] ช่วงที่ 11: ใช้ทั้งตอนอ่านจากฐานข้อมูลและตอนบันทึกจากฟอร์ม */
+/** เรียงตาม perm_list · ตัดคีย์ที่ไม่รู้จัก · ตัดสิทธิ์ที่ขาดตัวที่ต้องมี (needs) ออก */
 function perm_clean($keys)
 {
     $keys = array_map('strval', (array) $keys);
+    if (in_array('history', $keys, true)) {
+        $keys = array_merge($keys, Stock_getHistoryPerms());
+    }
     $out  = array();
     foreach (perm_list() as $k => $p) {
         if (in_array($k, $keys, true)) {
@@ -270,12 +240,7 @@ function perm_clean($keys)
     }));
 }
 
-/** สิทธิ์ชุดเดิม (ก่อนช่วงที่ 11) → ชุดใหม่ ให้ทำได้เท่าเดิมทุกอย่าง ไม่มีใครเสียสิทธิ์
-      sale     → ขาย ส่วนลด เปิด–ปิดร้าน เงินเข้าออก แก้บิลตัวเอง (เปิดร้านอีกครั้งเดิมทำได้เฉพาะผู้ดูแล → ไม่ให้)
-      receive / issue / stocktake → + แก้เอกสารคลังตัวเอง · refund → + คืนเงินสด · category → เพิ่ม + ลบหมวด
-      ทุกคน    → ดูสินค้า / ประวัติเคลื่อนไหว / รายงานของตัวเอง (เดิมเปิดได้ทุกคน)
-    TODO:
-      - [x] ช่วงที่ 11 */
+/** สิทธิ์ชุดเดิม (ไม่มี PERM_VER) → ชุดใหม่ ทำได้เท่าเดิม */
 function perm_from_legacy($old)
 {
     $map = array(
@@ -293,20 +258,18 @@ function perm_from_legacy($old)
     return perm_clean($out);
 }
 
-/** สิทธิ์ที่ต้องมีเพื่อเปิดหน้านั้น — '' = ไม่ต้องมี · array = มีตัวใดตัวหนึ่งก็พอ
-    TODO:
-      - [x] ช่วงที่ 11: หน้าสินค้า / ประวัติเคลื่อนไหว / รายงาน มีสิทธิ์ของตัวเอง · หน้าร้านเข้าได้ถ้ามีงานใดงานหนึ่งในหน้านั้น */
+/** สิทธิ์ที่ต้องมีเพื่อเปิดหน้านั้น — '' = ไม่ต้องมี · array = มีตัวใดตัวหนึ่งก็พอ */
 function page_perm($file)
 {
     $map = array('sale.php' => 'sale', 'store.php' => array('store', 'store_reopen', 'cash'),
                  'receive.php' => 'receive', 'issue.php' => 'issue', 'stocktake.php' => 'stocktake',
-                 'history.php' => 'history', 'return.php' => 'refund', 'categories.php' => array('category_add', 'category_del'),
-                 'products.php' => 'products', 'movements.php' => 'movements', 'report-sales.php' => 'report',
+                 'history.php' => Stock_getHistoryPerms(), 'return.php' => 'refund', 'categories.php' => array('category_add', 'category_del'),
+                 'products.php' => 'products', 'product-add.php' => 'product_add', 'movements.php' => 'movements', 'report-sales.php' => 'report',
                  'team.php' => 'manager');
     return isset($map[$file]) ? $map[$file] : '';
 }
 
-/** ผู้ใช้คนนี้เปิดหน้านี้ได้ไหม (ไม่สนว่าเมนูถูกปิดจากหลังบ้านหรือเปล่า — ใช้ page_ok สำหรับลิงก์) */
+/** เปิดหน้านี้ได้ไหมตามสิทธิ์ (ไม่ดูเมนูที่ถูกปิด — ลิงก์ใช้ page_ok) */
 function page_perm_ok($user, $file)
 {
     $need = page_perm($file);
@@ -321,9 +284,7 @@ function page_perm_ok($user, $file)
     return false;
 }
 
-/** ลิงก์ไปหน้านี้ควรแสดงไหม — เมนูเปิดอยู่ และผู้ใช้มีสิทธิ์
-    TODO:
-      - [x] ช่วงที่ 11: ใช้กับเมนูด้านข้างและปุ่มลิงก์ระหว่างหน้า */
+/** ลิงก์ไปหน้านี้ควรแสดงไหม — เมนูเปิดอยู่ และผู้ใช้มีสิทธิ์ */
 function page_ok($user, $file)
 {
     return menu_enabled($file) && page_perm_ok($user, $file);
@@ -336,8 +297,7 @@ function user_perms($user)
         return array();
     }
     if (isset($user['role']) && $user['role'] === 'admin') {
-        /* ผู้ดูแลได้ทุกสิทธิ์ ยกเว้นงานหน้าร้าน งานคลัง และหมวดสินค้าฝั่งพนักงาน (หน้าที่ของพนักงานที่ได้รับมอบหมาย)
-           ผู้ดูแลตรวจสอบงานพวกนี้จากหน้าชุด adm- แทน */
+        /* ผู้ดูแลไม่ทำงานหน้าร้าน / คลัง / หมวดฝั่งพนักงาน — ตรวจจากหน้า adm- แทน */
         return array_values(array_diff(array_keys(perm_list()), array(
             'sale', 'discount', 'store', 'store_reopen', 'cash', 'bill_fix',
             'receive', 'product_add', 'issue', 'stocktake', 'doc_fix', 'category_add', 'category_del',
@@ -354,7 +314,7 @@ function user_perms($user)
     } else {
         $p = (isset($user['perms']) && is_array($user['perms'])) ? $user['perms'] : array();
     }
-    /* ผู้จัดการสาขาได้สิทธิ์ดูข้อมูล + สิทธิ์เสริมทุกตัวอัตโนมัติ (ช่วงที่ 12) */
+    /* ผู้จัดการสาขาได้สิทธิ์ดูข้อมูล + สิทธิ์เสริมทุกตัวอัตโนมัติ */
     return in_array('manager', $p, true) ? perm_clean(array_merge($p, perm_manager_implies())) : $p;
 }
 
@@ -363,11 +323,7 @@ function can($user, $perm)
     return in_array($perm, user_perms($user), true);
 }
 
-/** แก้/ยกเลิกเอกสารใบนี้ได้ไหม — ของตัวเองต้องมีสิทธิ์ bill_fix (บิล) / doc_fix (เอกสารคลัง) · ของคนอื่นต้องมีสิทธิ์ void_others
-    $kind = 'bill' บิลขาย · 'doc' ใบรับเข้า / เบิก / ตรวจนับ
-    (ใช้กับเอกสารของวันนี้ — เอกสารวันก่อนใช้ past_can_edit ที่เช็กสิทธิ์ backdate และจำนวนวันเพิ่ม)
-    TODO:
-      - [x] ช่วงที่ 11: ของตัวเองต้องมีสิทธิ์แก้บิล / แก้เอกสารคลังของตัวเอง (เดิมได้เสมอ) */
+/** แก้ / ยกเลิกเอกสารวันนี้ได้ไหม — $kind = 'bill' | 'doc' */
 function can_void_doc($user, $doc, $kind = 'doc')
 {
     if (!$user || !$doc) {
@@ -402,10 +358,7 @@ function url($path)
     return APP_BASE . '/' . ltrim($path, '/');
 }
 
-/** URL ของไฟล์ใน themes/aostock/assets/ (css, js, รูป)
-    หน้าเว็บวิ่งผ่าน router ของ admweb ที่ /aostock/ จึงอ้าง assets/ แบบ relative ไม่ได้ — ต้องต่อจาก THEME_URL (inc.php)
-    TODO:
-      - [x] ใช้ THEME_URL ของ admweb · ไม่มี (เรียกนอก router) ใช้ APP_BASE แทน */
+/** URL ไฟล์ใน themes/aostock/assets/ (ต่อจาก THEME_URL — router อ้าง relative ไม่ได้) */
 function asset_url($path)
 {
     $base = defined('THEME_URL') ? THEME_URL : APP_BASE;
@@ -449,10 +402,7 @@ function thai_dow_short($ts)
     return $d[(int) date('w', $ts)];
 }
 
-/**
- * ส่งไฟล์ CSV ให้ดาวน์โหลดแล้วจบการทำงาน — ใส่ BOM ให้ Excel อ่านภาษาไทยถูก
- * $head = array หัวคอลัมน์ · $rows = array ของ array (ค่าตัวเลขส่งเป็นตัวเลขดิบ ไม่ใส่ comma)
- */
+/** ส่ง CSV ให้ดาวน์โหลดแล้วจบ (มี BOM ให้ Excel อ่านไทยได้) */
 function csv_send($filename, $head, $rows)
 {
     header('Content-Type: text/csv; charset=utf-8');

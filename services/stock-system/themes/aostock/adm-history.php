@@ -12,6 +12,9 @@
  *   - [x] ช่วงที่ 10: คืนหมายเหตุแบบเดโมเดิม — บิลที่ "มีรับคืน" · ใบรับคืน "กลับเข้าสต๊อก / ไม่เข้าสต๊อก"
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  *   - [x] 12 ต.ค.: แถว “ยกเลิกรับเข้า” แสดง −N ชิ้น (เดิม +N) แบบเดียวกับประวัติฝั่งพนักงาน
+ *   - [x] 15 ต.ค. (เมนูประวัติ ช่วง 2): ปุ่มกรองเป็น 7 กลุ่ม (Stock_getLogGroups) แทน 15 ชนิด · ?t= เป็นคีย์กลุ่ม (ชนิดเดิมพาไปกลุ่มของมัน) · หัวหน้าบอกกลุ่ม
+ *   - [x] 15 ต.ค. (เมนูประวัติ ช่วง 3): กรองตรวจนับ / เปิด–ปิดร้าน → เมนูข้างของกลุ่มนั้นขึ้นสีเขียว
+ *   - [x] 15 ต.ค. (เมนูประวัติแยกหน้า ช่วง 2): 1 หน้า = 1 กลุ่ม ไม่มี "ทั้งหมด" / แถบปุ่มกรอง · ไม่ระบุ = ขาย / ตั้งค่า · นำเข้า / ตัดออก / รับคืน → หน้าของเมนูนั้น · การ์ดสรุปนับเฉพาะกลุ่ม
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -23,7 +26,7 @@ if (!defined('ALLOW_DIRECT_ACCESS')) {
    หน้ารวม (GET):
      b    = ALL หรือรหัสสาขา (รวมสาขาที่ปิดใช้งาน)
      mode = recent (30 วันล่าสุด — ค่าเริ่มต้น) | day | month | year · d = วันที่ · m = เดือน · y = ปี
-     t    = ชนิดรายการ (คีย์ของ log_types) · sort = desc | asc · p = หน้า (ทีละ 100)
+     t    = กลุ่ม sale | adjust | store (ไม่ระบุ = sale) · กลุ่มอื่นมีหน้าของตัวเอง · sort = desc | asc · p = หน้า (ทีละ 100)
    รายละเอียดของสาขาหนึ่งในวันหนึ่ง: ?view=day&b=รหัสสาขา&d=ปปปปดดวว
      วันนี้    = ประวัติของสาขา (ดูอย่างเดียว)
      วันก่อน  = เอกสารคลัง + บิลขาย + ลำดับเหตุการณ์ทั้งวัน · ผู้ดูแลยกเลิกเอกสารคลังย้อนหลังได้ (ต้องมีเหตุผล)
@@ -52,10 +55,16 @@ $today = strtotime(date('Y-m-d'));
 $fB    = (isset($_GET['b']) && is_string($_GET['b']) && isset($brAll[$_GET['b']])) ? $_GET['b'] : 'ALL';
 $fMode = (isset($_GET['mode']) && in_array($_GET['mode'], array('day', 'month', 'year'), true)) ? $_GET['mode'] : 'recent';
 $fSort = (isset($_GET['sort']) && $_GET['sort'] === 'asc') ? 'asc' : 'desc';
-$fT    = isset($_GET['t']) && is_string($_GET['t']) ? $_GET['t'] : '';
-if ($fT !== '' && !array_key_exists($fT, log_types())) {
-    $fT = '';
+$fT    = isset($_GET['t']) && is_string($_GET['t']) ? Stock_getLogGroupOf($_GET['t']) : '';    // กลุ่ม (ลิงก์เก่าแบบชนิด → กลุ่มของมัน)
+$groups = Stock_getLogGroups();
+
+/* 1 เมนู = 1 กลุ่ม — นำเข้า / ตัดออก / รับคืน มีหน้าของตัวเอง · ไม่ระบุ / ไม่รู้จัก = ขาย / ตั้งค่า */
+$ownPage = array('receive' => 'adm-receive.php', 'issue' => 'adm-issue.php', 'return' => 'adm-return.php');
+if (isset($ownPage[$fT])) {
+    header('Location: ' . url($ownPage[$fT] . ($fB !== 'ALL' ? '?b=' . rawurlencode($fB) : '')));
+    exit;
 }
+$fT = ($fT === '') ? 'sale' : $fT;
 
 $dayTs = $today;
 if (isset($_GET['d']) && is_string($_GET['d']) && ($x = strtotime($_GET['d'])) !== false) {
@@ -83,7 +92,7 @@ $hq = function ($chg) use ($fB, $fMode, $fSort, $fT, $dayTs, $monTs, $year) {
             unset($q[$k]);
         }
     }
-    foreach (array('t' => '', 'sort' => 'desc', 'b' => 'ALL', 'mode' => 'recent', 'p' => 1) as $k => $def) {
+    foreach (array('sort' => 'desc', 'b' => 'ALL', 'mode' => 'recent', 'p' => 1) as $k => $def) {     // t อยู่ในลิงก์เสมอ
         if (isset($q[$k]) && (string) $q[$k] === (string) $def) {
             unset($q[$k]);
         }
@@ -104,17 +113,26 @@ if ($pg !== $pgIn) {
 }
 $counts = $lr['counts'];
 
-/* ---------- สรุปทั้งช่วง (ไม่สนชนิดที่กรอง) ---------- */
-$sales = 0;
-foreach (sales_agg($codes, $from, $to) as $x) {
-    $sales += $x['total'];                                            // ยอดขายของบิลที่ไม่ยกเลิก
-}
-$sum = array('all' => array_sum($lr['perB']), 'bills' => $counts['sale'], 'sales' => $sales,
-             'docs' => $counts['receive'] + $counts['issue'] + $counts['adjust'], 'perB' => array());
+/* ---------- สรุปของกลุ่มนี้ทั้งช่วง: การ์ดแรก = จำนวนรายการรายสาขา · การ์ดที่ 2–3 ตามกลุ่ม array(ชื่อ, ตัวเลข, คำอธิบาย) ---------- */
+$perB = array();
 foreach ($codes as $c) {
-    if (!empty($lr['perB'][$c])) {
-        $sum['perB'][$c] = $lr['perB'][$c];
+    if (!empty($lr['perBG'][$c])) {
+        $perB[$c] = $lr['perBG'][$c];
     }
+}
+if ($fT === 'sale') {
+    $sales = 0;
+    foreach (sales_agg($codes, $from, $to) as $x) {
+        $sales += $x['total'];                                        // ยอดขายของบิลที่ไม่ยกเลิก
+    }
+    $cards = array(array('บิลขาย', $counts['sale'], 'ยอดขาย ' . money2($sales) . ' บาท (ไม่รวมบิลยกเลิก)'),
+                   array('ยกเลิกบิล', $counts['void'], 'ตั้งค่า / สินค้า ' . number_format($counts['setting'] + $counts['category'] + $counts['stock']) . ' รายการ'));
+} elseif ($fT === 'adjust') {
+    $cards = array(array('ใบตรวจนับ', $counts['adjust'], 'ใบที่ยกเลิกภายหลังมีขีดฆ่าในรายการ'),
+                   array('ยกเลิกใบตรวจนับ', $counts['avoid'], 'รวมยกเลิกเพื่อแก้ไข'));
+} else {
+    $cards = array(array('เปิด / ปิดร้าน', $counts['open'] + $counts['close'], 'เปิด ' . number_format($counts['open']) . ' · ปิด ' . number_format($counts['close'])),
+                   array('เงินเข้า / ออก', $counts['cash'], 'นำเงินเข้า / ออกจากลิ้นชัก'));
 }
 
 /* ---------- แถวของหน้านี้ ---------- */
@@ -133,9 +151,7 @@ foreach ($lr['rows'] as $r) {
     if ($r['void']) {
         array_unshift($note, ($r['void_mode'] === 'edit' ? 'ยกเลิกเพื่อแก้ไขภายหลัง' : 'ยกเลิกภายหลัง') . ($r['void_by'] !== '' ? ' โดย ' . $r['void_by'] : ''));
     }
-    $link = ($r['type'] === 'return' && $r['ref'] !== '' && menu_enabled('adm-return.php'))
-          ? 'adm-return.php?no=' . rawurlencode($r['ref']) . '&b=' . rawurlencode($r['branch'])
-          : 'adm-history.php?view=day&b=' . rawurlencode($r['branch']) . '&d=' . $r['date'];
+    $link = 'adm-history.php?view=day&b=' . rawurlencode($r['branch']) . '&d=' . $r['date'] . '&t=' . $fT;      // t = กลับมากลุ่มเดิม
     $show[] = array('ts' => $r['ts'], 'date' => $r['date'], 'time' => $r['time'], 'branch' => $r['branch'], 'type' => $r['type'],
                     'title' => $r['title'], 'amount' => $r['amount'],
                     'kind' => in_array($r['type'], array('receive', 'rvoid'), true) ? 'qty' : 'money',
@@ -144,9 +160,9 @@ foreach ($lr['rows'] as $r) {
 
 $branch         = 'ALL';
 $NO_BRANCH_PICK = true;                  // มีตัวกรองสาขาของหน้านี้เองแล้ว
-$PAGE_TITLE     = 'ประวัติการทำรายการ';
+$PAGE_TITLE     = 'ประวัติ' . $groups[$fT]['label'];
 $PAGE_SUB       = 'ทุกสาขา · ' . $rangeTxt;
-$NAV_ACTIVE     = 'adm-history.php';
+$NAV_ACTIVE     = 'adm-history.php?t=' . $fT;           // เมนูของกลุ่มนี้ (header.php)
 require dirname(__FILE__) . '/inc/header.php';
 ?>
 
@@ -200,19 +216,19 @@ require dirname(__FILE__) . '/inc/header.php';
       <option value="desc" <?php echo $fSort === 'desc' ? 'selected' : '' ?>>เวลา: ใหม่ → เก่า</option>
       <option value="asc" <?php echo $fSort === 'asc' ? 'selected' : '' ?>>เวลา: เก่า → ใหม่</option>
     </select>
-    <?php if ($fT !== '') { ?><input type="hidden" name="t" value="<?php echo e($fT) ?>"><?php } ?>
+    <input type="hidden" name="t" value="<?php echo e($fT) ?>">
     <noscript><button class="btn btn-ghost btn-sm" type="submit">ดู</button></noscript>
   </form>
 </section>
 
 <!-- ==================== สรุป ==================== -->
 <section class="mini num adm-kpi" aria-label="สรุปช่วงที่เลือก">
-  <div class="m"><div class="lb">รายการทั้งหมด</div><div class="nm"><?php echo number_format($sum['all']) ?></div>
-    <div class="sb"><?php $px = array(); foreach ($sum['perB'] as $c => $n) { $px[] = $brAll[$c]['short'] . ' ' . number_format($n); } echo e($px ? implode(' · ', $px) : 'ไม่มีรายการ'); ?></div></div>
-  <div class="m"><div class="lb">บิลขาย</div><div class="nm"><?php echo number_format($sum['bills']) ?></div>
-    <div class="sb">ยอดขาย <?php echo e(money2($sum['sales'])) ?> บาท (ไม่รวมบิลยกเลิก)</div></div>
-  <div class="m"><div class="lb">เอกสารคลัง</div><div class="nm"><?php echo number_format($sum['docs']) ?></div>
-    <div class="sb">รับเข้า · ตัดออก · ตรวจนับ</div></div>
+  <div class="m"><div class="lb">รายการ</div><div class="nm"><?php echo number_format($total) ?></div>
+    <div class="sb"><?php $px = array(); foreach ($perB as $c => $n) { $px[] = $brAll[$c]['short'] . ' ' . number_format($n); } echo e($px ? implode(' · ', $px) : 'ไม่มีรายการ'); ?></div></div>
+  <?php foreach ($cards as $cd) { ?>
+    <div class="m"><div class="lb"><?php echo e($cd[0]) ?></div><div class="nm"><?php echo number_format($cd[1]) ?></div>
+      <div class="sb"><?php echo e($cd[2]) ?></div></div>
+  <?php } ?>
 </section>
 
 <!-- ==================== รายการ ==================== -->
@@ -221,20 +237,12 @@ require dirname(__FILE__) . '/inc/header.php';
     <div>
       <h2><?php echo $fB === 'ALL' ? 'ทุกสาขา' : e($brAll[$fB]['name']) ?> · <?php echo e($rangeTxt) ?></h2>
       <span class="sub">เรียงตามเวลา<?php echo $fSort === 'asc' ? 'จากเก่าไปใหม่' : 'จากใหม่ไปเก่า' ?>
-        · ทุกรายการที่บันทึกในระบบ · บิลหรือเอกสารที่ถูกยกเลิกภายหลังมีขีดฆ่า</span>
+        · บิลหรือเอกสารที่ถูกยกเลิกภายหลังมีขีดฆ่า</span>
     </div>
   </div>
 
-  <div class="cats tabbar" role="tablist">
-    <a class="cat<?php echo $fT === '' ? ' on' : '' ?>" href="<?php echo e($hq(array('t' => ''))) ?>">ทั้งหมด <i><?php echo number_format($sum['all']) ?></i></a>
-    <?php foreach (log_types() as $k => $meta) { ?>
-      <?php if ($counts[$k] === 0 && $fT !== $k) { continue; } ?>
-      <a class="cat<?php echo $fT === $k ? ' on' : '' ?>" href="<?php echo e($hq(array('t' => $k))) ?>"><?php echo e($meta['label']) ?> <i><?php echo number_format($counts[$k]) ?></i></a>
-    <?php } ?>
-  </div>
-
   <?php if (!$show) { ?>
-    <p class="empty"><svg class="ico"><use href="#i-history"/></svg>ไม่มีรายการในช่วงที่เลือก<br><small>ลองเปลี่ยนวัน สาขา หรือชนิดรายการ</small>
+    <p class="empty"><svg class="ico"><use href="#i-history"/></svg>ไม่มีรายการในช่วงที่เลือก<br><small>ลองเปลี่ยนวันหรือสาขา</small>
       <?php if ($fMode === 'day' && $dayTs === $today) { ?>
         <br><a class="btn btn-ghost btn-sm" href="<?php echo e($hq(array('d' => date('Y-m-d', strtotime('-1 day', $today))))) ?>">ดูของเมื่อวาน</a>
       <?php } elseif ($fMode === 'month' && $monTs === strtotime(date('Y-m-01'))) { ?>

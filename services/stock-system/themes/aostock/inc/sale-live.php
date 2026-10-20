@@ -16,6 +16,7 @@
  *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 5): ค้นสินค้าด้วย SQL แบบแบ่งหน้า (Stock_searchPickProducts) — ฐานข้อมูลกรอง / นับ ส่งมาแค่ 60 ตัวที่จะวาด (เดิมดึงทั้งร้านมากรองใน PHP)
  *   - [x] 14 ต.ค. (ผู้ใช้เลือก): + / − นับในเครื่องก่อนแล้วบันทึกเบื้องหลัง — ปุ่ม data-step · ช่อง data-qty (JS ใน inc/footer.php) · เดิมกดรัว ๆ แล้วหาย
  *   - [x] 14 ต.ค. (ผู้ใช้เลือก): แตะสินค้าตัวใหม่ขึ้นตะกร้าทันที — แถวเป็น $row ใช้ทั้งวาดตะกร้าและแม่แบบ #pick-row · การ์ดมี data-pick · hx-ext="ao-live" (คำตอบที่มาช้าลงตัวที่อยู่บนจอ)
+ *   - [x] 15 ต.ค. (เมนูประวัติแยกหน้า ช่วง 4): ปุ่ม “ดูประวัติบิลวันนี้” เฉพาะคนที่มีสิทธิ์ดูประวัติขาย
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -293,11 +294,17 @@ if ($LIVE_PART === 'more') {
       <?php if ($sum['bills'] > 0) { ?>
         <div class="kv1"><span>เงินสด</span><b class="num"><?php echo money2($sum['cash']) ?></b></div>
         <div class="kv1"><span>โอน / พร้อมเพย์</span><b class="num"><?php echo money2($sum['transfer']) ?></b></div>
-        <?php if (page_ok($user, 'history.php')) { ?>
+        <?php if (page_ok($user, 'history.php') && isset(Stock_getAllowedLogGroups($user)['sale'])) { ?>
         <a class="btn btn-block" href="history.php?t=sale">
           <svg class="ico"><use href="#i-history"/></svg> ดูประวัติบิลวันนี้
         </a>
         <?php } ?>
+      <?php } ?>
+      <?php $myBills = Stock_getMyBillsToday($code, $user, '', '', 0);   /* บิลที่ลืมพิมพ์ — ดู / พิมพ์ได้ทุกคน (เฉพาะบิลของตัวเอง) */ ?>
+      <?php if ($myBills > 0) { ?>
+        <button type="button" class="btn btn-ghost btn-block mb-open" data-mb-open>
+          <svg class="ico"><use href="#i-print"/></svg> บิลของฉันวันนี้ (<?php echo number_format($myBills) ?> ใบ)
+        </button>
       <?php } ?>
     </div>
 

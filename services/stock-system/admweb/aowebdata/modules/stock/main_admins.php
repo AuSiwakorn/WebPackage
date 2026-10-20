@@ -2,12 +2,11 @@
 /**
  * FILE: admweb/aowebdata/modules/stock/main_admins.php
  * ROLE: หลังบ้าน admweb — จัดการผู้ดูแล / ฝ่ายบัญชีของ POS (AOSTOCK): เพิ่ม · ตั้งรหัสผ่านใหม่ · พักงาน / เปิดใช้งาน
- * DEPENDS: function.php → api.php (users_all, staff_create, staff_set_password, staff_set_active, csrf_token, csrf_check)
+ * DEPENDS: function.php → api.php
  * TABLES: ao_stock_staff, ao_stock_staff_branch, ao_stock_branch
  * TODO:
- *   - [x] เพิ่มผู้ดูแล / ฝ่ายบัญชี (รหัสผ่านเก็บเป็น password_hash)
- *   - [x] ตั้งรหัสผ่านใหม่ (ปลดล็อกด้วย) · พักงาน / เปิดใช้งาน
  *   - [ ] ลบบัญชีที่ยังไม่เคยทำรายการ (ยังไม่จำเป็น — ใช้พักงานแทน)
+ *   - [x] ประวัติการแก้ไขดู docs/CHANGELOG.md
  *
  * พนักงานหน้าร้าน (PIN) จัดการที่หน้า "จัดการพนักงาน" ของ POS — หน้านี้เฉพาะ role admin / account
  * ชื่อช่องในฟอร์มขึ้นต้น pos_ — fix.req.php ของ admweb แก้ค่าช่องชื่อ username / password (ตัด ' และ =)

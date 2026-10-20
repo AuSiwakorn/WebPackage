@@ -2,13 +2,12 @@
 /**
  * FILE: admweb/aowebdata/modules/stock/main_settings.php
  * ROLE: หลังบ้าน admweb — ตั้งค่า POS (AOSTOCK): จำนวนสาขาสูงสุด · เปิด / ปิดเมนูของ POS เป็นกลุ่มฟีเจอร์ (รับคืน · ตรวจนับ · หมวดสินค้า · ประวัติเคลื่อนไหว · รายงานพนักงาน · ฝ่ายบัญชี · การแจ้งเตือน)
- * DEPENDS: function.php → api.php (feature_groups, features_off, features_off_set, branch_limit, branch_limit_set, branch_limit_label, branches_all, branches_active, log_add, csrf_token, csrf_check)
+ * DEPENDS: function.php → api.php
  * TABLES: ao_stock_setting (key features_off, branch_limit), ao_stock_branch (นับสาขา), ao_stock_log (ประวัติชนิด setting ของระบบ)
  * TODO:
- *   - [x] ช่วงที่ 9: สวิตช์ 7 กลุ่ม — ปิดแล้วซ่อนเมนูใน POS + เปิด URL ตรงไม่ได้ (require_login) · ปิดฝ่ายบัญชี = บัญชีบทบาทนี้เข้าระบบไม่ได้
- *   - [x] ช่วงที่ 14: จำนวนสาขาสูงสุดที่ผู้ดูแล POS เพิ่มได้ (นับรวมสาขาที่ปิดใช้งาน · ว่าง / 0 = ไม่จำกัด) · เปลี่ยนชื่อหน้าเป็น "ตั้งค่า POS"
+ *   - [x] ประวัติการแก้ไขดู docs/CHANGELOG.md
  *
- * เมนูหลักของ POS (ขาย เปิด–ปิดร้าน รับเข้า เบิก สินค้า ประวัติ หน้าของผู้ดูแล) ปิดไม่ได้ — แก้รายการกลุ่มที่ feature_groups() ใน api.php
+ * รายการกลุ่มที่ปิดได้อยู่ที่ feature_groups() (api/core.php) — เมนูหลักปิดไม่ได้
  */
 PERMIT::_PERMIT(_MODULE_, 'module|mp', 'สามารถเปิด เปิด–ปิดเมนู AOSTOCK ได้', 'redirect', 'SET');
 
@@ -19,7 +18,7 @@ $byWho    = (is_object($oLogin) && isset($oLogin->user)) ? $oLogin->user . ' (�
 
 $ac = REQ_get('ac', 'post', 'str', '');
 if ($ac === 'limit') {
-	/* จำนวนสาขาสูงสุด (ช่วงที่ 14) — ว่าง / 0 = ไม่จำกัด */
+	/* จำนวนสาขาสูงสุด — ว่าง / 0 = ไม่จำกัด */
 	$raw = trim((string) REQ_get('branch_limit', 'post', 'str', ''));
 	if (!csrf_check(isset($_POST['csrf']) ? $_POST['csrf'] : null)) {
 		setRaiseMsg('เซสชันหมดอายุ กรุณาลองใหม่อีกครั้ง', _TIME_, 1);

@@ -1,7 +1,7 @@
 <?php
 /**
  * FILE: themes/aostock/stocktake.php
- * ROLE: ตรวจนับ / ปรับยอด (แบบเบา)
+ * ROLE: ตรวจนับสต๊อก (แบบเบา)
  * DEPENDS: themes/aostock/include/function.php, themes/aostock/inc/adjust-live.php, themes/aostock/inc/header.php, themes/aostock/inc/footer.php
  * TABLES: ao_stock_count, ao_stock_count_item, ao_stock_move, ao_stock_balance, ao_stock_doc_seq, ao_stock_log (ผ่าน api.php) · ใบที่กำลังทำ (ร่าง) อยู่ใน $_SESSION['adj_draft']
  * TODO:
@@ -13,13 +13,17 @@
  *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 3): htmx แตะสินค้า / ปุ่มในใบ ส่งกลับแค่ผลการนับ + การ์ดที่แตะ ($LIVE_PART / $OOB_SKUS) · ใบเต็ม ↔ ไม่เต็ม ล็อกการ์ดในเบราว์เซอร์
  *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 4): การ์ดครั้งละ 60 ใบ — htmx ?from= ส่งกลับแค่ชุดถัดไป
  *   - [x] 14 ต.ค.: ปุ่มบันทึกใบ data-qty-guard — กด + / − แล้วกดบันทึกทันที ระบบส่งจำนวนที่ค้างก่อน (inc/footer.php)
+ *   - [x] 15 ต.ค. (ใบนับแบบรายการ ช่วง 1): act=set ใช้ Stock_setCountDraft (ว่าง = เอาออก) · ไม่จำกัดครั้งละ N ตอนร้านเปิดแล้ว
+ *   - [x] 15 ต.ค. (ใบนับแบบรายการ ช่วง 5): เปลี่ยนชื่อ “ตรวจนับ / ปรับยอด” เป็น “ตรวจนับสต๊อก” · หัวหน้า / ปุ่ม / ข้อความหลังบันทึก
+ *   - [x] 15 ต.ค. (ผู้ใช้เลือก): ลองใบนับแบบตาราง (ช่วง 2–3) แล้วกลับมาใช้การ์ด · เปิดหน้ามาที่แท็บ “ทั้งหมด”
+ *         · Enter ในช่องจำนวน = ใช้ค่านี้ (ช่องไม่ผูกกับฟอร์มบันทึกแล้ว)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
     exit('403 Forbidden');
 }
 /* ==========================================================
-   ตรวจนับ / ปรับยอด (แบบเบา)
+   ตรวจนับสต๊อก (แบบเบา)
    ----------------------------------------------------------
    แตะสินค้า → กรอกจำนวนที่นับได้จริง → ระบบบอกส่วนต่าง → บันทึก
    - ตรงทุกรายการ = บันทึกเป็น "ตรวจนับแล้วตรง" ไม่ต้องใส่สาเหตุ
@@ -35,13 +39,12 @@ $code = work_branch($user);          // ผู้ดูแลเลือกส�
 $isHx   = isset($_SERVER['HTTP_HX_REQUEST']) && $_SERVER['HTTP_HX_REQUEST'] === 'true';
 $q      = isset($_GET['q'])   ? trim($_GET['q'])   : '';
 $cat    = isset($_GET['cat']) ? trim($_GET['cat']) : '';
-$tab    = isset($_GET['t'])   ? trim($_GET['t'])   : 'todo';
+$tab    = isset($_GET['t'])   ? trim($_GET['t'])   : 'all';
 $err    = '';
 $done   = null;
 $voided = null;
 $old    = adraft_meta();
-/* htmx ส่งกลับส่วนไหน (งานความเร็ว ช่วง 3): แตะสินค้า / ปุ่มในใบ = แค่ผลการนับ + การ์ดที่แตะ · ค้นหา / แท็บ / หมวด / แก้ไข / ยกเลิก = ทั้งส่วน
-   ใบเต็ม ↔ ไม่เต็ม (ร้านเปิด นับได้ครั้งละ N) — สคริปต์ใน #adj-cart ล็อก / ปลดล็อกการ์ดทุกใบในเบราว์เซอร์เอง (inc/adjust-live.php) */
+/* htmx ส่งกลับส่วนไหน (งานความเร็ว ช่วง 3): แตะสินค้า / ปุ่มในใบ = แค่ผลการนับ + การ์ดที่แตะ · ค้นหา / แท็บ / หมวด / แก้ไข / ยกเลิก = ทั้งส่วน */
 $LIVE_PART = 'all';
 $OOB_SKUS  = array();
 
@@ -50,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $err = 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่';
     } else {
         $act = isset($_POST['act']) ? $_POST['act'] : '';
-        $sku = isset($_POST['sku']) ? trim($_POST['sku']) : '';
+        $sku = (isset($_POST['sku']) && is_string($_POST['sku'])) ? trim($_POST['sku']) : '';
         if (in_array($act, array('pick', 'plus', 'minus', 'set', 'del'), true)) {
             $LIVE_PART = 'cart';
             $OOB_SKUS  = array($sku);
@@ -66,8 +69,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($act === 'minus') {
             adraft_step($sku, -1);
         } elseif ($act === 'set') {
-            $k = 'aq_' . $sku;
-            adraft_set($sku, isset($_POST[$k]) ? preg_replace('/\D/', '', $_POST[$k]) : 0);
+            $k = 'aq_' . $sku;                       // ว่าง = เอาออกจากใบ · ยอดที่จดไว้ตอนแตะการ์ดยังเป็นตัวเทียบตอนบันทึก
+            Stock_setCountDraft($code, $sku, isset($_POST[$k]) ? $_POST[$k] : '', isset($_POST['seen']) ? $_POST['seen'] : null);
         } elseif ($act === 'del') {
             adraft_remove($sku);
         } elseif ($act === 'clear') {
@@ -168,8 +171,8 @@ if ($voided !== null && isset($voided['void_mode']) && $voided['void_mode'] === 
 }
 
 $branch     = $code;
-$PAGE_TITLE = 'ตรวจนับ / ปรับยอด';
-$PAGE_SUB   = branch_name($code) . ' · ของจริงไม่ตรงกับระบบ ปรับให้ตรงที่นี่';
+$PAGE_TITLE = 'ตรวจนับสต๊อก';
+$PAGE_SUB   = branch_name($code) . ' · นับของจริงเทียบกับยอดในระบบ';
 $NAV_ACTIVE = 'stocktake.php';
 require dirname(__FILE__) . '/inc/header.php';
 ?>
@@ -204,7 +207,7 @@ require dirname(__FILE__) . '/inc/header.php';
       <?php if ($s['over'] + $s['short'] === 0) { ?>
         บันทึกแล้ว เอกสาร <b><?php echo e($done['no']) ?></b> · นับ <?php echo (int) $s['items'] ?> รายการ <b>ตรงกับระบบทั้งหมด</b>
       <?php } else { ?>
-        ปรับยอดเรียบร้อย เอกสาร <b><?php echo e($done['no']) ?></b> ·
+        บันทึกผลการนับแล้ว เอกสาร <b><?php echo e($done['no']) ?></b> ·
         นับ <?php echo (int) $s['items'] ?> รายการ (ตรง <?php echo $s['same'] ?> · เกิน <?php echo $s['over'] ?> · ขาด <?php echo $s['short'] ?>) ·
         สุทธิ <b class="num"><?php echo $net >= 0 ? '+' : '−' ?><?php echo number_format(abs($net)) ?></b> ชิ้น ·
         <?php echo $s['value'] < 0 ? '−' : '' ?><?php echo money2(abs($s['value'])) ?> บาท
@@ -306,14 +309,14 @@ require dirname(__FILE__) . '/inc/header.php';
 
     lack = (n === 0) ? 'pick' : (bad === 0) ? '' : !w ? 'why' : (needNote && !hasNote) ? 'note' : '';
     if (window.aoNeedSync) { window.aoNeedSync(go); }
-    goT.textContent = (n > 0 && bad === 0) ? 'ยืนยัน นับแล้วตรง' : 'บันทึกและปรับยอด';
+    goT.textContent = (n > 0 && bad === 0) ? 'ยืนยัน นับแล้วตรง' : 'บันทึกผลการนับ';
     bar.className = lack ? 'recv-bar adj-bar' : 'recv-bar adj-bar on';
 
     if (n === 0)                         { hint.textContent = 'แตะสินค้าที่ต้องการนับ แล้วกรอกจำนวนที่นับได้จริง'; }
     else if (bad === 0)                  { hint.textContent = 'ทุกรายการตรงกับระบบ บันทึกไว้เป็นหลักฐานว่านับแล้ว'; }
     else if (!w)                         { hint.innerHTML = 'มีรายการไม่ตรง — <a href="#adj-why" class="ab-jump">เลือกสาเหตุ</a> ก่อน'; }
     else if (needNote && !hasNote)       { hint.textContent = 'สาเหตุนี้ต้องกรอกหมายเหตุด้วย'; }
-    else                                 { hint.textContent = 'ระบบจะปรับยอดในระบบให้เท่ากับที่นับได้'; }
+    else                                 { hint.textContent = 'บันทึกแล้วยอดในระบบจะเท่ากับที่นับได้'; }
   };
 
   noteEl.addEventListener('input', window.adjSync);
@@ -327,6 +330,14 @@ require dirname(__FILE__) . '/inc/header.php';
   });
   form.addEventListener('change', function (ev) {
     if (ev.target && ev.target.name === 'why') { window.adjSync(); }
+  });
+  /* Enter ในช่องจำนวน = ใช้ค่านี้ (ช่องไม่ผูกกับฟอร์มบันทึก กด Enter จึงไม่ส่งอะไรเอง) */
+  document.addEventListener('keydown', function (ev) {
+    var i = ev.target;
+    if (ev.key === 'Enter' && i && i.matches && i.matches('#adj-cart .adj-list input[data-qty]')) {
+      ev.preventDefault();
+      i.blur();
+    }
   });
   document.body.addEventListener('htmx:afterSettle', function () { window.adjSync(); });
   window.adjSync();

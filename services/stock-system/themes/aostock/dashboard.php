@@ -12,6 +12,8 @@
  *   - [x] ช่วงที่ 11: พาไปเปิดร้านเฉพาะคนที่มีสิทธิ์เปิด / ปิดร้าน · ป้าย "สิทธิ์เสริม" แสดงเฉพาะเมื่อมีสิทธิ์เสริมจริง · ลิงก์งานค้างตามสิทธิ์
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  *   - [x] แจ้งเหตุผลตอนพาไปหน้าเปิดร้าน (เดิมพาไปเงียบ ๆ ผู้ใช้นึกว่าเป็นบั๊ก)
+ *   - [x] 15 ต.ค. (ผู้ใช้ขอ): เอาแถบ “เป้าวันนี้” ออก
+ *   - [x] 15 ต.ค.: ลิงก์ “ไปตรวจนับ” ในงานค้างเปิดแท็บ “ยังไม่นับ” (href จาก pending_tasks)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -43,8 +45,6 @@ $weekSum   = staff_sum($week);
 $monthDays = array_values(array_filter($days, function ($d) use ($monthTs) { return $d['ts'] >= $monthTs; }));
 $monthSum  = staff_sum($monthDays);
 $types     = staff_work_types($today);
-$goal      = staff_goal($me);                       // ตั้งรายสาขา (0 = ไม่ตั้งเป้า)
-$goalPct   = $goal > 0 ? min(100, (int) round($today['qty'] / $goal * 100)) : 0;
 $tops      = staff_top_products($me);
 $rank      = branch_rank_today(work_branch($user));
 $maxWeek   = 1;
@@ -106,16 +106,6 @@ require dirname(__FILE__) . '/inc/header.php';
           เฉลี่ย <?php echo number_format(round($today['qty'] / $today['docs'])) ?> ชิ้น/เอกสาร
         <?php } ?>
       </div>
-
-      <?php if ($goal > 0) { ?>
-        <div class="hm-goal<?php echo $goalPct >= 100 ? ' done' : '' ?>">
-          <div class="t">
-            <span>เป้าวันนี้ <?php echo number_format($goal) ?> ชิ้น</span>
-            <b><?php echo $goalPct ?>%</b>
-          </div>
-          <div class="bar"><i style="width:<?php echo max($goalPct, 2) ?>%"></i></div>
-        </div>
-      <?php } ?>
     </section>
 
     <!-- ===== สถิติย่อย ===== -->
@@ -324,7 +314,7 @@ require dirname(__FILE__) . '/inc/header.php';
                 <span class="ti"><svg class="ico"><use href="#<?php echo $t['type'] === 'count' ? 'i-clipboard' : 'i-alert' ?>"/></svg></span>
                 <div>
                   <b><?php echo e($t['title']) ?></b>
-                  <small><?php echo e($t['sub']) ?><?php if ($go) { ?> · <a href="<?php echo e($t['link']) ?>">ไปตรวจนับ</a><?php } ?></small>
+                  <small><?php echo e($t['sub']) ?><?php if ($go) { ?> · <a href="<?php echo e(isset($t['href']) ? $t['href'] : $t['link']) ?>">ไปตรวจนับ</a><?php } ?></small>
                 </div>
               </div>
             <?php } ?>

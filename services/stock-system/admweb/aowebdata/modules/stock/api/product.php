@@ -2,30 +2,16 @@
 /**
  * FILE: admweb/aowebdata/modules/stock/api/product.php
  * ROLE: สินค้า · หมวดสินค้า · รูปสินค้า · ยอดคงเหลือ / สถานะสต๊อก · ตัวช่วยของหน้าสินค้าในสต๊อกและหน้าเลือกสินค้า
- * DEPENDS: โหลดโดย admweb/aowebdata/modules/stock/api.php (ตัวโหลด — ห้าม include ไฟล์นี้ตรง ๆ) · ใช้ function จากไฟล์อื่นใน api/ ได้ทุกตัว
+ * DEPENDS: api.php (ตัวโหลด — ห้าม include ตรง)
  * TABLES: ao_stock_product, ao_stock_category, ao_stock_balance, ao_stock_sale / sale_item + ao_stock_receive / receive_item (product_flow_stats)
  * TODO:
- *   - [x] ช่วงที่ 10: แยกจาก api.php เดิม (ย้ายโค้ดทั้งก้อน ไม่แก้ตรรกะ) · จัดฟังก์ชันที่เคยปนอยู่หมวดอื่นให้มาอยู่หมวดนี้
- *   - [x] ช่วงที่ 12: ประวัติการเพิ่ม / ลบหมวดเป็นชนิด category (พนักงานทุกคนเห็น — เดิมปนอยู่ในตั้งค่า)
- *   - [x] ช่วงที่ 16: พนักงานเพิ่มสินค้าใหม่จากหน้านำเข้า (Stock_doAddProduct) · SKU อัตโนมัติ P0001… (Stock_nextProductSku) หรือกรอกเอง
- *         · ตั้งชื่อตามมาตรฐานใหม่ Stock_ (ดู FUNCTIONS.md)
- *   - [x] 14 ต.ค.: Stock_getPickProducts / Stock_buildTileId — หน้าเลือกสินค้าแตะแล้ววาดใหม่แค่ตะกร้า / ใบ + การ์ดใบที่แตะ (งานความเร็ว ช่วง 3)
- *   - [x] 14 ต.ค.: แสดงสินค้าครั้งละ 60 + ปุ่ม “แสดงเพิ่ม” — PRODUCT_PAGE_SIZE · Stock_getListRange · Stock_renderMoreButton (งานความเร็ว ช่วง 4)
- *   - [x] 14 ต.ค.: product_by_sku ดึงทีละตัว (Stock_getProductRowBySku) แทนโหลดทั้งร้าน · ค้นสินค้าด้วย SQL แบบแบ่งหน้า (Stock_searchPickProducts) (งานความเร็ว ช่วง 5)
- *
- * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
+ *   - [x] ประวัติการแก้ไขดู docs/CHANGELOG.md
+ * ⚠ โหลดทุก request — มีได้แค่ define() + function (ห้าม echo / header / query ตอนโหลด)
  */
 
-/* ---------- สินค้า (ตาราง ao_stock_product + ao_stock_category + ยอดจาก ao_stock_balance) ----------
-   - SKU คือตัวอ้างอิงหลักในหน้าเว็บ — ตั้งตอนเพิ่มแล้วเปลี่ยนไม่ได้ (เอกสารเก็บ SKU + ชื่อไว้เป็น snapshot)
-   - 1 สี / รุ่น = 1 SKU · เลิกขาย = is_active 0 (ประวัติยังอยู่ · ไม่ขึ้นในหน้าขาย / นำเข้า / ตรวจนับ)
-   - ผู้ดูแลเพิ่ม / แก้สินค้าที่หน้า adm-product-edit.php · รูปเก็บที่ uploads/stock/products/ (UpFile ของ admweb)
-   - ยอดคงเหลือ = ao_stock_balance (cache ของ ao_stock_move) — ไม่มีส่วนต่างใน session แล้ว (ช่วงที่ 7) */
+/* ---------- สินค้า: SKU ตั้งแล้วเปลี่ยนไม่ได้ (เอกสารเก็บ snapshot) · เลิกขาย = is_active 0 · ยอด = ao_stock_balance ---------- */
 
-/** ทุกแถวของ ao_stock_product (+ ชื่อหมวด) — array( SKU => แถว ) เรียงตามหมวด แล้วตาม SKU
-    TODO:
-      - [x] cache ต่อ request · $reset = true ล้าง cache หลังเขียน
-      - [x] 14 ต.ค. (งานความเร็ว ช่วง 5): $peek = true → แค่บอกว่าโหลดทั้งร้านไว้แล้วหรือยัง (product_by_sku ใช้ตัดสินว่าจะดึงทีละตัวไหม) */
+/** ทุกแถวของ ao_stock_product (+ ชื่อหมวด) — array( SKU => แถว ) เรียงตามหมวด แล้วตาม SKU */
 function product_db_rows($reset = false, $peek = false)
 {
     static $rows = null;
@@ -67,8 +53,7 @@ function product_balance_rows($reset = false)
     return $rows;
 }
 
-/** แถวในฐานข้อมูล → รูปแบบสินค้าที่หน้าเว็บใช้ (sku name cat unit cost price reorder stock ...)
-    แถวที่มี __stock มาด้วย (ดึงทีละตัว / ค้นแบบแบ่งหน้า — ช่วง 5) ใช้ยอดนั้นเลย ไม่โหลดยอดทั้งร้าน */
+/** แถวในฐานข้อมูล → รูปแบบสินค้าที่หน้าเว็บใช้ */
 function product_shape($r)
 {
     $id  = (int) $r['product_id'];
@@ -94,9 +79,7 @@ function product_shape($r)
     );
 }
 
-/** สินค้าที่ขายอยู่ (หรือทั้งหมดรวมที่เลิกขาย) — รูปแบบเดียวกับ product_shape
-    TODO:
-      - [x] อ่านจาก ao_stock_product (เดิม demo_products) */
+/** สินค้าที่ขายอยู่ (หรือทั้งหมดรวมที่เลิกขาย) — รูปแบบเดียวกับ product_shape */
 function products_list($withInactive = false)
 {
     $out = array();
@@ -116,11 +99,7 @@ function product_db_reset()
     Stock_getProductRowBySku('', true);
 }
 
-/** แถวสินค้าตัวเดียว (+ ชื่อหมวด) พร้อมยอดทุกสาขาใน __stock — ไม่โหลดทั้งร้าน (งานความเร็ว ช่วง 5)
-    คืน array แถว · null = ไม่มี SKU นี้ · false = ดึงทีละตัวครบเพดานแล้ว (request นี้ใช้สินค้าหลายตัว → ให้โหลดทั้งร้านครั้งเดียวคุ้มกว่า)
-    แตะสินค้า / ปุ่มในตะกร้าใช้แค่ไม่กี่ตัว — เดิมโหลดสินค้าและยอดทั้งร้านทุกครั้ง (สินค้า 3,000 ตัว ≈ 90 ms ต่อการแตะ)
-    TODO:
-      - [x] 14 ต.ค. (งานความเร็ว ช่วง 5) · cache ต่อ request · $reset = true ล้าง (product_db_reset) */
+/** แถวสินค้าตัวเดียว + ยอดทุกสาขา · null = ไม่มี · false = ครบเพดาน (ให้โหลดทั้งร้าน) */
 function Stock_getProductRowBySku($sku, $reset = false)
 {
     $one = &Stock_getProductRowCache();
@@ -138,19 +117,14 @@ function Stock_getProductRowBySku($sku, $reset = false)
     return $one[$sku];
 }
 
-/** ที่เก็บแถวสินค้าที่ดึงทีละตัว / ทีละชุด ต่อ request — SKU => แถว (มี __stock) หรือ null (ไม่มี SKU นี้)
-    TODO:
-      - [x] 14 ต.ค. (งานความเร็ว ช่วง 5) — ใช้ร่วมกันระหว่าง Stock_getProductRowBySku กับ Stock_prefetchProducts */
+/** ที่เก็บแถวสินค้าที่ดึงทีละตัว / ทีละชุด ต่อ request — SKU => แถว (มี __stock) หรือ null (ไม่มี SKU นี้) */
 function &Stock_getProductRowCache()
 {
     static $cache = array();
     return $cache;
 }
 
-/** ดึงสินค้าหลายตัวในคิวรีเดียว (+ ยอดทุกสาขา) เก็บไว้ให้ product_by_sku — ใช้ก่อนวนรายการ (ตะกร้า / ร่างใบ / ความเคลื่อนไหว / รายงาน)
-    เดิมวน product_by_sku ทีละตัว = คิวรีทีละตัว · โหลดทั้งร้านไว้แล้ว = ไม่ทำอะไร · เกิน 300 ตัว = โหลดทั้งร้านครั้งเดียวแทน
-    TODO:
-      - [x] 14 ต.ค. (งานความเร็ว ช่วง 5) */
+/** ดึงสินค้าหลายตัวในคิวรีเดียวเก็บไว้ให้ product_by_sku (ใช้ก่อนวนรายการ) */
 function Stock_prefetchProducts($skus)
 {
     if (product_db_rows(false, true)) {
@@ -193,13 +167,7 @@ function Stock_prefetchProducts($skus)
     }
 }
 
-/** ค้นสินค้าที่ขายอยู่ด้วย SQL แบบแบ่งหน้า — คืน array('rows' => สินค้าเฉพาะช่วงที่ขอ, 'total' => จำนวนที่ตรงทั้งหมด) (งานความเร็ว ช่วง 5)
-    ผลเหมือน sale_products (หมวดตรงชื่อ · คำค้นอยู่ในชื่อหรือ SKU ไม่สนตัวพิมพ์ · เรียงตามหมวดแล้ว SKU) แต่ฐานข้อมูลกรองและนับให้
-    แล้วส่งมาแค่ $limit ตัว — เดิมดึงสินค้าทั้งร้านมากรองใน PHP แล้วค่อยตัดเหลือ 60
-    $branch = รหัสสาขา หรือ 'ALL' (รวมสาขาที่เปิดใช้งาน) · $limit = 0 → นับอย่างเดียว
-    $only / $skip = เฉพาะ / ยกเว้น SKU ในรายการ (แท็บ “นับแล้ว / ยังไม่นับ” ของหน้าตรวจนับ) · null = ไม่กรอง
-    TODO:
-      - [x] 14 ต.ค. (งานความเร็ว ช่วง 5) */
+/** ค้นสินค้าที่ขายอยู่แบบแบ่งหน้าใน SQL · คืน array('rows', 'total') */
 function Stock_searchPickProducts($branch, $q, $cat, $offset = 0, $limit = PRODUCT_PAGE_SIZE, $only = null, $skip = null)
 {
     $where = array('p.is_active = 1');
@@ -210,11 +178,12 @@ function Stock_searchPickProducts($branch, $q, $cat, $offset = 0, $limit = PRODU
     }
     $q = trim((string) $q);
     if ($q !== '') {
-        /* LOWER + utf8mb4_bin = เทียบตรงตัวแบบไม่สนตัวพิมพ์ (เหมือน stripos) — collation ปกติของตารางมองข้ามวรรณยุกต์ไทยบางตัว */
+        /* LOWER + utf8mb4_bin = ไม่สนตัวพิมพ์แต่ไม่มองข้ามวรรณยุกต์ · บาร์โค้ดต้องตรงทั้งรหัส */
         $like    = '%' . addcslashes(mb_strtolower($q, 'UTF-8'), '\\%_') . '%';
-        $where[] = '(LOWER(p.name) COLLATE utf8mb4_bin LIKE ? OR LOWER(p.sku) COLLATE utf8mb4_bin LIKE ?)';
+        $where[] = '(LOWER(p.name) COLLATE utf8mb4_bin LIKE ? OR LOWER(p.sku) COLLATE utf8mb4_bin LIKE ? OR p.barcode = ?)';
         $args[]  = $like;
         $args[]  = $like;
+        $args[]  = preg_replace('/\s+/', '', $q);
     }
     foreach (array('IN' => $only, 'NOT IN' => $skip) as $op => $skus) {
         if ($skus === null) {
@@ -278,9 +247,7 @@ function product_units()
     return array_keys($out);
 }
 
-/** ตรวจค่าจากฟอร์มสินค้า — คืน array(ค่า, ข้อผิดพลาด) · $isNew = ตรวจ SKU ด้วย
-    TODO:
-      - [x] SKU ห้ามซ้ำ (รวมที่เลิกขาย) · บาร์โค้ดห้ามซ้ำกับสินค้าอื่น · ราคา / ทุน / จุดสั่งซื้อไม่ติดลบ */
+/** ตรวจค่าจากฟอร์มสินค้า — คืน array(ค่า, ข้อผิดพลาด) · $isNew = ตรวจ SKU ด้วย */
 function product_read_form($isNew, $sku)
 {
     $txt = function ($k, $max) {
@@ -358,10 +325,7 @@ function product_save($isNew, $d)
     return $id;
 }
 
-/** SKU อัตโนมัติถัดไป P0001, P0002, … (ตัวนับใน ao_stock_doc_seq ชุด SKU · ข้ามเลขที่มีคนกรอกเองไปแล้ว) — ต้องเรียกใน sdb_tx
-    ตัวนับเป็นแถวเดียว (upsert) คนที่เพิ่มพร้อมกันต่อคิวกันเอง ไม่ได้เลขซ้ำ
-    TODO:
-      - [x] ช่วงที่ 16 (ข้อ 2: เว้นว่าง = ตั้งให้อัตโนมัติ) */
+/** SKU อัตโนมัติถัดไป P0001, P0002, … — ต้องเรียกใน sdb_tx */
 function Stock_nextProductSku()
 {
     do {
@@ -370,13 +334,8 @@ function Stock_nextProductSku()
     return $sku;
 }
 
-/** เพิ่มสินค้าใหม่จากหน้านำเข้า (พนักงานที่มีสิทธิ์ product_add) — ตรวจเหมือนหน้าเพิ่มสินค้าของผู้ดูแล (product_read_form)
-    ฟอร์ม: sku_mode (auto | manual) · sku · name · cat · cat_new (หมวดใหม่ — ต้องมีสิทธิ์ category_add) · unit · barcode · cost · price · reorder
-    หมวดใหม่ + สินค้า + ประวัติ อยู่ใน transaction เดียว — ตรวจไม่ผ่าน = ไม่มีอะไรถูกบันทึก (หมวดใหม่ไม่ค้าง)
-    คืน array('sku' => SKU, 'name' => ชื่อ) หรือ array('error' => ข้อความ)
-    TODO:
-      - [x] ช่วงที่ 16 */
-function Stock_doAddProduct($user, $code)
+/** เพิ่มสินค้าใหม่ (พนักงานที่มีสิทธิ์ product_add) · คืน array('sku', 'name') หรือ array('error') */
+function Stock_doAddProduct($user, $code, $from = 'หน้านำเข้าสินค้า')
 {
     if (!can($user, 'product_add')) {
         return array('error' => 'ไม่มีสิทธิ์ “เพิ่มสินค้าใหม่” — ติดต่อผู้จัดการสาขาหรือผู้ดูแลเพื่อเปิดสิทธิ์');
@@ -396,7 +355,7 @@ function Stock_doAddProduct($user, $code)
         return array('error' => 'ไม่มีสิทธิ์เพิ่มหมวดสินค้าใหม่ — เลือกจากหมวดที่มีอยู่ หรือติดต่อผู้จัดการสาขา');
     }
     try {
-        return sdb_tx(function () use ($user, $code, $auto, $newCat) {
+        return sdb_tx(function () use ($user, $code, $auto, $newCat, $from) {
             if ($newCat !== '') {
                 $e = cat_add($newCat, $user, $code);
                 if ($e !== '') {
@@ -418,7 +377,7 @@ function Stock_doAddProduct($user, $code)
                 'หมวด'     => $d['cat'],
                 'ราคาขาย'  => money2($d['price']) . ' บาท / ' . $d['unit'],
                 'ทุน'      => money2($d['cost']) . ' บาท',
-                'เพิ่มโดย' => $user['name'] . ' (จากหน้านำเข้าสินค้า)',
+                'เพิ่มโดย' => $user['name'] . ' (จาก' . $from . ')',
             ));
             return array('sku' => $d['sku'], 'name' => $d['name']);
         });
@@ -436,27 +395,39 @@ function product_set_active($sku, $on)
     product_db_reset();
 }
 
-/** รูปสินค้าที่อัปโหลด — ตรวจชนิด / ขนาด แล้วเก็บด้วย UpFile ของ admweb (แทนรูปเดิม)
-    คืน array('ok' => path) หรือ array('error' => ข้อความ) · ไม่มีไฟล์ = array()
-    TODO:
-      - [x] JPG / PNG / WEBP ไม่เกิน 2 MB · ตรวจด้วย getimagesize · ชื่อไฟล์ = SKU + เวลา (กันแคชรูปเก่า) */
+/** ตรวจรูปสินค้าที่อัปโหลด (ยังไม่เก็บ) · คืน '' = ผ่าน หรือไม่ได้เลือกรูป · ข้อความ = ไม่ผ่าน */
+function Stock_checkProductImage($field)
+{
+    if (empty($_FILES[$field]) || !is_array($_FILES[$field]) || $_FILES[$field]['error'] === UPLOAD_ERR_NO_FILE) {
+        return '';
+    }
+    $f = $_FILES[$field];
+    if ($f['error'] !== UPLOAD_ERR_OK) {
+        return 'อัปโหลดรูปไม่สำเร็จ (ไฟล์อาจใหญ่เกินที่เซิร์ฟเวอร์รับได้)';
+    }
+    if ($f['size'] > 2 * 1024 * 1024) {
+        return 'รูปใหญ่เกิน 2 MB';
+    }
+    $info = @getimagesize($f['tmp_name']);
+    if ($info === false || !in_array($info[2], array(IMAGETYPE_JPEG, IMAGETYPE_PNG, IMAGETYPE_WEBP), true)) {
+        return 'ไฟล์ไม่ใช่รูป JPG / PNG / WEBP';
+    }
+    return '';
+}
+
+/** เก็บรูปสินค้าที่อัปโหลด (แทนรูปเดิม) · คืน array('ok' => path) | array('error') | array() */
 function product_image_store($sku, $field, $oldPath)
 {
     if (empty($_FILES[$field]) || !is_array($_FILES[$field]) || $_FILES[$field]['error'] === UPLOAD_ERR_NO_FILE) {
         return array();
     }
-    $f = $_FILES[$field];
-    if ($f['error'] !== UPLOAD_ERR_OK) {
-        return array('error' => 'อัปโหลดรูปไม่สำเร็จ (ไฟล์อาจใหญ่เกินที่เซิร์ฟเวอร์รับได้)');
+    $e = Stock_checkProductImage($field);
+    if ($e !== '') {
+        return array('error' => $e);
     }
-    if ($f['size'] > 2 * 1024 * 1024) {
-        return array('error' => 'รูปใหญ่เกิน 2 MB');
-    }
-    $info  = @getimagesize($f['tmp_name']);
+    $f     = $_FILES[$field];
+    $info  = getimagesize($f['tmp_name']);
     $types = array(IMAGETYPE_JPEG => 'jpg', IMAGETYPE_PNG => 'png', IMAGETYPE_WEBP => 'webp');
-    if ($info === false || !isset($types[$info[2]])) {
-        return array('error' => 'ไฟล์ไม่ใช่รูป JPG / PNG / WEBP');
-    }
     require_once PATH_PLUGIN . '/uploadfile/UpFile.php';
     $up    = new UpFile();
     $name  = preg_replace('/[^A-Za-z0-9._-]/', '', $sku) . '-' . date('YmdHis') . '.' . $types[$info[2]];
@@ -483,13 +454,9 @@ function product_image_remove($sku, $oldPath)
     product_db_reset();
 }
 
-/* ==========================================================
-   ฟังก์ชันสรุปข้อมูล — $branch = รหัสสาขา หรือ 'ALL'
-   ========================================================== */
+/* ---------- สรุปข้อมูล — $branch = รหัสสาขา หรือ 'ALL' ---------- */
 
-/** ยอดคงเหลือของสินค้าในสาขา จาก ao_stock_balance (ไม่มีแถว = 0)
-    TODO:
-      - [x] ช่วงที่ 7: เลิกบวกส่วนต่างใน session (stock_adj) — ทุกการขยับสต๊อกลง stock_move แล้ว */
+/** ยอดคงเหลือของสินค้าในสาขา จาก ao_stock_balance (ไม่มีแถว = 0) */
 function product_base_qty($p, $code)
 {
     return isset($p['stock'][$code]) ? (int) $p['stock'][$code] : 0;
@@ -508,9 +475,7 @@ function product_qty($p, $branch)
     return product_base_qty($p, $branch);
 }
 
-/** ราคาขายต่อหน่วย = ราคาที่ร้านตั้ง (ao_stock_product.sell_price)
-    TODO:
-      - [x] ช่วงที่ 10: เอาสูตรราคาสมมติของเดโม (ทุน × 1.4) ออก */
+/** ราคาขายต่อหน่วย = ราคาที่ร้านตั้ง (ao_stock_product.sell_price) */
 function product_price($p)
 {
     return isset($p['price']) ? (float) $p['price'] : 0.0;
@@ -526,9 +491,7 @@ function branch_status($p, $code)
     return $qty <= $p['reorder'] ? 'low' : 'ok';
 }
 
-/** ค้นสินค้าจาก SKU (รวมที่เลิกขาย — เอกสารเก่ายังอ้างถึงได้)
-    TODO:
-      - [x] 14 ต.ค. (งานความเร็ว ช่วง 5): ยังไม่ได้โหลดทั้งร้าน → ดึงทีละตัว (Stock_getProductRowBySku) · ใช้หลายตัวเกินเพดาน → โหลดทั้งร้านครั้งเดียว */
+/** ค้นสินค้าจาก SKU (รวมที่เลิกขาย — เอกสารเก่ายังอ้างถึงได้) */
 function product_by_sku($sku)
 {
     $sku = (string) $sku;
@@ -542,11 +505,7 @@ function product_by_sku($sku)
     return isset($rows[$sku]) ? product_shape($rows[$sku]) : null;
 }
 
-/**
- * สถานะรวมของสินค้า
- * - ดูรายสาขา: เทียบยอดสาขานั้นกับจุดสั่งซื้อ
- * - ดูทุกสาขา: ใช้สถานะที่แย่ที่สุดในบรรดาสาขาทั้งหมด
- */
+/** สถานะรวมของสินค้า (ทุกสาขา = สถานะที่แย่ที่สุด) */
 function product_status($p, $branch)
 {
     if ($branch !== 'ALL') {
@@ -648,17 +607,9 @@ function product_cats()
     return array_keys(cat_registry());
 }
 
-/* ==========================================================
-   หมวดสินค้า (ตาราง ao_stock_category)
-   ----------------------------------------------------------
-   พนักงานที่มีสิทธิ์ category และผู้ดูแลเพิ่มหมวดได้ · หมวดใช้ร่วมกันทุกสาขา
-   ลบได้เฉพาะหมวดที่ไม่มีสินค้าอ้างถึงเลย (รวมสินค้าที่เลิกขาย) → DELETE
-   created_by = staff_id ผู้เพิ่ม (0 = ระบบ / นำเข้า แสดงเป็น "หมวดตั้งต้น")
-   ========================================================== */
+/* ---------- หมวดสินค้า: ใช้ร่วมทุกสาขา · ลบได้เฉพาะหมวดที่ไม่มีสินค้าอ้างถึง ---------- */
 
-/** ทะเบียนหมวด: ชื่อ => array(id, count จำนวนสินค้า (รวมเลิกขาย), added เพิ่มโดยผู้ใช้ไหม, by, at)
-    TODO:
-      - [x] อ่านจาก ao_stock_category + นับสินค้าจาก ao_stock_product · cache ต่อ request */
+/** ทะเบียนหมวด: ชื่อ => array(id, count จำนวนสินค้า (รวมเลิกขาย), added เพิ่มโดยผู้ใช้ไหม, by, at) */
 function cat_registry($reset = false)
 {
     static $out = null;
@@ -762,10 +713,7 @@ function sale_products($branch, $q, $cat)
     return $out;
 }
 
-/** สินค้าเฉพาะ SKU ที่ระบุ (ที่ยังขายอยู่) รูปแบบเดียวกับ sale_products — ใช้วาดการ์ดสินค้าใบที่เพิ่งแตะใหม่
-    ตอนหน้าขาย / นำเข้า / เบิก / ตรวจนับส่งกลับแค่ตะกร้าหรือใบ (ไม่ส่งรายการสินค้าทั้งหมดกลับทุกครั้งที่แตะ)
-    TODO:
-      - [x] 14 ต.ค. (งานความเร็ว ช่วง 3) */
+/** สินค้าเฉพาะ SKU ที่ระบุ (ที่ยังขาย) — วาดการ์ดใบที่เพิ่งแตะ */
 function Stock_getPickProducts($branch, $skus)
 {
     $out = array();
@@ -782,25 +730,18 @@ function Stock_getPickProducts($branch, $skus)
     return $out;
 }
 
-/** id ของการ์ดสินค้าในหน้าเลือกสินค้า — ใช้สลับการ์ดใบเดียวแบบ hx-swap-oob (SKU มีอักขระที่ใช้เป็น id ไม่ได้ จึงแปลงเป็น hash)
-    TODO:
-      - [x] 14 ต.ค. (งานความเร็ว ช่วง 3) */
+/** id ของการ์ดสินค้า (hash ของ SKU) ใช้สลับการ์ดใบเดียวแบบ hx-swap-oob */
 function Stock_buildTileId($sku)
 {
     return 'g-' . substr(md5((string) $sku), 0, 12);
 }
 
-/* ---------- แสดงสินค้าครั้งละ 60 รายการ + ปุ่ม “แสดงเพิ่ม” (งานความเร็ว ช่วง 4 · ผู้ใช้เลือก 14 ต.ค.) ----------
-   ร้านมีสินค้าเป็นพัน — วาดทุกตัวทีเดียว = หน้าละหลาย MB และ iPad ค้างหลายวินาที
-   ?n=N    เปิดหน้า (หรือไม่มี JavaScript) → แถว 0 ถึง N (ปัดขึ้นเป็นทีละ 60)
-   ?from=N htmx กด “แสดงเพิ่ม” → ส่งกลับแค่แถว N ถึง N+60 + ปุ่มถัดไป (สลับแทนปุ่มเดิม) */
+/* ---------- แสดงสินค้าครั้งละ 60 + ปุ่ม “แสดงเพิ่ม” · ?n=N เปิดหน้า · ?from=N htmx ชุดถัดไป ---------- */
 if (!defined('PRODUCT_PAGE_SIZE')) {
     define('PRODUCT_PAGE_SIZE', 60);
 }
 
-/** ช่วงแถวที่จะวาด — array(แถวเริ่ม, แถวจบ (ไม่รวม), เป็นคำขอ “แสดงเพิ่ม” ไหม) ตาม ?from / ?n ด้านบน
-    TODO:
-      - [x] 14 ต.ค. (งานความเร็ว ช่วง 4) */
+/** ช่วงแถวที่จะวาด — array(แถวเริ่ม, แถวจบ (ไม่รวม), เป็นคำขอ “แสดงเพิ่ม” ไหม) ตาม ?from / ?n ด้านบน */
 function Stock_getListRange()
 {
     $size = PRODUCT_PAGE_SIZE;
@@ -813,12 +754,7 @@ function Stock_getListRange()
     return array(0, $n, false);
 }
 
-/** ปุ่ม “แสดงเพิ่ม” ท้ายรายการ — แสดงครบแล้ว = ไม่ echo อะไร
-    $url  = หน้าเดิมพร้อมตัวกรอง (ไม่มี n / from) · $cols มากกว่า 0 → <tr> ในตาราง (colspan)
-    $cols = 0 → แท็ก $tag ('div' ในกริดการ์ด · 'li' ใน <ul>)
-    htmx: แทนที่แถวของปุ่มด้วยรายการชุดถัดไป + ปุ่มใหม่ · ไม่มี JavaScript: ลิงก์เปิดหน้าเดิมแบบ n เพิ่มอีก 60
-    TODO:
-      - [x] 14 ต.ค. (งานความเร็ว ช่วง 4) */
+/** ปุ่ม “แสดงเพิ่ม” ท้ายรายการ (แสดงครบแล้ว = ไม่ echo) */
 function Stock_renderMoreButton($end, $total, $url, $cols = 0, $tag = 'div')
 {
     if ($end >= $total) {
@@ -838,18 +774,9 @@ function Stock_renderMoreButton($end, $total, $url, $cols = 0, $tag = 'div')
     }
 }
 
-/* ==========================================================
-   ตัวช่วยของหน้ารายการสินค้าในสต๊อก — ยอดคงเหลือมาจาก product_qty() (ao_stock_balance)
-   ========================================================== */
+/* ---------- ตัวช่วยของหน้าสินค้าในสต๊อก ---------- */
 
-/* ==========================================================
-   รูปสินค้า
-   ----------------------------------------------------------
-   วางไฟล์รูปไว้ที่  assets/products/<SKU>.jpg  (หรือ .png .webp)
-   เช่น assets/products/CS-001.jpg  แล้วระบบจะหยิบมาใช้เอง
-   ไม่มีรูป = วาดรูปแทนจากหมวดสินค้าให้อัตโนมัติ ไม่มีช่องว่าง
-   ระบบจริง: เก็บชื่อไฟล์ไว้ในตารางสินค้าแล้วอ่านจากฟิลด์นั้นแทน
-   ========================================================== */
+/** URL รูปสินค้า: รูปที่อัปโหลด → assets/products/<SKU>.* → '' (ใช้รูปแทนจากหมวด) */
 
 function product_img($p)
 {
@@ -892,7 +819,7 @@ function thumb_html($p, $extra = '')
 {
     $img = product_img($p);
     $sty = cat_style($p['cat']);
-    $cls = 'thumb thumb--' . $sty[1] . ($extra !== '' ? ' ' . $extra : '');
+    $cls = 'thumb thumb--' . ($img !== '' ? 'img' : $sty[1]) . ($extra !== '' ? ' ' . $extra : '');
 
     if ($img !== '') {
         return '<span class="' . $cls . '"><img src="' . e($img) . '" alt="" loading="lazy"></span>';
@@ -947,10 +874,7 @@ function stock_qs($q, $cat, $st, $sort)
     return $parts ? '?' . implode('&', $parts) : '';
 }
 
-/**
- * รายการสินค้าของสาขาหนึ่ง พร้อมสถานะและระดับสต๊อก
- * pct = ยอดคงเหลือเทียบกับจุดสั่งซื้อ (เกิน 100 คือปลอดภัย)
- */
+/** รายการสินค้าของสาขาหนึ่ง พร้อมสถานะและ pct (ยอดเทียบจุดสั่งซื้อ) */
 function stock_rows($code, $q, $cat, $st, $sort)
 {
     $q    = trim($q);
@@ -1061,13 +985,7 @@ function stock_branch_sum($code)
     return $sum;
 }
 
-/**
- * ตัวเลขประกอบหน้าสินค้าในสต๊อกของผู้ดูแล (adm-products.php) ย้อนหลัง $days วัน รวมวันนี้
- * คืน array(
- *   'sold' => array( SKU => array( สาขา => จำนวนที่ขาย ) )      ไม่นับบิลที่ยกเลิก
- *   'recv' => array( SKU => array( สาขา => วันที่รับเข้าล่าสุด Ymd ) ) ไม่นับใบที่ยกเลิก
- * )
- */
+/** ยอดขาย + วันรับเข้าล่าสุดรายสินค้ารายสาขา ย้อนหลัง $days วัน (adm-products.php) */
 function product_flow_stats($codes, $days = 30)
 {
     $sold  = array();

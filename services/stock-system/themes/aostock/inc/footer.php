@@ -20,6 +20,9 @@
  *   - [x] 14 ต.ค. (ผู้ใช้เลือก): + / − นับในเครื่องก่อนแล้วบันทึกเบื้องหลัง (data-step · input[data-qty]) — เดิมกดรัว ๆ แล้วหาย · ไม่บังจอตอนบันทึกจำนวน (data-no-busy)
  *         · กดรับเงิน / บันทึก ([data-qty-guard]) ตอนยังส่งไม่ครบ = ส่งก่อนแล้วกดให้เอง · ตะกร้าวาดใหม่แล้วเงินที่พิมพ์ในช่องรับเงินไม่หาย
  *   - [x] 14 ต.ค. (ผู้ใช้เลือก): แตะสินค้าตัวใหม่ขึ้นตะกร้า / ใบทันที (addRow จากแม่แบบ #pick-row) แล้วบันทึกเบื้องหลังแบบ + / −
+ *   - [x] 15 ต.ค. (ใบนับแบบรายการ ช่วง 5): เปลี่ยนชื่อ “ตรวจนับ / ปรับยอด” เป็น “ตรวจนับสต๊อก” (กล่องยืนยัน) · กล่องยืนยันรับเข้าบอก “ถ้าผิดยกเลิกใบได้ภายหลัง”
+ *   - [x] 15 ต.ค. (ผู้ใช้เลือก): ตรวจนับกลับเป็นหน้าการ์ดแบบเดิม — กล่องยืนยันแสดงทุกแถวเหมือนเดิม (ใบนับแบบตาราง ช่วง 2–3 ถอดออก)
+ *   - [x] 15 ต.ค. (เมนูประวัติแยกหน้า ช่วง 2): หน้าที่ตั้ง $CONFIRM_MODAL ได้กล่องยืนยันด้วย (รายละเอียดวันของผู้ดูแล — เมนูที่เขียวเปลี่ยนตามกลุ่มแล้ว)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -30,7 +33,7 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
   </div><!-- /.main -->
 </div><!-- /.app -->
 
-<?php if (in_array($NAV_ACTIVE, array('sale.php', 'history.php', 'receive.php', 'issue.php', 'stocktake.php', 'adm-history.php'), true)) { ?>
+<?php if (in_array($NAV_ACTIVE, array('sale.php', 'history.php', 'receive.php', 'issue.php', 'stocktake.php'), true) || !empty($CONFIRM_MODAL)) { ?>
 <!-- ===== กล่องยืนยัน — ใช้ทั้งรับเงินและยกเลิกบิล ===== -->
 <div class="modal" id="confirm-modal" hidden>
   <div class="modal-back" data-close></div>
@@ -209,10 +212,11 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
    - ตรวจนับ: นับเกิน / ขาดคิดจากตัวเลขในช่องทันที → กล่องสาเหตุขึ้น / หายทันที (adjSync)
    - กดรับเงิน / บันทึกใบ ([data-qty-guard]) ตอนยังส่งไม่ครบ → ส่งที่ค้างทันที รอคำตอบ แล้วกดปุ่มนั้นให้อีกครั้งเอง
    - ล้างทั้งตะกร้า / ใบ หรือเอาแถวออก → ลืมตัวเลขที่ยังไม่ได้ส่งของแถวนั้น
-   - แตะสินค้าตัวใหม่ → สร้างแถวจากแม่แบบ #pick-row + data-pick ของการ์ดทันที แล้วส่งแบบเดียวกับ + / − (fresh = แถวที่เซิร์ฟเวอร์ยังไม่มี) */
+   - แตะสินค้าตัวใหม่ → สร้างแถวจากแม่แบบ #pick-row + data-pick ของการ์ดทันที แล้วส่งแบบเดียวกับ + / − (fresh = แถวที่เซิร์ฟเวอร์ยังไม่มี)
+   - พิมพ์จำนวนเอง = แบบเดียวกับ + / − (หยุดพิมพ์ 0.7 วินาทีแล้วส่ง) · ใบวาดใหม่ระหว่างพิมพ์ → ช่องใหม่ได้โฟกัสต่อ */
 (function () {
   if (!window.htmx) { return; }
-  var want = {}, sent = {}, timer = null, inflight = 0, again = '', fresh = {}, pend = {};
+  var want = {}, sent = {}, timer = null, inflight = 0, again = '', fresh = {}, pend = {}, wait = 400, typing = null;
   var esc = function (s) { return (window.CSS && CSS.escape) ? CSS.escape(s) : String(s).replace(/["\\]/g, '\\$&'); };
   function field(sku) { return document.querySelector('input[data-qty][data-sku="' + esc(sku) + '"]'); }
   var commas = function (s) { return s.replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
@@ -273,19 +277,70 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
       b.classList.remove('is-in');
     }
   }
-  function adjLocal() {
-    var s = document.getElementById('adj-sum');
-    if (!s) { return; }
-    var over = 0, short = 0;
-    document.querySelectorAll('.adj-list li[data-have]').forEach(function (li) {
-      var i = li.querySelector('input[data-qty]');
-      if (!i) { return; }
-      var d = (parseInt(i.value, 10) || 0) - (parseInt(li.getAttribute('data-have'), 10) || 0);
-      if (d > 0) { over++; } else if (d < 0) { short++; }
-    });
-    s.setAttribute('data-over', over);
-    s.setAttribute('data-short', short);
-    if (window.adjSync) { window.adjSync(); }
+  /* ตัวเลขที่คิดจากจำนวนได้ทันที (ยอดเงินรอเซิร์ฟเวอร์ — จางไว้ใน app.css)
+     แถว: คงเหลือ → หลังรับเข้า / ตัดออก (data-dir ของ #pick-row) · ราคา × จำนวน (หน้าขาย) · ส่วนต่างที่นับ (ตรวจนับ) */
+  var num = function (s) { return parseInt(String(s).replace(/[^\d-]/g, ''), 10) || 0; };
+  function rowLocal(li, v) {
+    var box = li.closest('.sale-cart'), tpl = box ? box.querySelector('#pick-row') : null;
+    var dir = tpl ? parseInt(tpl.getAttribute('data-dir') || '0', 10) : 0;
+    var h = li.querySelector('[data-f="have"]'), a = li.querySelector('[data-f="after"]'), q = li.querySelector('[data-f="qty"]');
+    if (h && a && dir) {
+      var after = num(h.textContent) + dir * v;
+      a.textContent = commas(String(after));
+      if (dir < 0) { a.classList.toggle('zero', after <= 0); }
+    }
+    if (q) { q.textContent = commas(String(v)); }
+    if (li.hasAttribute('data-have')) {
+      var d = v - num(li.getAttribute('data-have')), c = li.querySelector('.dchip'), mv = li.querySelector('.moved');
+      if (mv) { mv.parentNode.removeChild(mv); }                 // นับใหม่แล้ว = รับรู้ยอดที่เปลี่ยน (เซิร์ฟเวอร์ได้ seen)
+      li.setAttribute('data-diff', d);
+      li.classList.toggle('is-eq', d === 0);
+      li.classList.toggle('is-diff', d !== 0);
+      if (c) {
+        c.className = 'dchip ' + (d > 0 ? 'up' : (d < 0 ? 'dn' : 'eq'));
+        c.textContent = d > 0 ? '+' + commas(String(d)) : (d < 0 ? '−' + commas(String(-d)) : 'ตรง');
+      }
+    }
+  }
+  /* ยอดรวมของใบ: หัวใบ (รายการ · ชิ้น) · กล่องรวมชิ้น · ตรวจนับ = ตรง / เกิน / ขาด + ส่วนต่างสุทธิ · แถบล่างตามด้วย xxxSync */
+  function pcs(el, t) {
+    var sm = document.createElement('small');
+    sm.textContent = 'ชิ้น';
+    el.textContent = t;
+    el.appendChild(sm);
+  }
+  function sums(box) {
+    if (!box) { return; }
+    var rows = box.querySelectorAll('.cart-list li'), n = 0, all = 0, same = 0, over = 0, short = 0, net = 0;
+    for (var k = 0; k < rows.length; k++) {
+      var i = rows[k].querySelector('input[data-qty]');
+      if (!i) { continue; }
+      var v = num(i.value);
+      n++;
+      all += v;
+      if (rows[k].hasAttribute('data-have')) {
+        var d = v - num(rows[k].getAttribute('data-have'));
+        net += d;
+        if (d > 0) { over++; } else if (d < 0) { short++; } else { same++; }
+      }
+    }
+    var sub = box.querySelector('.card-head .sub'), adj = box.querySelector('#adj-sum'), tot = box.querySelector('#issue-sum, #recv-sum');
+    if (adj) {
+      if (sub) { sub.textContent = n + ' รายการ · ตรง ' + same + ' · เกิน ' + over + ' · ขาด ' + short; }
+      adj.setAttribute('data-items', n);
+      adj.setAttribute('data-over', over);
+      adj.setAttribute('data-short', short);
+      pcs(adj, net === 0 ? '0' : (net > 0 ? '+' : '−') + commas(String(Math.abs(net))));
+      if (window.adjSync) { window.adjSync(); }
+      return;
+    }
+    if (sub) { sub.textContent = n + ' รายการ · ' + commas(String(all)) + ' ชิ้น'; }
+    if (tot) {
+      tot.setAttribute('data-v', all);
+      pcs(tot, commas(String(all)));
+      if (tot.id === 'issue-sum' && window.issueSync) { window.issueSync(); }
+      if (tot.id === 'recv-sum' && window.recvSync) { window.recvSync(); }
+    }
   }
   function paint(inp, v) {
     var b = bounds(inp), li = inp.closest('li'), box = inp.closest('.sale-cart');
@@ -296,10 +351,10 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
         var d = parseInt(x.getAttribute('data-step'), 10) || 0;
         x.disabled = (d < 0) ? v <= b[0] : v >= b[1];
       });
+      rowLocal(li, v);
     }
-    if (box) { box.classList.add('is-dirty'); }
+    if (box) { box.classList.add('is-dirty'); sums(box); }
     if (inp.hasAttribute('data-tile')) { tile(inp.getAttribute('data-sku'), v); }
-    if (inp.closest('.adj-list')) { adjLocal(); }
   }
   /* ส่งทีละแถว — ส่งพร้อมกันแล้วคำตอบที่มาทีหลังเป็นของตะกร้าเก่า (ยอดรวมบนจอไม่ตรง) */
   function flush() {
@@ -320,7 +375,7 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
   var lastTap = 0;
   function schedule() {
     if (timer) { return; }
-    timer = setTimeout(flush, Math.max(0, 400 - (Date.now() - lastTap)));
+    timer = setTimeout(flush, Math.max(0, wait - (Date.now() - lastTap)));
   }
   function step(inp, d) {
     var b = bounds(inp);
@@ -330,6 +385,7 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
     want[inp.getAttribute('data-sku')] = n;
     paint(inp, n);
     lastTap = Date.now();
+    wait = 400;
     if (timer) { clearTimeout(timer); timer = null; }
     schedule();
   }
@@ -375,10 +431,42 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
       flush();
     }
   }, true);
-  /* พิมพ์จำนวนเองในช่อง → ใช้ค่าที่พิมพ์ (ลืมค่าที่กดค้างของแถวนั้น) */
+  /* พิมพ์จำนวนเอง → ใช้ทันที (ปรับเข้าช่วง data-min–max) แล้วส่งเบื้องหลัง · ช่องว่าง = รอพิมพ์ต่อ ไม่ส่ง */
   document.addEventListener('input', function (e) {
     var i = e.target;
-    if (i && i.matches && i.matches('input[data-qty]')) { forget(i.getAttribute('data-sku')); }
+    if (!i || !i.matches || !i.matches('input[data-qty]')) { return; }
+    var sku = i.getAttribute('data-sku'), s = String(i.value).replace(/\D/g, '');
+    if (s === '') { delete want[sku]; return; }
+    var b = bounds(i);
+    want[sku] = Math.max(b[0], Math.min(b[1], parseInt(s, 10)));
+    paint(i, want[sku]);
+    lastTap = Date.now();
+    wait = 700;
+    if (timer) { clearTimeout(timer); timer = null; }
+    schedule();
+  }, true);
+  /* change ของเบราว์เซอร์ (แตะออก / Enter) → ส่งที่ค้างทันทีแทน htmx (กันส่งซ้ำ) · ช่องว่าง = คืนค่าเดิม
+     change ที่ flush() สั่งเอง (htmx.trigger) ไม่ใช่ isTrusted → ผ่านไปให้ htmx ตามปกติ */
+  document.addEventListener('change', function (e) {
+    var i = e.target;
+    if (!e.isTrusted || !i || !i.matches || !i.matches('input[data-qty]')) { return; }
+    e.stopPropagation();
+    var sku = i.getAttribute('data-sku');
+    if (want[sku] !== undefined) { flush(); return; }
+    i.value = (sent[sku] !== undefined) ? sent[sku] : i.defaultValue;
+    var li = i.closest('li'), box = i.closest('.sale-cart');
+    if (li) { rowLocal(li, num(i.value)); }
+    sums(box);
+    if (!pend[sku] && li) { li.classList.remove('is-pending'); }
+    if (box && !box.querySelector('li.is-pending')) { box.classList.remove('is-dirty'); }
+  }, true);
+  /* หน้าขาย: Enter ในช่องจำนวน (ฟอร์ม .cl-set) → ไม่ส่งฟอร์มซ้ำ — change ด้านบนส่งให้แล้ว */
+  document.addEventListener('submit', function (e) {
+    var f = e.target;
+    if (!f || !f.matches || !f.matches('form.cl-set')) { return; }
+    e.preventDefault();
+    e.stopPropagation();
+    flush();
   }, true);
   /* นับคำขอที่ค้างจากตัวคำขอเอง (loadend ของ XHR) — htmx:afterRequest ยิงที่ช่องเดิม ซึ่งถูกวาดทับไปแล้ว จึงไม่ถึง body
      (เคยทำให้นับค้างที่ 1 แล้วไม่ส่งครั้งต่อไปเลย) · loadend มาหลังสลับเนื้อหา ก่อน afterSettle */
@@ -425,6 +513,19 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
     }
   }
   document.body.addEventListener('htmx:afterSwap', keepFresh);
+  /* ใบวาดใหม่ระหว่างพิมพ์ → ช่องใหม่ได้โฟกัส + ตัวเลขที่พิมพ์ค้าง (ทำในงานเดียวกับการวาด ปุ่มที่กดถัดไปจึงไม่หลุด) */
+  document.body.addEventListener('htmx:beforeSwap', function () {
+    var a = document.activeElement;
+    typing = (a && a.matches && a.matches('input[data-qty]')) ? a.getAttribute('data-sku') : null;
+  });
+  document.body.addEventListener('htmx:afterSwap', function () {
+    var sku = typing, i = (sku !== null) ? field(sku) : null;
+    typing = null;
+    if (!i || i === document.activeElement) { return; }
+    if (want[sku] !== undefined && String(want[sku]) !== i.value) { paint(i, want[sku]); }   // ตรงกับเซิร์ฟเวอร์แล้ว = ไม่ต้องจาง
+    i.focus({ preventScroll: true });
+    try { i.setSelectionRange(i.value.length, i.value.length); } catch (er) { }
+  });
   document.body.addEventListener('htmx:afterSettle', function () {
     restore();
     keepFresh();
@@ -441,6 +542,74 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
       if (g) { g.click(); }
     }
   });
+})();
+</script>
+<script>
+/* ===== รูปสินค้า: ย่อในเครื่องก่อนส่ง (ด้านยาวสุด 1200 px · JPG) + แสดงตัวอย่าง — รูปจากมือถือไม่ติดเพดาน 2 MB =====
+   ช่อง input[type=file][data-shrink] · data-prev = id ของ <img> ตัวอย่าง · data-note = id ของข้อความใต้ช่อง
+   ระหว่างย่อ ปุ่มบันทึกของฟอร์มกดไม่ได้ · เล็กกว่า 400 KB และไม่เกิน 1200 px = ส่งไฟล์เดิม */
+(function () {
+  var MAX = 1200, KEEP = 400 * 1024, urls = {};
+  function kb(n) { return n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB'; }
+  document.addEventListener('change', function (e) {
+    var inp = e.target;
+    if (!inp || !inp.matches || !inp.matches('input[type="file"][data-shrink]')) { return; }
+    var prev = document.getElementById(inp.getAttribute('data-prev') || ''), note = document.getElementById(inp.getAttribute('data-note') || '');
+    var btns = inp.form ? [].slice.call(inp.form.querySelectorAll('button[type="submit"]')) : [];
+    var tok = inp.__shrink = (inp.__shrink || 0) + 1;                // เลือกรูปใหม่ระหว่างย่อ = ทิ้งผลของรูปก่อน
+    var f = inp.files && inp.files[0];
+    function say(t) { if (note) { note.textContent = t; note.hidden = (t === ''); } }
+    function busy(on) {
+      btns.forEach(function (b) {
+        if (on && !b.disabled) { b.disabled = true; b.setAttribute('data-shrinking', ''); }
+        if (!on && b.hasAttribute('data-shrinking')) { b.disabled = false; b.removeAttribute('data-shrinking'); }
+      });
+    }
+    function show(blob) {
+      if (!prev) { return; }
+      if (urls[inp.name]) { URL.revokeObjectURL(urls[inp.name]); }
+      urls[inp.name] = blob ? URL.createObjectURL(blob) : '';
+      prev.hidden = !blob;
+      if (blob) { prev.src = urls[inp.name]; } else { prev.removeAttribute('src'); }
+    }
+    show(null); say('');
+    if (!f) { busy(false); return; }
+    if (!/^image\/(jpeg|png|webp)$/.test(f.type)) { inp.value = ''; busy(false); say('ไฟล์นี้ไม่ใช่รูป JPG / PNG / WEBP — เลือกใหม่อีกครั้ง'); return; }
+    var img = new Image(), src = URL.createObjectURL(f);
+    busy(true); say('กำลังย่อรูป…');
+    img.onerror = function () {
+      URL.revokeObjectURL(src);
+      if (tok !== inp.__shrink) { return; }
+      busy(false); inp.value = '';
+      say('เปิดรูปนี้ไม่ได้ — ลองรูปอื่น หรือบันทึกเป็น JPG ก่อน');
+    };
+    img.onload = function () {
+      URL.revokeObjectURL(src);
+      if (tok !== inp.__shrink) { return; }
+      var w = img.naturalWidth, h = img.naturalHeight, k = Math.min(1, MAX / Math.max(w, h));
+      if (k === 1 && f.size <= KEEP) { busy(false); show(f); say(''); return; }
+      var c = document.createElement('canvas'), g;
+      c.width = Math.round(w * k); c.height = Math.round(h * k);
+      g = c.getContext('2d');
+      g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);   // พื้นโปร่งใสของ PNG → ขาว
+      g.drawImage(img, 0, 0, c.width, c.height);
+      c.toBlob(function (b) {
+        if (tok !== inp.__shrink) { return; }
+        busy(false);
+        if (!b || !window.DataTransfer || b.size >= f.size) {        // ย่อไม่ได้ / ไม่เล็กลง → ส่งไฟล์เดิม
+          show(f);
+          say(f.size > 2 * 1048576 ? 'รูปนี้ ' + kb(f.size) + ' — เบราว์เซอร์นี้ย่อรูปไม่ได้ และเกิน 2 MB จะบันทึกรูปไม่ผ่าน' : '');
+          return;
+        }
+        var dt = new DataTransfer();
+        dt.items.add(new File([b], f.name.replace(/\.[^.]*$/, '') + '.jpg', { type: 'image/jpeg' }));
+        inp.files = dt.files;
+        show(b);
+        say('ย่อรูปแล้ว ' + kb(f.size) + ' → ' + kb(b.size) + ' (' + c.width + ' × ' + c.height + ' px)');
+      }, 'image/jpeg', 0.85);
+    };
+    img.src = src;
+  }, true);
 })();
 </script>
 <script>
@@ -726,13 +895,14 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
              + '<span class="q num">+' + lines[i].qty.toLocaleString('th-TH') + '</span>'
              + '<span class="s">' + esc(lines[i].unit) + '</span></li>';
         }
+        var ref = form.querySelector('#ref').value.trim(), note = form.querySelector('#note').value.trim();   // ไม่มีเลขเอกสาร = แสดงหมายเหตุแทน
         h += '</ul><div class="cf-sum">'
-           + '<div class="cf-r"><span>เอกสารอ้างอิง</span><b>'
-           + esc(form.querySelector('#ref').value.trim() || '—') + '</b></div>'
+           + '<div class="cf-r"><span>' + (ref || !note ? 'เอกสารอ้างอิง' : 'หมายเหตุ') + '</span><b>'
+           + esc(ref || note || '—') + '</b></div>'
            + '<div class="cf-r cf-big"><span>รวมที่รับเข้า</span><b class="num">'
            + tot.toLocaleString('th-TH') + ' ชิ้น</b></div></div>';
         openModal({
-          title: 'ยืนยันการรับเข้า', sub: 'บันทึกแล้วสต๊อกจะเพิ่มทันที แก้ไขได้ด้วยการปรับยอดเท่านั้น',
+          title: 'ยืนยันการรับเข้า', sub: 'บันทึกแล้วสต๊อกจะเพิ่มทันที ถ้าผิดยกเลิกใบได้ภายหลัง',
           ok: 'ยืนยัน บันทึกรับเข้า', html: h, form: form, go: go
         });
       } else if (kind === 'issue') {
@@ -771,10 +941,10 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
                    : '<div class="cf-r cf-big"><span>ผลการนับ</span><b>ตรงกับระบบทุกรายการ</b></div>')
             + '</div>';
         openModal({
-          title: bad ? 'ยืนยันการปรับยอดสต๊อก' : 'ยืนยันผลการนับ',
+          title: 'ยืนยันผลการนับ',
           sub:   bad ? 'ยอดในระบบของ ' + bad + ' รายการจะถูกปรับให้เท่ากับที่นับได้ทันที'
                      : 'บันทึกไว้เป็นหลักฐานว่านับแล้วตรง ไม่มีการเปลี่ยนยอด',
-          ok: bad ? 'ยืนยัน ปรับยอด' : 'ยืนยัน บันทึก', html: ha, form: form, go: go
+          ok: 'ยืนยัน บันทึกผลการนับ', html: ha, form: form, go: go
         });
       } else if (kind === 'edit' || kind === 'void') {
         /* ดูจากปลายทางของฟอร์มว่าเป็นเอกสารชนิดไหน จะได้ใช้ถ้อยคำให้ถูก */

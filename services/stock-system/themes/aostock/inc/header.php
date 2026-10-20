@@ -12,6 +12,11 @@
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  *   - [x] ป้ายบนเมนูข้างที่ยังเข้าไม่ได้เพราะร้านยังไม่เปิด / ปิดแล้ว (ภาพรวมของฉัน · ขายสินค้า) · โหมดย่อแสดงเป็นจุด · ปุ่มขายบนแถบบนผ่าน sale.php ให้ได้ข้อความด้วย
  *   - [x] 8 ต.ค.: จอสัมผัส (iPad) ที่ยังไม่เคยเลือกโหมดเมนู เปิดมาเป็นเมนูแบบเต็ม (ไอคอนอย่างเดียวไม่มีป้ายชื่อบนจอสัมผัส)
+ *   - [x] 15 ต.ค. (ใบนับแบบรายการ ช่วง 5): เปลี่ยนชื่อ “ตรวจนับ / ปรับยอด” เป็น “ตรวจนับสต๊อก” (เมนู)
+ *   - [x] 15 ต.ค. (ผู้ใช้ขอ): เมนูแยก “เพิ่มสินค้า” — ผู้ดูแล → adm-product-edit.php · พนักงานที่มีสิทธิ์เพิ่มสินค้าใหม่ → product-add.php
+ *   - [x] 15 ต.ค. (เมนูประวัติ ช่วง 3): ผู้ดูแลมีกลุ่มเมนู “ประวัติ” แยกจาก “ตรวจสอบ” · เมนูลิงก์ไปประวัติที่กรองไว้ได้ (?t=) · 'feature' = ซ่อนเมื่อกลุ่มฟีเจอร์ถูกปิด
+ *   - [x] 15 ต.ค. (เมนูประวัติแยกหน้า ช่วง 3): ผู้ดูแลไม่มี “ประวัติทั้งหมด” แล้ว — เพิ่ม “ขาย / ตั้งค่า” (adm-history.php?t=sale)
+ *   - [x] 15 ต.ค. (เมนูประวัติแยกหน้า ช่วง 5): พนักงานมีกลุ่มเมนู “ประวัติ” 1 เมนู = 1 กลุ่ม (history.php?t=) · 'log' = แสดงเมื่อดูกลุ่มนั้นได้ (Stock_getAllowedLogGroups)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -40,12 +45,17 @@ if ($user['role'] === 'admin') {
         'ตรวจสอบ' => array(
             array('file' => 'adm-dashboard.php', 'label' => 'ภาพรวม',              'icon' => 'i-home'),
             array('file' => 'adm-products.php',  'label' => 'สินค้าในสต๊อก',        'icon' => 'i-boxes'),
+            array('file' => 'adm-product-edit.php', 'label' => 'เพิ่มสินค้า',        'icon' => 'i-plus'),
             array('file' => 'adm-categories.php','label' => 'หมวดสินค้า',          'icon' => 'i-tag'),
-            array('file' => 'adm-receive.php',   'label' => 'นำเข้าสินค้า',          'icon' => 'i-in'),
-            array('file' => 'adm-issue.php',     'label' => 'เบิก / ตัดออก',        'icon' => 'i-out'),
-            array('file' => 'adm-return.php',    'label' => 'รับคืนสินค้า',          'icon' => 'i-receipt'),
-            array('file' => 'adm-history.php',   'label' => 'ประวัติการทำรายการ',    'icon' => 'i-history'),
-            array('file' => 'adm-movements.php', 'label' => 'ประวัติเคลื่อนไหว',     'icon' => 'i-activity'),
+        ),
+        'ประวัติ' => array(                                                       // 1 เมนู = 1 หน้า · ?t= = กลุ่มของประวัติ (Stock_getLogGroups)
+            array('file' => 'adm-receive.php',          'label' => 'นำเข้าสินค้า',        'icon' => 'i-in'),
+            array('file' => 'adm-issue.php',            'label' => 'เบิก / ตัดออก',      'icon' => 'i-out'),
+            array('file' => 'adm-history.php?t=adjust', 'label' => 'ตรวจนับสต๊อก',       'icon' => 'i-clipboard', 'feature' => 'stocktake'),
+            array('file' => 'adm-return.php',           'label' => 'รับคืนสินค้า',        'icon' => 'i-receipt'),
+            array('file' => 'adm-history.php?t=sale',   'label' => 'ขาย / ตั้งค่า',       'icon' => 'i-cart'),
+            array('file' => 'adm-history.php?t=store',  'label' => 'เปิด / ปิดร้าน',      'icon' => 'i-store'),
+            array('file' => 'adm-movements.php',        'label' => 'เคลื่อนไหวรายสินค้า', 'icon' => 'i-activity'),
         ),
         'รายงาน' => array(
             array('file' => 'adm-report.php',        'label' => 'ภาพรวมยอดขาย',        'icon' => 'i-chart'),
@@ -71,13 +81,21 @@ if ($user['role'] === 'admin') {
             array('file' => 'store.php',      'label' => 'เปิด / ปิดร้าน',    'icon' => 'i-store'),
             array('file' => 'sale.php',       'label' => 'ขายสินค้า',         'icon' => 'i-cart'),
             array('file' => 'products.php',   'label' => 'สินค้าในสต๊อก',     'icon' => 'i-boxes'),
+            array('file' => 'product-add.php', 'label' => 'เพิ่มสินค้า',      'icon' => 'i-plus'),     // เฉพาะคนที่มีสิทธิ์ “เพิ่มสินค้าใหม่” (page_perm)
             array('file' => 'categories.php', 'label' => 'หมวดสินค้า',        'icon' => 'i-tag'),
             array('file' => 'receive.php',    'label' => 'นำเข้าสินค้า',      'icon' => 'i-in'),
             array('file' => 'issue.php',      'label' => 'เบิก / ตัดออก',     'icon' => 'i-out'),
-            array('file' => 'stocktake.php',  'label' => 'ตรวจนับ / ปรับยอด',  'icon' => 'i-clipboard'),
+            array('file' => 'stocktake.php',  'label' => 'ตรวจนับสต๊อก',      'icon' => 'i-clipboard'),
             array('file' => 'return.php',     'label' => 'รับคืนสินค้า',       'icon' => 'i-receipt'),
-            array('file' => 'history.php',    'label' => 'ประวัติการทำรายการ', 'icon' => 'i-history'),
-            array('file' => 'movements.php',  'label' => 'ประวัติเคลื่อนไหว', 'icon' => 'i-activity'),
+        ),
+        'ประวัติ' => array(                                                       // 1 เมนู = 1 กลุ่ม · log = คีย์กลุ่ม (สิทธิ์ + ฟีเจอร์ของกลุ่ม)
+            array('file' => 'history.php?t=sale',    'label' => 'ประวัติขาย / ตั้งค่า',   'icon' => 'i-cart',      'log' => 'sale'),
+            array('file' => 'history.php?t=receive', 'label' => 'ประวัตินำเข้า',         'icon' => 'i-in',        'log' => 'receive'),
+            array('file' => 'history.php?t=issue',   'label' => 'ประวัติตัดออก',         'icon' => 'i-out',       'log' => 'issue'),
+            array('file' => 'history.php?t=adjust',  'label' => 'ประวัติตรวจนับ',        'icon' => 'i-clipboard', 'log' => 'adjust'),
+            array('file' => 'history.php?t=return',  'label' => 'ประวัติรับคืน',         'icon' => 'i-receipt',   'log' => 'return'),
+            array('file' => 'history.php?t=store',   'label' => 'ประวัติเปิด / ปิดร้าน',  'icon' => 'i-store',     'log' => 'store'),
+            array('file' => 'movements.php',         'label' => 'เคลื่อนไหวรายสินค้า',   'icon' => 'i-activity'),
         ),
         'รายงาน' => array(
             array('file' => 'report-sales.php', 'label' => 'รายงานยอดขาย', 'icon' => 'i-chart'),
@@ -92,13 +110,16 @@ if ($user['role'] === 'admin') {
     );
 }
 
-$NAV = array();
+$NAV     = array();
+$navLogs = Stock_getAllowedLogGroups($user);                                     // กลุ่มประวัติที่ดูได้ (เมนูที่มี 'log')
 foreach ($NAV_ALL as $group => $items) {
     $keep = array();
     foreach ($items as $it) {
         /* ใครเห็นเมนูนี้: ค่าเริ่มต้น = พนักงาน + ผู้ดูแล · ฝ่ายบัญชีเห็นเฉพาะเมนูที่ระบุ roles */
         $roles = isset($it['roles']) ? $it['roles'] : array('staff', 'admin');
-        if (in_array($user['role'], $roles, true) && page_ok($user, $it['file'])) {      // สิทธิ์ของหน้าอยู่ใน page_perm (ช่วงที่ 11)
+        $navFile = strtok($it['file'], '?');                                          // ตัด ?t= ออกก่อนเช็กสิทธิ์
+        $navFeat = (!isset($it['feature']) || feature_group_on($it['feature'])) && (!isset($it['log']) || isset($navLogs[$it['log']]));
+        if (in_array($user['role'], $roles, true) && $navFeat && page_ok($user, $navFile)) {      // สิทธิ์ของหน้าอยู่ใน page_perm (ช่วงที่ 11)
             $keep[] = $it;
         }
     }

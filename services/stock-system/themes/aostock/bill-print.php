@@ -30,6 +30,7 @@ if (!defined('ALLOW_DIRECT_ACCESS')) {
    บิลที่ยกเลิกแล้วพิมพ์ได้ แต่มีตราประทับ "ยกเลิก" ทับ
 
    เข้าได้: ฝ่ายบัญชี / ผู้ดูแล ทุกสาขา · พนักงานเฉพาะสาขาที่ตัวเองทำงาน
+            (ไม่มีสิทธิ์ประวัติขาย = เฉพาะบิลที่ตัวเองขาย — Stock_canSeeBill)
    ========================================================== */
 
 require_once dirname(__FILE__) . '/include/function.php';
@@ -50,6 +51,9 @@ if (isset($_GET['sample'])) {
     $no = isset($_GET['no']) ? (string) $_GET['no'] : '';
     if ($ts !== false && $ts <= time()) {
         $bill = bill_find($code, $ts, $no);
+    }
+    if ($bill && !Stock_canSeeBill($user, $bill)) {   // ไม่มีสิทธิ์ประวัติขาย = พิมพ์ได้เฉพาะบิลของตัวเอง
+        $bill = null;
     }
 }
 if (!$bill) {

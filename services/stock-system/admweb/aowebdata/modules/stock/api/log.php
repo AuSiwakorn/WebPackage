@@ -2,31 +2,35 @@
 /**
  * FILE: admweb/aowebdata/modules/stock/api/log.php
  * ROLE: ประวัติการทำรายการ (stock_log) — เขียน / อ่านวันเดียว / อ่านทั้งช่วงพร้อมแบ่งหน้า · ชนิดของรายการ
- * DEPENDS: โหลดโดย admweb/aowebdata/modules/stock/api.php (ตัวโหลด — ห้าม include ไฟล์นี้ตรง ๆ) · ใช้ function จากไฟล์อื่นใน api/ ได้ทุกตัว
+ * DEPENDS: api.php (ตัวโหลด — ห้าม include ตรง)
  * TABLES: ao_stock_log, ao_stock_staff, ao_stock_branch · ao_stock_sale / receive / issue / count / return (สถานะยกเลิก / รับคืนใน log_range)
  * TODO:
- *   - [x] ช่วงที่ 10: แยกจาก api.php เดิม (ย้ายโค้ดทั้งก้อน ไม่แก้ตรรกะ) · จัดฟังก์ชันที่เคยปนอยู่หมวดอื่นให้มาอยู่หมวดนี้
- *   - [x] ช่วงที่ 12: ชนิดใหม่ category (หมวดสินค้า) · "ผู้ดูแลตั้งค่า" → "ตั้งค่า" · ซ่อนรายการตั้งค่าจากพนักงานทั่วไป
- *
- * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
+ *   - [x] ประวัติการแก้ไขดู docs/CHANGELOG.md
+ * ⚠ โหลดทุก request — มีได้แค่ define() + function (ห้าม echo / header / query ตอนโหลด)
  */
 
-/* ==========================================================
-   ประวัติการทำรายการ — ตาราง ao_stock_log (1 แถว / 1 เหตุการณ์ ต่อสาขาต่อวัน)
-   ----------------------------------------------------------
-   หน้าเว็บใช้แถวรูปนี้ (log_shape):
-     ts เวลา (unix) · time 'HH:MM' · type (คีย์ของ log_types) · by ชื่อผู้ทำ · by_user username
-     title ข้อความหลัก · amount ตัวเลขที่เกี่ยวข้อง (หรือ null) · ref เลขที่เอกสาร · detail array('หัวข้อ' => 'ค่า')
-   - เอกสารคลังเขียนประวัติในทรานแซกชันเดียวกับตัวเอกสาร
-   - type 'setting' (ตั้งค่า) และ 'category' (เพิ่ม / ลบหมวด) ไม่นับเป็น "ข้อมูลของสาขา" ตอนเช็กลบสาขา (branch_data_reason)
-   - พนักงานทั่วไปไม่เห็นรายการ 'setting' ในประวัติของสาขา — ผู้จัดการสาขา / ผู้ดูแลเห็นครบ (ช่วงที่ 12)
-   ========================================================== */
+/* ---------- ประวัติการทำรายการ (ao_stock_log · 1 แถว = 1 เหตุการณ์) · พนักงานทั่วไปไม่เห็นรายการ 'setting' ---------- */
 
-/** บันทึกหนึ่งรายการ — สาขาที่ไม่มีในระบบ (เช่น ผู้ดูแลยังไม่เลือกสาขา) ลงเป็น branch_id 0
-    TODO:
-      - [x] INSERT ao_stock_log (detail เก็บเป็น JSON) */
+/** บันทึกหนึ่งรายการ — สาขาที่ไม่มีในระบบ (เช่น ผู้ดูแลยังไม่เลือกสาขา) ลงเป็น branch_id 0 */
 function log_add($code, $type, $user, $title, $detail = array(), $amount = null, $ref = '')
 {
+    $json = $detail ? json_encode($detail, JSON_UNESCAPED_UNICODE) : null;
+    while ($json !== null && strlen($json) > 60000) {
+        $k = null;
+        $n = 0;
+        foreach ($detail as $dk => $dv) {
+            $len = is_scalar($dv) ? mb_strlen((string) $dv, 'UTF-8') : 0;
+            if ($len > $n) {
+                $k = $dk;
+                $n = $len;
+            }
+        }
+        if ($k === null || $n < 100) {
+            break;
+        }
+        $detail[$k] = mb_substr((string) $detail[$k], 0, (int) ($n / 2), 'UTF-8') . ' … (ยาวเกิน ดูรายการเต็มในเอกสาร)';
+        $json = json_encode($detail, JSON_UNESCAPED_UNICODE);
+    }
     sdb_insert('log', array(
         'branch_id'  => branch_id_of((string) $code),
         'log_date'   => date('Y-m-d'),
@@ -34,7 +38,7 @@ function log_add($code, $type, $user, $title, $detail = array(), $amount = null,
         'title'      => stock_cut($title, 200),
         'amount'     => ($amount === null) ? null : round((float) $amount, 2),
         'doc_no'     => substr((string) $ref, 0, 24),
-        'detail'     => $detail ? json_encode($detail, JSON_UNESCAPED_UNICODE) : null,
+        'detail'     => $json,
         'created_by' => $user ? stock_uid($user) : 0,
         'add_date'   => date('Y-m-d H:i:s'),
     ));
@@ -60,22 +64,13 @@ function log_shape($r)
     );
 }
 
-/** ประวัติของสาขาวันนี้ — เรียงใหม่สุดขึ้นก่อน
-    TODO:
-      - [x] SELECT ao_stock_log
-      - [x] ช่วงที่ 8: วันอื่นใช้ log_of_day · หลายวันหลายสาขาใช้ log_range
-      - [x] ช่วงที่ 12: $noSetting ส่งต่อให้ log_of_day */
+/** ประวัติของสาขาวันนี้ — เรียงใหม่สุดขึ้นก่อน */
 function log_today($code, $limit = 0, $noSetting = false)
 {
     return log_of_day($code, time(), $limit, $noSetting);
 }
 
-/** ประวัติของสาขาในวันหนึ่ง — เรียงใหม่สุดขึ้นก่อน
-    $noSetting = true ไม่เอารายการ "ตั้งค่า" (เพิ่ม / แก้พนักงาน รีเซ็ต PIN แก้สาขา ฯลฯ) — สำหรับพนักงานทั่วไป
-                 ผู้จัดการสาขาและผู้ดูแลเห็นครบ · รายการ "หมวดสินค้า" ทุกคนเห็น
-    TODO:
-      - [x] ช่วงที่ 8: ลำดับเหตุการณ์ของวันก่อน (inc/history-past.php)
-      - [x] ช่วงที่ 12: ซ่อนรายการตั้งค่าจากพนักงานทั่วไป (ข้อ 4ก) */
+/** ประวัติของสาขาในวันหนึ่ง ใหม่สุดก่อน · $noSetting = ไม่เอารายการตั้งค่า (พนักงานทั่วไป) */
 function log_of_day($code, $ts, $limit = 0, $noSetting = false)
 {
     $sql = 'SELECT l.*, s.name AS by_name, s.username AS by_user FROM ' . sdb_tb('log') . ' l'
@@ -90,44 +85,45 @@ function log_of_day($code, $ts, $limit = 0, $noSetting = false)
     return $out;
 }
 
-/**
- * ประวัติของหลายสาขา ช่วงวันที่ $from–$to (ประวัติรวมของผู้ดูแล) — นับและแบ่งหน้าใน SQL
- *   $type = '' ทุกชนิด หรือคีย์ของ log_types() · $dir = desc | asc · $page เริ่มที่ 1 · $per แถวต่อหน้า
- * คืน array(
- *   rows   => แถวของหน้านั้น: log_shape + branch (รหัสสาขา) + date (Ymd) + void / void_mode / void_by (เอกสารที่ถูกยกเลิกภายหลัง)
- *             + returned (บิลขายที่มีใบรับคืนแล้ว)
- *   total  => จำนวนแถวตามชนิดที่กรอง
- *   counts => array(ชนิด => จำนวน) ทั้งช่วงไม่สนชนิดที่กรอง · perB => array(สาขา => จำนวน)
- * )
- * TODO:
- *   - [x] ช่วงที่ 8: ทุกวันอ่านจาก ao_stock_log (เดิมวันก่อนรวมจากเอกสาร + ข้อมูลสมมติ)
- */
-function log_range($codes, $from, $to, $type = '', $dir = 'desc', $page = 1, $per = 100)
+/** ประวัติหลายสาขาช่วง $from–$to (นับและแบ่งหน้าใน SQL) · $type = คีย์กลุ่ม · $noSetting = ไม่เอารายการตั้งค่า (พนักงานทั่วไป) · คืน rows / total / counts / perB / perBG */
+function log_range($codes, $from, $to, $type = '', $dir = 'desc', $page = 1, $per = 100, $noSetting = false)
 {
     list($in, $params) = sdb_in('b.code', $codes);
     array_unshift($params, date('Y-m-d', $from), date('Y-m-d', $to));
     $join  = ' FROM ' . sdb_tb('log') . ' l JOIN ' . sdb_tb('branch') . ' b ON b.branch_id = l.branch_id';
-    $where = ' WHERE l.log_date BETWEEN ? AND ? AND ' . $in;
+    $where = ' WHERE l.log_date BETWEEN ? AND ? AND ' . $in . ($noSetting ? ' AND l.type <> \'setting\'' : '');
 
     $counts = array_fill_keys(array_keys(log_types()), 0);
     $perB   = array();
+    $byBT   = array();                                // สาขา => array(ชนิด => จำนวน)
     foreach (sdb_rows('SELECT b.code, l.type, COUNT(*) AS n' . $join . $where . ' GROUP BY b.code, l.type', $params) as $r) {
         if (isset($counts[$r['type']])) {
             $counts[$r['type']] += (int) $r['n'];
         }
         $perB[$r['code']] = (isset($perB[$r['code']]) ? $perB[$r['code']] : 0) + (int) $r['n'];
+        $byBT[$r['code']][$r['type']] = (int) $r['n'];
     }
-    $total = ($type === '') ? array_sum($perB) : (isset($counts[$type]) ? $counts[$type] : 0);
+    $grp   = Stock_getLogGroupOf((string) $type);
+    $types = ($grp !== '') ? Stock_getLogGroups()[$grp]['types'] : array();
+    $perBG = ($type === '') ? $perB : array();
+    foreach ($types ? $byBT : array() as $c => $tn) {
+        $n = array_sum(array_intersect_key($tn, array_flip($types)));
+        if ($n > 0) {
+            $perBG[$c] = $n;
+        }
+    }
+    $total = ($type === '') ? array_sum($perB) : 0;
+    foreach ($types as $t) {
+        $total += $counts[$t];
+    }
 
     $d   = ($dir === 'asc') ? 'ASC' : 'DESC';
     $per = max(1, (int) $per);
     $off = (max(1, (int) $page) - 1) * $per;
-    $p2  = $params;
-    if ($type !== '') {
-        $p2[] = (string) $type;
-    }
+    $p2  = array_merge($params, $types);
+    $tIn = $types ? ' AND l.type IN (' . implode(',', array_fill(0, count($types), '?')) . ')' : ($type !== '' ? ' AND 0' : '');
     $sql = 'SELECT l.*, b.code, s.name AS by_name, s.username AS by_user' . $join . ' LEFT JOIN ' . sdb_tb('staff') . ' s ON s.staff_id = l.created_by'
-         . $where . ($type !== '' ? ' AND l.type = ?' : '')
+         . $where . $tIn
          . ' ORDER BY l.add_date ' . $d . ', l.log_id ' . $d . ' LIMIT ' . $per . ' OFFSET ' . (int) $off;      // LIMIT / OFFSET ต่อเป็นตัวเลข (ห้ามใช้ ?)
     $rows = array();
     $want = array();                                  // เอกสารที่ต้องเช็กว่าถูกยกเลิกทีหลังไหม: ตาราง => array(เลขที่)
@@ -154,7 +150,7 @@ function log_range($codes, $from, $to, $type = '', $dir = 'desc', $page = 1, $pe
             $voided[$tb . '|' . $v['branch_id'] . '|' . $v['doc_no']] = array((string) $v['void_mode'], ($v['name'] !== null) ? $v['name'] : '');
         }
     }
-    $returned = array();                              // branch_id|เลขบิล ที่มีใบรับคืนแล้ว (ป้าย "มีรับคืน" แบบเดโมเดิม — ช่วงที่ 10)
+    $returned = array();                              // branch_id|เลขบิล ที่มีใบรับคืนแล้ว (ป้าย "มีรับคืน" แบบเดโมเดิม)
     if (isset($want['sale'])) {
         list($nin, $np) = sdb_in('s.doc_no', array_keys($want['sale']));
         foreach (sdb_rows('SELECT DISTINCT s.branch_id, s.doc_no FROM ' . sdb_tb('return') . ' r JOIN ' . sdb_tb('sale') . ' s ON s.sale_id = r.sale_id'
@@ -173,7 +169,7 @@ function log_range($codes, $from, $to, $type = '', $dir = 'desc', $page = 1, $pe
             $rows[$i]['returned'] = true;
         }
     }
-    return array('rows' => $rows, 'total' => $total, 'counts' => $counts, 'perB' => $perB);
+    return array('rows' => $rows, 'total' => $total, 'counts' => $counts, 'perB' => $perB, 'perBG' => $perBG);
 }
 
 /** ชนิดของรายการ — ป้ายกำกับ สี และไอคอน */
@@ -191,8 +187,8 @@ function log_types()
         'adjust'  => array('label' => 'ตรวจนับ',      'tone' => 'adj', 'icon' => 'i-clipboard'),
         'avoid'   => array('label' => 'ยกเลิกตรวจนับ', 'tone' => 'out', 'icon' => 'i-ban'),
         'return'  => array('label' => 'รับคืนสินค้า',  'tone' => 'out', 'icon' => 'i-receipt'),
-        'setting' => array('label' => 'ตั้งค่า',       'tone' => 'adj', 'icon' => 'i-settings'),    // ช่วงที่ 12: เดิม "ผู้ดูแลตั้งค่า" — ผู้จัดการสาขาก็ทำได้แล้ว
-        'category' => array('label' => 'หมวดสินค้า',  'tone' => 'adj', 'icon' => 'i-tag'),         // ช่วงที่ 12: เพิ่ม / ลบหมวด (เดิมปนอยู่ใน setting)
+        'setting' => array('label' => 'ตั้งค่า',       'tone' => 'adj', 'icon' => 'i-settings'),    // เดิม "ผู้ดูแลตั้งค่า" — ผู้จัดการสาขาก็ทำได้แล้ว
+        'category' => array('label' => 'หมวดสินค้า',  'tone' => 'adj', 'icon' => 'i-tag'),         // เพิ่ม / ลบหมวด (เดิมปนอยู่ใน setting)
         'cash'  => array('label' => 'เงินสด',    'tone' => 'move', 'icon' => 'i-coin'),
         'stock' => array('label' => 'สต๊อก',     'tone' => 'adj',  'icon' => 'i-box'),
     );
@@ -204,15 +200,70 @@ function log_type_of($key)
     return isset($all[$key]) ? $all[$key] : array('label' => $key, 'tone' => 'adj', 'icon' => 'i-info');
 }
 
-/** กรองตามชนิด — ใช้กับปุ่มกรองบนหน้าประวัติ */
+/** กลุ่มของประวัติ (1 กลุ่ม = 1 เมนู) พร้อม perm / feature ของกลุ่ม */
+function Stock_getLogGroups()
+{
+    return array(
+        'sale'    => array('label' => 'ขาย / ตั้งค่า',    'types' => array('sale', 'void', 'setting', 'category', 'stock'), 'perm' => 'hist_sale',    'feature' => ''),
+        'receive' => array('label' => 'นำเข้า',           'types' => array('receive', 'rvoid'),                         'perm' => 'hist_receive', 'feature' => ''),
+        'issue'   => array('label' => 'ตัดออก',           'types' => array('issue', 'ivoid'),                           'perm' => 'hist_issue',   'feature' => ''),
+        'adjust'  => array('label' => 'ตรวจนับ',          'types' => array('adjust', 'avoid'),                          'perm' => 'hist_count',   'feature' => 'stocktake'),
+        'return'  => array('label' => 'รับคืน',           'types' => array('return'),                                   'perm' => 'hist_return',  'feature' => 'refund'),
+        'store'   => array('label' => 'เปิด / ปิดร้าน',    'types' => array('open', 'close', 'cash'),                     'perm' => 'hist_store',   'feature' => ''),
+    );
+}
+
+/** กลุ่มประวัติที่ผู้ใช้คนนี้ดูได้ (มีสิทธิ์ + ฟีเจอร์ไม่ถูกปิด) */
+function Stock_getAllowedLogGroups($user)
+{
+    $out = array();
+    foreach (Stock_getLogGroups() as $g => $x) {
+        if (can($user, $x['perm']) && ($x['feature'] === '' || feature_group_on($x['feature']))) {
+            $out[$g] = $x;
+        }
+    }
+    return $out;
+}
+
+/** คีย์กลุ่มของคีย์กลุ่มหรือคีย์ชนิด (ลิงก์เก่า ?t=ivoid → 'issue') · ไม่รู้จัก = '' */
+function Stock_getLogGroupOf($key)
+{
+    $all = Stock_getLogGroups();
+    if (isset($all[$key])) {
+        return $key;
+    }
+    foreach ($all as $g => $x) {
+        if (in_array($key, $x['types'], true)) {
+            return $g;
+        }
+    }
+    return '';
+}
+
+/** จำนวนต่อกลุ่ม จากจำนวนต่อชนิด (log_counts / log_range['counts']) */
+function Stock_sumLogGroups($counts)
+{
+    $out = array();
+    foreach (Stock_getLogGroups() as $g => $x) {
+        $out[$g] = 0;
+        foreach ($x['types'] as $t) {
+            $out[$g] += isset($counts[$t]) ? (int) $counts[$t] : 0;
+        }
+    }
+    return $out;
+}
+
+/** กรองตามกลุ่ม (หรือชนิด — นับเป็นกลุ่มของมัน) — ใช้กับปุ่มกรองบนหน้าประวัติ */
 function log_filter($rows, $type)
 {
     if ($type === '') {
         return $rows;
     }
-    $out = array();
+    $grp   = Stock_getLogGroupOf((string) $type);
+    $types = ($grp !== '') ? Stock_getLogGroups()[$grp]['types'] : array();
+    $out   = array();
     foreach ($rows as $r) {
-        if ($r['type'] === $type) {
+        if (in_array($r['type'], $types, true)) {
             $out[] = $r;
         }
     }
@@ -234,8 +285,7 @@ function log_counts($rows)
     return $out;
 }
 
-/** ลิงก์ของหน้าประวัติ — ใช้ร่วมกันระหว่าง history.php (พนักงาน) กับ adm-history.php (ผู้ดูแล)
-    หน้าไหนต้องการฐานลิงก์อื่น ให้ตั้ง $HIST_BASE ก่อนเรียก เช่น 'adm-history.php?view=day&b=RS' */
+/** ลิงก์ของหน้าประวัติ (ฐาน = $HIST_BASE ถ้าตั้งไว้ ไม่งั้น history.php) */
 function hist_url($q = '')
 {
     global $HIST_BASE;

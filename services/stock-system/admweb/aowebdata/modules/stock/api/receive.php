@@ -2,25 +2,16 @@
 /**
  * FILE: admweb/aowebdata/modules/stock/api/receive.php
  * ROLE: รับสินค้าเข้าสต๊อก — ใบร่าง (session) · บันทึก / ยกเลิก / แก้ไขใบรับเข้า · อ่านใบรับเข้าทั้งช่วง
- * DEPENDS: โหลดโดย admweb/aowebdata/modules/stock/api.php (ตัวโหลด — ห้าม include ไฟล์นี้ตรง ๆ) · ใช้ function จากไฟล์อื่นใน api/ ได้ทุกตัว
+ * DEPENDS: api.php (ตัวโหลด — ห้าม include ตรง)
  * TABLES: ao_stock_receive, ao_stock_receive_item, ao_stock_move, ao_stock_balance, ao_stock_log
  * TODO:
- *   - [x] ช่วงที่ 10: แยกจาก api.php เดิม (ย้ายโค้ดทั้งก้อน ไม่แก้ตรรกะ) · จัดฟังก์ชันที่เคยปนอยู่หมวดอื่นให้มาอยู่หมวดนี้
- *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 5): rdraft_lines ดึงสินค้าในใบคิวรีเดียว (Stock_prefetchProducts) — เดิมโหลดสินค้าทั้งร้าน
- *
- * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
+ *   - [x] ประวัติการแก้ไขดู docs/CHANGELOG.md
+ * ⚠ โหลดทุก request — มีได้แค่ define() + function (ห้าม echo / header / query ตอนโหลด)
  */
 
-/* ==========================================================
-   รับสินค้าเข้าสต๊อก
-   ----------------------------------------------------------
-   ใบที่บันทึกแล้ว: ao_stock_receive + ao_stock_receive_item + ao_stock_move (หมวด: สมุดสต๊อก)
-   ราคาทุนในใบ = "ทุนล่าสุด" ของสินค้า ณ ตอนรับ (snapshot) — หน้ารับเข้าไม่มีช่องกรอกทุน
-   ========================================================== */
+/* ---------- รับสินค้าเข้า: ทุนในใบ = ทุนล่าสุด ณ ตอนรับ (snapshot) ---------- */
 
-/* ---------- ใบรับของที่กำลังทำอยู่ (ร่าง) ----------
-   เลือกสินค้าเข้ามาทีละตัว ปรับจำนวนได้ แล้วค่อยบันทึกทั้งใบครั้งเดียว
-   เก็บไว้ใน $_SESSION['recv_draft'] เหมือนตะกร้าของหน้าขาย (ยังไม่ใช่ข้อมูลจริง ออกจากระบบแล้วหาย)      */
+/* ---------- ใบรับที่กำลังทำ (ร่างใน $_SESSION['recv_draft']) ---------- */
 
 function rdraft_all()
 {
@@ -102,14 +93,7 @@ function rdraft_lines($code)
     return $out;
 }
 
-/**
- * บันทึกการรับเข้า: บวกสต๊อก + ลง ledger + ประวัติ ในทรานแซกชันเดียว
- * ผู้รับเข้าและสาขา มาจากบัญชีที่ล็อกอิน ไม่ต้องกรอกซ้ำ
- * คืนค่า: ใบที่บันทึก (รูปเดียวกับ receive_by_no) | array('error' => ข้อความ)
- * TODO:
- *   - [x] INSERT ao_stock_receive + receive_item + stock_move · เลขที่จาก stock_doc_seq
- *   - [x] ใบที่ทำแทนใบ "ยกเลิกเพื่อแก้ไข" ใส่ edit_of_id
- */
+/** บันทึกการรับเข้าในทรานแซกชันเดียว · คืนใบ หรือ array('error') */
 function receive_save($code, $user, $ref, $note, $lines)
 {
     $bid = branch_id_of($code);
@@ -161,15 +145,15 @@ function receive_save($code, $user, $ref, $note, $lines)
             ));
             $q[$pid] += (int) $l['qty'];
             stock_move_add($bid, $pid, 'receive', (int) $l['qty'], $q[$pid], (float) $p['cost'], 'receive', $id, $no,
-                           'อ้างอิง ' . $ref, $uid, $now);
+                           $ref !== '' ? 'อ้างอิง ' . $ref : stock_cut($note, 120), $uid, $now);   // ไม่มีเลขเอกสาร = ใช้หมายเหตุ
         }
 
         $names = array();
         foreach ($lines as $l) {
             $names[] = $l['name'] . ' +' . number_format($l['qty']) . ' ' . $l['unit'];
         }
-        $detail = array(
-            'เอกสารอ้างอิง' => $ref,
+        $detail = $ref !== '' ? array('เอกสารอ้างอิง' => $ref) : array();
+        $detail += array(
             'จำนวน'        => count($lines) . ' รายการ · ' . number_format($qty) . ' ชิ้น',
             'รายการ'       => implode(' · ', $names),
             'ผู้รับเข้า'     => $user['name'] . ' · ' . branch_name($code),
@@ -186,15 +170,7 @@ function receive_save($code, $user, $ref, $note, $lines)
     return receive_by_no($code, $no);
 }
 
-/**
- * ยกเลิกใบรับเข้าของวันนี้ — ถอนยอดที่เคยบวกไว้ออกจากสต๊อก (ใบของวันก่อนใช้ past_doc_void)
- * ----------------------------------------------------------
- * ถ้าของถูกขาย / เบิกออกไปบางส่วนแล้ว การถอนจะทำให้สต๊อกติดลบ
- * กรณีนั้นถอนไม่ได้ ต้องไปใช้การตรวจนับ/ปรับยอดแทน
- * คืนค่า: ใบที่ยกเลิก | array('error' => 'sold', 'items' => ...) ถ้าของออกไปแล้ว | null ถ้าไม่พบ / ยกเลิกไปแล้ว
- * TODO:
- *   - [x] status void + stock_move receive_void (stock_doc_void_core)
- */
+/** ยกเลิกใบรับเข้าของวันนี้ (ถอนยอดออก) · คืนใบ / array('error' => 'sold') / null */
 function receive_void($code, $no, $user, $reason, $reopen = false)
 {
     $d = receive_by_no($code, $no);
@@ -204,7 +180,7 @@ function receive_void($code, $no, $user, $reason, $reopen = false)
     $reason = trim($reason);
     $detail = array(
         'ใบเดิม'      => $d['no'] . ' · รับเข้าเมื่อ ' . $d['time'] . ' น. โดย ' . $d['by'],
-        'เอกสารอ้างอิง' => $d['ref'],
+        'เอกสารอ้างอิง' => $d['ref'] !== '' ? $d['ref'] : 'ไม่มี · หมายเหตุ: ' . $d['note'],
         'ยอดที่ถอนออก'  => $d['items'] . ' รายการ · ' . number_format($d['qty']) . ' ชิ้น',
         'เหตุผล'      => $reason !== '' ? $reason : 'ไม่ได้ระบุ',
     );
@@ -220,7 +196,7 @@ function receive_void($code, $no, $user, $reason, $reopen = false)
     if (is_array($r)) {
         return array('error' => 'sold', 'items' => $r['short']);
     }
-    notify_on_void($code, 'RC', $d, $user, $reason, $reopen);   // Telegram (ช่วงที่ 9)
+    notify_on_void($code, 'RC', $d, $user, $reason, $reopen);   // Telegram
     return receive_by_no($code, $no);
 }
 
@@ -241,9 +217,7 @@ function receive_by_no($code, $no)
     return stock_doc_by_no($code, $no, 'today', 'RC');
 }
 
-/** ใบรับเข้าของสาขาใน $codes ช่วง $from–$to (รวมที่ยกเลิก) — มี date / value / void ครบทุกใบ
-    TODO:
-      - [x] อ่านทั้งช่วงจาก ao_stock_receive (เดิมวนทีละวัน) */
+/** ใบรับเข้าของสาขาใน $codes ช่วง $from–$to (รวมที่ยกเลิก) — มี date / value / void ครบทุกใบ */
 function receive_docs_range($codes, $from, $to)
 {
     return stock_docs_range($codes, $from, $to, array('RC'));

@@ -2,28 +2,14 @@
 /**
  * FILE: admweb/aowebdata/modules/stock/api/sale.php
  * ROLE: ขายสินค้า — ตะกร้า (session) · บิลขาย · ยกเลิก / แก้ไขบิล · ข้อความหลังบันทึกของหน้าขาย
- * DEPENDS: โหลดโดย admweb/aowebdata/modules/stock/api.php (ตัวโหลด — ห้าม include ไฟล์นี้ตรง ๆ) · ใช้ function จากไฟล์อื่นใน api/ ได้ทุกตัว
+ * DEPENDS: api.php (ตัวโหลด — ห้าม include ตรง)
  * TABLES: ao_stock_sale, ao_stock_sale_item, ao_stock_move, ao_stock_balance, ao_stock_store_day, ao_stock_return, ao_stock_log
  * TODO:
- *   - [x] ช่วงที่ 10: แยกจาก api.php เดิม (ย้ายโค้ดทั้งก้อน ไม่แก้ตรรกะ) · จัดฟังก์ชันที่เคยปนอยู่หมวดอื่นให้มาอยู่หมวดนี้
- *   - [x] ช่วงที่ 11: ส่วนลดท้ายบิลต้องมีสิทธิ์ discount · ปุ่มแก้ / ยกเลิกบิลหลังบันทึกต้องมีสิทธิ์ bill_fix
- *   - [x] ปุ่ม “ดู / พิมพ์บิล” หลังบันทึกบิล — แสดงทุกครั้ง ไม่ต้องมีสิทธิ์แก้บิล
- *   - [x] 12 ต.ค.: bill_save รับเงินที่รับมาเป็นทศนิยม 2 ตำแหน่ง (เดิมตัดเป็นบาทเต็ม)
- *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 5): cart_lines ดึงสินค้าในตะกร้าคิวรีเดียว (Stock_prefetchProducts) — เดิมโหลดสินค้าทั้งร้าน
- *
- * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
+ *   - [x] ประวัติการแก้ไขดู docs/CHANGELOG.md
+ * ⚠ โหลดทุก request — มีได้แค่ define() + function (ห้าม echo / header / query ตอนโหลด)
  */
 
-/* ==========================================================
-   ขายสินค้า (ตะกร้า + บิล)
-   ----------------------------------------------------------
-     ตะกร้าที่กำลังขาย   $_SESSION['cart'] = SKU => จำนวน (ของผู้ใช้คนนั้น ยังไม่ใช่ข้อมูลจริง)
-     บิลที่บันทึกแล้ว    ao_stock_sale + ao_stock_sale_item + ao_stock_move (ชนิด sale / sale_void)
-   - ขายได้เฉพาะตอนร้านเปิด · บิลผูก day_id ของวันนั้น (ยอดเงินสดในลิ้นชัก)
-   - เลขที่บิลแยกชุด VAT / ไม่ VAT รันต่อสาขาต่อเดือน (stock_doc_seq ชุด vat / novat งวด YYYYMM) · เลขของบิลที่ยกเลิกไม่นำมาใช้ซ้ำ
-   - ราคาขาย / ทุน ณ ตอนขายเก็บไว้ในรายการของบิล (รายงานย้อนหลังไม่เปลี่ยนตามราคาใหม่)
-   - ยกเลิกบิลได้เฉพาะบิลของวันนี้ ตอนร้านยังเปิด และยังไม่มีการรับคืน — วันก่อนใช้ "รับคืนสินค้า"
-   ========================================================== */
+/* ---------- ขายสินค้า: ตะกร้าใน session · บิลผูก day_id ของวัน · ราคา / ทุนเก็บในรายการบิล · ยกเลิกได้เฉพาะบิลวันนี้ตอนร้านเปิดและยังไม่มีรับคืน ---------- */
 
 /* ---------- ตะกร้า ---------- */
 
@@ -79,7 +65,7 @@ function cart_set($sku, $branch, $qty)
         unset($_SESSION['cart'][$sku]);
         return true;
     }
-    /* สต๊อกยังไม่ถูกหักจนกว่าจะบันทึกบิล ยอดคงเหลือจึงเป็นเพดานโดยตรง (เช็กซ้ำอีกครั้งตอนบันทึก) */
+    /* ยังไม่หักสต๊อกจนกว่าจะบันทึกบิล — ยอดคงเหลือคือเพดาน (เช็กซ้ำตอนบันทึก) */
     $have = product_qty($p, $branch);
     $ok   = true;
     if ($qty > $have) {
@@ -136,9 +122,7 @@ function cart_total()
 
 /* ---------- บิลในฐานข้อมูล ---------- */
 
-/** อ่านบิล — $where ต่อท้าย WHERE (alias s = บิล · b = สาขา) · คืน array ของบิลรูปเดียวกับที่หน้าเว็บใช้
-    TODO:
-      - [x] รายการในบิล 1 คิวรี (ไม่วนทีละบิล) */
+/** อ่านบิล — $where ต่อท้าย WHERE (alias s = บิล · b = สาขา) · คืน array ของบิลรูปเดียวกับที่หน้าเว็บใช้ */
 function sale_bills_query($where, $params, $order = 's.add_date, s.sale_id', $limit = 0)
 {
     $sql = 'SELECT s.*, b.code, u.username AS by_user, u.name AS by_name, v.username AS void_user, v.name AS void_name'
@@ -226,14 +210,33 @@ function bill_by_no($code, $no)
     return $r ? $r[0] : null;
 }
 
-/**
- * บันทึกบิลจากตะกร้า: ล็อกยอด → เช็กร้านเปิด + ของพอ → ออกเลขบิล → บิล + รายการ + stock_move + ประวัติ (ทรานแซกชันเดียว)
- * คืนค่า: บิลที่บันทึก | null ถ้าตะกร้าว่าง | array('error' => ข้อความ)
- * TODO:
- *   - [x] INSERT ao_stock_sale + sale_item + stock_move · เลขบิลจาก stock_doc_seq (vat / novat · YYYYMM)
- *   - [x] บิลที่ทำแทนบิล "ยกเลิกเพื่อแก้ไข" ใส่ edit_of_id
- *   - [x] 12 ต.ค.: เงินที่รับมารับสตางค์ได้ (เดิม (int) ตัดทศนิยม)
- */
+/** ดู / พิมพ์บิลนี้ได้ไหม — ผู้ดูแล · ฝ่ายบัญชี · สิทธิ์ประวัติขาย = ทุกบิล (สาขาตรวจที่หน้าที่เรียก) · คนอื่น = เฉพาะบิลที่ตัวเองขาย */
+function Stock_canSeeBill($user, $bill)
+{
+    if (!$user || !$bill) {
+        return false;
+    }
+    if ($user['role'] === 'admin' || $user['role'] === 'account' || can($user, 'hist_sale')) {
+        return true;
+    }
+    return isset($bill['by_user']) && $bill['by_user'] !== '' && $bill['by_user'] === $user['username'];
+}
+
+/** บิลที่ผู้ใช้คนนี้ขายวันนี้ที่สาขานี้ ใหม่สุดก่อน · $from / $to = 'HH:MM' (ว่าง = ทั้งวัน) · $limit = 0 → นับอย่างเดียว */
+function Stock_getMyBillsToday($code, $user, $from = '', $to = '', $limit = 200)
+{
+    $hm    = function ($t, $def) { return (is_string($t) && preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $t)) ? $t : $def; };
+    $day   = date('Y-m-d');
+    $where = 'b.code = ? AND s.sale_date = ? AND u.username = ? AND s.add_date BETWEEN ? AND ?';
+    $args  = array((string) $code, $day, (string) $user['username'], $day . ' ' . $hm($from, '00:00') . ':00', $day . ' ' . $hm($to, '23:59') . ':59');
+    if ($limit <= 0) {
+        return (int) sdb_val('SELECT COUNT(*) FROM ' . sdb_tb('sale') . ' s JOIN ' . sdb_tb('branch') . ' b ON b.branch_id = s.branch_id'
+                           . ' JOIN ' . sdb_tb('staff') . ' u ON u.staff_id = s.created_by WHERE ' . $where, $args);
+    }
+    return sale_bills_query($where, $args, 's.add_date DESC, s.sale_id DESC', (int) $limit);
+}
+
+/** บันทึกบิลจากตะกร้า (ทรานแซกชันเดียว) · คืนบิล / null (ตะกร้าว่าง) / array('error') */
 function bill_save($code, $user, $method, $received, $vat = false, $net = null)
 {
     $lines = cart_lines();
@@ -247,14 +250,13 @@ function bill_save($code, $user, $method, $received, $vat = false, $net = null)
     $method   = ($method === 'transfer') ? 'transfer' : 'cash';
     $vat      = (bool) $vat;
     $subtotal = round(cart_total(), 2);
-    /* ผู้ขายลดราคาได้ด้วยการแก้ยอดที่ต้องชำระ → ส่วนต่างลงเป็นส่วนลดท้ายบิล (เพิ่มเกินราคาเต็มไม่ได้)
-       ไม่มีสิทธิ์ให้ส่วนลด = คิดราคาเต็มเสมอ แม้ส่งยอดต่ำกว่ามา (ช่วงที่ 11) */
+    /* แก้ยอดที่ต้องชำระ = ส่วนลดท้ายบิล (ไม่เกินราคาเต็ม) · ไม่มีสิทธิ์ discount = ราคาเต็มเสมอ */
     if (!can($user, 'discount')) {
         $net = null;
     }
     $total    = ($net !== null && $net > 0 && $net <= $subtotal) ? round($net, 2) : $subtotal;
     $discount = round($subtotal - $total, 2);
-    /* เงินที่รับมารับสตางค์ได้ 2 ตำแหน่ง (12 ต.ค. — เดิมตัดเป็นบาทเต็ม) · เพดานตามคอลัมน์ decimal(12,2) */
+    /* เงินที่รับมารับสตางค์ได้ 2 ตำแหน่ง (เดิมตัดเป็นบาทเต็ม) · เพดานตามคอลัมน์ decimal(12,2) */
     $recv     = ($method === 'cash') ? round(min(max((float) $received, 0), 9999999999.99), 2) : $total;
     if ($recv < $total) {
         $recv = $total;
@@ -363,13 +365,7 @@ function bill_save($code, $user, $method, $received, $vat = false, $net = null)
     return bill_by_no($code, $no);
 }
 
-/**
- * ยกเลิกบิลของวันนี้ — คืนสต๊อกด้วย stock_move sale_void แล้วทำเครื่องหมายว่ายกเลิก (บิลไม่ถูกลบ)
- * ร้านต้องยังเปิดอยู่ (ปิดแล้วยอดเงินในลิ้นชักสรุปไปแล้ว) และบิลต้องยังไม่มีการรับคืน
- * คืนค่า: บิลที่ยกเลิกแล้ว | null ถ้าไม่พบ / ยกเลิกไปแล้ว | array('error' => ข้อความ)
- * TODO:
- *   - [x] status void + stock_move sale_void + ประวัติ ในทรานแซกชันเดียว
- */
+/** ยกเลิกบิลของวันนี้ (move sale_void · บิลไม่ถูกลบ) · คืนบิล / null / array('error') */
 function bill_void($code, $no, $user, $reason, $reopen = false)
 {
     $b = bill_by_no($code, $no);
@@ -423,17 +419,13 @@ function bill_void($code, $no, $user, $reason, $reopen = false)
     });
     product_db_reset();
     if ($res === true) {
-        notify_on_void($code, 'SA', $b, $user, $reason, $reopen);   // Telegram (ช่วงที่ 9)
+        notify_on_void($code, 'SA', $b, $user, $reason, $reopen);   // Telegram
         return bill_by_no($code, $no);
     }
     return $res;
 }
 
-/**
- * ดึงรายการทั้งบิลกลับเข้าตะกร้า — ใช้คู่กับการยกเลิกเพื่อแก้ไข (บิลใหม่ชี้ edit_of_id กลับมาที่บิลนี้)
- * พนักงานไม่ต้องยิงบาร์โค้ดหรือกรอกใหม่ทั้งบิล แก้เฉพาะแถวที่ผิดแล้วรับเงินใหม่
- * จำนวนที่คืนเข้าสต๊อกจากการยกเลิกทำให้ใส่กลับได้ครบเสมอ
- */
+/** ดึงรายการทั้งบิลกลับเข้าตะกร้า (ยกเลิกเพื่อแก้ไข — บิลใหม่ชี้ edit_of_id มาที่บิลนี้) */
 function cart_from_bill($bill, $branch)
 {
     $_SESSION['cart'] = array();
@@ -444,8 +436,7 @@ function cart_from_bill($bill, $branch)
     return cart_count();
 }
 
-/** บิลนี้มีการรับคืนสินค้าไปแล้วหรือยัง — ถ้ามีแล้ว ห้ามยกเลิก/แก้ทั้งบิล (ของจะถูกคืนซ้ำ)
-    เลขที่บิลไม่ซ้ำข้ามสาขา (รหัสนำหน้าห้ามซ้ำ — acct_prefix_error) จึงหาจากเลขที่อย่างเดียวได้ */
+/** บิลนี้มีการรับคืนแล้วหรือยัง (มีแล้วห้ามยกเลิก / แก้ทั้งบิล) */
 function bill_returned_any($no)
 {
     return sdb_val('SELECT 1 FROM ' . sdb_tb('return') . ' r JOIN ' . sdb_tb('sale') . ' s ON s.sale_id = r.sale_id'
@@ -505,7 +496,7 @@ function sale_flash($err, $done, $voided, $oob)
         /* ดู / พิมพ์บิลให้ลูกค้า — ทุกคนที่ขายได้ */
         echo '<div class="alert-act">' . Stock_buildBillPrintButton($done);
 
-        /* กดผิดก็แก้ได้ทันทีจากตรงนี้ — ทั้งสองทางต้องกรอกหมายเหตุก่อน · ต้องมีสิทธิ์แก้บิลของตัวเอง (ช่วงที่ 11) */
+        /* แก้ / ยกเลิกได้จากตรงนี้ — ต้องกรอกหมายเหตุ + มีสิทธิ์แก้บิลของตัวเอง */
         if (can_void_doc(current_user(), $done, 'bill')) {
             $atts = ' data-bill="' . e($done['no']) . '" data-total="' . money2($done['total']) . '"'
                   . ' data-qty="' . (int) $done['qty'] . '" data-items="' . (int) $done['items'] . '"'

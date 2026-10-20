@@ -271,7 +271,7 @@ unset($_SESSION['flash_nt']);
 if ($sec === '' && $flash) {
     $sec = $flash[0];
 }
-$open = $sec !== '' ? $sec : 'tg';
+$open = $sec;                            // เข้าหน้ามาพับทุกส่วน
 $tgOn   = notify_get('tg_on') === '1';
 $mailOn = notify_get('mail_on') === '1';
 $nChat  = count(tg_chats_parse(notify_get('tg_chats'))[0]);

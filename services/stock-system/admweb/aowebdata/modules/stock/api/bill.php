@@ -2,36 +2,20 @@
 /**
  * FILE: admweb/aowebdata/modules/stock/api/bill.php
  * ROLE: เลขที่บิลและ VAT · หัวบิล / พิมพ์บิล · ค่าตั้งของฝ่ายบัญชี · สรุปบิลขายและเงินเข้า (บัญชีรายวัน / รายเดือน / CSV)
- * DEPENDS: โหลดโดย admweb/aowebdata/modules/stock/api.php (ตัวโหลด — ห้าม include ไฟล์นี้ตรง ๆ) · ใช้ function จากไฟล์อื่นใน api/ ได้ทุกตัว
+ * DEPENDS: api.php (ตัวโหลด — ห้าม include ตรง)
  * TABLES: ao_stock_branch (ค่าตั้งบิล), ao_stock_doc_seq, ao_stock_sale, ao_stock_return
  * TODO:
- *   - [x] ช่วงที่ 10: แยกจาก api.php เดิม (ย้ายโค้ดทั้งก้อน ไม่แก้ตรรกะ) · จัดฟังก์ชันที่เคยปนอยู่หมวดอื่นให้มาอยู่หมวดนี้
- *   - [x] ปุ่ม “ดู / พิมพ์บิล” ของพนักงาน (Stock_buildBillPrintButton)
- *
- * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
+ *   - [x] ประวัติการแก้ไขดู docs/CHANGELOG.md
+ * ⚠ โหลดทุก request — มีได้แค่ define() + function (ห้าม echo / header / query ตอนโหลด)
  */
 
 /* ---------- บิลและ VAT ---------- */
 define('VAT_RATE', 7);
 define('BILL_RUN_DIGITS', 4);
 
-/* ==========================================================
-   เลขที่บิลและ VAT (ฝ่ายบัญชีตั้งค่าได้)
-   ----------------------------------------------------------
-   - ตอนขาย พนักงานเลือกได้ว่าบิลนี้ "VAT" หรือ "ไม่ VAT"
-   - บิล VAT กับบิลไม่ VAT ใช้เลขคนละชุด แต่ละสาขามีรหัสนำหน้าของตัวเอง 2 ตัว
-       รูปแบบ  {รหัส}{ปี ค.ศ.}-{เดือน}-{เลขรัน 4 หลัก}   เช่น BP2026-01-0001
-       เลขรันนับใหม่ทุกเดือน แยกตามสาขาและตามชุด (VAT / ไม่ VAT)
-   - ราคาขายเป็นราคารวม VAT แล้ว → บิล VAT แยกยอดก่อน VAT และ VAT 7% ให้
-   - ฝ่ายบัญชีตั้งรหัสนำหน้า + เลขผู้เสียภาษีของแต่ละสาขาได้เอง (หน้า "ตั้งค่าบัญชี")
+/* ---------- เลขที่บิล / VAT: แยกชุด VAT / ไม่ VAT รายสาขา · {รหัส}{ปี}-{เดือน}-{เลข 4 หลัก} นับใหม่ทุกเดือน · ราคารวม VAT แล้ว ---------- */
 
-   เก็บในคอลัมน์ของ ao_stock_branch (acct_setting_col) · เลขที่บิลออกตอนบันทึกบิล (stock_doc_seq) แล้วเก็บไว้ในบิล
-   เปลี่ยนรหัสนำหน้ากลางเดือน → บิลใบถัดไปใช้รหัสใหม่ เลขรันนับต่อจากเดิม (ไม่ย้อนแก้บิลเก่า)
-   ========================================================== */
-
-/** ชื่อค่าตั้งบัญชี / หัวบิล → คอลัมน์ใน ao_stock_branch ('' = ไม่มีค่านี้)
-    TODO:
-      - [x] เดิมเก็บใน $_SESSION['cfg']['acct'] */
+/** ชื่อค่าตั้งบัญชี / หัวบิล → คอลัมน์ใน ao_stock_branch ('' = ไม่มีค่านี้) */
 function acct_setting_col($key)
 {
     $map = array(
@@ -60,20 +44,7 @@ function acct_setting($code, $key)
     return ($col !== '' && $row !== null && isset($row[$col])) ? (string) $row[$col] : '';
 }
 
-/**
- * สิ่งที่พิมพ์บนบิล (ตั้งได้ทุกสาขาที่หน้า "ตั้งค่าเลขที่บิล" ของฝ่ายบัญชี)
- *   company      ชื่อผู้ประกอบการ / ชื่อร้าน (หัวบิล)
- *   bill_address ที่อยู่บนบิล — ว่าง = ใช้ที่อยู่สาขาจากหน้า "จัดการสาขา"
- *   bill_phone   เบอร์โทรบนบิล — ว่าง = ใช้เบอร์สาขา
- *   bill_extra   บรรทัดเสริมใต้ที่อยู่ เช่น LINE / เว็บไซต์ (ไม่บังคับ)
- *   title_vat    หัวกระดาษของบิล VAT
- *   title_novat  หัวกระดาษของบิลไม่ VAT
- *   footer       ข้อความท้ายบิล (ขึ้นบรรทัดใหม่ได้)
- *   paper        ขนาดกระดาษเริ่มต้น: 80 = เครื่องพิมพ์ใบเสร็จ 80 มม. · a4 = A4
- *   novat_tax    พิมพ์เลขผู้เสียภาษีบนบิลไม่ VAT ด้วยหรือไม่ (1 / 0)
- * TODO:
- *   - [x] เหลือแค่รายชื่อค่า — ค่าเริ่มต้นอยู่ที่ DEFAULT ของคอลัมน์ใน database.php (เดิม bill_head_defaults)
- */
+/** คีย์ของสิ่งที่พิมพ์บนบิล (ตั้งรายสาขาที่หน้าตั้งค่าเลขที่บิล) */
 function bill_head_keys()
 {
     return array('company', 'bill_address', 'bill_phone', 'bill_extra', 'title_vat', 'title_novat', 'footer', 'paper', 'novat_tax');
@@ -116,9 +87,7 @@ function tax_branch_label($no)
     return $no === '00000' ? 'สำนักงานใหญ่' : 'สาขาที่ ' . $no;
 }
 
-/** หาบิลจากเลขที่ของวันหนึ่ง (รวมบิลที่ยกเลิก — หน้าพิมพ์แสดงตราว่ายกเลิก)
-    TODO:
-      - [x] อ่านจาก ao_stock_sale */
+/** หาบิลจากเลขที่ของวันหนึ่ง (รวมบิลที่ยกเลิก — หน้าพิมพ์แสดงตราว่ายกเลิก) */
 function bill_find($code, $ts, $no)
 {
     $r = sale_bills_query('b.code = ? AND s.doc_no = ? AND s.sale_date = ?', array((string) $code, (string) $no, date('Y-m-d', $ts)));
@@ -217,10 +186,7 @@ function bill_print_url($code, $ts, $no, $more = array())
     return 'bill-print.php?' . http_build_query(array_merge(array('b' => $code, 'd' => date('Ymd', $ts), 'no' => $no), $more));
 }
 
-/** ปุ่ม “ดู / พิมพ์บิล” (HTML) — กดแล้วเปิด popup บิลของ inc/footer.php (data-bill-print)
-    $bill = บิลจาก sale_bills_query (ใช้ branch / ts / no) · พนักงานเปิดได้เฉพาะบิลของสาขาตัวเอง (bill-print.php เช็กซ้ำ)
-    TODO:
-      - [x] พนักงานดู / พิมพ์บิลได้ — หน้าขาย (หลังบันทึก) · ประวัติวันนี้ · บิลของวันก่อน */
+/** ปุ่ม “ดู / พิมพ์บิล” (HTML) เปิด popup บิลใน footer.php */
 function Stock_buildBillPrintButton($bill)
 {
     return '<button type="button" class="btn btn-ghost btn-sm" data-bill-print="' . e(bill_print_url($bill['branch'], $bill['ts'], $bill['no'])) . '"'
@@ -263,10 +229,7 @@ function bill_type_label($vat)
     return $vat ? 'VAT' : 'ไม่ VAT';
 }
 
-/** เลขที่บิลใบถัดไปของเดือนนี้ (แสดงตัวอย่างเท่านั้น — เลขจริงออกตอนบันทึกบิลใน bill_save)
-    เลขของบิลที่ถูกยกเลิกไม่นำมาใช้ซ้ำ
-    TODO:
-      - [x] อ่านตัวนับจาก ao_stock_doc_seq (ชุด vat / novat · งวด YYYYMM) — เดิมนับบิลสมมติ + session */
+/** เลขที่บิลใบถัดไปของเดือนนี้ (ตัวอย่าง — เลขจริงออกตอน bill_save) */
 function bill_next_no_series($code, $vat)
 {
     $n = (int) sdb_val('SELECT last_no FROM ' . sdb_tb('doc_seq') . ' WHERE branch_id = ? AND series = ? AND period = ?',
@@ -290,16 +253,9 @@ function acct_prefix_error($code, $key, $val, $all)
     return '';
 }
 
-/* ==========================================================
-   ข้อมูลของฝ่ายบัญชี
-   บิลขายรายวัน (แยก VAT / ไม่ VAT) และเงินเข้าแยกสาขา — อ่านจาก ao_stock_sale / ao_stock_return
-   TODO:
-     - [x] ช่วงที่ 8: สรุปรายเดือน (acct_month → acct_range) / CSV ทั้งเดือน (acct_bills_range) เป็น SQL ทั้งช่วง แทนการวนทีละวัน
-   ========================================================== */
+/* ---------- ข้อมูลของฝ่ายบัญชี: บิลขายรายวัน + เงินเข้าแยกสาขา ---------- */
 
-/** บิลทั้งหมดของสาขาในวันหนึ่ง รวมบิลที่ยกเลิก (บัญชีต้องเห็นเลขที่ครบทุกใบ) เรียงตามเวลา
-    TODO:
-      - [x] อ่านจาก ao_stock_sale (เดิม session + ข้อมูลสมมติ) */
+/** บิลทั้งหมดของสาขาในวันหนึ่ง รวมบิลที่ยกเลิก (บัญชีต้องเห็นเลขที่ครบทุกใบ) เรียงตามเวลา */
 function acct_bills($code, $ts)
 {
     return sale_bills_query('b.code = ? AND s.sale_date = ?', array((string) $code, date('Y-m-d', $ts)));
@@ -322,10 +278,7 @@ function acct_bill_row($b, $code)
     return $b;
 }
 
-/**
- * สรุปของสาขาในวันหนึ่ง
- * คืน array(bills, v, n, void, total, base, vat, cash, transfer, refund, net, rows)
- */
+/** สรุปบัญชีของสาขาในวันหนึ่ง (รวมรายการบิล) */
 function acct_day($code, $ts)
 {
     $s = array('bills' => 0, 'v' => 0, 'n' => 0, 'void' => 0, 'total' => 0, 'base' => 0, 'vat' => 0,
@@ -349,11 +302,7 @@ function acct_day($code, $ts)
     return $s;
 }
 
-/** สรุปของสาขาช่วง $from–$to แบบเดียวกับ acct_day แต่ไม่มีรายการบิล — SQL 2 คำสั่ง (บิล + เงินคืน)
-    คืน array(bills, v, n, void, total, base, vat, cash, transfer, refund, net)
-    · bills / v / n นับรวมบิลที่ยกเลิก (เลขที่ต้องครบ) · ยอดเงินไม่นับบิลที่ยกเลิก · ก่อน VAT / VAT ใช้ค่าที่เก็บในบิล VAT
-    TODO:
-      - [x] ช่วงที่ 8: แทนการวน acct_day ทีละวัน */
+/** สรุปบัญชีของสาขาช่วง $from–$to (ไม่มีรายการบิล · SQL 2 คำสั่ง) */
 function acct_range($code, $from, $to)
 {
     $p   = array((string) $code, date('Y-m-d', $from), date('Y-m-d', $to));
@@ -375,17 +324,13 @@ function acct_range($code, $from, $to)
     return $m;
 }
 
-/** สรุปทั้งเดือน (ตั้งแต่วันที่ 1 ถึงวันนี้หรือสิ้นเดือน) ของสาขา
-    TODO:
-      - [x] ช่วงที่ 8: SQL ทั้งเดือน (acct_range) */
+/** สรุปทั้งเดือน (ตั้งแต่วันที่ 1 ถึงวันนี้หรือสิ้นเดือน) ของสาขา */
 function acct_month($code, $ts)
 {
     return acct_range($code, strtotime(date('Y-m-01', $ts)), min(strtotime(date('Y-m-t', $ts)), strtotime(date('Y-m-d'))));
 }
 
-/** บิลทั้งหมด (รวมที่ยกเลิก) ของหลายสาขา ช่วง $from–$to — เรียงวัน → ลำดับสาขา → เวลา (ไฟล์ CSV ของฝ่ายบัญชี)
-    TODO:
-      - [x] ช่วงที่ 8: คิวรีเดียวทั้งเดือน (เดิมวน acct_bills ทีละวันทีละสาขา) */
+/** บิลทั้งหมด (รวมที่ยกเลิก) หลายสาขาช่วง $from–$to สำหรับ CSV ของฝ่ายบัญชี */
 function acct_bills_range($codes, $from, $to)
 {
     list($in, $params) = sdb_in('b.code', $codes);

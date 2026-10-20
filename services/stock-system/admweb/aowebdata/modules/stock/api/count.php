@@ -1,30 +1,15 @@
 <?php
 /**
  * FILE: admweb/aowebdata/modules/stock/api/count.php
- * ROLE: ตรวจนับ / ปรับยอด — สาเหตุ · ใบร่าง (session) · บันทึก / ยกเลิก / แก้ไขใบตรวจนับ · รอบตรวจนับ
- * DEPENDS: โหลดโดย admweb/aowebdata/modules/stock/api.php (ตัวโหลด — ห้าม include ไฟล์นี้ตรง ๆ) · ใช้ function จากไฟล์อื่นใน api/ ได้ทุกตัว
+ * ROLE: ตรวจนับสต๊อก — สาเหตุ · ใบร่าง (session) · บันทึก / ยกเลิก / แก้ไขใบตรวจนับ · รอบตรวจนับ
+ * DEPENDS: api.php (ตัวโหลด — ห้าม include ตรง)
  * TABLES: ao_stock_count, ao_stock_count_item, ao_stock_move, ao_stock_balance, ao_stock_log
  * TODO:
- *   - [x] ช่วงที่ 10: แยกจาก api.php เดิม (ย้ายโค้ดทั้งก้อน ไม่แก้ตรรกะ) · จัดฟังก์ชันที่เคยปนอยู่หมวดอื่นให้มาอยู่หมวดนี้
- *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 5): adraft_lines ดึงสินค้าในใบคิวรีเดียว (Stock_prefetchProducts) — เดิมโหลดสินค้าทั้งร้าน
- *
- * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
+ *   - [x] ประวัติการแก้ไขดู docs/CHANGELOG.md
+ * ⚠ โหลดทุก request — มีได้แค่ define() + function (ห้าม echo / header / query ตอนโหลด)
  */
 
-/* ==========================================================
-   ตรวจนับ / ปรับยอด (แบบเบา)
-   ----------------------------------------------------------
-   เห็นของจริงไม่ตรงกับระบบ → เลือกสินค้า → กรอก "จำนวนที่นับได้จริง"
-   ระบบคำนวณส่วนต่างให้เอง แล้วปรับสต๊อกให้ตรงกับของจริง
-
-   ต่างจากรับเข้า/ตัดออกตรงที่ กรอก "ยอดจริง" ไม่ใช่ "จำนวนที่เพิ่ม/ลด"
-   ส่วนต่างคำนวณตอนกดบันทึก เทียบกับยอดที่ล็อกไว้ในฐานข้อมูล ณ ตอนนั้น
-   → ถ้ายอดขยับไประหว่างที่นับ (มีการขาย / รับเข้าแทรก) ระบบให้นับตัวนั้นใหม่ (adj_moved + เช็กซ้ำใน adj_save)
-
-     ใบที่กำลังทำ   $_SESSION['adj_draft'][ SKU ] = จำนวนที่นับได้ · $_SESSION['adj_snap'] = ยอดตอนเริ่มนับ (ร่าง)
-     หัวใบที่ค้างไว้  $_SESSION['adj_meta']
-     ใบที่บันทึกแล้ว ao_stock_count + ao_stock_count_item + ao_stock_move (ทุกรายการที่นับ — ตรง = แถว qty 0)
-   ========================================================== */
+/* ---------- ตรวจนับสต๊อก: กรอกยอดที่นับได้จริง · ส่วนต่างคำนวณตอนบันทึก (ยอดขยับระหว่างนับ = ให้นับใหม่) · ร่างอยู่ใน session ---------- */
 
 /* ---------- สาเหตุที่ยอดไม่ตรง ---------- */
 function adj_reasons()
@@ -51,9 +36,7 @@ function adj_reason_needs_note($key)
     return isset($r[$key]) && $r[$key]['note'];
 }
 
-/* ==========================================================
-   ใบที่กำลังทำ (ร่าง) — เก็บ "จำนวนที่นับได้จริง"
-   ========================================================== */
+/* ---------- ใบที่กำลังทำ (ร่าง) ---------- */
 
 function adraft_all()
 {
@@ -66,29 +49,11 @@ function adraft_size()
     return count(adraft_all());
 }
 
-/** แตะสินค้าเข้าใบ: เริ่มต้นที่ยอดในระบบ (ส่วนต่าง 0) แล้วค่อยแก้เป็นยอดที่นับได้ */
-
-/** ใบนี้ใส่ได้อีกกี่รายการ (null = ไม่จำกัด) — จำกัดเฉพาะตอนร้านเปิด */
-function adj_limit($code)
-{
-    $max = count_open_limit($code);
-    return ($max > 0 && store_is_open($code)) ? $max : null;
-}
-
-function adj_full($code)
-{
-    $max = adj_limit($code);
-    return $max !== null && adraft_size() >= $max;
-}
-
-/**
- * แตะสินค้าเข้าใบ: เริ่มที่ยอดในระบบ (ส่วนต่าง 0) แล้วค่อยแก้เป็นยอดที่นับได้
- * จดยอดในระบบ ณ ตอนนี้ไว้ด้วย (snap) — ตอนบันทึกถ้ายอดเปลี่ยนไป แปลว่ามีการขายแทรก ต้องนับใหม่
- */
+/** แตะสินค้าเข้าใบ: เริ่มที่ยอดในระบบ + จดยอดไว้ (snap) */
 function adraft_pick($code, $sku)
 {
     $p = product_by_sku($sku);
-    if ($p === null || isset($_SESSION['adj_draft'][$sku]) || adj_full($code)) {
+    if ($p === null || isset($_SESSION['adj_draft'][$sku])) {
         return false;
     }
     $have = max(0, product_qty($p, $code));
@@ -97,10 +62,7 @@ function adraft_pick($code, $sku)
     return true;
 }
 
-/**
- * รายการที่ยอดในระบบเปลี่ยนไประหว่างนับ (มีการขาย/รับเข้า/ตัดออกแทรก)
- * คืนค่าชื่อสินค้า และอัปเดต snap เป็นยอดล่าสุด ให้พนักงานนับใหม่แล้วกดบันทึกอีกครั้ง
- */
+/** รายการที่ยอดเปลี่ยนระหว่างนับ (คืนชื่อ + อัปเดต snap ให้นับใหม่) */
 function adj_moved($code)
 {
     $out = array();
@@ -117,6 +79,27 @@ function adj_moved($code)
         }
     }
     return $out;
+}
+
+/** ตั้งจำนวนที่นับได้ของแถวหนึ่ง (ว่าง = เอาออก) · $seen = ยอดที่แถวโชว์ตอนกรอก */
+function Stock_setCountDraft($code, $sku, $raw, $seen = null)
+{
+    $raw = preg_replace('/\D/', '', (string) $raw);
+    if ($raw === '') {
+        adraft_remove($sku);
+        return true;
+    }
+    $p = product_by_sku($sku);
+    if ($p === null) {
+        return false;
+    }
+    $_SESSION['adj_draft'][$sku] = min(STOCK_LINE_MAX, (int) $raw);
+    if (is_numeric($seen) && (string) (int) $seen === trim((string) $seen)) {
+        $_SESSION['adj_snap'][$sku] = (int) $seen;
+    } elseif (!isset($_SESSION['adj_snap'][$sku])) {
+        $_SESSION['adj_snap'][$sku] = product_qty($p, $code);
+    }
+    return true;
 }
 
 function adraft_set($sku, $qty)
@@ -196,9 +179,7 @@ function adj_sum($lines)
     return $s;
 }
 
-/* ==========================================================
-   ใบที่บันทึกแล้ว
-   ========================================================== */
+/* ---------- ใบที่บันทึกแล้ว ---------- */
 
 /** ใบตรวจนับของวันนี้จากเลขที่ — แก้ / ยกเลิกจากหน้าตรวจนับได้เฉพาะใบของวันนี้ */
 function adj_by_no($code, $no)
@@ -206,16 +187,7 @@ function adj_by_no($code, $no)
     return stock_doc_by_no($code, $no, 'today', 'AD');
 }
 
-/**
- * บันทึกผลการนับ: ปรับสต๊อกเท่ากับส่วนต่าง + ledger + ประวัติ ในทรานแซกชันเดียว
- * $reason ว่างได้ถ้าทุกรายการตรงกันหมด (เป็นการยืนยันว่านับแล้วตรง)
- * ทุกรายการลง count_item (ใช้ตอบ "นับแล้วในรอบนี้") และ stock_move (ตรง = qty 0 · ยกเลิกใบถอยเฉพาะที่มีส่วนต่าง)
- * ถ้ายอดที่ล็อกได้ไม่ตรงกับยอดตอนแสดงหน้า (มีรายการแทรกระหว่างกดบันทึก) → ไม่บันทึก ให้นับตัวนั้นใหม่
- * คืนค่า: ใบที่บันทึก | array('error' => ข้อความ)
- * TODO:
- *   - [x] INSERT ao_stock_count + count_item + stock_move · round_start จาก count_round()
- *   - [x] ใบที่ทำแทนใบ "ยกเลิกเพื่อแก้ไข" ใส่ edit_of_id
- */
+/** บันทึกผลการนับในทรานแซกชันเดียว · คืนใบ หรือ array('error') */
 function adj_save($code, $user, $reason, $note, $lines)
 {
     $bid = branch_id_of($code);
@@ -286,10 +258,18 @@ function adj_save($code, $user, $reason, $note, $lines)
                            'นับได้ ' . number_format($l['counted']) . ' · ' . $why, $uid, $now);
         }
 
+        /* ประวัติลงชื่อไม่เกิน 50 ตัว (แถวที่ไม่ตรงก่อน) — รายการเต็มอยู่ใน count_item */
         $names = array();
-        foreach ($lines as $l) {
-            $names[] = $l['name'] . ' ' . number_format($l['have']) . '→' . number_format($l['counted'])
-                     . ($l['diff'] === 0 ? ' (ตรง)' : ' (' . ($l['diff'] > 0 ? '+' : '−') . number_format(abs($l['diff'])) . ')');
+        foreach (array(true, false) as $wantDiff) {
+            foreach ($lines as $l) {
+                if (($l['diff'] !== 0) === $wantDiff) {
+                    $names[] = $l['name'] . ' ' . number_format($l['have']) . '→' . number_format($l['counted'])
+                             . ($l['diff'] === 0 ? ' (ตรง)' : ' (' . ($l['diff'] > 0 ? '+' : '−') . number_format(abs($l['diff'])) . ')');
+                }
+            }
+        }
+        if (count($names) > 50) {
+            $names = array_merge(array_slice($names, 0, 50), array('และอีก ' . number_format(count($names) - 50) . ' รายการ'));
         }
         $detail = array(
             'นับ'           => $sum['items'] . ' รายการ · ตรง ' . $sum['same'] . ' · เกิน ' . $sum['over']
@@ -308,7 +288,7 @@ function adj_save($code, $user, $reason, $note, $lines)
         }
         $title = ($sum['over'] + $sum['short'] === 0)
                ? 'ตรวจนับตรงทุกรายการ ' . $no
-               : 'ตรวจนับ / ปรับยอด ' . $no;
+               : 'ตรวจนับพบยอดไม่ตรง ' . $no;
         log_add($code, 'adjust', $user, $title, $detail, null, $no);
         return $no;
     });
@@ -327,13 +307,7 @@ function adj_save($code, $user, $reason, $note, $lines)
     return adj_by_no($code, $no);
 }
 
-/**
- * ยกเลิกใบตรวจนับของวันนี้ — ถอยส่วนต่างที่เคยปรับไว้กลับ
- * ถ้าใบเดิม "บวก" ของเพิ่มแล้วของนั้นถูกขายไปแล้ว การถอยจะทำให้ติดลบ → ยกเลิกไม่ได้ ต้องนับใหม่อีกรอบแทน
- * คืนค่า: ใบที่ยกเลิก | array('error' => 'sold', 'items' => ...) | null ถ้าไม่พบ / ยกเลิกไปแล้ว
- * TODO:
- *   - [x] status void + stock_move adjust_void (stock_doc_void_core)
- */
+/** ยกเลิกใบตรวจนับของวันนี้ (ถอยส่วนต่างกลับ) */
 function adj_void($code, $no, $user, $reason, $reopen = false)
 {
     $d = adj_by_no($code, $no);
@@ -358,11 +332,11 @@ function adj_void($code, $no, $user, $reason, $reopen = false)
     if (is_array($r)) {
         return array('error' => 'sold', 'items' => $r['short']);
     }
-    notify_on_void($code, 'AD', $d, $user, $reason, $reopen);   // Telegram (ช่วงที่ 9)
+    notify_on_void($code, 'AD', $d, $user, $reason, $reopen);   // Telegram
     return adj_by_no($code, $no);
 }
 
-/** ดึงรายการทั้งใบกลับเข้าร่าง (ใบใหม่จะชี้ edit_of_id กลับมาที่ใบนี้) — ยอดตั้งต้นของการนับ = ยอดหลังถอยใบเดิมแล้ว */
+/** ดึงรายการทั้งใบกลับเข้าร่างเพื่อแก้ไข (ใบใหม่ชี้ edit_of_id มาที่ใบนี้) */
 function adraft_from_adj($doc)
 {
     $_SESSION['adj_draft'] = array();
@@ -381,9 +355,7 @@ function adraft_from_adj($doc)
     return adraft_size();
 }
 
-/* ==========================================================
-   รอบการตรวจนับ — "นับแล้ว" หมายถึงนับแล้วภายในรอบปัจจุบัน
-   ========================================================== */
+/* ---------- รอบการตรวจนับ: “นับแล้ว” = นับในรอบปัจจุบัน ---------- */
 
 /** รอบปัจจุบันของสาขา: array(start, end, due) เป็น timestamp เที่ยงคืน */
 function count_round($code, $now = null)
@@ -406,10 +378,7 @@ function count_round($code, $now = null)
     );
 }
 
-/** สถานะการนับของทุกสินค้าในรอบนี้: array( SKU => array(at, diff, by, no) )
-    "นับแล้ว" = มี count_item ในใบที่ยังไม่ยกเลิก ตั้งแต่วันเริ่มรอบปัจจุบัน — ใบหลังสุดชนะ
-    TODO:
-      - [x] อ่านจาก ao_stock_count_item (เดิมข้อมูลสมมติ + ใบใน session) */
+/** สถานะการนับของทุกสินค้าในรอบนี้ — array(SKU => array(at, diff, by, no)) */
 function count_status_all($code)
 {
     $round = count_round($code);
@@ -425,19 +394,19 @@ function count_status_all($code)
     return $out;
 }
 
-/** query string ของหน้าตรวจนับ (แท็บ "ยังไม่นับ" เป็นค่าเริ่มต้น ไม่ต้องใส่) */
+/** query string ของหน้าตรวจนับ (แท็บ "ทั้งหมด" เป็นค่าเริ่มต้น ไม่ต้องใส่) */
 function adj_qs($q, $cat, $tab)
 {
     $a = array();
     if ($q !== '')                   { $a[] = 'q='   . rawurlencode($q); }
     if ($cat !== '')                 { $a[] = 'cat=' . rawurlencode($cat); }
-    if ($tab !== '' && $tab !== 'todo') { $a[] = 't=' . rawurlencode($tab); }
+    if ($tab !== '' && $tab !== 'all') { $a[] = 't=' . rawurlencode($tab); }
     return $a ? '?' . implode('&', $a) : '';
 }
 
 function count_tabs()
 {
-    return array('todo' => 'ยังไม่นับ', 'done' => 'นับแล้ว', 'all' => 'ทั้งหมด');
+    return array('all' => 'ทั้งหมด', 'todo' => 'ยังไม่นับ', 'done' => 'นับแล้ว');   // ทั้งหมดเป็นค่าเริ่มต้น
 }
 
 /** ข้อความสั้นบนการ์ด: "นับ 12 ก.ย. · ตรง" / "นับวันนี้ 10:32 · ขาด 2" */

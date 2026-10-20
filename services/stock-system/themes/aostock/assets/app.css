@@ -289,13 +289,12 @@ input[type="password"]::-ms-reveal,input[type="password"]::-ms-clear{display:non
 .ld-err[hidden]{display:none}
 .ld-err .icon-btn{margin-left:auto;flex:none}
 
-/* ---- + / − นับในเครื่องก่อนแล้วบันทึกเบื้องหลัง (inc/footer.php · 14 ต.ค.) ----
-   แถวที่ตัวเลขเปลี่ยนแล้วแต่ยังไม่ได้บันทึก: ยอดเงิน / คงเหลือในแถว และยอดรวมจางลงจนคำตอบมา (ตัวเลขในช่องเข้มตามปกติ) */
-.cart-list li.is-pending .cl-t small,
-.cart-list li.is-pending .cl-s,
-.sale-cart.is-dirty .pay-tot,
+/* ---- + / − และพิมพ์จำนวน: นับในเครื่องก่อนแล้วบันทึกเบื้องหลัง (inc/footer.php) ----
+   จำนวน / คงเหลือหลังทำ / ส่วนต่างนับ / ยอดชิ้นรวม คิดในเครื่องทันที · ยอดเงิน (ยอดขาย / ต้นทุน) จางไว้จนคำตอบมา */
+#sale-cart li.is-pending .cl-s,
+#sale-cart.is-dirty .pay-tot,
 .sale-cart.is-dirty .pay-disc,
-.sale-cart.is-dirty .card-head .sub{opacity:.45;transition:opacity .15s}
+.sale-cart.is-dirty .pay-row{opacity:.45;transition:opacity .15s}
 
 /* ---- แสดงสินค้าครั้งละ 60 + ปุ่ม “แสดงเพิ่ม” (Stock_renderMoreButton · งานความเร็ว ช่วง 4) ----
    div.more-row = แถวท้ายกริดการ์ด / รายการ (กินเต็มแถวของกริด) · tr.more-row = แถวท้ายตาราง */
@@ -784,12 +783,6 @@ button,a,summary,input,select{-webkit-tap-highlight-color:rgba(14,122,95,.15)}
 .hm-nm{font-size:2.5rem;font-weight:700;letter-spacing:-.025em;line-height:1.1;color:#fff}
 .hm-nm small{font-size:1.1rem;font-weight:500;color:#B6D5CB;margin-left:6px;letter-spacing:0}
 .hm-sub{margin-top:5px;font-size:.88rem;color:#CFE6DE}
-.hm-goal{margin-top:16px;background:rgba(255,255,255,.14);border-radius:11px;padding:11px 14px;font-size:.85rem;color:#DDEEE8}
-.hm-goal .t{display:flex;justify-content:space-between;gap:12px;align-items:center}
-.hm-goal b{color:#fff;font-weight:700}
-.hm-goal .bar{height:7px;background:rgba(255,255,255,.26);border-radius:99px;margin-top:8px;overflow:hidden}
-.hm-goal .bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#C9A86A,#E2C68F)}
-.hm-goal.done .bar i{background:linear-gradient(90deg,#7FE3C0,#BDF3E1)}
 .hero-me .btn{margin-top:16px;background:#fff;color:var(--deep-900);border-color:#fff}
 .hero-me .btn:hover{background:#EAF4F0;color:var(--deep-900)}
 .hm-off{
@@ -937,12 +930,15 @@ button,a,summary,input,select{-webkit-tap-highlight-color:rgba(14,122,95,.15)}
 /* ปุ่มย่อ/ขยาย — แสดงเฉพาะจอที่มีเมนูข้างจริง */
 @media (min-width:901px){
   .nav-mode{display:grid}
+  /* ย่อเมนู: หัวกลุ่มเป็นเส้นคั่นบาง ๆ แทนชื่อ — เมนูประวัติใช้ไอคอนเดียวกับเมนูทำงาน (15 ต.ค.) */
+  .app--rail .side-group{display:block;height:0;margin:8px 6px;padding:0;border-top:1px solid rgba(255,255,255,.14);overflow:hidden}
+  .app--rail .side-nav > .side-group:first-child{display:none}
 }
 
 /* จอแคบ: ลิ้นชักกางเต็มเสมอ ไม่ว่าจะตั้ง rail ไว้หรือไม่ */
 @media (max-width:900px){
   .app--rail{grid-template-columns:1fr}
-  .app--rail .side{width:286px}
+  .app--rail .side{width:286px;z-index:60}       /* 15 ต.ค.: เดิมได้ 40 จากโหมดย่อ → ฉากมืด (55) ทับลิ้นชัก กดเมนูไม่ได้ */
   .app--rail .side-head{padding:22px 22px 18px;text-align:left}
   .app--rail .logo-full,
   .app--rail .side-sub,
@@ -1582,7 +1578,9 @@ button,a,summary,input,select{-webkit-tap-highlight-color:rgba(14,122,95,.15)}
 .thumb--b{background:var(--gold-50);border-color:#E7D8BC}   .thumb--b .ico{color:var(--gold)}
 .thumb--c{background:#EEF3FC;border-color:#D3E0F7}          .thumb--c .ico{color:#1F56C3}
 .thumb--d{background:var(--warn-bg);border-color:#EFDCBB}   .thumb--d .ico{color:var(--warn)}
-.thumb--lg{width:100%;height:78px;border-radius:10px;margin-bottom:8px}
+.thumb--img{background:#fff}
+.thumb--img img{object-fit:contain}                         /* เห็นทั้งรูป ไม่ตัดขอบ */
+.thumb--lg{width:100%;height:110px;border-radius:10px;margin-bottom:8px}
 .thumb--lg .ico{width:28px;height:28px}
 
 .pcell{display:flex;align-items:center;gap:12px;min-width:0}
@@ -1649,6 +1647,7 @@ button,a,summary,input,select{-webkit-tap-highlight-color:rgba(14,122,95,.15)}
   .head-act{margin-left:0;width:100%}
   .head-act .btn-in{width:100%}
   .thumb{width:38px;height:38px;border-radius:10px}
+  .thumb--lg{width:100%;height:80px}                        /* การ์ดสินค้า: กล่องรูปเต็มความกว้างการ์ด */
   .tbl-recv thead{display:none}
   .tbl-recv,.tbl-recv tbody,.tbl-recv tr,.tbl-recv td{display:block;width:auto}
   .tbl-recv tr{border-bottom:1px solid var(--line-2);padding:13px 16px}
@@ -1873,7 +1872,7 @@ table.sr-only{display:block}
   .recv-list .cl-x{grid-area:x;align-self:start}
 }
 
-/* ---------- หน้าตรวจนับ / ปรับยอด ---------- */
+/* ---------- หน้าตรวจนับสต๊อก ---------- */
 .dchip{display:inline-block;padding:0 7px;border-radius:6px;font-size:.76rem;font-weight:700;line-height:1.6;
   font-variant-numeric:tabular-nums;vertical-align:1px}
 .dchip.up{background:#E9F6F0;color:var(--up)}
@@ -1951,17 +1950,21 @@ table.sr-only{display:block}
 .empty-ok .ico{color:var(--up)}
 @media (max-width:760px){ .round{margin:14px 16px 0} }
 
-/* ร้านเปิด: นับได้ครั้งละรายการ */
-.open-note{display:flex;gap:9px;align-items:flex-start;margin:0 0 12px;padding:10px 13px;border-radius:11px;
-  background:var(--bg-soft);border:1px solid var(--line);font-size:.84rem;color:var(--ink-2);line-height:1.5}
-.open-note .ico{width:17px;height:17px;flex-shrink:0;margin-top:2px;color:var(--brand)}
-.open-note.is-full{background:var(--warn-bg);border-color:#EFDCBB;color:#7A4B08}
-.open-note.is-full .ico{color:var(--warn)}
-.good.is-lock{opacity:.45;cursor:not-allowed}
-.good.is-lock:hover{border-color:var(--line);box-shadow:none}
 .cl-t small.moved{display:flex;gap:5px;align-items:flex-start;margin-top:5px;padding:5px 8px;border-radius:7px;
   background:var(--warn-bg);color:#7A4B08;font-size:.74rem;line-height:1.45}
 .cl-t small.moved .ico{width:13px;height:13px;flex-shrink:0;margin-top:2px}
+
+/* ---------- ตรวจนับ: บรรทัดบอกให้ใช้เบิก / ตัดออก (15 ต.ค.) ---------- */
+.cnt-tip{display:flex;gap:8px;align-items:flex-start;margin:12px 20px 0;padding:9px 13px;border-radius:11px;
+  background:var(--bg-soft);border:1px solid var(--line-2);font-size:.82rem;color:var(--ink-2);line-height:1.5}
+.cnt-tip .ico{width:16px;height:16px;flex-shrink:0;margin-top:2px;color:var(--ink-3)}
+.cnt-tip a{color:var(--brand);font-weight:600}
+@media (max-width:760px){ .cnt-tip{margin:12px 16px 0} }
+/* มือถือ: ตัวเลขบนแท็บเป็นหลักพันแล้วแท็บสุดท้ายล้นจอ → ตัวเลขลงใต้ชื่อ */
+@media (max-width:600px){
+  .count-tabs .seg{flex-direction:column;gap:2px;min-width:0;min-height:54px;padding:4px 6px;line-height:1.3}
+  .count-tabs .seg i{margin-left:0}
+}
 
 /* ---------- ประวัติเคลื่อนไหวรายสินค้า ---------- */
 .mv-wrap{display:grid;grid-template-columns:340px minmax(0,1fr);gap:20px;align-items:start}
@@ -2486,6 +2489,34 @@ table.sr-only{display:block}
 .fm-head h2{margin:0;font-size:1.1rem}
 .fm-head .sub{font-size:.82rem;color:var(--ink-3)}
 .fm-foot{position:sticky;bottom:-18px;display:flex;justify-content:flex-end;gap:8px;margin:18px -22px -18px;padding:12px 22px;background:#fff;border-top:1px solid var(--line-2)}
+
+/* ---------- บิลของฉันวันนี้ (inc/sale-bills.php) ---------- */
+.mb-open{margin-top:10px}
+.mb-modal{width:min(660px,calc(100vw - 24px))}
+.mb-body{padding:14px 22px 20px}
+.mb-range{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px 12px}
+.mb-t{display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:var(--ink-3)}
+.mb-t .input{width:128px}
+.mb-quick{margin-left:auto}
+.mb-quick .seg{font:inherit;font-size:.86rem;cursor:pointer;border:0;background:transparent;min-height:36px;padding:0 12px}
+.mb-quick .seg.on{background:#fff}
+.mb-sum{margin:14px 0 6px;font-size:.88rem;color:var(--ink-2)}
+.mb-list{list-style:none;margin:0;padding:0;border-top:1px solid var(--line-2)}
+.mb-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line-2)}
+.mb-time{flex:0 0 44px;font-weight:600;color:var(--deep-900)}
+.mb-no{flex:1 1 auto;min-width:0}
+.mb-no small{display:block;font-size:.78rem;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mb-amt{flex:0 0 auto;font-weight:600;color:var(--deep-900)}
+.mb-row.is-void .mb-time,.mb-row.is-void .mb-amt{color:var(--ink-3);text-decoration:line-through}
+.mb-more{margin-top:10px}
+@media (max-width:560px){
+  .mb-body{padding:12px 16px 18px}
+  .mb-quick{margin-left:0}
+  .mb-row{flex-wrap:wrap;gap:4px 12px}
+  .mb-no{flex-basis:calc(100% - 56px)}
+  .mb-amt{margin-left:56px}                                  /* แถวสอง: ยอดใต้เลขบิล · ปุ่มพิมพ์ชิดขวา */
+  .mb-row .btn{margin-left:auto}
+}
 @media (max-width:760px){.fm-modal .adm-fields{grid-template-columns:1fr}}
 .dly tfoot th.dly-d{white-space:normal;max-width:110px;font-size:.82rem;line-height:1.3}
 @media (max-width:760px){.dly tfoot th.dly-d{max-width:78px}.dly .dly-d{min-width:58px}}
@@ -2536,7 +2567,18 @@ table.sr-only{display:block}
 @media (max-width:760px){.nt-cols{grid-template-columns:1fr}.nt-test{margin-left:0;width:100%}.nt-test .input{flex:1;width:auto}}
 
 /* ---------- หน้าเพิ่ม / แก้สินค้า (adm-product-edit.php) ---------- */
-.prod-edit-img{display:block;width:140px;height:140px;object-fit:cover;border-radius:12px;border:1px solid var(--line)}
+.prod-edit-img{display:block;width:160px;height:160px;object-fit:contain;padding:8px;background:#fff;border-radius:12px;border:1px solid var(--line)}
+.prod-edit-thumb{width:160px;height:160px;border-radius:12px}
+.prod-edit-thumb .ico{width:40px;height:40px}
+.prod-media{display:flex;gap:18px;align-items:flex-start}
+.prod-media-t{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:0;padding-top:4px}
+.prod-media-t .adm-hint{margin:0 0 8px}
+.prod-state{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.prod-state .adm-hint{flex-basis:100%;margin:0}
+@media (max-width:520px){.prod-media{flex-direction:column}}
+.img-prev{margin-top:8px}
+.alert > .pa-thumb{flex:0 0 56px;width:56px;height:56px;border-radius:10px}   /* รูปสินค้าในกรอบ "เพิ่มสินค้าแล้ว" (product-add.php) */
+.img-prev[hidden],.img-note[hidden]{display:none}
 .prod-act{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .prod-off{opacity:.55}
 

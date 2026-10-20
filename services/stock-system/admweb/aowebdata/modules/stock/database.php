@@ -5,46 +5,15 @@
  * DEPENDS: - (ถูก include โดย admweb/plugins/db/inc_install.php · ต้องมี 'stock' ใน $aModuleUse)
  * TABLES: ao_stock_* 25 ตาราง (รายชื่อเดียวกับ $aTablename ใน aModuleConfig.php)
  * TODO:
- *   - [x] ย้ายจาก database/database.php เข้าโมดูล stock
- *   - [x] utf8mb4 ทุกตาราง (การเชื่อมต่อตั้ง charset=utf8mb4 ที่ plugins/db/function/php_v8.php)
- *   - [x] stock_doc_seq ใช้คอลัมน์ period รองรับทั้งเลขบิลรายเดือนและเลขเอกสารคลังรายวัน
- *   - [x] ช่วงที่ 7: stock_store_day.reopen_count ($sqlAlter) · เงินคืนลูกค้าไม่ลง stock_cash_move
- *   - [x] ช่วงที่ 10: stock_branch.daily_goal + stock_staff.pin_fp ($sqlAlter) · ตารางใหม่ stock_remember (จดจำการเข้าสู่ระบบ) — ต้องกด Reinstall
- *   - [x] ช่วงที่ 11: สิทธิ์พนักงานชุดใหม่ใน stock_staff.perms (อธิบายด้านล่าง) — โครงสร้างไม่เปลี่ยน ไม่ต้อง Reinstall
- *   - [x] ช่วงที่ 13: ตารางใหม่ stock_login_ip (นับการกรอก PIN / รหัสผ่านผิดตาม IP) — ต้องกด Reinstall · พนักงานเข้าระบบด้วยชื่อผู้ใช้ + PIN
  *   - [ ] เพิ่มคอลัมน์ทีหลัง: ใส่ $sqlAlter[ตาราง][คอลัมน์] = "ALTER TABLE ... ADD COLUMN ..." (ไม่ต้องใส่ IF NOT EXISTS — ตัวติดตั้งเช็กคอลัมน์ให้เอง)
+ *   - [x] ประวัติการแก้ไขดู docs/CHANGELOG.md
  */
-/* ==========================================================
-   PREFIX  : _DBPREFIX_ ของ admweb (= ao_) + stock_  →  ao_stock_{ชื่อตาราง}
-   ติดตั้ง : หลังบ้าน admweb → index.php?module=siteconfig&mp=db → Run (ข้ามตารางที่มีอยู่แล้ว)
-   MYSQL   : InnoDB · utf8mb4 / utf8mb4_unicode_ci · ต้องการ MySQL 5.6.5+ หรือ MariaDB 10.0+ (DATETIME DEFAULT CURRENT_TIMESTAMP)
-             ทุก index ที่เป็น varchar ยาวไม่เกิน 191 ตัวอักษร (ขีดจำกัด 767 byte ของ InnoDB รุ่นเก่ากับ utf8mb4)
-   PHP     : ไฟล์นี้มีแค่ string — admweb ต้องการ PHP 8
-
-   หลักการ
-   1. สต๊อกคงเหลือ = ผลรวมของ stock_move ทุกการเปลี่ยนแปลงสต๊อกต้องเขียน stock_move
-      ห้ามแก้ยอดตรง ๆ · stock_balance เป็นแค่ cache ให้อ่านเร็ว สร้างใหม่จาก stock_move ได้เสมอ
-   2. สาขาเป็นแกนกลาง — เอกสารทุกใบผูก branch_id ของ "ตอนทำรายการ" (ไม่อ่านจากโปรไฟล์พนักงาน)
-   3. เอกสารไม่ลบ — ยกเลิกด้วย status='void' + เหตุผล แล้วเขียน stock_move กลับรายการ
-      "แก้ไขใบ" = ยกเลิกใบเดิม (void_mode='edit') แล้วออกใบใหม่ที่ edit_of_id ชี้กลับมา
-   4. รายการในใบเก็บ snapshot (sku, ชื่อ, ราคา/ทุน ณ ตอนนั้น) เพื่อให้รายงานย้อนหลังถูก
-   5. ผู้ทำรายการทุกคน (พนักงาน PIN และผู้ดูแล) อยู่ใน stock_staff → created_by ใช้ staff_id ฟิลด์เดียว
-
-   ขอบเขต
-   - แกน AOSTOCK      : ตาราง 1–11
-   - โมดูล POS (Option): เปิด–ปิดร้าน, เงินสด, บิลขาย, รับคืนสินค้า
-   - ยังไม่ทำ          : โอนระหว่างสาขา (ใช้เบิกออก reason='branch' + นำเข้าแทน), IMEI/Serial,
-                         ผู้จำหน่าย, ลูกค้า/สะสมแต้ม, จ่ายเงินหลายช่องทางในบิลเดียว
-
-   aModuleConfig.php → $aTablename ต้องมีทุกตารางด้านล่าง (ดูรายการท้ายไฟล์)
-   ========================================================== */
+/* ---------- ตาราง ao_stock_* (InnoDB · utf8mb4) — คำอธิบายตาราง / หลักการดู DATABASE.md ---------- */
 
 
-/* ==========================================================
-   1. ข้อมูลหลัก
-   ========================================================== */
+/* ---------- 1. ข้อมูลหลัก ---------- */
 
-/* 1) สาขา — รวมค่าตั้งของสาขาที่ผู้ดูแลกำหนด (วันเริ่มรอบนับ, จำนวนที่นับได้ระหว่างเปิดร้าน, วันย้อนหลัง, เงินทอน) */
+/* 1) สาขา + ค่าตั้งของสาขา */
 $sqlArray[_DBPREFIX_ . 'stock_branch'] = "
 CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_branch` (
 	`branch_id`        int UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -67,10 +36,8 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_branch` (
 	`bill_novat_tax`   tinyint(1)   NOT NULL DEFAULT 0 COMMENT '1 = พิมพ์เลขผู้เสียภาษีบนบิลไม่ VAT ด้วย',
 	`receipt_footer`   varchar(300) NOT NULL DEFAULT '' COMMENT 'ข้อความท้ายบิล ขึ้นบรรทัดใหม่ได้ (หน้าตั้งค่าเลขที่บิล)',
 	`count_day`        tinyint UNSIGNED NOT NULL DEFAULT 1 COMMENT 'รอบตรวจนับเริ่มวันที่เท่าไรของเดือน (1-28) ผู้ดูแลตั้ง',
-	`count_open_limit` smallint UNSIGNED NOT NULL DEFAULT 1 COMMENT 'ระหว่างร้านเปิดนับได้ครั้งละกี่รายการ (0=ไม่จำกัด)',
 	`default_float`    decimal(12,2) NOT NULL DEFAULT 0 COMMENT 'เงินทอนมาตรฐาน (โมดูล POS)',
 	`backdate_days`    smallint UNSIGNED NOT NULL DEFAULT 7 COMMENT 'แก้เอกสาร/รับคืนย้อนหลังได้กี่วัน ผู้ดูแลตั้ง',
-	`daily_goal`       int UNSIGNED NOT NULL DEFAULT 0 COMMENT 'เป้าชิ้นต่อคนต่อวัน (ภาพรวมพนักงาน) 0 = ไม่ตั้งเป้า',
 	`allow_negative`   tinyint(1) NOT NULL DEFAULT 0 COMMENT '1=ยอมให้สต๊อกติดลบ',
 	`is_active`        tinyint(1) NOT NULL DEFAULT 1,
 	`sort`             int NOT NULL DEFAULT 0,
@@ -79,25 +46,9 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_branch` (
 	UNIQUE KEY `uq_code` (`code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AOSTOCK สาขา';
 ";
-/* เพิ่ม 5 ต.ค. 2026 (ช่วงที่ 10) — ฐานข้อมูลที่ติดตั้งก่อนหน้านี้ กด Reinstall อีกครั้งเพื่อเพิ่มคอลัมน์ */
-$sqlAlter[_DBPREFIX_ . 'stock_branch']['daily_goal'] = "ALTER TABLE `" . _DBPREFIX_ . "stock_branch` ADD COLUMN `daily_goal` int UNSIGNED NOT NULL DEFAULT 0 COMMENT 'เป้าชิ้นต่อคนต่อวัน (ภาพรวมพนักงาน) 0 = ไม่ตั้งเป้า' AFTER `backdate_days`";
+/* daily_goal / count_open_limit เลิกใช้แล้ว — คอลัมน์ในฐานข้อมูลเดิมปล่อยไว้ได้ */
 
-/* 2) ผู้ใช้ระบบ — พนักงาน (ชื่อผู้ใช้ + PIN 4 หลัก · ช่วงที่ 13) และผู้ดูแล (username/password) อยู่ตารางเดียวกัน
-      role: staff=พนักงาน (เมนูตามที่ติ๊กใน perms เฉพาะสาขาตนเอง) · admin=ผู้ดูแล (ทุกสาขา ไม่ขาย)
-      ไม่มีบทบาทหัวหน้าคลัง — ใช้สิทธิ์เสริม perms ติ๊กให้พนักงานรายคนแทน
-      ผู้ดูแลเพิ่ม / แก้ / พักงาน / ลบ พนักงานได้ที่หน้า "จัดการพนักงาน" (ลบได้เฉพาะคนที่ยังไม่เคยทำรายการ)
-      perms (คั่นด้วย ,) — ช่วงที่ 11 ขึ้นต้นด้วยตัวบอกรุ่น v2 ตามด้วยสิทธิ์ 23 ตัว (รายการเต็ม: perm_list ใน api/core.php)
-        หน้าร้าน:  sale discount store store_reopen cash bill_fix
-        งานคลัง:   receive product_add (ช่วงที่ 16) issue stocktake doc_fix
-        รับคืน:    refund refund_cash        หมวดสินค้า: category_add category_del
-        ดูข้อมูล:  products movements history report
-        สิทธิ์เสริม: void_others backdate report_branch manager (ช่วงที่ 12)
-      แถวที่ไม่มี v2 = สิทธิ์ชุดเดิม 7 ตัว (sale receive issue stocktake history refund category) → แปลงตอนอ่าน ไม่ต้อง Reinstall
-      admin ได้ทุกสิทธิ์ ยกเว้นงานหน้าร้าน / งานคลัง / หมวดสินค้าฝั่งพนักงาน (ผู้ดูแลไม่ขาย / ไม่เปิด-ปิดร้าน)
-      branch_id = สาขาปัจจุบัน (admin ใส่สาขาหลักได้ แต่สลับดูทุกสาขา)
-      fail_count / locked_until = กรอกผิด 5 ครั้งล็อก 15 นาที
-      pin_fp = ลายนิ้วมือของ PIN (HMAC-SHA256 ด้วย AOSTOCK_SECRET_KEY) ไว้เช็ก PIN ซ้ำในสาขาตอนย้ายสาขา / เปิดใช้งานกลับ
-               (pin_hash เทียบกันเองไม่ได้) · พนักงานเดิมได้ค่าตอนเข้าระบบด้วย PIN ครั้งถัดไป */
+/* 2) ผู้ใช้ระบบ (พนักงาน PIN · ผู้ดูแล / บัญชี รหัสผ่าน) */
 $sqlArray[_DBPREFIX_ . 'stock_staff'] = "
 CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_staff` (
 	`staff_id`      int UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -106,7 +57,7 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_staff` (
 	`name`          varchar(60)  NOT NULL COMMENT 'ชื่อที่แสดงบนรายการ/เอกสาร',
 	`initials`      varchar(6)   NOT NULL DEFAULT '' COMMENT 'อักษรย่อบนปุ่มชื่อหน้าเข้าระบบ',
 	`role`          enum('staff','admin','account') NOT NULL DEFAULT 'staff' COMMENT 'account = ฝ่ายบัญชี: ดูบิล/เงินเข้าทุกสาขา + ตั้งเลขที่บิล',
-	`perms`         varchar(255) NOT NULL DEFAULT '' COMMENT 'เมนู + สิทธิ์เสริม คั่นด้วย , (admin ได้ทุกสิทธิ์ ยกเว้น sale)',
+	`perms`         text NOT NULL COMMENT 'เมนู + สิทธิ์เสริม คั่นด้วย , (admin ได้ทุกสิทธิ์ ยกเว้น sale)',
 	`pin_hash`      varchar(255) NOT NULL DEFAULT '' COMMENT 'password_hash ของ PIN 4 หลัก',
 	`pin_fp`        char(64) NULL COMMENT 'HMAC ของ PIN ไว้เช็กซ้ำในสาขา (ช่วงที่ 10)',
 	`password_hash` varchar(255) NOT NULL DEFAULT '' COMMENT 'เฉพาะผู้ดูแล',
@@ -120,12 +71,12 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_staff` (
 	KEY `idx_branch` (`branch_id`, `is_active`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AOSTOCK ผู้ใช้ระบบ';
 ";
-/* เพิ่ม 5 ต.ค. 2026 (ช่วงที่ 10) — กด Reinstall อีกครั้งเพื่อเพิ่มคอลัมน์ */
+/* เพิ่มทีหลัง — Reinstall เพื่อเพิ่มคอลัมน์ */
 $sqlAlter[_DBPREFIX_ . 'stock_staff']['pin_fp'] = "ALTER TABLE `" . _DBPREFIX_ . "stock_staff` ADD COLUMN `pin_fp` char(64) NULL COMMENT 'HMAC ของ PIN ไว้เช็กซ้ำในสาขา (ช่วงที่ 10)' AFTER `pin_hash`";
+/* perms เดิม varchar(255) สั้นไป (สิทธิ์ครบ 275 ตัว) → text · คีย์ perms_text ไม่ใช่คอลัมน์จริง ตัวติดตั้งจึงรันทุกครั้งที่ Reinstall (ผลเหมือนเดิม) */
+$sqlAlter[_DBPREFIX_ . 'stock_staff']['perms_text'] = "ALTER TABLE `" . _DBPREFIX_ . "stock_staff` MODIFY COLUMN `perms` text NOT NULL COMMENT 'เมนู + สิทธิ์เสริม คั่นด้วย , (admin ได้ทุกสิทธิ์ ยกเว้น sale)'";
 
-/* 2b) จดจำการเข้าสู่ระบบ 30 วัน (ช่อง "จดจำการเข้าสู่ระบบ" ของผู้ดูแล / ฝ่ายบัญชี) — 1 แถว / 1 เครื่อง
-       cookie = selector:validator · เก็บเฉพาะ sha256 ของ validator · ใช้แล้วเปลี่ยน validator ใหม่ทุกครั้ง
-       ออกจากระบบ = ลบแถวของเครื่องนั้น · เปลี่ยนรหัสผ่าน / พักงาน / ลบบัญชี / validator ผิด = ลบทุกเครื่องของคนนั้น */
+/* 2b) จดจำการเข้าสู่ระบบ 30 วัน (1 แถว / 1 เครื่อง) */
 $sqlArray[_DBPREFIX_ . 'stock_remember'] = "
 CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_remember` (
 	`remember_id` int UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -141,11 +92,7 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_remember` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AOSTOCK จดจำการเข้าสู่ระบบ';
 ";
 
-/* 2c) นับการกรอก PIN / รหัสผ่านผิดตาม IP (ช่วงที่ 13) — 1 แถว / 1 IP
-       ล็อกรายบัญชี (fail_count ของ stock_staff) กันการสุ่ม PIN ของคนเดียว · ตารางนี้กันการสุ่มหลายบัญชีจากที่เดียว
-       ผิดครบ IP_LOCK_FAILS ครั้งภายใน IP_LOCK_MINUTES นาทีนับจากครั้งแรก → IP นั้นเข้าระบบไม่ได้ IP_LOCK_MINUTES นาที (ค่าใน api/auth.php)
-       ip = IP จริงของผู้ใช้ (client_ip — หลัง Cloudflare อ่าน CF-Connecting-IP เฉพาะคำขอที่มาจาก Cloudflare) · IPv6 นับรวมทั้งวง /64
-       เข้าระบบสำเร็จไม่ล้างตัวนับ (หมดรอบเอง) · แถวที่ไม่มีการกรอกผิดเกิน 1 วันลบทิ้งตอนมีการกรอกผิดครั้งถัดไป */
+/* 2c) นับการกรอกผิดตาม IP (1 แถว / 1 IP) */
 $sqlArray[_DBPREFIX_ . 'stock_login_ip'] = "
 CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_login_ip` (
 	`ip`           varchar(45) NOT NULL PRIMARY KEY COMMENT 'IPv4 หรือวง IPv6 /64',
@@ -157,8 +104,7 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_login_ip` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AOSTOCK นับการกรอกผิดตาม IP';
 ";
 
-/* 3) ประวัติการประจำสาขาของพนักงาน — ใช้ตอบ "พนักงานคนนี้อยู่สาขาไหน ณ วันที่ X"
-      แถวปัจจุบัน date_to = NULL · ย้ายสาขา = ปิดแถวเดิม + เพิ่มแถวใหม่ + อัปเดต stock_staff.branch_id */
+/* 3) ประวัติการประจำสาขาของพนักงาน */
 $sqlArray[_DBPREFIX_ . 'stock_staff_branch'] = "
 CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_staff_branch` (
 	`sb_id`     int UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -171,7 +117,7 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_staff_branch` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AOSTOCK ประวัติสาขาของพนักงาน';
 ";
 
-/* 4) หมวดสินค้า — พนักงานที่มีสิทธิ์ category / ผู้ดูแลเพิ่มได้ · created_by 0 = ระบบ / นำเข้า (แสดงเป็น "หมวดตั้งต้น") */
+/* 4) หมวดสินค้า */
 $sqlArray[_DBPREFIX_ . 'stock_category'] = "
 CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_category` (
 	`cate_id`    int UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -182,11 +128,10 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_category` (
 	`add_date`   datetime DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AOSTOCK หมวดสินค้า';
 ";
-/* เพิ่ม 2 ต.ค. 2026 — ฐานข้อมูลที่ติดตั้งก่อนหน้านี้ กด Reinstall อีกครั้งเพื่อเพิ่มคอลัมน์ */
+/* เพิ่มทีหลัง — Reinstall เพื่อเพิ่มคอลัมน์ */
 $sqlAlter[_DBPREFIX_ . 'stock_category']['created_by'] = "ALTER TABLE `" . _DBPREFIX_ . "stock_category` ADD COLUMN `created_by` int UNSIGNED NOT NULL DEFAULT 0 COMMENT 'staff_id ผู้เพิ่ม (0 = ระบบ / นำเข้า)' AFTER `is_active`";
 
-/* 5) สินค้า (SKU) — ไม่จำกัดจำนวน · 1 สี/รุ่น = 1 SKU
-      barcode เก็บไว้ก่อน (เรื่องบาร์โค้ดยังรอตัดสิน) · image = path จาก UpFile */
+/* 5) สินค้า (1 สี / รุ่น = 1 SKU) */
 $sqlArray[_DBPREFIX_ . 'stock_product'] = "
 CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_product` (
 	`product_id`    int UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -209,11 +154,9 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_product` (
 ";
 
 
-/* ==========================================================
-   2. สต๊อก
-   ========================================================== */
+/* ---------- 2. สต๊อก ---------- */
 
-/* 6) ยอดคงเหลือต่อสาขา (cache) — อัปเดตพร้อมกับทุกครั้งที่เขียน stock_move */
+/* 6) ยอดคงเหลือต่อสาขา (cache ของ stock_move) */
 $sqlArray[_DBPREFIX_ . 'stock_balance'] = "
 CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_balance` (
 	`branch_id`  int UNSIGNED NOT NULL,
@@ -224,10 +167,7 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_balance` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AOSTOCK ยอดคงเหลือ (cache จาก stock_move)';
 ";
 
-/* 7) สมุดความเคลื่อนไหว (ledger) — แหล่งความจริงหนึ่งเดียว
-      type : receive / receive_void · issue / issue_void · adjust / adjust_void · sale / sale_void / return (POS)
-      qty  : มีเครื่องหมาย + เพิ่ม / − ลด
-      ref_type + ref_id = เอกสารต้นทาง (receive, issue, count, sale) · doc_no เก็บซ้ำไว้แสดงผลเร็ว */
+/* 7) สมุดความเคลื่อนไหว (ledger) — แหล่งความจริงหนึ่งเดียว */
 $sqlArray[_DBPREFIX_ . 'stock_move'] = "
 CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_move` (
 	`move_id`    bigint UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -250,13 +190,9 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_move` (
 ";
 
 
-/* ==========================================================
-   3. เอกสารคลัง — รับเข้า · เบิก/ตัดออก · ตรวจนับ
-   ทุกใบมีโครงเดียวกัน: doc_no (XX-YYMMDD-NNNN รันต่อสาขาต่อวัน) · status posted/void
-   · void_mode void=ยกเลิก / edit=ยกเลิกเพื่อแก้ · edit_of_id = ใบเดิมที่ถูกแก้ · void_reason บังคับกรอก
-   ========================================================== */
+/* ---------- 3. เอกสารคลัง — รับเข้า · เบิก / ตัดออก · ตรวจนับ ---------- */
 
-/* 8) ใบรับเข้า (RC-) — ยกเลิกไม่ได้ถ้าของขาย/ตัดออกไปจนยอดไม่พอถอน */
+/* 8) ใบรับเข้า (RC-) */
 $sqlArray[_DBPREFIX_ . 'stock_receive'] = "
 CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_receive` (
 	`receive_id`  int UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -295,9 +231,7 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_receive_item` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AOSTOCK รายการรับเข้า';
 ";
 
-/* 9) ใบเบิก / ตัดออก (IS-) — ตัดเกินยอดคงเหลือไม่ได้
-      reason: use เบิกใช้ · damaged ชำรุด · expired หมดอายุ · return คืนผู้จำหน่าย
-              · branch ส่งไปสาขาอื่น (ใช้แทนการโอน ต้องกรอก note) · lost สูญหาย · other อื่น ๆ */
+/* 9) ใบเบิก / ตัดออก (IS-) */
 $sqlArray[_DBPREFIX_ . 'stock_issue'] = "
 CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_issue` (
 	`issue_id`    int UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -337,11 +271,7 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_issue_item` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AOSTOCK รายการเบิก/ตัดออก';
 ";
 
-/* 10) ใบตรวจนับ / ปรับยอด (AD-) — กรอก "ยอดที่นับได้จริง" ระบบคิดส่วนต่างกับยอด ณ ตอนบันทึก
-       reason: miscount นับผิดครั้งก่อน · unlogged ใช้/เสียไม่ได้บันทึก · wrongkey บันทึกผิด
-               · found เจอของเพิ่ม · lost ของหาย · other อื่น ๆ (lost/other ต้องกรอก note)
-       รอบการนับ: คำนวณจาก stock_branch.count_day ไม่มีตารางรอบแยก
-       "นับแล้วในรอบนี้" = มี count_item ของสินค้านั้นในช่วงรอบ ที่ใบยังไม่ถูก void */
+/* 10) ใบตรวจนับสต๊อก (AD-) */
 $sqlArray[_DBPREFIX_ . 'stock_count'] = "
 CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_count` (
 	`count_id`    int UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -388,12 +318,9 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_count_item` (
 ";
 
 
-/* ==========================================================
-   4. ประวัติการทำรายการ (หน้า "ประวัติการทำรายการ")
-   ========================================================== */
+/* ---------- 4. ประวัติการทำรายการ ---------- */
 
-/* 11) log รายวันต่อสาขา — type: open close sale void receive rvoid issue ivoid adjust avoid cash stock
-       detail เก็บเป็น JSON ของคู่ "หัวข้อ => ค่า" ที่แสดงในหน้าประวัติ (json_encode ใช้ได้ใน PHP 5.6) */
+/* 11) ประวัติรายวันต่อสาขา */
 $sqlArray[_DBPREFIX_ . 'stock_log'] = "
 CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_log` (
 	`log_id`     bigint UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -411,14 +338,9 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_log` (
 ";
 
 
-/* ==========================================================
-   5. โมดูล POS (Option) — เปิด–ปิดร้าน · เงินสด · บิลขาย
-   ติดตั้งเฉพาะลูกค้าที่ซื้อ POS · ถ้าไม่ใช้ ตัดส่วนนี้ออกได้โดยแกนยังทำงานครบ
-   ========================================================== */
+/* ---------- 5. โมดูล POS — เปิด–ปิดร้าน · เงินสด · บิลขาย · รับคืน ---------- */
 
-/* 12) เปิด–ปิดร้าน (1 แถว / สาขา / วัน) — เงินทอนเป็นก้อนหมุนเวียน keep_cash → float_carried ของวันถัดไป
-       เปิดร้านใหม่หลังปิด (ผู้ดูแล): status กลับเป็น open · reopen_count + 1 · ค่า closed_* / counted_cash / expected_cash
-       ยังเก็บผลของรอบที่ปิดไปจนกว่าจะปิดใหม่ · วันที่ลืมปิดค้าง status open ไว้ (วันถัดไปเปิดได้ เงินทอนยกมาใช้ default_float) */
+/* 12) เปิด–ปิดร้าน (1 แถว / สาขา / วัน) */
 $sqlArray[_DBPREFIX_ . 'stock_store_day'] = "
 CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_store_day` (
 	`day_id`        int UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -443,11 +365,10 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_store_day` (
 	UNIQUE KEY `uq_branch_date` (`branch_id`, `store_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AOSTOCK POS เปิด-ปิดร้าน';
 ";
-/* เพิ่ม 2 ต.ค. 2026 (ช่วงที่ 7) — ฐานข้อมูลที่ติดตั้งก่อนหน้านี้ กด Reinstall อีกครั้งเพื่อเพิ่มคอลัมน์ */
+/* เพิ่มทีหลัง — Reinstall เพื่อเพิ่มคอลัมน์ */
 $sqlAlter[_DBPREFIX_ . 'stock_store_day']['reopen_count'] = "ALTER TABLE `" . _DBPREFIX_ . "stock_store_day` ADD COLUMN `reopen_count` tinyint UNSIGNED NOT NULL DEFAULT 0 COMMENT 'ผู้ดูแลเปิดร้านใหม่หลังปิดกี่ครั้ง' AFTER `status`";
 
-/* 13) เงินเข้า/ออกลิ้นชักระหว่างวัน (เติมเงินทอน / หยิบออก) ที่พนักงานกรอกเองในหน้าเปิด–ปิดร้าน
-       เงินคืนลูกค้า (รับคืนสินค้า) ไม่ลงตารางนี้ — คิดจาก stock_return.refund ของ day_id เดียวกัน (ไม่เก็บซ้ำสองที่) */
+/* 13) เงินเข้า / ออกลิ้นชักระหว่างวัน */
 $sqlArray[_DBPREFIX_ . 'stock_cash_move'] = "
 CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_cash_move` (
 	`cash_id`    int UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -462,12 +383,7 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_cash_move` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AOSTOCK POS เงินเข้าออกลิ้นชัก';
 ";
 
-/* 14) บิลขาย — ชำระ 1 ช่องทางต่อบิล (เงินสด / โอน-พร้อมเพย์)
-       พนักงานเลือกตอนขายว่า VAT หรือไม่ · เลขที่แยกชุดตามสาขา + ชุด:
-       {prefix}{YYYY}-{MM}-{เลขรัน 4 หลัก} เช่น BP2026-01-0001 นับใหม่ทุกเดือน (ดู stock_doc_seq)
-       ราคาขายรวม VAT แล้ว → base_amount + vat_amount = total
-       ส่วนลดท้ายบิล: คนขายแก้ "ยอดที่ต้องชำระ" ได้เอง (ลูกค้าต่อราคา) → discount = subtotal − total
-       เช่น ราคาเต็ม 520 ลูกค้าต่อเหลือ 500 → subtotal 520 · discount 20 · total 500 (total ต้อง > 0 และไม่เกิน subtotal) */
+/* 14) บิลขาย */
 $sqlArray[_DBPREFIX_ . 'stock_sale'] = "
 CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_sale` (
 	`sale_id`       int UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -518,13 +434,7 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_sale_item` (
 ";
 
 
-/* 17) ใบรับคืนสินค้า (RT-) — อ้างอิงบิลเดิม คืนบางรายการ/บางชิ้นได้
-       กติกา: ต้องมีสิทธิ์ refund · บิลไม่เก่ากว่า stock_branch.backdate_days
-       · คืนเป็นเงินสดจากลิ้นชักของวันนี้เท่านั้น (day_id = วันนี้ · ยอดเงินที่ควรมีในลิ้นชักหัก refund ของ day_id นี้)
-       · reason กำหนดว่าของกลับเข้าสต๊อกไหม: wrong ซื้อผิดรุ่น/ผิดแบบ → restock=1 (stock_move type=return)
-         defect ชำรุด · used ใช้แล้ว · other อื่น ๆ → restock=0 ไม่เข้าสต๊อก แยกเก็บ
-       · refund แก้ได้ 0..calc_amount ถ้าไม่เท่ากับ calc ต้องมี refund_note
-       · บิลที่มีการรับคืนแล้ว ยกเลิก/แก้ทั้งบิลไม่ได้ */
+/* 17) ใบรับคืนสินค้า (RT-) */
 $sqlArray[_DBPREFIX_ . 'stock_return'] = "
 CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_return` (
 	`return_id`   int UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -567,12 +477,7 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_return_item` (
 ";
 
 
-/* 18) ตัวนับเลขที่เอกสาร — กันเลขซ้ำ/ข้ามเมื่อทำรายการพร้อมกันหลายเครื่อง
-       ใช้ทั้งแกน AOSTOCK และโมดูล POS (ถ้าตัดโมดูล POS ออก ห้ามตัดตารางนี้)
-       ออกเลข: SELECT ... FOR UPDATE แถว (branch, series, period) → last_no + 1 → UPDATE ในทรานแซกชันเดียวกับ INSERT เอกสาร
-       series + period:
-         vat / novat         + YYYYMM  (เช่น 202601)  เลขบิลขาย นับใหม่ทุกเดือน
-         RC / IS / AD / RT   + YYMMDD  (เช่น 260115)  ใบรับเข้า / เบิก / ตรวจนับ / รับคืน นับใหม่ทุกวัน */
+/* 18) ตัวนับเลขที่เอกสาร */
 $sqlArray[_DBPREFIX_ . 'stock_doc_seq'] = "
 CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_doc_seq` (
 	`branch_id` int UNSIGNED NOT NULL,
@@ -584,13 +489,7 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_doc_seq` (
 ";
 
 
-/* 19) ค่าตั้งของระบบแบบ key / value (ใช้ร่วมทุกสาขา) — ตอนนี้ใช้กับการแจ้งเตือน (หน้า "ตั้งค่าการแจ้งเตือน")
-       key ที่ใช้: tg_on, tg_token*, tg_chats, tg_events (JSON), tg_branches (JSON, ว่าง = ทุกสาขา), tg_silent,
-                   mail_on, mail_to, mail_time (HH:MM), mail_days (open/all), mail_branches (JSON), mail_parts (JSON),
-                   mail_last_sent (Y-m-d ที่ส่งไปแล้ว — กันส่งซ้ำ),
-                   smtp_host, smtp_port, smtp_secure (tls/ssl/none), smtp_user, smtp_pass*, from_name, from_email
-       * = ค่าลับ เก็บแบบเข้ารหัส (is_secret = 1) ไม่ส่งกลับไปแสดงบนหน้าเว็บ
-       อีเมลรายวัน: cron ทุก 5 นาที → ถ้า mail_on = 1 และเวลาเลย mail_time และ mail_last_sent ≠ วันนี้ → ส่งแล้วบันทึก log */
+/* 19) ค่าตั้งของระบบ key / value */
 $sqlArray[_DBPREFIX_ . 'stock_setting'] = "
 CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_setting` (
 	`skey`       varchar(40)  NOT NULL PRIMARY KEY,
@@ -602,8 +501,7 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_setting` (
 ";
 
 
-/* 20) ประวัติการส่งแจ้งเตือน — ทั้งที่สำเร็จและไม่สำเร็จ (ใช้แสดง "ประวัติการส่งล่าสุด" และไล่ปัญหา)
-       channel: tg / mail · event: close, cash_diff, void, refund, reopen, lost, open, low, backdate, daily, test */
+/* 20) ประวัติการส่งแจ้งเตือน */
 $sqlArray[_DBPREFIX_ . 'stock_notify_log'] = "
 CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_notify_log` (
 	`log_id`     int UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -623,7 +521,4 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_notify_log` (
 ";
 
 
-/* ==========================================================
-   ตารางทุกตัวด้านบนต้องลงทะเบียนใน $aTablename ของ aModuleConfig.php ด้วย
-   ไม่งั้นตัวติดตั้ง (inc_install.php) จะข้าม ไม่สร้างตารางนั้น
-   ========================================================== */
+/* ทุกตารางต้องอยู่ใน $aTablename ของ aModuleConfig.php — ไม่งั้นตัวติดตั้งข้าม */

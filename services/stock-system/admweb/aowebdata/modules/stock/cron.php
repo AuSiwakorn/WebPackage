@@ -5,13 +5,11 @@
  * DEPENDS: admweb/mainApi.php (ค่าตั้งจาก fix.<โดเมน>.php + api.php ของโมดูล stock) → notify_cron_run()
  * TABLES: ao_stock_setting, ao_stock_notify_log, ao_stock_sale, ao_stock_return, ao_stock_store_day (ผ่าน api.php)
  * TODO:
- *   - [x] ช่วงที่ 9: CLI เท่านั้น · รับชื่อโดเมนเป็น argument เพื่อเลือกไฟล์ fix.<โดเมน>.php
+ *   - [x] ประวัติการแก้ไขดู docs/CHANGELOG.md
  *
- * ตั้งใน DirectAdmin → Advanced Features → Cron Jobs (ทุก 5 นาที · แก้ path ให้ตรงกับบัญชีโฮสต์):
+ * ตั้ง Cron Jobs ของโฮสต์ (DirectAdmin) ทุก 5 นาที · แก้ path ตามบัญชี · ต่อท้าย >/dev/null 2>&1 กันโฮสต์ส่งอีเมลผลทุกรอบ:
  *   *\/5 * * * *   /usr/local/bin/php /home/<ผู้ใช้>/domains/web-siam.com/public_html/aostock/admweb/aowebdata/modules/stock/cron.php web-siam.com >/dev/null 2>&1
- *   (ต่อท้าย >/dev/null 2>&1 กันโฮสต์ส่งอีเมลผลลัพธ์ทุก 5 นาที)
- * ทดสอบเอง: php cron.php web-siam.com → พิมพ์เวลา + สิ่งที่ทำ (เช่น "ยังไม่ถึงเวลาส่ง (21:00 น.)")
- * หน้า "AOSTOCK — สถานะระบบ" ในหลังบ้านบอกเวลาที่ cron ทำงานล่าสุด
+ * ทดสอบ: php cron.php web-siam.com · เวลาที่ cron ทำงานล่าสุดดูที่หน้าสถานะระบบในหลังบ้าน
  */
 if (PHP_SAPI !== 'cli') {
 	http_response_code(403);

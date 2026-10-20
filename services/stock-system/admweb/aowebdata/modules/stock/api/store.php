@@ -2,29 +2,14 @@
 /**
  * FILE: admweb/aowebdata/modules/stock/api/store.php
  * ROLE: เปิด / ปิดร้านประจำวัน · เงินทอนยกมา · เงินเข้า / ออกลิ้นชัก · เปิดร้านใหม่หลังปิด
- * DEPENDS: โหลดโดย admweb/aowebdata/modules/stock/api.php (ตัวโหลด — ห้าม include ไฟล์นี้ตรง ๆ) · ใช้ function จากไฟล์อื่นใน api/ ได้ทุกตัว
+ * DEPENDS: api.php (ตัวโหลด — ห้าม include ตรง)
  * TABLES: ao_stock_store_day, ao_stock_cash_move, ao_stock_sale, ao_stock_return, ao_stock_log
  * TODO:
- *   - [x] ช่วงที่ 10: แยกจาก api.php เดิม (ย้ายโค้ดทั้งก้อน ไม่แก้ตรรกะ) · จัดฟังก์ชันที่เคยปนอยู่หมวดอื่นให้มาอยู่หมวดนี้
- *   - [x] ประวัติเปิดร้านใหม่ลงบทบาทจริงของคนเปิด (store_reopen)
- *   - [x] ช่วงที่ 17: ปิดร้านย้อนหลัง (Stock_closePastDay) · เงินในลิ้นชักของวันใดก็ได้ (Stock_getDayCash)
- *
- * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
+ *   - [x] ประวัติการแก้ไขดู docs/CHANGELOG.md
+ * ⚠ โหลดทุก request — มีได้แค่ define() + function (ห้าม echo / header / query ตอนโหลด)
  */
 
-/* ==========================================================
-   เปิด / ปิดร้านประจำวัน และเงินทอนในลิ้นชัก — ao_stock_store_day + ao_stock_cash_move
-   ----------------------------------------------------------
-   หลักการ
-   - ร้านเปิดวันละครั้งต่อสาขา (UNIQUE สาขา + วันที่) ใครมาถึงก่อนเป็นคนเปิด
-     คนที่ login ทีหลังเข้าใช้งานได้เลย ไม่ต้องเปิดซ้ำ (สองเครื่องกดพร้อมกัน → แถวเดียว)
-   - เงินทอนเริ่มวัน = ยอดที่แยกไว้ตอนปิดร้านครั้งก่อน (keep_cash) + ที่เติมตอนเปิด
-     วันก่อนลืมปิดร้าน → ใช้เงินทอนมาตรฐานของสาขา แล้วเตือนให้นับเงินจริง (แจ้งยอดไม่ตรงได้)
-   - ระหว่างวันเติม / หยิบเงินได้ (stock_cash_move) · เงินคืนลูกค้า = stock_return.refund ของวันนี้
-   - ปิดร้าน: เก็บยอดที่ควรมี + นับได้ + แยกไว้พรุ่งนี้ + นำส่ง ลงแถวของวัน
-   - ปิดแล้ว ขาย / ยกเลิกบิล / รับคืน / เติม–หยิบเงินไม่ได้ จนกว่าผู้ดูแลจะเปิดร้านใหม่
-   - ลืมปิดร้าน (ช่วงที่ 17): เปิดร้านวันใหม่ต้องปิดวันล่าสุดที่ค้างก่อน (Stock_closePastDay) · ผู้ดูแลปิดย้อนหลังได้จากหน้าภาพรวม
-   ========================================================== */
+/* ---------- เปิด / ปิดร้านประจำวัน + เงินในลิ้นชัก: วันละแถวต่อสาขา (เปิดก่อนได้ก่อน) · ปิดแล้วขาย / คืน / เติม–หยิบไม่ได้จนเปิดใหม่ ---------- */
 
 /** เงินทอนมาตรฐานของสาขา (ฟิลด์ default_float) */
 function branch_default_float($code)
@@ -32,9 +17,7 @@ function branch_default_float($code)
     return branch_setting($code, 'default_float');      // ผู้ดูแลตั้งที่หน้า "จัดการสาขา"
 }
 
-/** แถวเปิด–ปิดร้านของสาขาในวันที่ $date (Y-m-d · ค่าเริ่มต้นวันนี้) + ชื่อคนเปิด / ปิด หรือ null
-    TODO:
-      - [x] cache ต่อ request · store_db_reset() ล้างหลังเขียน */
+/** แถวเปิด–ปิดร้านของสาขาในวันที่ $date (Y-m-d · ค่าเริ่มต้นวันนี้) + ชื่อคนเปิด / ปิด หรือ null */
 function store_day_row($code, $date = null, $reset = false)
 {
     static $cache = array();
@@ -55,11 +38,7 @@ function store_day_row($code, $date = null, $reset = false)
     return $cache[$k];
 }
 
-/** ผลเปิด–ปิดร้านของสาขาในวันหนึ่ง (อีเมลสรุปรายวัน / ตัวอย่างข้อความแจ้งเตือน) — ไม่มีการเปิดร้านวันนั้น = null
-    คืน array(opened_at, opened_by, float, closed, closed_at, closed_by, expect, counted, diff, keep, handover, note)
-    · closed = false ถ้ายังไม่ได้ปิด (ค่าตอนปิดเป็น null)
-    TODO:
-      - [x] ช่วงที่ 8: อ่านจาก ao_stock_store_day (แทน past_store_events ที่เป็นข้อมูลสมมติ) */
+/** ผลเปิด–ปิดร้านของสาขาในวันหนึ่ง — ไม่มีการเปิดร้าน = null */
 function store_day_result($code, $ts)
 {
     $r = store_day_row($code, date('Y-m-d', $ts));
@@ -73,7 +52,7 @@ function store_day_result($code, $ts)
         'opened_by' => ($r['opened_name'] !== null) ? $r['opened_name'] : '-',
         'float'     => (float) $r['open_cash'],
         'closed'    => $closed,
-        /* ปิดย้อนหลัง (ช่วงที่ 17) → เวลาปิดอยู่คนละวัน ใส่วันที่ด้วย เช่น 7/10 09:10 */
+        /* ปิดย้อนหลัง → เวลาปิดอยู่คนละวัน ใส่วันที่ด้วย เช่น 7/10 09:10 */
         'closed_at' => $closed ? date(substr($r['closed_at'], 0, 10) === $r['store_date'] ? 'H:i' : 'j/n H:i', strtotime($r['closed_at'])) : '',
         'closed_by' => ($closed && $r['closed_name'] !== null) ? $r['closed_name'] : '',
         'expect'    => $num($r['expected_cash']),
@@ -91,11 +70,7 @@ function store_db_reset()
     store_day_row('', null, true);
 }
 
-/** เงินทอนยกมาสำหรับเปิดร้านวันนี้ — array(amount, by, time, unclosed)
-    = keep_cash ของวันล่าสุดก่อนวันนี้ (ถ้าปิดร้านแล้ว) · วันนั้นยังไม่ปิด (ลืมปิด) → เงินทอนมาตรฐาน + unclosed = ปปปปดดวว
-    ยังไม่เคยเปิดร้าน → เงินทอนมาตรฐาน (by / time ว่าง)
-    TODO:
-      - [x] อ่านจาก ao_stock_store_day (เดิมสร้างชื่อ / เวลาสมมติ) */
+/** เงินทอนยกมาสำหรับเปิดร้านวันนี้ — array(amount, by, time, unclosed) */
 function store_carry($code)
 {
     $out = array('amount' => (float) branch_default_float($code), 'by' => '', 'time' => '', 'unclosed' => '');
@@ -129,9 +104,7 @@ function store_unclosed_days($code)
     return $out;
 }
 
-/** เงินที่เติม / หยิบออกจากลิ้นชักวันนี้ — array(topup, withdraw)
-    TODO:
-      - [x] รวมจาก ao_stock_cash_move ของวันนี้ (เดิมข้อมูลสมมติ) */
+/** เงินที่เติม / หยิบออกจากลิ้นชักวันนี้ — array(topup, withdraw) */
 function store_daily_cash($code)
 {
     $st = store_day_row($code);
@@ -161,14 +134,7 @@ function store_cash_list($code)
     return $out;
 }
 
-/**
- * สถานะร้านของสาขาวันนี้ — null = ยังไม่เปิด
- * คืน array(id, branch, opened_at, opened_by, opened_user, carry, topup, float, counted, reason,
- *           closed_at (ว่าง = ยังเปิดอยู่), closed_by, cash_counted, keep, note, expected,
- *           reopen_count, last_diff = ขาด/เกินของรอบที่ปิดไปก่อนเปิดใหม่ (null ถ้าไม่มี))
- * TODO:
- *   - [x] อ่านจาก ao_stock_store_day (เดิม $_SESSION['store'])
- */
+/** สถานะร้านของสาขาวันนี้ — null = ยังไม่เปิด */
 function store_state($code)
 {
     $r = store_day_row($code);
@@ -212,12 +178,7 @@ function store_is_closed($code)
     return $st !== null && $st['closed_at'] !== '';
 }
 
-/**
- * บันทึกการเปิดร้าน — คืนสถานะร้าน (อีกเครื่องเปิดไปก่อนแล้ว = สถานะของเครื่องนั้น ไม่ลงประวัติซ้ำ)
- * $counted = เงินทอนที่นับได้จริงเมื่อไม่ตรงกับที่ยกมา (null = ตรง)
- * TODO:
- *   - [x] INSERT ao_stock_store_day + ประวัติ ในทรานแซกชันเดียว
- */
+/** บันทึกการเปิดร้าน · $counted = เงินทอนที่นับได้เมื่อไม่ตรง (null = ตรง) · คืนสถานะร้าน */
 function store_open($code, $user, $topup, $counted, $reason)
 {
     $bid = branch_id_of($code);
@@ -231,8 +192,7 @@ function store_open($code, $user, $topup, $counted, $reason)
     $now   = date('Y-m-d H:i:s');
 
     $opened = sdb_tx(function () use ($code, $bid, $user, $carry, $topup, $cnt, $float, $reason, $now) {
-        /* ล็อกแถวสาขาก่อน — สองเครื่องกดเปิดพร้อมกัน เครื่องที่สองรอแล้วเจอแถวของวันนี้ (ไม่ INSERT ชน UNIQUE
-           ซึ่ง class DB ของ admweb จะเขียน error_log ทุกครั้ง) */
+        /* ล็อกแถวสาขาก่อน — สองเครื่องกดพร้อมกันไม่ INSERT ชน UNIQUE (class DB ของ admweb จะเขียน error_log) */
         sdb_val('SELECT branch_id FROM ' . sdb_tb('branch') . ' WHERE branch_id = ? FOR UPDATE', array($bid));
         if (sdb_val('SELECT day_id FROM ' . sdb_tb('store_day') . ' WHERE branch_id = ? AND store_date = ? FOR UPDATE', array($bid, date('Y-m-d'))) !== null) {
             return false;
@@ -271,13 +231,12 @@ function store_open($code, $user, $topup, $counted, $reason)
     });
     store_db_reset();
     if ($opened === true) {
-        notify_on_open($code);                    // Telegram: เปิดร้าน + สินค้าใกล้หมด (ช่วงที่ 9)
+        notify_on_open($code);                    // Telegram: เปิดร้าน + สินค้าใกล้หมด
     }
     return store_state($code);
 }
 
-/** ยอดเงินที่ควรมีในลิ้นชักตอนนี้
-    = เงินทอนเริ่มวัน + เติม + ขายเงินสด − หยิบออก − คืนเงินลูกค้า · ปิดร้านแล้ว = ยอดที่บันทึกไว้ตอนปิด */
+/** ยอดเงินที่ควรมีในลิ้นชักตอนนี้ (ปิดแล้ว = ยอดที่บันทึกตอนปิด) */
 function store_expected_cash($code)
 {
     $st = store_state($code);
@@ -291,13 +250,7 @@ function store_expected_cash($code)
     return $c['expected'];
 }
 
-/**
- * เงินในลิ้นชักของวันหนึ่ง (แถว ao_stock_store_day) — ใช้ได้ทั้งวันนี้และวันก่อน (ปิดร้านย้อนหลัง)
- * คืน array(float, topup, withdraw, sales, refunds, expected)
- *   expected = เงินทอนเริ่มวัน + เติม + ขายเงินสด − หยิบออก − คืนเงินลูกค้า (ทุกรายการผูก day_id ของวันนั้น)
- * TODO:
- *   - [x] ช่วงที่ 17: รวมจาก cash_move / sale / return ด้วย day_id · store_expected_cash ของวันนี้ใช้ตัวนี้ด้วย (สูตรเดียว)
- */
+/** เงินในลิ้นชักของวันหนึ่ง (วันนี้หรือวันก่อน) — array(float, topup, withdraw, sales, refunds, expected) */
 function Stock_getDayCash($dayId)
 {
     $dayId = (int) $dayId;
@@ -313,15 +266,7 @@ function Stock_getDayCash($dayId)
     return $c;
 }
 
-/**
- * ปิดร้านย้อนหลัง — วันก่อนวันนี้ที่ยังเปิดค้างอยู่ (ลืมกดปิดร้าน)
- * - พนักงาน (สิทธิ์ store) ทำตอนเปิดร้านวันใหม่ ก่อนขายบิลแรก — เงินในลิ้นชักตอนนั้นคือเงินของวันที่ค้าง · ที่แยกไว้ยกไปเป็นเงินทอนวันนี้
- * - ผู้ดูแลปิดวันไหนก็ได้จากหน้าภาพรวม (กรณีเปิดวันใหม่ไปแล้ว หรือค้างหลายวัน)
- * ต้องมีหมายเหตุทุกครั้ง · ลงประวัติของวันนี้ "ปิดร้านย้อนหลัง …" (ผู้ดูแลเห็นในรายการที่ต้องตรวจ) · แจ้งเตือนแบบปิดร้าน (บอกว่าปิดย้อนหลัง)
- * คืน array('ok' => true, 'keep' => เงินที่แยกไว้) หรือ array('error' => ข้อความ)
- * TODO:
- *   - [x] ช่วงที่ 17 (ผลทดสอบ 7 ต.ค. — ลืมปิดร้านวันที่ 6 แล้วเปิดวันที่ 7 ต่อ วันที่ 6 ค้างอยู่ตลอดไป)
- */
+/** ปิดร้านย้อนหลัง (วันก่อนที่ยังเปิดค้าง) · ต้องมีหมายเหตุ · คืน array('ok', 'keep') หรือ array('error') */
 function Stock_closePastDay($code, $ymd, $user, $counted, $keep, $note)
 {
     $ymd = preg_replace('/\D/', '', (string) $ymd);
@@ -384,12 +329,7 @@ function Stock_closePastDay($code, $ymd, $user, $counted, $keep, $note)
     return array('ok' => true, 'keep' => $saved['keep']);
 }
 
-/**
- * บันทึกการปิดร้าน — เงินที่แยกไว้พรุ่งนี้ไม่เกินเงินที่นับได้ · นำส่ง = นับได้ − แยกไว้
- * คืนสถานะร้าน หรือ null ถ้าร้านไม่ได้เปิดอยู่
- * TODO:
- *   - [x] ล็อกแถวของวัน (บิล / รับคืนที่กำลังบันทึกต้องรอ แล้วเจอว่าร้านปิด) + UPDATE + ประวัติ
- */
+/** บันทึกการปิดร้าน · คืนสถานะร้าน หรือ null ถ้าไม่ได้เปิดอยู่ */
 function store_close($code, $user, $counted, $keep, $note)
 {
     $st = store_state($code);
@@ -434,16 +374,12 @@ function store_close($code, $user, $counted, $keep, $note)
     });
     store_db_reset();
     if ($ok) {
-        notify_on_close($code);                   // Telegram: ปิดร้าน + เงินขาด / เกิน (ช่วงที่ 9)
+        notify_on_close($code);                   // Telegram: ปิดร้าน + เงินขาด / เกิน
     }
     return $ok ? store_state($code) : null;
 }
 
-/** เปิดร้านใหม่หลังปิดไปแล้ว — ผู้ดูแล (adm-dashboard) หรือพนักงานที่มีสิทธิ์ store_reopen (store.php · ช่วงที่ 11) · ต้องมีเหตุผล
-    ผลของรอบที่ปิดไป (นับได้ / ควรมี) ยังอยู่ในแถวและในประวัติ จนกว่าจะปิดใหม่อีกครั้ง
-    TODO:
-      - [x] status open + reopen_count + 1 ใน ao_stock_store_day
-      - [x] “ผู้เปิดใหม่” ต่อท้ายบทบาทจริง (ผู้ดูแล / พนักงาน / ผู้จัดการสาขา) — เดิมเขียน (ผู้ดูแล) ทุกครั้ง */
+/** เปิดร้านใหม่หลังปิดไปแล้ว (ผู้ดูแล / สิทธิ์ store_reopen) · ต้องมีเหตุผล */
 function store_reopen($code, $user, $reason)
 {
     $st = store_state($code);
@@ -466,17 +402,12 @@ function store_reopen($code, $user, $reason)
     });
     store_db_reset();
     if ($ok) {
-        notify_on_reopen($code, $user, $reason, $st);    // Telegram (ช่วงที่ 9)
+        notify_on_reopen($code, $user, $reason, $st);    // Telegram
     }
     return $ok ? store_state($code) : null;
 }
 
-/**
- * เติมเงินทอน (in) / หยิบเงินออก (out) ระหว่างวัน — ร้านต้องเปิดอยู่ · ต้องมีเหตุผล · หยิบเกินเงินที่ควรมีในลิ้นชักไม่ได้
- * คืน array('ok' => true) หรือ array('error' => ข้อความ)
- * TODO:
- *   - [x] INSERT ao_stock_cash_move + ประวัติ (ชนิด cash)
- */
+/** เติม (in) / หยิบ (out) เงินระหว่างวัน · คืน array('ok') หรือ array('error') */
 function store_cash_add($code, $user, $dir, $amount, $reason)
 {
     $dir    = ($dir === 'out') ? 'out' : 'in';
@@ -519,9 +450,7 @@ function store_cash_add($code, $user, $dir, $amount, $reason)
     return ($err === '') ? array('ok' => true) : array('error' => $err);
 }
 
-/** เงินสดที่คืนลูกค้าวันนี้ (รับคืนสินค้า) — จ่ายออกจากลิ้นชักของวันนี้เสมอ แม้บิลเดิมจะเป็นของวันก่อน
-    TODO:
-      - [x] รวม stock_return.refund ของวันนี้ (day_id) */
+/** เงินสดที่คืนลูกค้าวันนี้ (จ่ายจากลิ้นชักวันนี้เสมอ แม้บิลเป็นของวันก่อน) */
 function store_refunds($code)
 {
     $st = store_day_row($code);

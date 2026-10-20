@@ -2,33 +2,18 @@
 /**
  * FILE: admweb/aowebdata/modules/stock/api/auth.php
  * ROLE: เข้าระบบ / ออกจากระบบ / CSRF / จดจำการเข้าสู่ระบบ 30 วัน · กันหน้าตามบทบาท สิทธิ์ และเมนูที่ปิด (require_login)
- * DEPENDS: โหลดโดย admweb/aowebdata/modules/stock/api.php (ตัวโหลด — ห้าม include ไฟล์นี้ตรง ๆ) · ใช้ function จากไฟล์อื่นใน api/ ได้ทุกตัว
+ * DEPENDS: api.php (ตัวโหลด — ห้าม include ตรง)
  * TABLES: ao_stock_staff, ao_stock_remember, ao_stock_login_ip
  * TODO:
- *   - [x] ช่วงที่ 10: แยกจาก api.php เดิม (ย้ายโค้ดทั้งก้อน ไม่แก้ตรรกะ) · จัดฟังก์ชันที่เคยปนอยู่หมวดอื่นให้มาอยู่หมวดนี้
- *   - [x] ช่วงที่ 11: เช็กสิทธิ์เข้าหน้าด้วย page_perm_ok (หน้าเดียวใช้ได้หลายสิทธิ์)
- *   - [x] ช่วงที่ 12: ผู้ดูแลเปิด team.php → ไปหน้าจัดการพนักงาน
- *   - [x] ช่วงที่ 13: พนักงานเข้าด้วยชื่อผู้ใช้ + PIN · เครื่องจำชื่อคนที่เคยเข้า (known_*) · จำกัดการกรอกผิดตาม IP (ip_* / client_ip หลัง Cloudflare)
- *   - [x] 12 ต.ค.: ข้อความตอนเปิดหน้าของเมนูที่ถูกปิด บอกให้ติดต่อคนดูแลเว็บ (เดิมผู้ดูแลระบบ — ผู้ดูแลของร้านเปิดเมนูเองไม่ได้)
- *   - [x] 14 ต.ค.: Stock_sendRedirect — หลุดระหว่างแตะ (htmx) พาไปหน้าเข้าสู่ระบบทั้งหน้าพร้อมข้อความ แทนการเอาหน้าเข้าสู่ระบบไปวางในตะกร้า
- *
- * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
+ *   - [x] ประวัติการแก้ไขดู docs/CHANGELOG.md
+ * ⚠ โหลดทุก request — มีได้แค่ define() + function (ห้าม echo / header / query ตอนโหลด)
  */
 
-/* ==========================================================
-   เข้าระบบ — ตรวจกับ ao_stock_staff (PIN / รหัสผ่านเก็บเป็น password_hash)
-   - พนักงาน: ชื่อผู้ใช้ + PIN 4 หลัก (เครื่องที่เคยเข้าแล้วแตะปุ่มชื่อแทนการพิมพ์ — known_*) · ผู้ดูแล / ฝ่ายบัญชี: ชื่อผู้ใช้ + รหัสผ่าน
-   - กรอกผิด 5 ครั้งล็อกบัญชี 15 นาที (staff_login_failed — ในตาราง) + ล็อก session 1 นาที (login_failed)
-     + ทุกบัญชีรวมกันผิด 20 ครั้งใน 15 นาทีจาก IP เดียว ล็อก IP นั้น 15 นาที (ip_login_failed · ช่วงที่ 13)
-   - จดจำการเข้าสู่ระบบ 30 วัน เฉพาะผู้ดูแล / ฝ่ายบัญชี (ตาราง ao_stock_remember · remember_*)
-   - session เก็บเฉพาะผู้ใช้ที่เข้าระบบอยู่ + ของที่ทำค้าง (ตะกร้า / ใบร่าง) — ข้อมูลร้านอยู่ในฐานข้อมูลทั้งหมด
-   ========================================================== */
+/* ---------- เข้าระบบ: พนักงาน = ชื่อผู้ใช้ + PIN · ผู้ดูแล / บัญชี = ชื่อผู้ใช้ + รหัสผ่าน (password_hash) · กรอกผิดล็อกบัญชี + ล็อกตาม IP ---------- */
 
 /* ---------- CSRF ---------- */
 
-/** สุ่มสตริงสำหรับ CSRF token (64 ตัวอักษร hex)
-    TODO:
-      - [x] ช่วงที่ 10: เปลี่ยนชื่อจาก demo_random_token · PHP 8 ใช้ random_bytes ได้เสมอ */
+/** สุ่มสตริงสำหรับ CSRF token (64 ตัวอักษร hex) */
 function csrf_random_token()
 {
     return bin2hex(random_bytes(32));
@@ -98,10 +83,7 @@ function user_session_row($key, $u)
     );
 }
 
-/** เข้าระบบด้วย PIN — ใช้กับพนักงานหน้างาน (แท็บเล็ต/มือถือ)
-    ผู้เรียกต้องเช็ก staff_locked_left() ก่อน และเรียก staff_login_failed() / staff_login_ok() ตามผล
-    TODO:
-      - [x] password_verify กับ pin_hash ในฐานข้อมูล */
+/** เข้าระบบด้วย PIN (พนักงาน) — ผู้เรียกเช็กล็อกและบันทึกผลเอง */
 function attempt_pin_login($username, $pin)
 {
     $users = users_active();
@@ -117,15 +99,13 @@ function attempt_pin_login($username, $pin)
     if (password_needs_rehash($row['pin_hash'], PASSWORD_DEFAULT)) {
         staff_set_pin($key, $pin);
     } elseif ((string) $row['pin_fp'] === '' && ($fp = pin_fp($pin)) !== null) {
-        sdb_update('staff', array('pin_fp' => $fp), array('username' => $key));     // พนักงานเดิม: เก็บลายนิ้วมือ PIN ตอนเข้าระบบครั้งแรกหลังช่วงที่ 10
+        sdb_update('staff', array('pin_fp' => $fp), array('username' => $key));     // พนักงานเดิม: เก็บลายนิ้วมือ PIN ตอนเข้าระบบด้วย PIN ครั้งถัดไป
         staff_db_reset();
     }
     return user_session_row($key, $users[$key]);
 }
 
-/** ตรวจรหัสผ่านของผู้ดูแล / ฝ่ายบัญชี
-    TODO:
-      - [x] password_verify กับ password_hash ในฐานข้อมูล */
+/** ตรวจรหัสผ่านของผู้ดูแล / ฝ่ายบัญชี */
 function attempt_login($username, $password)
 {
     $users = users_active();
@@ -153,9 +133,8 @@ function login_user($user)
 
 function logout_user()
 {
-    remember_forget();                     // ลบการจดจำของเครื่องนี้ (ช่วงที่ 10)
-    /* ข้อมูลร้านทั้งหมดอยู่ในฐานข้อมูลแล้ว (ช่วงที่ 7) — session เหลือแค่ของผู้ใช้คนนั้น (ตะกร้า / ใบที่ทำค้าง)
-       ล้างเฉพาะคีย์ของ POS ไม่ทำลายทั้ง session เพราะ session เดียวกันใช้ร่วมกับหลังบ้าน admweb (mainApi.php) */
+    remember_forget();                     // ลบการจดจำของเครื่องนี้
+    /* ล้างเฉพาะคีย์ของ POS — session ใช้ร่วมกับหลังบ้าน admweb */
     $personal = array('user', 'pos_login_time', 'cart', 'recv_draft', 'issue_draft', 'issue_meta',
                       'issue_flash', 'adj_draft', 'adj_meta', 'adj_snap', 'draft_edit_of');
     foreach ($personal as $k) {
@@ -164,16 +143,11 @@ function logout_user()
     session_regenerate_id(true);
 }
 
-/* ---------- จดจำการเข้าสู่ระบบ 30 วัน (ผู้ดูแล / ฝ่ายบัญชี ติ๊ก "จดจำการเข้าสู่ระบบ") ----------
-   cookie aostock_rm = selector:validator (httponly · SameSite=Lax · secure เมื่อเป็น https · path = โฟลเดอร์ของเว็บ)
-   ตาราง ao_stock_remember เก็บ selector + sha256(validator) — ใช้แล้วเปลี่ยน validator ใหม่ทุกครั้ง
-   validator ผิด (cookie อาจถูกขโมย) / เปลี่ยนรหัสผ่าน / พักงาน / ลบบัญชี = ลบทุกเครื่องของคนนั้น · ออกจากระบบ = ลบเครื่องนี้ */
+/* ---------- จดจำการเข้าสู่ระบบ 30 วัน (ผู้ดูแล / บัญชี): cookie selector:validator · ตารางเก็บ sha256 · ใช้แล้วเปลี่ยน validator ---------- */
 define('REMEMBER_DAYS', 30);
 define('REMEMBER_COOKIE', 'aostock_rm');
 
-/** ตั้ง / ลบ cookie ของ POS ($value = '' คือลบ) — httponly · SameSite=Lax · secure เมื่อเป็น https · path = โฟลเดอร์ของเว็บ
-    TODO:
-      - [x] ช่วงที่ 13: แยกจาก remember_cookie ให้ cookie เครื่องจำชื่อ (known_save) ใช้ด้วย */
+/** ตั้ง / ลบ cookie ของ POS ($value = '' คือลบ) — httponly · SameSite=Lax · secure เมื่อเป็น https · path = โฟลเดอร์ของเว็บ */
 function pos_cookie($name, $value, $expires)
 {
     if (headers_sent()) {
@@ -188,18 +162,13 @@ function pos_cookie($name, $value, $expires)
     }
 }
 
-/** ตั้ง / ลบ cookie จดจำ ($value = '' คือลบ)
-    TODO:
-      - [x] ช่วงที่ 10
-      - [x] ช่วงที่ 13: ใช้ pos_cookie */
+/** ตั้ง / ลบ cookie จดจำ ($value = '' คือลบ) */
 function remember_cookie($value, $expires)
 {
     pos_cookie(REMEMBER_COOKIE, $value, $expires);
 }
 
-/** เริ่มจดจำเครื่องนี้ให้ผู้ใช้ที่เพิ่งเข้าระบบ (เรียกหลัง login_user)
-    TODO:
-      - [x] ช่วงที่ 10: ข้อ 3ก */
+/** เริ่มจดจำเครื่องนี้ให้ผู้ใช้ที่เพิ่งเข้าระบบ (เรียกหลัง login_user) */
 function remember_issue($user)
 {
     $uid = stock_uid($user);
@@ -222,10 +191,7 @@ function remember_issue($user)
     return true;
 }
 
-/** ยังไม่ได้เข้าระบบแต่มี cookie จดจำ → ตรวจแล้วเข้าระบบให้ (เปลี่ยน validator ใหม่) · คืนผู้ใช้ หรือ null
-    ไม่เข้าระบบให้ถ้า: หมดอายุ · บัญชีพักงาน / บทบาทถูกปิด / ไม่ใช่ผู้ดูแลหรือฝ่ายบัญชี · บัญชีถูกล็อกจากการกรอกผิด
-    TODO:
-      - [x] ช่วงที่ 10: เรียกจาก require_login และหน้า login */
+/** มี cookie จดจำ → ตรวจแล้วเข้าระบบให้ · คืนผู้ใช้ หรือ null */
 function remember_login()
 {
     $c = isset($_COOKIE[REMEMBER_COOKIE]) ? (string) $_COOKIE[REMEMBER_COOKIE] : '';
@@ -289,18 +255,13 @@ function remember_forget_staff($username)
     }
 }
 
-/* ---------- จำกัดการกรอกผิดตาม IP (ช่วงที่ 13) ----------
-   ล็อกรายบัญชี (staff_login_failed) กันการสุ่ม PIN ของคนเดียว แต่คนนอกยังสุ่มบัญชีละไม่กี่ครั้งกับหลายบัญชีได้
-   → นับการกรอกผิดของทุกบัญชีรวมกันต่อ IP (ตาราง ao_stock_login_ip) · ผิดครบ IP_LOCK_FAILS ครั้งภายใน IP_LOCK_MINUTES นาที
-     = IP นั้นเข้าระบบไม่ได้ IP_LOCK_MINUTES นาที (ทั้งแท็บ PIN และแท็บผู้ดูแล) · เข้าระบบสำเร็จไม่ล้างตัวนับ (หมดรอบเอง)
-   ยังไม่ได้กด Reinstall (ยังไม่มีตาราง) = ข้ามการจำกัดตาม IP ไม่ทำให้เข้าระบบไม่ได้ */
+/* ---------- จำกัดการกรอกผิดตาม IP: ทุกบัญชีรวมกันผิดครบ IP_LOCK_FAILS ครั้งใน IP_LOCK_MINUTES นาที = ล็อก IP · ยังไม่มีตาราง = ข้าม ---------- */
 define('IP_LOCK_FAILS', 20);
 define('IP_LOCK_MINUTES', 15);
 
-/** ช่วง IP ของ Cloudflare (https://www.cloudflare.com/ips/) — เว็บอยู่หลัง Cloudflare: REMOTE_ADDR เป็นเครื่องของ Cloudflare ไม่ใช่ผู้ใช้
+/** ช่วง IP ของ Cloudflare (เว็บอยู่หลัง Cloudflare — REMOTE_ADDR เป็นเครื่องของ Cloudflare)
     TODO:
-      - [x] ช่วงที่ 13
-      - [ ] Cloudflare ประกาศช่วงใหม่เมื่อไร เติมที่นี่ (ไม่เติม = ผู้ใช้ที่ผ่านช่วงใหม่ถูกนับรวมเป็น IP ของ Cloudflare) */
+      - [ ] Cloudflare ประกาศช่วงใหม่เมื่อไร เติมที่นี่ */
 function cf_ip_ranges()
 {
     return array(
@@ -312,9 +273,7 @@ function cf_ip_ranges()
     );
 }
 
-/** $ip อยู่ในช่วง $cidr ไหม (IPv4 / IPv6)
-    TODO:
-      - [x] ช่วงที่ 13 */
+/** $ip อยู่ในช่วง $cidr ไหม (IPv4 / IPv6) */
 function ip_in_cidr($ip, $cidr)
 {
     $p = explode('/', $cidr, 2);
@@ -336,12 +295,7 @@ function ip_in_cidr($ip, $cidr)
     return (ord($a[$bytes]) & $mask) === (ord($b[$bytes]) & $mask);
 }
 
-/** IP ของผู้ใช้ที่ส่งคำขอนี้
-    - ผ่านเครื่องตัวกลางในวงภายใน (REMOTE_ADDR เป็น 127.x / 10.x / 192.168.x ฯลฯ) → ใช้ IP ท้ายสุดใน X-Forwarded-For (ตัวกลางเติมให้)
-    - เครื่องที่ต่อเข้ามาเป็นของ Cloudflare → ใช้ CF-Connecting-IP
-    - นอกนั้นใช้ REMOTE_ADDR — header ที่คนนอกปลอมส่งตรงเข้าเซิร์ฟเวอร์ไม่มีผล
-    TODO:
-      - [x] ช่วงที่ 13 */
+/** IP ของผู้ใช้ (ตัวกลางวงใน → X-Forwarded-For ตัวท้าย · Cloudflare → CF-Connecting-IP · นอกนั้น REMOTE_ADDR) */
 function client_ip()
 {
     $ip = isset($_SERVER['REMOTE_ADDR']) ? trim((string) $_SERVER['REMOTE_ADDR']) : '';
@@ -367,9 +321,7 @@ function client_ip()
     return filter_var($ip, FILTER_VALIDATE_IP) ? $ip : '0.0.0.0';
 }
 
-/** คีย์ของ IP ในตาราง — IPv6 นับรวมทั้งวง /64 (เครื่องเดียวเปลี่ยน IPv6 ในวงเดียวกันได้เรื่อย ๆ)
-    TODO:
-      - [x] ช่วงที่ 13 */
+/** คีย์ของ IP ในตาราง — IPv6 นับรวมทั้งวง /64 (เครื่องเดียวเปลี่ยน IPv6 ในวงเดียวกันได้เรื่อย ๆ) */
 function ip_key($ip)
 {
     $bin = @inet_pton((string) $ip);
@@ -379,9 +331,7 @@ function ip_key($ip)
     return (string) $ip;
 }
 
-/** มีตาราง ao_stock_login_ip แล้วหรือยัง (ยังไม่ได้กด Reinstall = ยังไม่มี) — เช็กครั้งเดียวต่อ request ไม่ให้ error_log เต็ม
-    TODO:
-      - [x] ช่วงที่ 13 */
+/** มีตาราง ao_stock_login_ip แล้วหรือยัง (ยังไม่ได้กด Reinstall = ยังไม่มี) — เช็กครั้งเดียวต่อ request ไม่ให้ error_log เต็ม */
 function ip_table_ok()
 {
     static $ok = null;
@@ -391,9 +341,7 @@ function ip_table_ok()
     return $ok;
 }
 
-/** IP นี้ถูกล็อกจากการกรอกผิดอยู่ไหม — คืนจำนวนวินาทีที่เหลือ (0 = ไม่ล็อก)
-    TODO:
-      - [x] ช่วงที่ 13 */
+/** IP นี้ถูกล็อกจากการกรอกผิดอยู่ไหม — คืนจำนวนวินาทีที่เหลือ (0 = ไม่ล็อก) */
 function ip_locked_left()
 {
     if (!ip_table_ok()) {
@@ -404,10 +352,7 @@ function ip_locked_left()
     return $left > 0 ? $left : 0;
 }
 
-/** กรอกผิด 1 ครั้งจาก IP นี้ (บัญชีไหนก็ได้ รวมชื่อผู้ใช้ที่ไม่มีจริง) — รอบละ IP_LOCK_MINUTES นาทีนับจากครั้งแรก
-    ครบ IP_LOCK_FAILS ครั้งในรอบเดียว = ล็อก IP_LOCK_MINUTES นาที แล้วเริ่มนับใหม่
-    TODO:
-      - [x] ช่วงที่ 13 */
+/** กรอกผิด 1 ครั้งจาก IP นี้ — ครบ IP_LOCK_FAILS ในรอบ IP_LOCK_MINUTES นาที = ล็อก */
 function ip_login_failed()
 {
     if (!ip_table_ok()) {
@@ -429,19 +374,12 @@ function ip_login_failed()
     }
 }
 
-/* ---------- เครื่องจำชื่อพนักงาน (ช่วงที่ 13) ----------
-   หน้าเข้าระบบไม่แสดงรายชื่อพนักงานทั้งหมดแล้ว — เครื่องที่ยังไม่เคยมีใครเข้า ต้องพิมพ์ชื่อผู้ใช้ + PIN
-   เข้าสำเร็จ (ติ๊ก "จำชื่อฉันไว้บนเครื่องนี้" หรือแตะปุ่มชื่อ) → cookie aostock_known เก็บ staff_id ของคนที่เคยเข้าบนเครื่องนี้
-   (คนล่าสุดก่อน · สูงสุด KNOWN_MAX คน · KNOWN_DAYS วันนับจากเข้าครั้งล่าสุด) → ครั้งต่อไปขึ้นเป็นปุ่มชื่อให้แตะ
-   ลงลายเซ็น HMAC ด้วย AOSTOCK_SECRET_KEY — แก้ cookie เองเพื่อดูชื่อคนอื่นไม่ได้ · ไม่มีกุญแจ = ไม่จำ (พิมพ์ชื่อผู้ใช้ทุกครั้ง)
-   ออกจากระบบไม่ลบ (เป็นของเครื่อง ไม่ใช่ของ session) · ลบรายคนได้ที่ปุ่ม × บนหน้าเข้าระบบ */
+/* ---------- เครื่องจำชื่อพนักงาน: cookie aostock_known (staff_id ลงลายเซ็น HMAC) → ครั้งต่อไปแตะปุ่มชื่อแทนพิมพ์ ---------- */
 define('KNOWN_COOKIE', 'aostock_known');
 define('KNOWN_MAX', 12);
 define('KNOWN_DAYS', 180);
 
-/** ลายเซ็นของรายการ id ใน cookie (null = ไม่มีกุญแจ)
-    TODO:
-      - [x] ช่วงที่ 13 */
+/** ลายเซ็นของรายการ id ใน cookie (null = ไม่มีกุญแจ) */
 function known_sign($raw)
 {
     if (!defined('AOSTOCK_SECRET_KEY') || strlen((string) AOSTOCK_SECRET_KEY) < 16) {
@@ -450,9 +388,7 @@ function known_sign($raw)
     return hash_hmac('sha256', 'known|' . $raw, (string) AOSTOCK_SECRET_KEY);
 }
 
-/** staff_id ที่เครื่องนี้จำไว้ (คนล่าสุดก่อน) — cookie ผิดรูป / ลายเซ็นไม่ตรง = ไม่มี
-    TODO:
-      - [x] ช่วงที่ 13 */
+/** staff_id ที่เครื่องนี้จำไว้ (คนล่าสุดก่อน) — cookie ผิดรูป / ลายเซ็นไม่ตรง = ไม่มี */
 function known_ids()
 {
     $c = isset($_COOKIE[KNOWN_COOKIE]) ? (string) $_COOKIE[KNOWN_COOKIE] : '';
@@ -466,9 +402,7 @@ function known_ids()
     return array_map('intval', explode('-', $m[1]));
 }
 
-/** เขียนรายการ id ลง cookie (ว่าง = ลบ cookie)
-    TODO:
-      - [x] ช่วงที่ 13 */
+/** เขียนรายการ id ลง cookie (ว่าง = ลบ cookie) */
 function known_save($ids)
 {
     $ids = array_slice(array_values(array_unique(array_filter(array_map('intval', $ids)))), 0, KNOWN_MAX);
@@ -482,9 +416,7 @@ function known_save($ids)
     pos_cookie(KNOWN_COOKIE, $_COOKIE[KNOWN_COOKIE], time() + KNOWN_DAYS * 86400);
 }
 
-/** จำคนนี้ไว้บนเครื่อง (ขึ้นเป็นคนแรก) — เรียกหลังเข้าระบบด้วย PIN สำเร็จ
-    TODO:
-      - [x] ช่วงที่ 13 */
+/** จำคนนี้ไว้บนเครื่อง (ขึ้นเป็นคนแรก) — เรียกหลังเข้าระบบด้วย PIN สำเร็จ */
 function known_add($user)
 {
     $id = isset($user['id']) ? (int) $user['id'] : 0;
@@ -493,18 +425,13 @@ function known_add($user)
     }
 }
 
-/** เอาชื่อนี้ออกจากเครื่อง
-    TODO:
-      - [x] ช่วงที่ 13 */
+/** เอาชื่อนี้ออกจากเครื่อง */
 function known_forget($id)
 {
     known_save(array_diff(known_ids(), array((int) $id)));
 }
 
-/** พนักงานที่เครื่องนี้จำไว้และยังเข้าระบบด้วย PIN ได้ — array( username => ข้อมูล ) คนล่าสุดก่อน
-    คนที่พักงาน / ถูกลบ / ไม่ใช่บทบาทพนักงานแล้ว ไม่แสดง (ไม่ต้องแก้ cookie) · เปลี่ยนชื่อผู้ใช้แล้วยังขึ้น (จำด้วย staff_id)
-    TODO:
-      - [x] ช่วงที่ 13 */
+/** พนักงานที่เครื่องนี้จำไว้และยังเข้าด้วย PIN ได้ — คนล่าสุดก่อน */
 function known_staffs()
 {
     $all  = users_active();
@@ -523,10 +450,7 @@ function known_staffs()
     return $out;
 }
 
-/** ชื่อไฟล์ของหน้าที่กำลังเปิด เช่น sale.php
-    หน้าเว็บวิ่งผ่าน index.php ของ admweb → SCRIPT_NAME เป็น index.php ทุกหน้า จึงอ่านชื่อจาก router ($_getdata['page'])
-    TODO:
-      - [x] อ่านจาก $_getdata['page'] ที่ index.php ตั้งให้ · ไม่มี (เรียกนอก router) ใช้ชื่อสคริปต์แทน */
+/** ชื่อไฟล์ของหน้าที่เปิด (อ่านจาก router — SCRIPT_NAME เป็น index.php ทุกหน้า) */
 function current_page()
 {
     global $_getdata;
@@ -536,9 +460,7 @@ function current_page()
     return basename($_SERVER['SCRIPT_NAME']);
 }
 
-/** พาไปหน้าอื่นแล้วจบ request — คำขอจาก htmx ใช้ HX-Redirect ให้เปลี่ยนทั้งหน้า (302 ธรรมดา htmx จะเอาหน้าปลายทางมาวางในตะกร้า)
-    TODO:
-      - [x] 14 ต.ค.: ใหม่ — ใช้ใน require_login */
+/** พาไปหน้าอื่นแล้วจบ (คำขอ htmx ใช้ HX-Redirect เปลี่ยนทั้งหน้า) */
 function Stock_sendRedirect($to)
 {
     $isHx = isset($_SERVER['HTTP_HX_REQUEST']) && $_SERVER['HTTP_HX_REQUEST'] === 'true';
@@ -546,12 +468,10 @@ function Stock_sendRedirect($to)
     exit;
 }
 
-/** ใส่บรรทัดนี้ไว้บนสุดของทุกหน้าที่ต้องล็อกอินก่อน
-    TODO:
-      - [x] 14 ต.ค.: หลุดระหว่างแตะ / ส่งฟอร์ม → หน้าเข้าสู่ระบบบอกว่าหลุด (login.php?out=1) · พาไปหน้าอื่นด้วย Stock_sendRedirect */
+/** ใส่บรรทัดนี้ไว้บนสุดของทุกหน้าที่ต้องล็อกอินก่อน */
 function require_login()
 {
-    if (!is_logged_in() && remember_login() === null) {     // จดจำการเข้าสู่ระบบ 30 วัน (ช่วงที่ 10)
+    if (!is_logged_in() && remember_login() === null) {     // จดจำการเข้าสู่ระบบ 30 วัน
         $busy = (isset($_SERVER['HTTP_HX_REQUEST']) || $_SERVER['REQUEST_METHOD'] === 'POST');
         Stock_sendRedirect($busy ? 'login.php?out=1' : 'login.php');
     }
@@ -567,7 +487,7 @@ function require_login()
         logout_user();
         Stock_sendRedirect('login.php');
     }
-    /* หน้าของกลุ่มฟีเจอร์ที่ผู้ดูแลระบบปิดไว้ (หลังบ้าน admweb) → กลับหน้าแรก (ช่วงที่ 9) */
+    /* หน้าของกลุ่มฟีเจอร์ที่ผู้ดูแลระบบปิดไว้ (หลังบ้าน admweb) → กลับหน้าแรก */
     if (in_array($page, feature_pages_off(), true)) {
         $_SESSION['flash'] = 'เมนูนี้ถูกปิดใช้งานอยู่ — ติดต่อคนดูแลเว็บถ้าต้องการใช้';
         Stock_sendRedirect(home_page($u));
@@ -587,8 +507,8 @@ function require_login()
         if (isset($map[$page]) && $map[$page] !== '') {
             $to = $map[$page];
             $qs = isset($_SERVER['QUERY_STRING']) ? $_SERVER['QUERY_STRING'] : '';
-            if ($qs !== '' && $_SERVER['REQUEST_METHOD'] === 'GET' && in_array($page, array('products.php', 'movements.php'), true)) {
-                $to .= '?' . $qs;                          // ส่งคำค้น / หมวดต่อไปด้วย
+            if ($qs !== '' && $_SERVER['REQUEST_METHOD'] === 'GET' && in_array($page, array('products.php', 'movements.php', 'history.php'), true)) {
+                $to .= '?' . $qs;                          // ส่งคำค้น / หมวด / กลุ่มประวัติ (?t=) ต่อไปด้วย
             }
         } else {
             $_SESSION['flash'] = 'หน้านี้เป็นงานของพนักงานที่ได้รับมอบหมาย — ผู้ดูแลตรวจสอบได้จากเมนูของผู้ดูแล';
@@ -596,7 +516,7 @@ function require_login()
         }
         Stock_sendRedirect($to);
     }
-    /* หน้าที่ต้องมีสิทธิ์เฉพาะ (page_perm — ช่วงที่ 11 บางหน้ามีได้หลายสิทธิ์ ตัวใดตัวหนึ่งก็เข้าได้) */
+    /* หน้าที่ต้องมีสิทธิ์เฉพาะ (page_perm · บางหน้ามีได้หลายสิทธิ์ ตัวใดตัวหนึ่งก็เข้าได้) */
     if (!page_perm_ok($u, $page)) {
         $need = (array) page_perm($page);
         $pl   = perm_list();
@@ -627,6 +547,7 @@ function admin_page_map()
     return array(
         'dashboard.php'    => 'adm-dashboard.php',
         'products.php'     => 'adm-products.php',
+        'product-add.php'  => 'adm-product-edit.php',   // เมนูแยก “เพิ่มสินค้า”
         'issue.php'        => 'adm-issue.php',
         'receive.php'      => 'adm-receive.php',
         'categories.php'   => 'adm-categories.php',
@@ -634,7 +555,7 @@ function admin_page_map()
         'history.php'      => 'adm-history.php',
         'movements.php'    => 'adm-movements.php',
         'report-sales.php' => 'adm-report.php',
-        'team.php'         => 'adm-users.php',      // ช่วงที่ 12: หน้าผู้จัดการสาขา → ผู้ดูแลใช้หน้าจัดการพนักงาน
+        'team.php'         => 'adm-users.php',      // หน้าผู้จัดการสาขา → ผู้ดูแลใช้หน้าจัดการพนักงาน
         'store.php'        => '',
         'sale.php'         => '',
         'stocktake.php'    => '',

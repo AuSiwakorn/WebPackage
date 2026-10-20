@@ -131,8 +131,8 @@ require dirname(__FILE__) . '/inc/header.php';
 <?php } ?>
 
 <?php
-/* แสดงแบบแอคคอร์เดียน — เปิดสาขาแรกไว้ · ถ้าเพิ่งบันทึก / บันทึกไม่ผ่าน ให้เปิดสาขานั้นแทน */
-$openB = $okB !== '' && isset($br[$okB]) ? $okB : ($old ? key($old) : key($br));
+/* แสดงแบบแอคคอร์เดียน — เข้าหน้ามาพับทุกสาขา · เพิ่งบันทึก / บันทึกไม่ผ่าน ให้เปิดสาขานั้น */
+$openB = $okB !== '' && isset($br[$okB]) ? $okB : ($old ? key($old) : '');
 ?>
 <?php foreach ($br as $bc => $b) {
     if (isset($old[$bc])) {

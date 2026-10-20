@@ -15,6 +15,8 @@
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  *   - [x] ปุ่ม “ดู / พิมพ์บิล” ทุกบิลของวันนี้ (รวมบิลที่ยกเลิก)
  *   - [x] ผลทดสอบ 7 ต.ค. (M7): ยกเลิก / แก้บิลไม่ผ่าน (เช่น ร้านปิดแล้ว) แสดงข้อความ — เดิม redirect เงียบ ๆ
+ *   - [x] 15 ต.ค. (เมนูประวัติ ช่วง 2): ปุ่มกรองเป็น 7 กลุ่ม (Stock_getLogGroups) แทน 15 ชนิด · รายการยกเลิกอยู่ในกลุ่มของเอกสารนั้น
+ *   - [x] 15 ต.ค. (เมนูประวัติแยกหน้า ช่วง 4): 1 หน้า = 1 กลุ่ม ไม่มี “ทั้งหมด” / แถบปุ่มกรอง · ต้องมีสิทธิ์ของกลุ่ม (Stock_getAllowedLogGroups) · วันย้อนหลังแสดงเฉพาะกลุ่มนั้น
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -24,12 +26,26 @@ if (!defined('ALLOW_DIRECT_ACCESS')) {
    ประวัติการทำรายการ
    วันนี้อ่านจาก ao_stock_log (log_today) · วันก่อน (?d=) ใช้ inc/history-past.php
    หน้าของพนักงาน — ผู้ดูแลใช้ adm-history.php (require_login พาไปเอง)
+   ?t= = กลุ่มของ Stock_getLogGroups (1 เมนู = 1 กลุ่ม) · ไม่ระบุ / ไม่มีสิทธิ์ = กลุ่มแรกที่ดูได้
    ========================================================== */
 
 require_once dirname(__FILE__) . '/include/function.php';
 
 $user = require_login();
 $code = work_branch($user);
+
+/* ---------- กลุ่มของหน้านี้ — ต้องมีสิทธิ์ของกลุ่ม และฟีเจอร์ของกลุ่มไม่ได้ถูกปิด ---------- */
+$allowed = Stock_getAllowedLogGroups($user);
+if (!$allowed) {
+    $_SESSION['flash'] = 'เมนูนี้ถูกปิดใช้งานอยู่ — ติดต่อคนดูแลเว็บถ้าต้องการใช้';      // มีสิทธิ์แต่กลุ่มที่ดูได้ถูกปิดหมด
+    Stock_sendRedirect(home_page($user));
+}
+$t = (isset($_GET['t']) && is_string($_GET['t'])) ? Stock_getLogGroupOf(trim($_GET['t'])) : '';   // ลิงก์เก่าแบบชนิด → กลุ่มของมัน
+if (!isset($allowed[$t])) {
+    $t = key($allowed);
+}
+$HIST_BASE     = 'history.php?t=' . $t;     // ลิงก์ / ฟอร์มทุกอันอยู่กลุ่มเดิม (hist_url)
+$CONFIRM_MODAL = true;                      // ยกเลิก / แก้บิลและเอกสารต้องยืนยัน (footer.php)
 
 /* ยังไม่เปิดร้านก็เข้าหน้านี้ได้ — ดูอย่างเดียว ไม่ได้เปลี่ยนสต๊อกหรือเงินสด
    (หน้าที่ทำรายการ เช่น ขาย รับเข้า ตัดออก ยังต้องเปิดร้านก่อน) */
@@ -106,29 +122,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $err === '' && !$pastTs) {
         }
     }
     if ($err === '') {
-        header('Location: ' . url(hist_url(isset($_GET['t']) ? 't=' . rawurlencode($_GET['t']) : '')));
+        header('Location: ' . url(hist_url()));
         exit;
     }
 }
 
-$all    = log_today($code, 0, !is_branch_manager($user));      // ช่วงที่ 12: พนักงานทั่วไปไม่เห็นรายการ "ตั้งค่า" · ผู้จัดการสาขาเห็นครบ
-$counts = log_counts($all);
-$t      = isset($_GET['t']) ? trim($_GET['t']) : '';
-if ($t !== '' && !isset($counts[$t])) {
-    $t = '';
-}
-$rows  = log_filter($all, $t);
-$mine  = 0;
-foreach ($all as $r) {
+$rows   = log_filter(log_today($code, 0, !is_branch_manager($user)), $t);      // ช่วงที่ 12: พนักงานทั่วไปไม่เห็นรายการ "ตั้งค่า" · ผู้จัดการสาขาเห็นครบ
+$counts = log_counts($rows);
+$mine   = 0;
+foreach ($rows as $r) {
     if ($r['by_user'] === $user['username']) {
         $mine++;
     }
 }
 
 $branch     = $code;
-$PAGE_TITLE = 'ประวัติการทำรายการ';
+$PAGE_TITLE = 'ประวัติ' . $allowed[$t]['label'];
 $PAGE_SUB   = branch_name($code) . ' · ' . thai_date_full($pastTs ? $pastTs : time()) . ($pastTs ? ' (ย้อนหลัง)' : '');
-$NAV_ACTIVE = 'history.php';
+$NAV_ACTIVE = 'history.php?t=' . $t;                // เมนูของกลุ่มนี้ (header.php)
 require dirname(__FILE__) . '/inc/header.php';
 ?>
 
@@ -165,14 +176,18 @@ require dirname(__FILE__) . '/inc/header.php';
 <?php } ?>
 
 <?php if ($pastTs) { ?>
-  <?php require dirname(__FILE__) . '/inc/history-past.php'; ?>
+  <?php $PAST_GROUP = $t; require dirname(__FILE__) . '/inc/history-past.php'; ?>
   <?php require dirname(__FILE__) . '/inc/footer.php'; exit; ?>
 <?php } ?>
 
+<?php /* การ์ดที่ 3 ของแต่ละกลุ่ม: array(ชื่อ, ชนิดที่นับ, หน่วย) */
+$third = array('sale' => array('บิลขาย', 'sale', 'ใบ'), 'receive' => array('ใบรับเข้า', 'receive', 'ใบ'), 'issue' => array('ใบเบิก / ตัดออก', 'issue', 'ใบ'),
+               'adjust' => array('ใบตรวจนับ', 'adjust', 'ใบ'), 'return' => array('ใบรับคืน', 'return', 'ใบ'), 'store' => array('เงินเข้า / ออก', 'cash', 'รายการ'));
+$c3 = $third[$t]; ?>
 <section class="mini num" aria-label="สรุปรายการวันนี้">
-  <div class="m"><div class="lb">รายการทั้งหมด</div><div class="nm"><?php echo number_format(count($all)) ?></div><div class="sb">ของสาขาวันนี้</div></div>
+  <div class="m"><div class="lb">รายการ</div><div class="nm"><?php echo number_format(count($rows)) ?></div><div class="sb">ของสาขาวันนี้</div></div>
   <div class="m"><div class="lb">ของฉัน</div><div class="nm"><?php echo number_format($mine) ?></div><div class="sb">ที่ฉันเป็นคนทำ</div></div>
-  <div class="m"><div class="lb">บิลขาย</div><div class="nm"><?php echo number_format($counts['sale']) ?></div><div class="sb">ใบ</div></div>
+  <div class="m"><div class="lb"><?php echo e($c3[0]) ?></div><div class="nm"><?php echo number_format($counts[$c3[1]]) ?></div><div class="sb"><?php echo e($c3[2]) ?></div></div>
 </section>
 
 <section class="card">
@@ -183,20 +198,10 @@ require dirname(__FILE__) . '/inc/header.php';
     </div>
   </div>
 
-  <div class="cats">
-    <a class="cat<?php echo $t === '' ? ' on' : '' ?>" href="<?php echo e(hist_url()) ?>">ทั้งหมด <i><?php echo count($all) ?></i></a>
-    <?php foreach (log_types() as $k => $meta) { ?>
-      <?php if ($counts[$k] === 0) { continue; } ?>
-      <a class="cat<?php echo $t === $k ? ' on' : '' ?>" href="<?php echo e(hist_url('t=' . rawurlencode($k))) ?>">
-        <?php echo e($meta['label']) ?> <i><?php echo $counts[$k] ?></i>
-      </a>
-    <?php } ?>
-  </div>
-
   <?php if (!$rows) { ?>
     <p class="empty">
       <svg class="ico"><use href="#i-history"/></svg>
-      <?php echo $notOpened ? 'วันนี้ยังไม่มีรายการ' : 'ยังไม่มีรายการในหมวดนี้' ?><br><small>รายการจะถูกบันทึกอัตโนมัติเมื่อเปิดร้าน ขาย รับเข้า ตัดออก หรือปิดร้าน</small>
+      วันนี้ยังไม่มีรายการ<?php echo e($allowed[$t]['label']) ?><br><small>รายการจะถูกบันทึกอัตโนมัติเมื่อเปิดร้าน ขาย รับเข้า ตัดออก หรือปิดร้าน</small>
     </p>
   <?php } else { ?>
     <ol class="tl">
@@ -315,7 +320,7 @@ require dirname(__FILE__) . '/inc/header.php';
               <?php
               /* ดู / พิมพ์บิลได้ทุกใบ (ใบที่ยกเลิกพิมพ์ออกมามีตรา “ยกเลิก”) · แก้ / ยกเลิกตามสิทธิ์ */
               $fix = empty($bill['void']) && can_void_doc($user, $bill, 'bill') && !bill_returned_any($bill['no']);
-              $act = hist_url($t !== '' ? 't=' . rawurlencode($t) : '');
+              $act = hist_url();
               $dat = ' data-bill="' . e($bill['no']) . '" data-total="' . e(money2($bill['total']))
                    . '" data-qty="' . (int) $bill['qty'] . '" data-items="' . (int) $bill['items'] . '"';
               ?>

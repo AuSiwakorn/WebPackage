@@ -164,17 +164,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+/* เปิดจากลิงก์ ?done= / ?voided= — เห็นเฉพาะบิลที่มีสิทธิ์ (ไม่มีสิทธิ์ประวัติขาย = บิลของตัวเอง) */
 if ($done === null && isset($_GET['done'])) {
     $done = bill_by_no($code, $_GET['done']);
+    $done = Stock_canSeeBill($user, $done) ? $done : null;
 }
 if ($voided === null && (isset($_GET['voided']) || isset($_GET['edited']))) {
     $b = bill_by_no($code, isset($_GET['voided']) ? $_GET['voided'] : $_GET['edited']);
-    if ($b !== null && !empty($b['void'])) {
+    if ($b !== null && !empty($b['void']) && Stock_canSeeBill($user, $b)) {
         $voided = $b;
     }
 }
 
 /* ---------- คำขอจาก htmx: ส่งกลับเฉพาะส่วนที่เปลี่ยน ---------- */
+/* หน้าต่าง "บิลของฉันวันนี้" (?bills=1&bf=&bt=) → แค่รายการ */
+if ($isHx && $_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['bills'])) {
+    $BILLS_PART = 'list';
+    require dirname(__FILE__) . '/inc/sale-bills.php';
+    exit;
+}
 /* กด “แสดงเพิ่ม” (?from=) → แค่การ์ดชุดถัดไป — ไม่ส่งข้อความแจ้งผล (#sale-flash) ไปทับข้อความเดิมบนจอ (ช่วง 4) */
 if ($isHx && $_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['from'])) {
     $LIVE_PART = 'more';
@@ -199,5 +207,8 @@ require dirname(__FILE__) . '/inc/header.php';
 sale_flash($err, $done, $voided, false);
 $LIVE_PART = 'all';                  // หน้าเต็มวาดทั้งส่วนเสมอ (ฟอร์มธรรมดาที่บันทึกไม่ผ่านก็มาถึงตรงนี้)
 require dirname(__FILE__) . '/inc/sale-live.php';
+
+$BILLS_PART = 'dialog';              // หน้าต่าง "บิลของฉันวันนี้" (ปุ่มเปิดอยู่ในกล่องยอดขายวันนี้)
+require dirname(__FILE__) . '/inc/sale-bills.php';
 
 require dirname(__FILE__) . '/inc/footer.php';

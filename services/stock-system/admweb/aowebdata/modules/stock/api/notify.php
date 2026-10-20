@@ -2,27 +2,14 @@
 /**
  * FILE: admweb/aowebdata/modules/stock/api/notify.php
  * ROLE: การแจ้งเตือน — ค่าตั้ง · Telegram ตอนเกิดเหตุการณ์จริง (คิว + ส่งตอนจบ request) · อีเมลสรุปยอดขายรายวัน (SMTP) · ประวัติการส่ง · งานของ cron
- * DEPENDS: โหลดโดย admweb/aowebdata/modules/stock/api.php (ตัวโหลด — ห้าม include ไฟล์นี้ตรง ๆ) · ใช้ function จากไฟล์อื่นใน api/ ได้ทุกตัว
+ * DEPENDS: api.php (ตัวโหลด — ห้าม include ตรง)
  * TABLES: ao_stock_setting, ao_stock_notify_log · ao_stock_sale / return / store_day / issue / log (ข้อมูลของข้อความ)
  * TODO:
- *   - [x] ช่วงที่ 10: แยกจาก api.php เดิม (ย้ายโค้ดทั้งก้อน ไม่แก้ตรรกะ) · จัดฟังก์ชันที่เคยปนอยู่หมวดอื่นให้มาอยู่หมวดนี้
- *   - [x] ข้อความ “เปิดร้านใหม่หลังปิด” ลงบทบาทจริงของคนเปิด (เดิม (ผู้ดูแล) ทุกครั้ง) · ตัวอย่างข้อความอ่านจากช่อง “ผู้เปิดใหม่” ในประวัติ
- *   - [x] ช่วงที่ 17: ข้อความปิดร้าน / เงินขาดเกิน บอกว่า “ปิดร้านย้อนหลัง” (notify_on_close รับวันของร้าน)
- *   - [x] 12 ต.ค.: คำอธิบายเหตุการณ์ “เปิดร้านใหม่หลังปิด” — ผู้ดูแล หรือพนักงานที่มีสิทธิ์ (เดิมเขียนว่าผู้ดูแลอย่างเดียว)
- *
- * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
+ *   - [x] ประวัติการแก้ไขดู docs/CHANGELOG.md
+ * ⚠ โหลดทุก request — มีได้แค่ define() + function (ห้าม echo / header / query ตอนโหลด)
  */
 
-/* ==========================================================
-   การแจ้งเตือน Telegram / อีเมลสรุปยอดรายวัน (หน้า adm-notify.php)
-   ----------------------------------------------------------
-   ค่าตั้งอยู่ใน ao_stock_setting (notify_get / notify_set) · token Telegram และรหัสผ่าน SMTP เข้ารหัสไว้
-   ประวัติการส่งทุกครั้ง (สำเร็จ / ไม่สำเร็จ / ข้าม) อยู่ใน ao_stock_notify_log
-   Telegram: เหตุการณ์จริงเรียก notify_event() หลังบันทึกลงฐานข้อมูลแล้ว → เข้าคิว → ส่งตอนจบ request (notify_flush)
-             PHP-FPM ตอบหน้าเว็บกลับไปก่อน (fastcgi_finish_request) แล้วค่อยส่ง · ต่อ Telegram ไม่ได้ = ข้ามข้อความที่เหลือของรอบนั้น
-   อีเมลรายวัน: cron.php (Cron Jobs ของโฮสต์ ทุก 5 นาที) → notify_cron_run() ส่งสรุปของวันนี้เมื่อเลยเวลาที่ตั้ง วันละครั้ง
-   กลุ่มฟีเจอร์ notify ถูกปิดจากหลังบ้าน = ไม่ส่งอะไรเลย
-   ========================================================== */
+/* ---------- แจ้งเตือน: Telegram ตอนเกิดเหตุการณ์ (เข้าคิว → ส่งตอนจบ request) · อีเมลสรุปรายวันผ่าน cron · ค่าตั้งลับเข้ารหัส · ประวัติใน notify_log ---------- */
 
 /** ค่าเริ่มต้นของการแจ้งเตือน */
 function notify_defaults()
@@ -56,9 +43,7 @@ function notify_secret_keys()
     return array('tg_token', 'smtp_pass');
 }
 
-/** ค่าตั้งการแจ้งเตือน — ค่าที่ค่าเริ่มต้นเป็น array คืนเป็น array (เก็บเป็น JSON)
-    TODO:
-      - [x] ช่วงที่ 9: อ่านจาก ao_stock_setting (เดิม $_SESSION['cfg']['notify']) */
+/** ค่าตั้งการแจ้งเตือน — ค่าที่ค่าเริ่มต้นเป็น array คืนเป็น array (เก็บเป็น JSON) */
 function notify_get($k)
 {
     $d   = notify_defaults();
@@ -74,9 +59,7 @@ function notify_get($k)
     return $v;
 }
 
-/** บันทึกค่าตั้งการแจ้งเตือน — ผู้แก้ = ผู้ใช้ที่เข้าระบบอยู่ (cron = 0)
-    TODO:
-      - [x] ช่วงที่ 9: เขียน ao_stock_setting · tg_token / smtp_pass เข้ารหัส */
+/** บันทึกค่าตั้งการแจ้งเตือน — ผู้แก้ = ผู้ใช้ที่เข้าระบบอยู่ (cron = 0) */
 function notify_set($k, $v)
 {
     $u = current_user();
@@ -172,11 +155,7 @@ function mail_list_parse($s)
     return array(array_values($ok), $bad);
 }
 
-/** เรียก Telegram Bot API · คืน array(ok, ข้อมูล | ข้อความผิดพลาด, เชื่อมต่อไม่ได้เลย true/false)
-    $timeout = วินาทีรวม (ต่อสาย = ครึ่งหนึ่ง) · แจ้งเหตุการณ์ใช้ 5 วินาที ไม่ให้หน้าร้านรอนาน
-    AOSTOCK_TG_API (ตั้งใน fix.localhost.php เท่านั้น) = ส่งไปเซิร์ฟเวอร์จำลองตอนทดสอบในเครื่อง
-    TODO:
-      - [x] ช่วงที่ 9: timeout ปรับได้ · บอกว่าเชื่อมต่อไม่ได้ (ใช้ข้ามข้อความที่เหลือของรอบ) */
+/** เรียก Telegram Bot API · คืน array(ok, ข้อมูล | ข้อความผิดพลาด, เชื่อมต่อไม่ได้เลย) */
 function tg_api($token, $method, $params = array(), $timeout = 10)
 {
     $base = defined('AOSTOCK_TG_API') ? rtrim((string) AOSTOCK_TG_API, '/') : 'https://api.telegram.org';
@@ -243,9 +222,7 @@ function tg_find_chats($token)
     return array(true, $out);
 }
 
-/** วันล่าสุดก่อนวันนี้ที่มีบิลขาย (ไว้ทำตัวอย่าง) — ยังไม่มีเลย = เมื่อวาน
-    TODO:
-      - [x] ช่วงที่ 8: SQL คำสั่งเดียว (เดิมวนย้อนทีละวัน 10 วัน) */
+/** วันล่าสุดก่อนวันนี้ที่มีบิลขาย (ไว้ทำตัวอย่าง) — ยังไม่มีเลย = เมื่อวาน */
 function notify_last_sales_day($codes)
 {
     list($in, $params) = sdb_in('b.code', $codes);
@@ -255,17 +232,9 @@ function notify_last_sales_day($codes)
     return ($d !== null) ? strtotime($d) : strtotime('-1 day', strtotime(date('Y-m-d')));
 }
 
-/* ==========================================================
-   ข้อความ Telegram ของแต่ละเหตุการณ์ (HTML แบบที่ Telegram รองรับ: b, i)
-   ----------------------------------------------------------
-   notify_tg_text($event, $d) สร้างข้อความจากข้อมูลชุด $d — ใช้ทั้งตอนเกิดเหตุการณ์จริง (notify_on_*)
-   และตัวอย่างในหน้าตั้งค่า (notify_tg_sample — ใช้ข้อมูลล่าสุดที่มีจริงของสาขา ถ้ายังไม่มีใช้ค่าตัวอย่าง)
-   $d ที่ใช้ร่วม: branch (ชื่อสาขา) · day (วันที่) · time (HH:MM) · by (ชื่อผู้ทำ)
-   ========================================================== */
+/* ---------- ข้อความ Telegram ของแต่ละเหตุการณ์ (HTML: b, i) · $d ร่วม: branch · day · time · by ---------- */
 
-/** ข้อความของเหตุการณ์ — คืน '' ถ้าไม่รู้จักชนิด
-    TODO:
-      - [x] ช่วงที่ 9: ทุกชนิดสร้างจากข้อมูลจริง (เดิมตัวอย่างบางชนิดเป็นข้อความแต่งขึ้น) */
+/** ข้อความของเหตุการณ์ — คืน '' ถ้าไม่รู้จักชนิด */
 function notify_tg_text($event, $d)
 {
     $e = function ($k) use ($d) { return htmlspecialchars(isset($d[$k]) ? (string) $d[$k] : '', ENT_QUOTES, 'UTF-8'); };
@@ -294,7 +263,7 @@ function notify_tg_text($event, $d)
             return $t;
         case 'close':
             $diff = isset($d['diff']) ? (float) $d['diff'] : 0;
-            $late = !empty($d['late']);              // ปิดร้านย้อนหลัง (ช่วงที่ 17) — เวลาปิดเป็นของวันอื่น เช่น 7/10 09:10
+            $late = !empty($d['late']);              // ปิดร้านย้อนหลัง — เวลาปิดเป็นของวันอื่น เช่น 7/10 09:10
             $t = "🏪 <b>" . ($late ? 'ปิดร้านย้อนหลัง' : 'ปิดร้าน') . " · " . $e('branch') . "</b>\n📅 " . $e('day') . ' · '
                . ($late ? 'ปิดเมื่อ ' : '') . $e('time') . ' น. · ปิดโดย ' . $e('by')
                . "\n\n💰 ยอดขาย <b>" . $m('total') . " บาท</b> (" . number_format((int) $d['bills']) . " บิล"
@@ -368,7 +337,7 @@ function notify_items_text($lines, $qtyKey = 'qty')
     return implode(' · ', $out) . (count($lines) > 5 ? ' · และอีก ' . (count($lines) - 5) . ' รายการ' : '');
 }
 
-/** ข้อมูลข้อความเปิดร้าน / ปิดร้าน / เงินขาดเกินของวันหนึ่ง (จาก ao_stock_store_day + บิลของวันนั้น) — ไม่มีการเปิดร้าน = null */
+/** ข้อมูลข้อความเปิด / ปิดร้าน / เงินขาดเกินของวันหนึ่ง — ไม่มีการเปิดร้าน = null */
 function notify_d_store($code, $ts)
 {
     $sd = store_day_result($code, $ts);
@@ -388,9 +357,7 @@ function notify_d_store($code, $ts)
 
 /* ---------- คิวการส่ง ---------- */
 
-/** เหตุการณ์นี้ของสาขานี้ต้องส่งเข้า Telegram ไหม (เปิดใช้ · เลือกเหตุการณ์ไว้ · สาขาอยู่ในขอบเขต · กลุ่มฟีเจอร์ไม่ถูกปิด)
-    TODO:
-      - [x] ช่วงที่ 9 */
+/** เหตุการณ์นี้ของสาขานี้ต้องส่งเข้า Telegram ไหม */
 function notify_wants($event, $code)
 {
     if (!notify_enabled() || notify_get('tg_on') !== '1' || !in_array($event, notify_get('tg_events'), true)) {
@@ -400,9 +367,7 @@ function notify_wants($event, $code)
     return !$brs || in_array((string) $code, $brs, true);
 }
 
-/** แจ้งเหตุการณ์เข้า Telegram — เข้าคิวไว้ ส่งตอนจบ request (หลังบันทึกลงฐานข้อมูลแล้ว) · คืน true ถ้าเข้าคิว
-    TODO:
-      - [x] ช่วงที่ 9: เรียกจาก notify_on_* หลัง transaction สำเร็จ */
+/** แจ้งเหตุการณ์เข้า Telegram (เข้าคิว ส่งตอนจบ request) · คืน true ถ้าเข้าคิว */
 function notify_event($event, $code, $text, $ref = '')
 {
     if ($text === '' || !notify_wants($event, $code)) {
@@ -431,10 +396,7 @@ function notify_queue($item = null)
     return count($q);
 }
 
-/** ส่งทุกข้อความในคิวเข้าทุกแชต แล้วลงประวัติ — ทำงานตอนจบ request (register_shutdown_function)
-    PHP-FPM: ตอบหน้าเว็บกลับไปก่อน · ต่อ Telegram ไม่ได้ครั้งแรก = ข้ามที่เหลือของรอบนี้ (ลงประวัติว่าข้าม) ไม่ให้หน้าร้านรอซ้ำ
-    TODO:
-      - [x] ช่วงที่ 9: ไม่ให้ error ใด ๆ หลุดออกไปหน้าเว็บ (หน้าเว็บตอบไปแล้ว) */
+/** ส่งคิวเข้าทุกแชตแล้วลงประวัติ (ตอนจบ request) — ต่อไม่ได้ครั้งแรก = ข้ามที่เหลือของรอบ */
 function notify_flush()
 {
     $items = notify_queue();
@@ -483,9 +445,7 @@ function notify_subject($text)
 
 /* ---------- เหตุการณ์จริง — เรียกหลังบันทึกสำเร็จ ---------- */
 
-/** เปิดร้าน (+ สินค้าใกล้หมดของสาขา วันละครั้งตอนเปิดร้าน)
-    TODO:
-      - [x] ช่วงที่ 9: เรียกจาก store_open */
+/** เปิดร้าน (+ สินค้าใกล้หมดของสาขา วันละครั้งตอนเปิดร้าน) */
 function notify_on_open($code)
 {
     if (notify_wants('open', $code)) {
@@ -510,10 +470,7 @@ function notify_on_open($code)
     }
 }
 
-/** ปิดร้าน + เงินขาด / เกิน · $ts = วันของร้านที่ปิด (ไม่ส่ง = วันนี้ · วันก่อน = ปิดร้านย้อนหลัง ช่วงที่ 17)
-    TODO:
-      - [x] ช่วงที่ 9: เรียกจาก store_close
-      - [x] ช่วงที่ 17: ปิดร้านย้อนหลัง (Stock_closePastDay) — ข้อความบอกว่าปิดย้อนหลัง + หมายเหตุ */
+/** ปิดร้าน + เงินขาด / เกิน · $ts = วันของร้านที่ปิด (ไม่ส่ง = วันนี้) */
 function notify_on_close($code, $ts = null)
 {
     if (!notify_wants('close', $code) && !notify_wants('cash_diff', $code)) {
@@ -531,10 +488,7 @@ function notify_on_close($code, $ts = null)
     }
 }
 
-/** เปิดร้านใหม่หลังปิด — $st = สถานะก่อนเปิดใหม่ (ยังมีเวลา / คนปิด / เงินที่นับได้)
-    TODO:
-      - [x] ช่วงที่ 9: เรียกจาก store_reopen
-      - [x] ผู้เปิดต่อท้ายบทบาทจริง (actor_label) */
+/** เปิดร้านใหม่หลังปิด — $st = สถานะก่อนเปิดใหม่ (ยังมีเวลา / คนปิด / เงินที่นับได้) */
 function notify_on_reopen($code, $user, $reason, $st)
 {
     if (!notify_wants('reopen', $code)) {
@@ -546,9 +500,7 @@ function notify_on_reopen($code, $user, $reason, $st)
     notify_event('reopen', $code, notify_tg_text('reopen', $d));
 }
 
-/** ยกเลิก / ยกเลิกเพื่อแก้ไข บิลหรือเอกสารคลังของวันนี้ — $doc = บิล (SA) หรือเอกสาร (RC/IS/AD) ก่อนยกเลิก
-    TODO:
-      - [x] ช่วงที่ 9: เรียกจาก bill_void / receive_void / issue_void / adj_void */
+/** ยกเลิก / ยกเลิกเพื่อแก้ไข บิลหรือเอกสารคลังของวันนี้ — $doc = บิล (SA) หรือเอกสาร (RC/IS/AD) ก่อนยกเลิก */
 function notify_on_void($code, $kind, $doc, $user, $reason, $edit)
 {
     if (!notify_wants('void', $code)) {
@@ -567,9 +519,7 @@ function notify_on_void($code, $kind, $doc, $user, $reason, $edit)
     notify_event('void', $code, notify_tg_text('void', $d), $doc['no']);
 }
 
-/** รับคืนสินค้า — $rt = ใบรับคืนที่บันทึกแล้ว (return_by_no)
-    TODO:
-      - [x] ช่วงที่ 9: เรียกจาก return_save */
+/** รับคืนสินค้า — $rt = ใบรับคืนที่บันทึกแล้ว (return_by_no) */
 function notify_on_refund($code, $rt)
 {
     if (!notify_wants('refund', $code)) {
@@ -582,9 +532,7 @@ function notify_on_refund($code, $rt)
     notify_event('refund', $code, notify_tg_text('refund', $d), $rt['no']);
 }
 
-/** ตัดออกเพราะสูญหาย / ชำรุด — $doc = ใบตัดออกที่บันทึกแล้ว (เหตุผลอื่นไม่แจ้ง)
-    TODO:
-      - [x] ช่วงที่ 9: เรียกจาก issue_save */
+/** ตัดออกเพราะสูญหาย / ชำรุด — $doc = ใบตัดออกที่บันทึกแล้ว (เหตุผลอื่นไม่แจ้ง) */
 function notify_on_issue($code, $doc)
 {
     if (!in_array($doc['reason'], array('lost', 'damaged'), true) || !notify_wants('lost', $code)) {
@@ -597,9 +545,7 @@ function notify_on_issue($code, $doc)
     notify_event('lost', $code, notify_tg_text('lost', $d), $doc['no']);
 }
 
-/** ยกเลิกเอกสารคลังย้อนหลัง — $doc = เอกสารก่อนยกเลิก
-    TODO:
-      - [x] ช่วงที่ 9: เรียกจาก past_doc_void */
+/** ยกเลิกเอกสารคลังย้อนหลัง — $doc = เอกสารก่อนยกเลิก */
 function notify_on_backdate($code, $doc, $user, $reason, $edit)
 {
     if (!notify_wants('backdate', $code)) {
@@ -614,9 +560,7 @@ function notify_on_backdate($code, $doc, $user, $reason, $edit)
 
 /* ---------- ตัวอย่างข้อความในหน้าตั้งค่า ---------- */
 
-/** ตัวอย่างข้อความของแต่ละเหตุการณ์ — ใช้ข้อมูลล่าสุดที่มีจริงของสาขา (ยังไม่มีเหตุการณ์ชนิดนั้น = ค่าตัวอย่าง)
-    TODO:
-      - [x] ช่วงที่ 9: ใช้ notify_tg_text ตัวเดียวกับตอนส่งจริง */
+/** ตัวอย่างข้อความของแต่ละเหตุการณ์ (ข้อมูลล่าสุดของสาขา · ไม่มี = ค่าตัวอย่าง) */
 function notify_tg_sample($event, $code = '')
 {
     $br = branches_active();
@@ -717,12 +661,7 @@ function notify_tg_sample($event, $code = '')
     return '';
 }
 
-/**
- * ข้อมูลสรุปยอดขายของวันหนึ่ง สำหรับอีเมลรายวัน
- * คืน array(rows => สาขา => สรุป, sum => รวม, prev => ยอดวันขายก่อนหน้า, month => ยอดสะสมเดือน, top, low)
- * TODO:
- *   - [x] ช่วงที่ 8: ผลปิดร้านจาก ao_stock_store_day (store_day_result) · วันขายก่อนหน้า / ยอดสะสมเดือน / สินค้าขายดีเป็น SQL
- */
+/** ข้อมูลสรุปยอดขายของวันหนึ่ง สำหรับอีเมลรายวัน */
 function daily_summary_data($ts, $codes)
 {
     $br   = branches_all();
@@ -910,11 +849,7 @@ function daily_summary_email_html($ts, $data, $parts)
     return $h;
 }
 
-/**
- * ส่งอีเมล HTML ผ่าน SMTP (รองรับ TLS / SSL / ไม่เข้ารหัส + AUTH LOGIN) · ไม่ตั้ง smtp_host = ใช้ mail() ของ PHP
- * $c = ค่าตั้ง (smtp_host, smtp_port, smtp_secure, smtp_user, smtp_pass, from_name, from_email)
- * คืน array(ok, ข้อความ)
- */
+/** ส่งอีเมล HTML ผ่าน SMTP (ไม่ตั้ง smtp_host = mail() ของ PHP) · คืน array(ok, ข้อความ) */
 function smtp_send($c, $to, $subject, $html)
 {
     $enc  = function ($v) {
@@ -1008,10 +943,7 @@ function smtp_send($c, $to, $subject, $html)
     return $err === '' ? array(true, 'ส่งแล้วถึง ' . implode(', ', $to)) : array(false, 'ส่งไม่สำเร็จ: ' . $err);
 }
 
-/** บันทึกประวัติการส่งลง ao_stock_notify_log — $ok + $error ไม่ว่าง = ข้าม (เช่น วันนี้ไม่มียอดขาย)
-    $code = สาขาที่เกี่ยวข้อง ('' = ทุกสาขา) · $uid = ผู้ทำ (null = ผู้ใช้ที่เข้าระบบอยู่ · cron = 0)
-    TODO:
-      - [x] ช่วงที่ 9: INSERT ao_stock_notify_log (เดิม $_SESSION['notify_log']) */
+/** บันทึกประวัติการส่ง — $ok + $error ไม่ว่าง = ข้าม */
 function notify_log_add($channel, $event, $to, $ok, $subject, $error = '', $code = '', $ref = '', $uid = null)
 {
     if ($uid === null) {
@@ -1032,9 +964,7 @@ function notify_log_add($channel, $event, $to, $ok, $subject, $error = '', $code
     ));
 }
 
-/** ประวัติการส่งล่าสุด — array ของ array(ts, channel, event, label, to, ok, skip, subject, error, branch, ref)
-    TODO:
-      - [x] ช่วงที่ 9: SELECT ao_stock_notify_log (ใหม่สุดก่อน) */
+/** ประวัติการส่งล่าสุด — array ของ array(ts, channel, event, label, to, ok, skip, subject, error, branch, ref) */
 function notify_log_rows($limit = 30)
 {
     $sql = 'SELECT l.*, b.code FROM ' . sdb_tb('notify_log') . ' l LEFT JOIN ' . sdb_tb('branch') . ' b ON b.branch_id = l.branch_id'
@@ -1070,16 +1000,7 @@ function notify_smtp_cfg()
     return $cfg;
 }
 
-/**
- * งานของ cron (admweb/aowebdata/modules/stock/cron.php — Cron Jobs ของโฮสต์ทุก 5 นาที)
- * ส่งอีเมลสรุปยอดขายของ "วันนี้" ครั้งเดียวต่อวัน เมื่อ: กลุ่มแจ้งเตือนไม่ถูกปิด · เปิดอีเมลรายวัน · เลยเวลาที่ตั้ง · วันนี้ยังไม่ได้ส่ง
- *   - "เฉพาะวันที่มียอดขาย" แล้ววันนี้ไม่มีบิล → ไม่ส่ง ลงประวัติว่าข้าม
- *   - ส่งไม่สำเร็จ → ลองใหม่รอบถัดไป ไม่เกิน 3 ครั้งต่อวัน (mail_fail = วันที่|จำนวนครั้ง)
- *   - cron สองตัวทำงานซ้อนกัน: จองวันนี้ใน mail_last_sent ด้วย UPDATE แบบมีเงื่อนไขก่อนส่ง ตัวที่จองไม่ได้ไม่ส่ง
- * คืนข้อความสั้น ๆ ว่าทำอะไร (cron.php พิมพ์ออก)
- * TODO:
- *   - [x] ช่วงที่ 9
- */
+/** งานของ cron (ทุก 5 นาที): ส่งอีเมลสรุปของวันนี้วันละครั้งเมื่อเลยเวลาที่ตั้ง · คืนข้อความสั้น ๆ */
 function notify_cron_run($now = null)
 {
     $now   = ($now === null) ? time() : (int) $now;

@@ -1,28 +1,21 @@
 <?php
 /**
  * FILE: admweb/aowebdata/modules/stock/api/report.php
- * ROLE: รายงานยอดขาย (SQL ทั้งช่วง) · ตารางยอดขายรายวัน · สินค้าขายดี · ภาพรวมพนักงาน (งาน / เป้า / อันดับ / งานค้าง) · ตัวช่วยของภาพรวมผู้ดูแล
- * DEPENDS: โหลดโดย admweb/aowebdata/modules/stock/api.php (ตัวโหลด — ห้าม include ไฟล์นี้ตรง ๆ) · ใช้ function จากไฟล์อื่นใน api/ ได้ทุกตัว
+ * ROLE: รายงานยอดขาย (SQL ทั้งช่วง) · ตารางยอดขายรายวัน · สินค้าขายดี · ภาพรวมพนักงาน (งาน / อันดับ / งานค้าง) · ตัวช่วยของภาพรวมผู้ดูแล
+ * DEPENDS: api.php (ตัวโหลด — ห้าม include ตรง)
  * TABLES: ao_stock_sale, ao_stock_sale_item, ao_stock_receive / issue / count / return (+ _item), ao_stock_branch, ao_stock_staff, ao_stock_store_day
  * TODO:
- *   - [x] ช่วงที่ 10: แยกจาก api.php เดิม (ย้ายโค้ดทั้งก้อน ไม่แก้ตรรกะ) · จัดฟังก์ชันที่เคยปนอยู่หมวดอื่นให้มาอยู่หมวดนี้
- *   - [x] ช่วงที่ 17: งานค้าง "ยังไม่ได้ปิดร้าน" บอกวิธีปิดย้อนหลัง
- *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 5): pending_tasks นับสินค้าที่ยังไม่นับด้วย SQL · product_sales ดึงสินค้าในรายงานคิวรีเดียว — เดิมโหลดสินค้าทั้งร้าน
- *
- * ⚠ ไฟล์นี้ถูกโหลดในทุก request ฝั่งหน้าเว็บของ admweb — มีได้แค่ define() และประกาศ function (ห้าม echo / header / query ตอนโหลด)
+ *   - [x] ประวัติการแก้ไขดู docs/CHANGELOG.md
+ * ⚠ โหลดทุก request — มีได้แค่ define() + function (ห้าม echo / header / query ตอนโหลด)
  */
 
-/** งานค้างของสาขา (การ์ด "งานที่รอดำเนินการ" ในภาพรวมพนักงาน) — ว่าง = ไม่มีงานค้าง
-    คืน array ของ array(type count|store, title, sub, link)
-    TODO:
-      - [x] ช่วงที่ 8: แทนใบโอนสมมติ (ระบบไม่มีใบโอนระหว่างสาขา) ด้วยงานจริง: ตรวจนับรอบนี้ยังไม่ครบ · วันก่อนที่ยังไม่ได้ปิดร้าน
-      - [x] ช่วงที่ 17: วันที่ยังไม่ได้ปิดบอกวิธีปิดย้อนหลัง */
+/** งานค้างของสาขา (การ์ดงานที่รอดำเนินการ) — ว่าง = ไม่มี */
 function pending_tasks($branch)
 {
     $codes = ($branch === 'ALL') ? array_keys(branches_active()) : array($branch);
     $rows  = array();
-    $count = menu_enabled('stocktake.php');            // ปิดเมนูตรวจนับจากหลังบ้าน = ไม่มีงานค้างของการตรวจนับ (ช่วงที่ 9)
-    /* นับด้วย SQL (งานความเร็ว ช่วง 5) — เดิมโหลดสินค้าทั้งร้านมานับใน PHP ทุกครั้งที่เปิดหน้าแรก */
+    $count = menu_enabled('stocktake.php');            // ปิดเมนูตรวจนับจากหลังบ้าน = ไม่มีงานค้างของการตรวจนับ
+    /* นับด้วย SQL — เดิมโหลดสินค้าทั้งร้านมานับใน PHP ทุกครั้งที่เปิดหน้าแรก */
     $nAll  = $count ? Stock_searchPickProducts('ALL', '', '', 0, 0)['total'] : 0;
     foreach ($codes as $c) {
         $done = $count ? count_status_all($c) : array();
@@ -31,7 +24,7 @@ function pending_tasks($branch)
             $rd     = count_round($c);
             $rows[] = array('type' => 'count', 'title' => 'ตรวจนับรอบนี้ยังไม่ครบ · เหลือ ' . number_format($left) . ' จาก ' . number_format($nAll) . ' รายการ',
                             'sub' => branch_name($c) . ' · ครบกำหนด ' . thai_day_month($rd['end']) . ' (อีก ' . $rd['left'] . ' วัน)',
-                            'link' => 'stocktake.php');
+                            'link' => 'stocktake.php', 'href' => 'stocktake.php?t=todo');   // href = เปิดแท็บ “ยังไม่นับ” (link ใช้เช็กสิทธิ์)
         }
         foreach (store_unclosed_days($c) as $ymd) {
             $rows[] = array('type' => 'store', 'title' => 'ยังไม่ได้ปิดร้านของวัน' . thai_date_full(strtotime($ymd)),
@@ -42,29 +35,15 @@ function pending_tasks($branch)
     return $rows;
 }
 
-/* ==========================================================
-   ผลงานรายบุคคล — หน้า "ภาพรวมของฉัน" ของพนักงาน (dashboard.php) + สรุปงานตอนปิดร้าน (store.php)
-   ----------------------------------------------------------
-   นับจากเอกสารที่คนนั้นบันทึก (created_by) — ไม่นับใบที่ยกเลิก (แก้ไขใบ = นับใบใหม่แทน)
-     ขาย = บิลขาย · รับเข้า · เบิก / ตัดออก · ตรวจนับ (ชิ้น = จำนวนที่นับได้) · รับคืน
-   ทุกตัวเลขมาจาก SQL คำสั่งเดียว (UNION ทุกตารางเอกสาร) — staff_work_rows()
-   ระบบไม่มีตารางวันหยุด → วันที่ไม่มีเอกสาร = "ไม่มีรายการ" (idle) · วันทำงาน = วันที่มีเอกสารอย่างน้อย 1 ใบ
-   ========================================================== */
+/* ---------- ผลงานรายบุคคล (dashboard.php + สรุปตอนปิดร้าน): นับจากเอกสารที่คนนั้นบันทึก ไม่นับใบยกเลิก ---------- */
 
-/** ชนิดงานที่นับ — ลำดับนี้คือลำดับที่แสดงในหน้า
-    TODO:
-      - [x] ช่วงที่ 8: รวมการขายและรับคืน (เดิมนับเฉพาะงานคลัง) */
+/** ชนิดงานที่นับ — ลำดับนี้คือลำดับที่แสดงในหน้า */
 function staff_work_kinds()
 {
     return array('sale' => 'ขายสินค้า', 'receive' => 'รับเข้า', 'issue' => 'เบิก / ตัดออก', 'count' => 'ตรวจนับ', 'return' => 'รับคืน');
 }
 
-/**
- * เอกสารทุกชนิดที่ไม่ถูกยกเลิก ช่วงวันที่ $from–$to (timestamp) ของคนหนึ่ง ($col = created_by) หรือสาขาหนึ่ง ($col = branch_id)
- * คืนแถว array(k ชนิด, d Y-m-d, uid staff_id, docs, items, qty) รวมต่อ (ชนิด, วัน, คน)
- * TODO:
- *   - [x] ช่วงที่ 8: แทนตัวเลขสมมติ crc32 (staff_seed / staff_dayoff) ด้วย SQL คำสั่งเดียว
- */
+/** เอกสารที่ไม่ยกเลิกช่วง $from–$to ของคนหนึ่งหรือสาขาหนึ่ง (SQL UNION คำสั่งเดียว) */
 function staff_work_rows($col, $id, $from, $to)
 {
     $col   = ($col === 'branch_id') ? 'branch_id' : 'created_by';
@@ -93,12 +72,7 @@ function staff_work_rows($col, $id, $from, $to)
     return $out;
 }
 
-/**
- * ผลงานรายวันของคนหนึ่ง ครบทุกวันในช่วง $from–$to (เรียงจากเก่าไปใหม่)
- * คืน array( Y-m-d => array(ts, idle, docs, items, qty, kinds => array(ชนิด => array(docs, qty))) ) · idle = ไม่มีเอกสารวันนั้น
- * TODO:
- *   - [x] ช่วงที่ 8: แทน staff_day_stat / staff_recent_days / staff_month_days (ข้อมูลสมมติ) — หน้าเรียกครั้งเดียวทั้งช่วง
- */
+/** ผลงานรายวันของคนหนึ่ง ครบทุกวันในช่วง (เก่า → ใหม่) */
 function staff_days($username, $from, $to)
 {
     $out = array();
@@ -134,19 +108,7 @@ function staff_sum($rows)
     return $t;
 }
 
-/** เป้าชิ้นต่อคนต่อวันของสาขาที่คนนี้ประจำ (ผู้ดูแลตั้งในหน้าจัดการสาขา) — 0 = ไม่ตั้งเป้า (ไม่แสดงแถบเป้า)
-    TODO:
-      - [x] ช่วงที่ 10: คืน "เป้าวันนี้" แบบตั้งได้รายสาขา (ข้อ 5ข · เดโมเดิมสุ่มเป้ารายคน) */
-function staff_goal($username)
-{
-    $all = users_all();
-    return (isset($all[$username]) && $all[$username]['branch'] !== '') ? branch_setting($all[$username]['branch'], 'daily_goal') : 0;
-}
-
-/** แบ่งงานของวันหนึ่งตามชนิดเอกสาร (แถวจาก staff_days) — เฉพาะชนิดที่มีเอกสาร
-    คืน array ของ array(type, label, docs, qty, pct) · pct = สัดส่วนชิ้น
-    TODO:
-      - [x] ช่วงที่ 8: ตัวเลขจริงจากแถวของ staff_days (เดิมสุ่มสัดส่วน) */
+/** แบ่งงานของวันหนึ่งตามชนิดเอกสาร (เฉพาะชนิดที่มี) */
 function staff_work_types($day)
 {
     $total = max(1, $day['qty']);
@@ -162,9 +124,7 @@ function staff_work_types($day)
     return $out;
 }
 
-/** สินค้าที่คนนี้จัดการมากที่สุดวันนี้ (ทุกชนิดเอกสาร ไม่นับใบที่ยกเลิก) — array ของ array(product, qty)
-    TODO:
-      - [x] ช่วงที่ 8: SQL คำสั่งเดียวจากรายการในเอกสาร (เดิมสุ่มสินค้า) */
+/** สินค้าที่คนนี้จัดการมากที่สุดวันนี้ (ทุกชนิดเอกสาร ไม่นับใบที่ยกเลิก) — array ของ array(product, qty) */
 function staff_top_products($username, $limit = 4)
 {
     $parts = array(
@@ -194,10 +154,7 @@ function staff_top_products($username, $limit = 4)
     return $out;
 }
 
-/** อันดับงานวันนี้ในสาขา: พนักงานที่ประจำสาขา + คนอื่นที่มาทำเอกสารของสาขานี้วันนี้ (เช่น ผู้ดูแล / ช่วยงานข้ามสาขา)
-    คืน array ของ array(username, name, branch, idle, docs, qty) เรียงชิ้นมากไปน้อย · คนที่ยังไม่มีรายการอยู่ท้าย
-    TODO:
-      - [x] ช่วงที่ 8: นับจากเอกสารจริงของวันนี้ (staff_work_rows ตามสาขา) */
+/** อันดับงานวันนี้ในสาขา (รวมคนจากที่อื่นที่มาทำเอกสารของสาขานี้) */
 function branch_rank_today($branchCode)
 {
     $today = strtotime(date('Y-m-d'));
@@ -261,13 +218,7 @@ function adm_range($mode, $dayTs, $monTs, $year)
     return array($from, $today, '30 วันล่าสุด (' . thai_day_month($from) . ' – ' . thai_day_month($today) . ')');
 }
 
-/**
- * ยอดขายของบิลที่ไม่ยกเลิก ช่วง $from–$to (timestamp) ของสาขาใน $codes · $uid > 0 = เฉพาะคนขายคนนี้ (staff_id)
- * คืนแถวละ วัน × สาขา × คนขาย เรียงตามวันแล้วตามลำดับสาขา:
- *   d (Y-m-d) · branch · uid · user · name · bills · qty · total · disc · cash · vat (จำนวนบิล VAT)
- * TODO:
- *   - [x] ช่วงที่ 8: แทนการวน acct_bills() ทีละวันทีละสาขา
- */
+/** ยอดขายบิลที่ไม่ยกเลิก ช่วง $from–$to แยกวัน × สาขา × คนขาย · $uid > 0 = เฉพาะคนนี้ */
 function sales_agg($codes, $from, $to, $uid = 0)
 {
     list($in, $params) = sdb_in('b.code', $codes);
@@ -293,9 +244,7 @@ function sales_agg($codes, $from, $to, $uid = 0)
     return $out;
 }
 
-/** จำนวนบิลที่ยกเลิก ช่วง $from–$to ของสาขาใน $codes
-    TODO:
-      - [x] ช่วงที่ 8: นับใน SQL (เดิมวนบิลทีละวัน) */
+/** จำนวนบิลที่ยกเลิก ช่วง $from–$to ของสาขาใน $codes */
 function sales_void_count($codes, $from, $to)
 {
     list($in, $params) = sdb_in('b.code', $codes);
@@ -304,10 +253,7 @@ function sales_void_count($codes, $from, $to)
                        . ' WHERE s.status = \'void\' AND s.sale_date BETWEEN ? AND ? AND ' . $in, $params);
 }
 
-/** วันแรกที่มีบิลขาย (timestamp เที่ยงคืน) — ยังไม่มีบิลเลย = วันนี้
-    ใช้เป็นจุดเริ่มของ "ตั้งแต่เริ่มใช้ระบบ" และเดือนแรกที่เลือกดูได้ในรายงาน
-    TODO:
-      - [x] ช่วงที่ 8: แทนค่าคงที่ DEMO_DATA_START (2026-06-01) */
+/** วันแรกที่มีบิลขาย (ยังไม่มี = วันนี้) */
 function sales_first_day()
 {
     static $ts = null;
@@ -318,16 +264,7 @@ function sales_first_day()
     return $ts;
 }
 
-/**
- * รวมยอดขาย (ไม่นับบิลยกเลิก) ช่วง $from–$to ของสาขาใน $codes
- * ใช้กับหน้ารายงานของผู้ดูแล (adm-report-branch.php / adm-report-staff.php) · daily_matrix · อีเมลสรุปรายวัน
- * คืน array(
- *   'day'   => array( Ymd => array( สาขา => array(total, bills, qty) ) )   ครบทุกวัน × ทุกสาขา (ไม่มียอด = 0)
- *   'staff' => array( username => array(name, branch, bills, qty, total, disc, days => array(Ymd => true)) ),
- * )
- * TODO:
- *   - [x] ช่วงที่ 8: รวมจาก sales_agg (SQL คำสั่งเดียว) แทนการวนบิลทีละวัน
- */
+/** รวมยอดขาย (ไม่นับบิลยกเลิก) ช่วง $from–$to — รายวัน × สาขา และรายคน */
 function sales_scan($codes, $from, $to)
 {
     $day = array();
@@ -357,16 +294,7 @@ function sales_scan($codes, $from, $to)
     return array('day' => $day, 'staff' => $staff);
 }
 
-/**
- * ตารางยอดขายรายวันของเดือน: แถว = ทุกวันของเดือน (1 → สิ้นเดือน) · คอลัมน์ = สาขา
- * $branches = array(รหัส => ข้อมูลสาขา) · $v = total | bills | qty
- * คืน array(
- *   rows  => array(ปปปปดดวว => array(ts, future, cells => array(สาขา => ค่า), sum)),
- *   col   => array(สาขา => รวมทั้งเดือน), open => array(สาขา => จำนวนวันที่มียอด),
- *   best  => array(สาขา => array(ค่า, ปปปปดดวว)), grand, cellMax, bestDay => array(ค่า, ปปปปดดวว) )
- * TODO:
- *   - [x] ช่วงที่ 8: ยอดจาก sales_scan (SQL) · เอาสาขาจำลอง (โหมดดูตัวอย่าง 10 สาขา) ออก
- */
+/** ตารางยอดขายรายวันของเดือน (แถว = วัน · คอลัมน์ = สาขา) · $v = total | bills | qty */
 function daily_matrix($branches, $monTs, $v)
 {
     $today = strtotime(date('Y-m-d'));
@@ -407,14 +335,7 @@ function daily_matrix($branches, $monTs, $v)
     return $out;
 }
 
-/**
- * ยอดขายรายสินค้า (ไม่นับบิลยกเลิก) ช่วง $from–$to ของสาขาใน $codes — SQL คำสั่งเดียว
- * ยอดเงินรายสินค้าหักส่วนลดท้ายบิลตามสัดส่วนแล้ว (ราคารายการ × ยอดจ่ายจริง ÷ ราคาเต็มของบิล)
- * ชื่อ / หมวด / หน่วย ใช้ของสินค้าปัจจุบัน (สินค้าที่ไม่มีในทะเบียนแล้วใช้ชื่อที่เก็บไว้ในบิล)
- * คืน array( SKU => array(sku, name, cat, unit, qty, total, bills, branches => array(สาขา => จำนวน)) )
- * TODO:
- *   - [x] ช่วงที่ 8: SQL คำสั่งเดียว (เดิมวนบิลทีละวันทีละสาขา)
- */
+/** ยอดขายรายสินค้า (ไม่นับบิลยกเลิก · หักส่วนลดท้ายบิลตามสัดส่วน) — SQL คำสั่งเดียว */
 function product_sales($codes, $from, $to)
 {
     list($in, $params) = sdb_in('b.code', $codes);
@@ -483,13 +404,7 @@ function report_range($mode, $ref, $user)
     return array($start, $today, 'ตั้งแต่ ' . thai_date_full($start));
 }
 
-/**
- * ดึงรายงานตามเงื่อนไข (report-sales.php)
- *   $scope = 'mine' (เฉพาะฉัน ทุกสาขาที่เคยขาย) | 'branch' (ทั้งสาขา $user['branch'] ทุกคนที่ขายในสาขานี้)
- * คืน array: label, from, to, sum, days (ไล่วัน ครบทุกวัน), people (แยกคน เรียงยอดมากไปน้อย), branches (แยกสาขา)
- * TODO:
- *   - [x] ช่วงที่ 8: ทุกวันอ่านจากบิลจริงด้วย sales_agg (SQL คำสั่งเดียว) — เดิมวันก่อนเป็นข้อมูลสมมติ / ว่าง
- */
+/** รายงานยอดขายของพนักงาน (report-sales.php) · $scope = mine | branch */
 function sales_report($user, $scope, $mode, $ref)
 {
     $range = report_range($mode, $ref, $user);

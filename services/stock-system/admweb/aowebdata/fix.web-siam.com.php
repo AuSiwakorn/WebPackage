@@ -116,6 +116,7 @@ $aConfig['aConfigPages'] = [
     'sale',
     'bill-print',
     'products',
+    'product-add',         // 15 ต.ค.: เมนูแยก “เพิ่มสินค้า” (พนักงานที่มีสิทธิ์เพิ่มสินค้าใหม่)
     'categories',
     'receive',
     'issue',

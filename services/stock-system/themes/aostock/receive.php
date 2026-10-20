@@ -16,6 +16,7 @@
  *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 3): htmx แตะสินค้า / ปุ่มในใบ ส่งกลับแค่ใบ + การ์ดที่แตะ ($LIVE_PART / $OOB_SKUS)
  *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 4): การ์ดครั้งละ 60 ใบ — htmx ?from= ส่งกลับแค่ชุดถัดไป
  *   - [x] 14 ต.ค.: ปุ่มบันทึกใบ data-qty-guard — กด + / − แล้วกดบันทึกทันที ระบบส่งจำนวนที่ค้างก่อน (inc/footer.php)
+ *   - [x] 15 ต.ค. (ใบนับแบบรายการ ช่วง 5): เปลี่ยนชื่อ “ตรวจนับ / ปรับยอด” เป็น “ตรวจนับสต๊อก” (ข้อความยกเลิกไม่ได้)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -49,12 +50,16 @@ $oldRef  = '';
 $oldNote = '';
 $voided  = null;
 $npErr   = '';                       // ข้อผิดพลาดของฟอร์มเพิ่มสินค้าใหม่ (ช่วงที่ 16)
+$npBad   = '';                       // รูปไม่ผ่าน (ยังไม่เพิ่มสินค้า) — ข้อความแดงใต้ช่องรูป
 /* htmx ส่งกลับส่วนไหน (งานความเร็ว ช่วง 3): แตะสินค้า / ปุ่มในใบ = แค่ใบ + การ์ดที่แตะ · ค้นหา / เลือกหมวด / แก้ไข / ยกเลิก = ทั้งส่วน */
 $LIVE_PART = 'all';
 $OOB_SKUS  = array();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!csrf_check(isset($_POST['csrf']) ? $_POST['csrf'] : null)) {
+    if (!$_POST && !empty($_SERVER['CONTENT_LENGTH'])) {          // ไฟล์ใหญ่เกิน post_max_size → PHP ทิ้งทั้งฟอร์ม (มีแค่ฟอร์มเพิ่มสินค้าใหม่ที่ส่งไฟล์)
+        $big = 'ไฟล์ที่ส่งมาใหญ่เกินที่เซิร์ฟเวอร์รับได้ — ยังไม่ได้เพิ่มสินค้า ลองเลือกรูปที่เล็กลงแล้วกดเพิ่มอีกครั้ง';
+        if (can($user, 'product_add')) { $npErr = $big; } else { $err = $big; }
+    } elseif (!csrf_check(isset($_POST['csrf']) ? $_POST['csrf'] : null)) {
         $err = 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่';
     } else {
         $act = isset($_POST['act']) ? $_POST['act'] : '';
@@ -69,14 +74,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($act === 'newprod') {
             /* ช่วงที่ 16: เพิ่มสินค้าใหม่ → ใส่เข้าใบ 1 ชิ้นทันที · ไม่ผ่าน = เปิดหน้าต่างค้างไว้พร้อมข้อความและค่าที่กรอก */
-            $np = Stock_doAddProduct($user, $code);
+            $npBad = can($user, 'product_add') ? Stock_checkProductImage('image') : '';   // รูปไม่ผ่าน = ยังไม่เพิ่มสินค้า
+            $np    = ($npBad !== '') ? array('error' => 'ยังไม่ได้เพิ่มสินค้า — ' . $npBad . ' · เลือกรูปใหม่ (หรือไม่ใส่รูป) แล้วกดเพิ่มอีกครั้ง')
+                                     : Stock_doAddProduct($user, $code);
             if (isset($np['error']) && !can($user, 'product_add')) {
                 $err = $np['error'];                                   // ไม่มีสิทธิ์ = ไม่มีหน้าต่างฟอร์ม → แสดงด้านบนแทน
             } elseif (isset($np['error'])) {
                 $npErr = $np['error'];
             } else {
                 rdraft_add($np['sku'], 1);
-                $_SESSION['flash'] = 'เพิ่มสินค้าใหม่ “' . $np['name'] . '” (SKU ' . $np['sku'] . ') แล้ว และใส่ในใบนี้ 1 ชิ้น — แก้จำนวนได้ในรายการของใบนี้';
+                $img = product_image_store($np['sku'], 'image', '');
+                $_SESSION['flash'] = 'เพิ่มสินค้าใหม่ “' . $np['name'] . '” (SKU ' . $np['sku'] . ') แล้ว และใส่ในใบนี้ 1 ชิ้น — แก้จำนวนได้ในรายการของใบนี้'
+                                   . (isset($img['error']) ? ' · แต่รูปบันทึกไม่ผ่าน (' . $img['error'] . ') ให้ผู้ดูแลเพิ่มรูปที่หน้าแก้ไขสินค้า' : '');
                 header('Location: ' . url('receive.php'));
                 exit;
             }
@@ -115,7 +124,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } elseif (isset($v['error']) && $v['error'] === 'sold') {
                     $err = 'ยกเลิกไม่ได้ เพราะของบางส่วนถูกขายออกไปแล้ว — '
                          . implode(' · ', $v['items'])
-                         . ' · กรณีนี้ให้ใช้การตรวจนับ/ปรับยอดแทน';
+                         . ' · กรณีนี้ให้ตรวจนับสต๊อกแทน';
                 } else {
                     $voided = $v;
                     if ($redo) {
@@ -134,8 +143,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if (!$lines) {
                 $err = 'ยังไม่ได้เลือกสินค้าเข้าใบสักรายการ';
-            } elseif ($ref === '') {
-                $err = 'กรุณากรอกเลขที่เอกสารอ้างอิง (ใบส่งของ / ใบกำกับ) ทุกครั้ง';
+            } elseif ($ref === '' && $note === '') {     // ไม่มีเอกสาร (เช่น ลูกค้าคืนไม่มีบิล) = เขียนเหตุในหมายเหตุแทน
+                $err = 'กรอกเลขที่เอกสารอ้างอิง หรือหมายเหตุ อย่างใดอย่างหนึ่ง (ไม่มีเอกสาร เช่น ลูกค้าคืนไม่มีบิล ให้เขียนในหมายเหตุ)';
             } else {
                 $done = receive_save($code, $user, $ref, $note, $lines);
                 if (isset($done['error'])) {
@@ -222,7 +231,7 @@ require dirname(__FILE__) . '/inc/header.php';
     <span>
       รับเข้าเรียบร้อย เอกสาร <b><?php echo e($done['no']) ?></b> ·
       <?php echo (int) $done['items'] ?> รายการ · <b class="num"><?php echo number_format($done['qty']) ?></b> ชิ้น ·
-      อ้างอิง <?php echo e($done['ref']) ?>
+      <?php echo $done['ref'] !== '' ? 'อ้างอิง ' . e($done['ref']) : 'หมายเหตุ: ' . e($done['note']) ?>
     </span>
     <?php
     /* รับเข้าเกิน/ผิด แก้ได้ทันทีจากตรงนี้ ทั้งสองทางต้องกรอกหมายเหตุก่อน */
@@ -263,12 +272,12 @@ require dirname(__FILE__) . '/inc/header.php';
     <div class="card-head">
       <div>
         <h2>ข้อมูลการรับเข้า</h2>
-        <span class="sub">ทุกครั้งที่รับของต้องมีเอกสารอ้างอิง เพื่อให้ตรวจย้อนหลังได้</span>
+        <span class="sub">ทุกครั้งที่รับของต้องมีเอกสารอ้างอิง หรือหมายเหตุ เพื่อให้ตรวจย้อนหลังได้</span>
       </div>
     </div>
     <div class="recv-fields">
       <div class="field">
-        <label for="ref">เลขที่เอกสารอ้างอิง <i class="req">จำเป็น</i></label>
+        <label for="ref">เลขที่เอกสารอ้างอิง <i class="req">ไม่มี ให้กรอกหมายเหตุแทน</i></label>
         <input class="input" type="text" id="ref" name="ref" autocomplete="off"
                value="<?php echo e($oldRef) ?>" placeholder="เช่น INV-2609-0142 หรือเลขใบส่งของ">
       </div>
@@ -288,7 +297,7 @@ require dirname(__FILE__) . '/inc/header.php';
       <div class="field field-wide">
         <label for="note">หมายเหตุ</label>
         <input class="input" type="text" id="note" name="note" autocomplete="off"
-               value="<?php echo e($oldNote) ?>" placeholder="เช่น ของมาไม่ครบ 3 ชิ้น รอส่งตามภายหลัง">
+               value="<?php echo e($oldNote) ?>" placeholder="เช่น ลูกค้าคืน ไม่มีบิล · ของมาไม่ครบ 3 ชิ้น รอส่งตามภายหลัง">
       </div>
     </div>
   </section>
@@ -328,7 +337,7 @@ require dirname(__FILE__) . '/inc/header.php';
   <?php if (!$npCats && !$npCanCat) { ?>
     <p class="adm-sec np-nocat">ยังไม่มีหมวดสินค้าในระบบ — ต้องมีหมวดก่อนจึงจะเพิ่มสินค้าได้ ติดต่อผู้จัดการสาขาหรือผู้ดูแลให้เพิ่มหมวด (หรือเปิดสิทธิ์ “เพิ่มหมวด”)</p>
   <?php } else { ?>
-  <form class="adm-sec" method="post" action="receive.php">
+  <form class="adm-sec" method="post" action="receive.php" enctype="multipart/form-data">
     <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
     <input type="hidden" name="act" value="newprod">
     <div class="adm-fields">
@@ -384,8 +393,15 @@ require dirname(__FILE__) . '/inc/header.php';
         <label for="np-barcode">บาร์โค้ด <small class="adm-none">(ไม่บังคับ)</small></label>
         <input class="input" type="text" id="np-barcode" name="barcode" value="<?php echo e($npv('barcode')) ?>" maxlength="40" autocomplete="off">
       </div>
+      <div class="field">
+        <label for="np-image">รูปสินค้า <small class="adm-none">(ไม่บังคับ · JPG / PNG / WEBP · รูปใหญ่ระบบย่อให้เอง)</small></label>
+        <input class="input" type="file" id="np-image" name="image" accept="image/jpeg,image/png,image/webp" data-shrink data-prev="np-image-prev" data-note="np-image-note">
+        <?php if ($npBad !== '') { ?><small class="adm-hint hist-void">รูปไม่ผ่าน: <?php echo e($npBad) ?> — เลือกรูปใหม่อีกครั้ง</small><?php } ?>
+        <img class="prod-edit-img img-prev" id="np-image-prev" alt="" hidden>
+        <small class="adm-hint img-note" id="np-image-note" hidden></small>
+      </div>
     </div>
-    <p class="adm-hint">รูปสินค้าเพิ่มภายหลังได้ที่หน้าสินค้าของผู้ดูแล</p>
+    <p class="adm-hint">เพิ่มแล้วแก้เองไม่ได้ — ตรวจข้อมูลและรูปก่อนกดเพิ่ม</p>
     <button class="btn btn-primary" type="submit"><svg class="ico"><use href="#i-plus"/></svg> เพิ่มสินค้าและใส่ในใบนี้</button>
   </form>
   <?php } ?>
@@ -421,6 +437,7 @@ require dirname(__FILE__) . '/inc/header.php';
   var go    = document.getElementById('rb-go');
   var bar   = document.getElementById('recv-bar');
   var refEl = document.getElementById('ref');
+  var noteEl = document.getElementById('note');
   var lack  = '';                     // ช่องแรกที่ยังขาด — ให้ปุ่มบันทึกพาไป (aoNeedSync ใน inc/footer.php)
 
   function num(v) { return Number(String(v).replace(/[^0-9]/g, '')) || 0; }
@@ -430,7 +447,7 @@ require dirname(__FILE__) . '/inc/header.php';
       return { box: document.querySelector('#recv-live .sale-pick'), field: document.getElementById('rq'), mouseOnly: true,
                msg: 'แตะสินค้าที่รับเข้าอย่างน้อย 1 รายการ (ค้นด้วยชื่อหรือ SKU ได้)' };
     }
-    if (lack === 'ref') { return { box: refEl, field: refEl, after: refEl, msg: 'กรอกเลขที่เอกสารอ้างอิง (ใบส่งของ / ใบกำกับ) ก่อนบันทึก' }; }
+    if (lack === 'ref') { return { box: refEl, field: refEl, after: refEl, msg: 'กรอกเลขที่เอกสารอ้างอิง หรือหมายเหตุ (ไม่มีเอกสาร เช่น ลูกค้าคืนไม่มีบิล) ก่อนบันทึก' }; }
     return null;
   };
 
@@ -439,7 +456,7 @@ require dirname(__FILE__) . '/inc/header.php';
     var sumEl = document.getElementById('recv-sum');
     var n = document.querySelectorAll('#recv-live .recv-list li').length;
     var q = sumEl ? num(sumEl.getAttribute('data-v')) : 0;
-    var hasRef = refEl.value.replace(/\s/g, '') !== '';
+    var hasRef = (refEl.value + noteEl.value).replace(/\s/g, '') !== '';   // เลขเอกสาร หรือหมายเหตุ อย่างใดอย่างหนึ่ง
 
     items.textContent = n.toLocaleString('th-TH');
     qtyEl.textContent = q.toLocaleString('th-TH');
@@ -449,11 +466,12 @@ require dirname(__FILE__) . '/inc/header.php';
     bar.className = lack ? 'recv-bar' : 'recv-bar on';
 
     if (n === 0)       { hint.textContent = 'เลือกสินค้าเข้าใบก่อน'; }
-    else if (!hasRef)  { hint.textContent = 'ยังไม่ได้กรอกเลขที่เอกสารอ้างอิง'; }
+    else if (!hasRef)  { hint.textContent = 'ยังไม่ได้กรอกเลขที่เอกสาร หรือหมายเหตุ'; }
     else               { hint.textContent = 'ตรวจอีกครั้งก่อนกดบันทึก'; }
   };
 
   refEl.addEventListener('input', window.recvSync);
+  noteEl.addEventListener('input', window.recvSync);
   document.body.addEventListener('htmx:afterSettle', function () { window.recvSync(); });
   window.recvSync();
 

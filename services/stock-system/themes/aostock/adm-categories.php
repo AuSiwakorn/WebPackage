@@ -85,7 +85,6 @@ foreach ($cats as $c => $x) {
     }
     $rows[$c] = array('meta' => $x, 'prods' => $prods, 'qty' => $qty, 'value' => $val);
 }
-$first = key($rows);
 
 /* แถวสินค้าในตารางของหมวด — ใช้ทั้งตอนวาดหน้า และตอนกด “แสดงเพิ่ม” */
 $row = function ($p) use ($br) { ?>
@@ -181,8 +180,9 @@ require dirname(__FILE__) . '/inc/header.php';
   <section class="card"><p class="empty"><svg class="ico"><use href="#i-tag"/></svg>ไม่พบหมวดหรือสินค้าที่ตรงกับ “<?php echo e($q) ?>”</p></section>
 <?php } ?>
 
+<?php /* เข้าหน้ามาพับทุกหมวด · ตอนค้นหาเปิดทุกหมวดที่เจอ */ ?>
 <?php foreach ($rows as $c => $r) { $x = $r['meta']; ?>
-  <details class="card acc-item" id="c-<?php echo e(substr(md5($c), 0, 8)) ?>"<?php echo ($q !== '' || $c === $first) ? ' open' : '' ?>>
+  <details class="card acc-item" id="c-<?php echo e(substr(md5($c), 0, 8)) ?>"<?php echo $q !== '' ? ' open' : '' ?>>
     <summary class="card-head">
       <div>
         <h2><?php echo e($c) ?> <span class="bdg <?php echo $x['count'] ? 'bdg-adj' : 'bdg-out' ?>"><?php echo number_format($x['count']) ?> รายการ</span></h2>
@@ -204,7 +204,7 @@ require dirname(__FILE__) . '/inc/header.php';
     <?php } ?>
     <?php if (!$r['prods']) { ?>
       <p class="empty">ยังไม่มีสินค้าในหมวดนี้</p>
-    <?php } elseif ($q !== '' || $c === $first) { ?>
+    <?php } elseif ($q !== '') { ?>
       <?php $table($c, $r); ?>
     <?php } else { /* หมวดที่ยังพับอยู่ — โหลดตารางตอนกดเปิด (เหตุการณ์ toggle ของ details) */ ?>
       <div class="lazy-tbl" hx-get="<?php echo e($moreUrl($c) . '&part=table') ?>" hx-trigger="toggle once from:closest details" hx-swap="outerHTML">

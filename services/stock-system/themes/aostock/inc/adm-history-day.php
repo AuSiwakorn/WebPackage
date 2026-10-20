@@ -9,6 +9,7 @@
  *   - [x] ประวัติวันนี้ + เอกสารคลังวันก่อนจากตาราง (ช่วงที่ 6)
  *   - [x] ช่วงที่ 8: วันก่อนมีลำดับเหตุการณ์ทั้งวัน (inc/history-past.php)
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
+ *   - [x] 15 ต.ค. (เมนูประวัติแยกหน้า ช่วง 2): ?t= = กลุ่มที่เปิดมา → ปุ่มกลับไปกลุ่มนั้น + เมนูของกลุ่มเป็นสีเขียว · ไม่มี t (มาจากภาพรวม) → กลับไปภาพรวม
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -16,7 +17,7 @@ if (!defined('ALLOW_DIRECT_ACCESS')) {
 }
 /* ==========================================================
    [ผู้ดูแล] รายการของสาขาหนึ่งในวันหนึ่ง (ส่วนหนึ่งของ adm-history.php)
-   ?view=day&b=รหัสสาขา&d=ปปปปดดวว
+   ?view=day&b=รหัสสาขา&d=ปปปปดดวว&t=กลุ่มที่เปิดมา (sale | adjust | store · ไม่มี = มาจากภาพรวม)
    - วันนี้  : ประวัติของสาขา ดูอย่างเดียว (แก้ / ยกเลิกเอกสารของวันนี้เป็นงานของพนักงาน)
    - วันก่อน: ใช้ inc/history-past.php ร่วมกับฝั่งพนักงาน · ผู้ดูแลยกเลิกเอกสารคลังย้อนหลังได้
    ตัวแปรจาก adm-history.php: $user
@@ -37,7 +38,8 @@ $isToday = ($pastDay === date('Ymd'));
 $pastTs  = $isToday ? null : $ts;
 $err     = '';
 
-$HIST_BASE = 'adm-history.php?view=day&b=' . rawurlencode($code);   // ฟอร์มใน history-past.php ส่งกลับมาที่นี่
+$fromT     = (isset($_GET['t']) && in_array($_GET['t'], array('sale', 'adjust', 'store'), true)) ? $_GET['t'] : '';
+$HIST_BASE = 'adm-history.php?view=day&b=' . rawurlencode($code) . ($fromT !== '' ? '&t=' . $fromT : '');   // ฟอร์มใน history-past.php ส่งกลับมาที่นี่
 
 /* ---------- ยกเลิกเอกสารคลังย้อนหลัง (ผู้ดูแลยกเลิกได้อย่างเดียว ไม่มีแก้ไข) ---------- */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isToday) {
@@ -58,19 +60,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isToday) {
     }
 }
 
-$back = 'adm-history.php?mode=day&d=' . date('Y-m-d', $ts) . '&b=' . rawurlencode($code);
+$back   = ($fromT !== '') ? 'adm-history.php?mode=day&d=' . date('Y-m-d', $ts) . '&b=' . rawurlencode($code) . '&t=' . $fromT : 'adm-dashboard.php';
+$backTx = ($fromT !== '') ? 'กลับไปประวัติ' . Stock_getLogGroups()[$fromT]['label'] : 'กลับไปภาพรวม';
 $rows = $isToday ? log_today($code) : array();
 
 $branch         = 'ALL';
 $NO_BRANCH_PICK = true;
 $PAGE_TITLE     = 'ประวัติ' . $brAll[$code]['name'];
 $PAGE_SUB       = thai_date_full($ts) . ($isToday ? ' · วันนี้' : ' · ย้อนหลัง ' . (int) round((strtotime(date('Y-m-d')) - $ts) / 86400) . ' วัน');
-$NAV_ACTIVE     = 'adm-history.php';
+$NAV_ACTIVE     = ($fromT !== '') ? 'adm-history.php?t=' . $fromT : 'adm-dashboard.php';
+$CONFIRM_MODAL  = true;                   // ยกเลิกเอกสารย้อนหลังต้องยืนยัน + กรอกเหตุผล (footer.php)
 require dirname(__FILE__) . '/header.php';
 ?>
 
 <p class="hist-back">
-  <a class="btn btn-ghost btn-sm" href="<?php echo e($back) ?>">‹ กลับไปประวัติรวมทุกสาขา</a>
+  <a class="btn btn-ghost btn-sm" href="<?php echo e($back) ?>">‹ <?php echo e($backTx) ?></a>
   <span>วันอื่นของสาขานี้:</span>
   <a class="btn btn-ghost btn-sm" href="<?php echo e(hist_url('d=' . date('Ymd', strtotime('-1 day', $ts)))) ?>">‹ วันก่อน</a>
   <?php if (!$isToday) { ?>
