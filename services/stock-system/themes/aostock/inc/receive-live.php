@@ -16,6 +16,8 @@
  *   - [x] 14 ต.ค. (ผู้ใช้เลือก): + / − นับในเครื่องก่อนแล้วบันทึกเบื้องหลัง — ปุ่ม data-step · ช่อง data-qty (JS ใน inc/footer.php) · เดิมกดรัว ๆ แล้วหาย
  *   - [x] 14 ต.ค. (ผู้ใช้เลือก): แตะสินค้าตัวใหม่ขึ้นใบทันที — แถวเป็น $row ใช้ทั้งวาดใบและแม่แบบ #pick-row · การ์ดมี data-pick · hx-ext="ao-live" (คำตอบที่มาช้าลงตัวที่อยู่บนจอ)
  *   - [x] 20 ต.ค.: ช่องจำนวนในใบ form="recv-rows" — ไม่ติดไปกับฟอร์มบันทึก (เดิม Enter ในช่อง = กดบันทึกใบทันที ขณะจำนวนยังส่งไม่ถึงเซิร์ฟเวอร์)
+ *   - [x] 20 ต.ค. (Enter / ยิงบาร์โค้ดในช่องค้นหา): ช่องค้นหา form="recv-find" — ไม่ติดไปกับฟอร์มบันทึก
+ *         เดิมยิงบาร์โค้ดตอนใบครบ = กล่องยืนยันขึ้น ยิงอีกครั้ง = บันทึกใบ · Enter ยังค้นทันที (อีเวนต์ search ของช่อง)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -124,7 +126,9 @@ if ($LIVE_PART === 'more') {
         <div class="find-in">
           <svg class="ico"><use href="#i-search"/></svg>
           <label class="sr-only" for="rq">ค้นหาสินค้า</label>
-          <input type="search" id="rq" name="q" value="<?php echo e($q) ?>" placeholder="ชื่อสินค้า หรือ SKU"
+          <?php /* form="recv-find" (ไม่มีฟอร์มชื่อนี้) = ช่องไม่ติดไปกับฟอร์มบันทึกใบ — Enter / เครื่องยิงบาร์โค้ดไม่กดบันทึกให้ (20 ต.ค.)
+                   · Enter ยังค้นทันทีด้วยอีเวนต์ search · htmx ส่ง q ของช่องตัวเองตามปกติ (เซิร์ฟเวอร์อ่าน q จาก $_GET เท่านั้น) */ ?>
+          <input type="search" id="rq" name="q" value="<?php echo e($q) ?>" placeholder="ชื่อสินค้า หรือ SKU" form="recv-find"
                  hx-get="receive.php" hx-trigger="input changed delay:350ms, search"
                  hx-vals='<?php echo e(json_encode(array('cat' => $cat))) ?>'
                  hx-target="#recv-live" hx-swap="outerHTML"

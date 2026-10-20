@@ -26,6 +26,8 @@
  *   - [x] 20 ต.ค. (ใบบันทึกจำนวนไม่ตรงที่ยืนยัน): Enter ในช่องจำนวนของใบนำเข้า / ตัดออก / ตรวจนับ = ใช้ค่านี้ ไม่ส่งฟอร์มบันทึก
  *         · กล่องยืนยันเก็บจำนวนบนจอลงช่องซ่อน screen_qty ให้เซิร์ฟเวอร์เทียบกับใบร่าง (Stock_checkScreenQty)
  *         · ลืมตัวเลขที่ยังไม่ส่งเฉพาะตอนกดปุ่มล้างใบ (เดิมแตะตรงไหนของหัวใบก็ลืม)
+ *   - [x] 20 ต.ค. (Enter / ยิงบาร์โค้ดแล้วกล่องยืนยันขึ้น · ผู้ใช้เลือก): Enter ในช่องของใบนำเข้า / ตัดออก / ตรวจนับไม่บันทึกใบ — บันทึกได้ทางกดปุ่มเท่านั้น
+ *         · กล่องยืนยันของ 3 หน้านี้วางโฟกัสที่ตัวกล่อง (เดิมที่ปุ่มยืนยัน — ยิงบาร์โค้ด 2 ครั้ง = บันทึกใบโดยไม่มีใครกดยืนยัน)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -40,7 +42,7 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
 <!-- ===== กล่องยืนยัน — ใช้ทั้งรับเงินและยกเลิกบิล ===== -->
 <div class="modal" id="confirm-modal" hidden>
   <div class="modal-back" data-close></div>
-  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="cf-title">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="cf-title" tabindex="-1">
     <div class="modal-head">
       <div>
         <h2 id="cf-title">ยืนยันการรับเงิน</h2>
@@ -724,6 +726,7 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
     var cfSub   = document.getElementById('cf-sub');
     var cfOk    = document.getElementById('cf-ok');
     var cfOkT   = document.getElementById('cf-ok-t');
+    var cfCard  = modal.querySelector('.modal-card');     /* tabindex="-1" — โฟกัสที่ตัวกล่องได้ (opt.hold) */
 
     var pending = null;      /* ฟังก์ชันที่จะทำงานเมื่อกดยืนยัน */
     var curForm = null;      /* ฟอร์มที่กำลังยืนยัน */
@@ -772,7 +775,9 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
         note.focus();
       } else {
         cfOk.disabled = false;
-        cfOk.focus();
+        /* opt.hold (ใบนำเข้า / ตัดออก / ตรวจนับ · 20 ต.ค. ผู้ใช้เลือก): โฟกัสที่ตัวกล่อง ไม่ใช่ปุ่มยืนยัน — Enter / ยิงบาร์โค้ดซ้ำไม่บันทึกใบ
+           ต้องแตะ / คลิกปุ่มยืนยัน (หรือ Tab ไปที่ปุ่ม) · Esc ยังปิดกล่อง · กล่องรับเงิน / ยกเลิกบิล โฟกัสที่ปุ่มยืนยันเหมือนเดิม */
+        if (opt.hold && cfCard) { cfCard.focus(); } else { cfOk.focus(); }
       }
 
       function sync() {
@@ -930,7 +935,7 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
            + tot.toLocaleString('th-TH') + ' ชิ้น</b></div></div>';
         openModal({
           title: 'ยืนยันการรับเข้า', sub: 'บันทึกแล้วสต๊อกจะเพิ่มทันที ถ้าผิดยกเลิกใบได้ภายหลัง',
-          ok: 'ยืนยัน บันทึกรับเข้า', html: h, form: form, go: go
+          ok: 'ยืนยัน บันทึกรับเข้า', html: h, form: form, go: go, hold: true
         });
       } else if (kind === 'issue') {
         var sm = form.issueSummary ? form.issueSummary() : { lines: [] };
@@ -949,7 +954,7 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
             + tq.toLocaleString('th-TH') + ' ชิ้น</b></div></div>';
         openModal({
           title: 'ยืนยันการตัดออกจากสต๊อก', sub: 'บันทึกแล้วสต๊อกจะลดทันที ถ้าผิดยกเลิกใบได้ภายหลัง',
-          ok: 'ยืนยัน ตัดออก', html: hi, form: form, go: go
+          ok: 'ยืนยัน ตัดออก', html: hi, form: form, go: go, hold: true
         });
       } else if (kind === 'adjust') {
         var sa = form.adjSummary ? form.adjSummary() : { lines: [] };
@@ -971,7 +976,7 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
           title: 'ยืนยันผลการนับ',
           sub:   bad ? 'ยอดในระบบของ ' + bad + ' รายการจะถูกปรับให้เท่ากับที่นับได้ทันที'
                      : 'บันทึกไว้เป็นหลักฐานว่านับแล้วตรง ไม่มีการเปลี่ยนยอด',
-          ok: 'ยืนยัน บันทึกผลการนับ', html: ha, form: form, go: go
+          ok: 'ยืนยัน บันทึกผลการนับ', html: ha, form: form, go: go, hold: true
         });
       } else if (kind === 'edit' || kind === 'void') {
         /* ดูจากปลายทางของฟอร์มว่าเป็นเอกสารชนิดไหน จะได้ใช้ถ้อยคำให้ถูก */
@@ -1031,6 +1036,17 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
       ev.preventDefault();
       askFor(f, function () { f.setAttribute('data-ok', '1'); f.submit(); });
     }, false);
+
+    /* Enter ในช่องของใบนำเข้า / ตัดออก / ตรวจนับ ไม่บันทึกใบ — บันทึกได้ทางกดปุ่มบันทึกเท่านั้น (20 ต.ค. · ผู้ใช้เลือก)
+       เดิม Enter ในช่องเลขเอกสาร / หมายเหตุ / ตัวเลือกเหตุผล = เบราว์เซอร์กดปุ่มบันทึกให้ → กล่องยืนยันขึ้น (เครื่องยิงบาร์โค้ดส่ง Enter ทุกครั้งที่ยิง)
+       ช่องค้นหา / ช่องจำนวนอยู่นอกฟอร์มแล้ว (form="…-find" / "…-rows" → i.form เป็น null ไม่เข้าเงื่อนไขนี้ · Enter ในช่องค้นหายังค้นทันที)
+       ปุ่ม / textarea ใช้ Enter ตามปกติ */
+    document.addEventListener('keydown', function (ev) {
+      var i = ev.target, k = (i && i.tagName === 'INPUT' && i.form) ? i.form.getAttribute('data-confirm') : null;
+      if (ev.key !== 'Enter' || ev.isComposing || (k !== 'receive' && k !== 'issue' && k !== 'adjust')) { return; }
+      if (/^(submit|image|button|reset)$/.test(i.type)) { return; }
+      ev.preventDefault();
+    }, true);
   }
 
   /* ทูลทิปของกราฟ */
@@ -1239,7 +1255,8 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
     if (!btn) { return; }
     ev.preventDefault();
     ev.stopPropagation();
-    /* กด Enter ในช่องกรอก (เช่น ยิงบาร์โค้ดในช่องค้นหา) เบราว์เซอร์จะกดปุ่มบันทึกให้เอง — แค่ไม่ส่ง ไม่เลื่อนจอ */
+    /* กด Enter ในช่องกรอก (เช่น หน้ารับคืน) เบราว์เซอร์จะกดปุ่มบันทึกให้เอง — แค่ไม่ส่ง ไม่เลื่อนจอ
+       ใบนำเข้า / ตัดออก / ตรวจนับ: Enter ในช่องไม่กดปุ่มบันทึกแล้ว (ช่องค้นหาอยู่นอกฟอร์ม + keydown ในกล่องยืนยันด้านบน · 20 ต.ค.) — เก็บไว้กันอีกชั้น */
     var a = document.activeElement;
     if (ev.detail === 0 && a && a !== btn && a !== document.body) { return; }
     jump(btn);

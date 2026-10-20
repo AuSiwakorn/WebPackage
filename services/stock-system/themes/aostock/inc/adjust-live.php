@@ -17,6 +17,8 @@
  *   - [x] 15 ต.ค. (ใบนับแบบรายการ ช่วง 1): เอาการล็อกการ์ด / ข้อความ “ร้านเปิด นับได้ครั้งละ N” ออก
  *   - [x] 15 ต.ค. (ผู้ใช้เลือก): ลองใบนับแบบตาราง (ช่วง 2–3) แล้วกลับมาใช้การ์ด · เก็บไว้: ชื่อ “ตรวจนับสต๊อก” · บรรทัดบอกให้ใช้เบิก / ตัดออก (.cnt-tip)
  *         · แท็บ “ทั้งหมด” ขึ้นก่อน · ช่องจำนวนในใบ form="adj-rows" (ไม่ติดไปกับฟอร์มบันทึก — ใบหลายร้อยแถวเกิน max_input_vars)
+ *   - [x] 20 ต.ค. (Enter / ยิงบาร์โค้ดในช่องค้นหา): ช่องค้นหา form="adj-find" — ไม่ติดไปกับฟอร์มบันทึก
+ *         เดิมยิงบาร์โค้ดตอนใบครบ = กล่องยืนยันขึ้น ยิงอีกครั้ง = บันทึกผลการนับ · Enter ยังค้นทันที (อีเวนต์ search ของช่อง)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -138,7 +140,9 @@ if ($LIVE_PART === 'more') {
         <div class="find-in">
           <svg class="ico"><use href="#i-search"/></svg>
           <label class="sr-only" for="aq">ค้นหาสินค้า</label>
-          <input type="search" id="aq" name="q" value="<?php echo e($q) ?>" placeholder="ชื่อสินค้า หรือ SKU"
+          <?php /* form="adj-find" (ไม่มีฟอร์มชื่อนี้) = ช่องไม่ติดไปกับฟอร์มบันทึก — Enter / เครื่องยิงบาร์โค้ดไม่กดบันทึกให้ (20 ต.ค.)
+                   · Enter ยังค้นทันทีด้วยอีเวนต์ search · htmx ส่ง q ของช่องตัวเองตามปกติ (เซิร์ฟเวอร์อ่าน q จาก $_GET เท่านั้น) */ ?>
+          <input type="search" id="aq" name="q" value="<?php echo e($q) ?>" placeholder="ชื่อสินค้า หรือ SKU" form="adj-find"
                  hx-get="stocktake.php" hx-trigger="input changed delay:350ms, search"
                  hx-vals='<?php echo e(json_encode(array('cat' => $cat, 't' => $tab))) ?>'
                  hx-target="#adj-live" hx-swap="outerHTML"
