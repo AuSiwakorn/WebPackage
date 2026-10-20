@@ -24,7 +24,8 @@ if (!defined('ALLOW_DIRECT_ACCESS')) {
 }
 /* ==========================================================
    ประวัติการทำรายการ
-   วันนี้อ่านจาก ao_stock_log (log_today) · วันก่อน (?d=) ใช้ inc/history-past.php
+   วันนี้อ่านจาก ao_stock_log (log_today) · วันก่อน (?mode=day&d=) ใช้ inc/history-past.php
+   รายเดือน / รายปี (?mode=month&m= · ?mode=year&y=) = ตารางทั้งช่วงจาก log_range หน้าละ 100 · ?back= = กลับรายการเดิมจากหน้าวัน
    หน้าของพนักงาน — ผู้ดูแลใช้ adm-history.php (require_login พาไปเอง)
    ?t= = กลุ่มของ Stock_getLogGroups (1 เมนู = 1 กลุ่ม) · ไม่ระบุ / ไม่มีสิทธิ์ = กลุ่มแรกที่ดูได้
    ========================================================== */
@@ -53,18 +54,29 @@ $notOpened = (store_state($code) === null);
 
 $err = '';
 
-/* ---------- ดูย้อนหลัง (สิทธิ์เสริม backdate / ผู้ดูแล) ---------- */
-$pastLimit = backdate_limit($user, $code);
-$pastDay   = isset($_GET['d']) ? preg_replace('/\D/', '', $_GET['d']) : '';
-$pastTs    = null;
-if ($pastDay !== '' && $pastDay !== date('Ymd')) {
-    $ts  = strtotime($pastDay);
-    $age = $ts ? (int) round((strtotime(date('Y-m-d')) - $ts) / 86400) : -1;
-    if ($ts && $age >= 1 && $age <= $pastLimit) {
-        $pastTs  = $ts;
-        $pastDay = date('Ymd', $ts);
+/* ---------- ช่วงที่ดู: วันนี้ (ค่าเริ่มต้น) · รายวัน ?mode=day&d= · รายเดือน ?mode=month&m= · รายปี ?mode=year&y=
+   ดูย้อนหลังได้ทุกวัน (ดูอย่างเดียว) · ปุ่มแก้ / ยกเลิกย้อนหลังยังตามสิทธิ์ backdate (past_can_edit) ---------- */
+$today   = strtotime(date('Y-m-d'));
+$first   = strtotime('2026-01-01');                 // ย้อนได้ไม่ก่อนปีที่เริ่มใช้ระบบ
+$mode    = (isset($_GET['mode']) && in_array($_GET['mode'], array('day', 'month', 'year'), true)) ? $_GET['mode'] : '';
+$pastDay = isset($_GET['d']) && is_string($_GET['d']) ? preg_replace('/\D/', '', $_GET['d']) : '';
+$pastTs  = null;
+$dayTs   = $today;
+if ($pastDay !== '' && ($ts = strtotime($pastDay)) !== false) {
+    $dayTs = min(max(strtotime(date('Y-m-d', $ts)), $first), $today);
+    $mode  = ($mode === '') ? 'day' : $mode;       // ลิงก์เดิม ?d= = รายวัน
+    if ($dayTs < $today) {
+        $pastTs  = $dayTs;
+        $pastDay = date('Ymd', $dayTs);
     }
 }
+$monTs = strtotime(date('Y-m-01'));
+if (isset($_GET['m']) && is_string($_GET['m']) && preg_match('/^\d{4}-\d{2}$/', $_GET['m']) && ($x = strtotime($_GET['m'] . '-01')) !== false) {
+    $monTs = min(max($x, $first), strtotime(date('Y-m-01')));
+}
+$year = (isset($_GET['y']) && is_string($_GET['y']) && preg_match('/^\d{4}$/', $_GET['y'])) ? max((int) date('Y', $first), min((int) date('Y'), (int) $_GET['y'])) : (int) date('Y');
+$sort = (isset($_GET['sort']) && $_GET['sort'] === 'asc') ? 'asc' : 'desc';
+$back = (isset($_GET['back']) && is_string($_GET['back']) && preg_match('/^(m\d{4}-\d{2}|y\d{4})$/', $_GET['back'])) ? $_GET['back'] : '';   // กลับรายการเดือน / ปีเดิม
 
 /* ---------- ยกเลิก / แก้ไขเอกสารย้อนหลัง ---------- */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['act'])
@@ -127,24 +139,102 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $err === '' && !$pastTs) {
     }
 }
 
-$rows   = log_filter(log_today($code, 0, !is_branch_manager($user)), $t);      // ช่วงที่ 12: พนักงานทั่วไปไม่เห็นรายการ "ตั้งค่า" · ผู้จัดการสาขาเห็นครบ
-$counts = log_counts($rows);
-$mine   = 0;
-foreach ($rows as $r) {
-    if ($r['by_user'] === $user['username']) {
-        $mine++;
+$noSet  = !is_branch_manager($user);                 // ช่วงที่ 12: พนักงานทั่วไปไม่เห็นรายการ "ตั้งค่า" · ผู้จัดการสาขาเห็นครบ
+$isList = ($mode === 'month' || $mode === 'year');
+
+/** ลิงก์ของหน้านี้ (กลุ่มเดิม) โดยเปลี่ยนค่าบางตัว — ค่าที่ไม่ใช้กับโหมดนั้นตัดทิ้ง */
+$hq = function ($chg) use ($mode, $dayTs, $monTs, $year, $sort) {
+    $q = array_merge(array('mode' => $mode, 'd' => date('Ymd', $dayTs), 'm' => date('Y-m', $monTs), 'y' => $year, 'sort' => $sort), $chg);
+    foreach (array('day' => 'd', 'month' => 'm', 'year' => 'y') as $md => $k) {
+        if ($q['mode'] !== $md) {
+            unset($q[$k]);
+        }
+    }
+    if ($q['mode'] === '' || $q['mode'] === 'day' || $q['sort'] === 'desc') {
+        unset($q['sort']);
+    }
+    if ($q['mode'] === '') {
+        unset($q['mode']);
+    }
+    if (isset($q['p']) && (int) $q['p'] <= 1) {
+        unset($q['p']);
+    }
+    return hist_url(http_build_query($q));
+};
+
+if ($isList) {
+    /* ---------- รายเดือน / รายปี: อ่านจาก ao_stock_log ทั้งช่วง นับและแบ่งหน้าใน SQL (log_range) ---------- */
+    list($from, $to, $rangeTxt) = adm_range($mode, $today, $monTs, $year);
+    $per  = 100;
+    $pgIn = isset($_GET['p']) ? max(1, (int) $_GET['p']) : 1;
+    $lr   = log_range(array($code), $from, $to, $t, $sort, $pgIn, $per, $noSet);
+    $pages = max(1, (int) ceil($lr['total'] / $per));
+    $pg    = min($pgIn, $pages);
+    if ($pg !== $pgIn) {
+        $lr = log_range(array($code), $from, $to, $t, $sort, $pg, $per, $noSet);      // ขอหน้าเกิน → หน้าสุดท้าย
+    }
+    $counts = $lr['counts'];
+    /* การ์ดสรุปของกลุ่มทั้งช่วง array(ชื่อ, ตัวเลข, คำอธิบาย) · ยอดขายรวมเฉพาะคนที่ดูรายงานทั้งสาขาได้ */
+    $cardOf = array(
+        'sale'    => array('บิลขาย', $counts['sale'], 'ไม่รวมบิลที่ยกเลิก'),
+        'receive' => array('ใบรับเข้า', $counts['receive'], 'ยกเลิกรับเข้า ' . number_format($counts['rvoid']) . ' รายการ'),
+        'issue'   => array('ใบเบิก / ตัดออก', $counts['issue'], 'ยกเลิกตัดออก ' . number_format($counts['ivoid']) . ' รายการ'),
+        'adjust'  => array('ใบตรวจนับ', $counts['adjust'], 'ยกเลิกใบตรวจนับ ' . number_format($counts['avoid']) . ' รายการ'),
+        'return'  => array('ใบรับคืน', $counts['return'], 'รับคืนสินค้าจากลูกค้า'),
+        'store'   => array('เปิด / ปิดร้าน', $counts['open'] + $counts['close'], 'เงินเข้า / ออก ' . number_format($counts['cash']) . ' รายการ'),
+    );
+    $card2 = $cardOf[$t];
+    if ($t === 'sale') {
+        $card2[2] = 'ยกเลิกบิล ' . number_format($counts['void']) . ' รายการ';
+        if (can($user, 'report_branch')) {
+            $sales = 0;
+            foreach (sales_agg(array($code), $from, $to) as $x) {
+                $sales += $x['total'];
+            }
+            $card2[2] = 'ยอดขาย ' . money2($sales) . ' บาท (ไม่รวมบิลยกเลิก) · ยกเลิก ' . number_format($counts['void']);
+        }
+    }
+    /* แถว: หมายเหตุสั้นจากรายละเอียด (แบบหน้าผู้ดูแล) + ลิงก์ไปทั้งวันนั้น */
+    $noteKeys = array('ประเภทบิล', 'ชำระโดย', 'สต๊อก', 'เหตุผล', 'ผลต่าง', 'เอกสารอ้างอิง', 'หมายเหตุ');
+    $backKey  = ($mode === 'month') ? 'm' . date('Y-m', $monTs) : 'y' . $year;
+    $show     = array();
+    foreach ($lr['rows'] as $r) {
+        $note = array();
+        foreach ($noteKeys as $k) {
+            if (isset($r['detail'][$k]) && $r['detail'][$k] !== '' && count($note) < 2) {
+                $note[] = preg_replace('/\s*\(.*$/u', '', (string) $r['detail'][$k]);
+            }
+        }
+        if ($r['returned']) {
+            $note[] = 'มีรับคืน';
+        }
+        if ($r['void']) {
+            array_unshift($note, ($r['void_mode'] === 'edit' ? 'ยกเลิกเพื่อแก้ไขภายหลัง' : 'ยกเลิกภายหลัง') . ($r['void_by'] !== '' ? ' โดย ' . $r['void_by'] : ''));
+        }
+        $r['note'] = implode(' · ', $note);
+        $r['link'] = hist_url('mode=day&d=' . $r['date'] . '&back=' . $backKey);
+        $show[] = $r;
+    }
+} elseif (!$pastTs) {
+    $rows   = log_filter(log_today($code, 0, $noSet), $t);
+    $counts = log_counts($rows);
+    $mine   = 0;
+    foreach ($rows as $r) {
+        if ($r['by_user'] === $user['username']) {
+            $mine++;
+        }
     }
 }
 
 $branch     = $code;
 $PAGE_TITLE = 'ประวัติ' . $allowed[$t]['label'];
-$PAGE_SUB   = branch_name($code) . ' · ' . thai_date_full($pastTs ? $pastTs : time()) . ($pastTs ? ' (ย้อนหลัง)' : '');
+$PAGE_SUB   = branch_name($code) . ' · ' . ($isList ? $rangeTxt : thai_date_full($pastTs ? $pastTs : time()) . ($pastTs ? ' (ย้อนหลัง)' : ''));
 $NAV_ACTIVE = 'history.php?t=' . $t;                // เมนูของกลุ่มนี้ (header.php)
 require dirname(__FILE__) . '/inc/header.php';
 ?>
 
 
-<?php if ($notOpened) { ?>
+<?php if ($notOpened && !$isList && !$pastTs) { /* เรื่องของวันนี้ — หน้าเดือน / ปี / วันก่อนไม่ต้องขึ้น */ ?>
   <div class="alert alert-info" role="status">
     <svg class="ico"><use href="#i-info"/></svg>
     <span>ยังไม่ได้เปิดร้านวันนี้ — ดูประวัติได้ตามปกติ งานคลัง (รับเข้า / ตัดออก / ตรวจนับ) ทำได้เลย ส่วนการขายต้องเปิดร้านก่อน</span>
@@ -165,17 +255,116 @@ require dirname(__FILE__) . '/inc/header.php';
   </div>
 <?php } ?>
 
-<?php if ($pastLimit > 0) { ?>
-  <!-- เลือกวัน — เห็นเฉพาะคนที่มีสิทธิ์แก้ย้อนหลัง (ผู้ดูแลย้อนได้ทุกวันที่มีข้อมูล) -->
-  <nav class="cats day-pick" aria-label="เลือกวันที่">
-    <a class="cat<?php echo $pastTs ? '' : ' on' ?>" href="<?php echo e(hist_url()) ?>">วันนี้</a>
-    <?php for ($i = 1; $i <= $pastLimit; $i++) { $dts = strtotime('-' . $i . ' day', strtotime(date('Y-m-d'))); ?>
-      <a class="cat<?php echo ($pastTs && date('Ymd', $dts) === $pastDay) ? ' on' : '' ?>" href="<?php echo e(hist_url('d=' . date('Ymd', $dts))) ?>"><?php echo e(thai_day_month($dts)) ?></a>
+<!-- ==================== ช่วงที่ดู: วันนี้ · รายวัน · รายเดือน · รายปี ==================== -->
+<section class="card acct-filter hist-filter">
+  <form method="get" action="history.php" class="acct-row">
+    <input type="hidden" name="t" value="<?php echo e($t) ?>">
+    <div class="segs">
+      <a class="seg<?php echo $mode === '' ? ' on' : '' ?>" href="<?php echo e(hist_url()) ?>">วันนี้</a>
+      <a class="seg<?php echo $mode === 'day' ? ' on' : '' ?>" href="<?php echo e($hq(array('mode' => 'day', 'd' => date('Ymd', $mode === 'day' ? $dayTs : strtotime('-1 day', $today))))) ?>">รายวัน</a>
+      <a class="seg<?php echo $mode === 'month' ? ' on' : '' ?>" href="<?php echo e($hq(array('mode' => 'month'))) ?>">รายเดือน</a>
+      <a class="seg<?php echo $mode === 'year' ? ' on' : '' ?>" href="<?php echo e($hq(array('mode' => 'year'))) ?>">รายปี</a>
+    </div>
+    <?php if ($mode !== '') { ?><input type="hidden" name="mode" value="<?php echo e($mode) ?>"><?php } ?>
+
+    <?php if ($mode === 'day') { ?>
+      <?php if ($dayTs > $first) { ?><a class="btn btn-ghost btn-sm" href="<?php echo e($hq(array('d' => date('Ymd', strtotime('-1 day', $dayTs))))) ?>" aria-label="วันก่อนหน้า">‹</a><?php } ?>
+      <label class="sr-only" for="hd">วันที่</label>
+      <input class="input acct-date" type="date" id="hd" name="d" value="<?php echo e(date('Y-m-d', $dayTs)) ?>"
+             min="<?php echo e(date('Y-m-d', $first)) ?>" max="<?php echo e(date('Y-m-d', $today)) ?>" onchange="this.form.submit()">
+      <?php if ($dayTs < $today) { ?>
+        <a class="btn btn-ghost btn-sm" href="<?php echo e($hq(array('d' => date('Ymd', strtotime('+1 day', $dayTs))))) ?>" aria-label="วันถัดไป">›</a>
+      <?php } ?>
+    <?php } elseif ($mode === 'month') { ?>
+      <?php if ($monTs > $first) { ?><a class="btn btn-ghost btn-sm" href="<?php echo e($hq(array('m' => date('Y-m', strtotime('-1 month', $monTs))))) ?>" aria-label="เดือนก่อนหน้า">‹</a><?php } ?>
+      <label class="sr-only" for="hm">เดือน</label>
+      <input class="input acct-date" type="month" id="hm" name="m" value="<?php echo e(date('Y-m', $monTs)) ?>"
+             min="<?php echo e(date('Y-m', $first)) ?>" max="<?php echo e(date('Y-m')) ?>" onchange="this.form.submit()">
+      <?php if ($monTs < strtotime(date('Y-m-01'))) { ?>
+        <a class="btn btn-ghost btn-sm" href="<?php echo e($hq(array('m' => date('Y-m', strtotime('+1 month', $monTs))))) ?>" aria-label="เดือนถัดไป">›</a>
+        <a class="btn btn-ghost btn-sm" href="<?php echo e($hq(array('m' => date('Y-m')))) ?>">เดือนนี้</a>
+      <?php } ?>
+    <?php } elseif ($mode === 'year') { ?>
+      <label class="sr-only" for="hy">ปี</label>
+      <select class="input acct-date" id="hy" name="y" onchange="this.form.submit()">
+        <?php for ($y = (int) date('Y'); $y >= (int) date('Y', $first); $y--) { ?>
+          <option value="<?php echo $y ?>" <?php echo $y === $year ? 'selected' : '' ?>>ปี <?php echo $y + 543 ?></option>
+        <?php } ?>
+      </select>
     <?php } ?>
-  </nav>
+
+    <?php if ($isList) { ?>
+      <label class="sr-only" for="hs">เรียงลำดับ</label>
+      <select class="input acct-branch" id="hs" name="sort" onchange="this.form.submit()">
+        <option value="desc" <?php echo $sort === 'desc' ? 'selected' : '' ?>>เวลา: ใหม่ → เก่า</option>
+        <option value="asc" <?php echo $sort === 'asc' ? 'selected' : '' ?>>เวลา: เก่า → ใหม่</option>
+      </select>
+    <?php } ?>
+    <noscript><button class="btn btn-ghost btn-sm" type="submit">ดู</button></noscript>
+  </form>
+</section>
+
+<?php if ($isList) { ?>
+<!-- ==================== รายเดือน / รายปี ==================== -->
+<section class="mini num" aria-label="สรุปช่วงที่เลือก">
+  <div class="m"><div class="lb">รายการ</div><div class="nm"><?php echo number_format($lr['total']) ?></div><div class="sb"><?php echo e($rangeTxt) ?></div></div>
+  <div class="m"><div class="lb"><?php echo e($card2[0]) ?></div><div class="nm"><?php echo number_format($card2[1]) ?></div><div class="sb"><?php echo e($card2[2]) ?></div></div>
+</section>
+
+<section class="card">
+  <div class="card-head">
+    <div>
+      <h2><?php echo e(branch_name($code)) ?> · <?php echo e($rangeTxt) ?></h2>
+      <span class="sub">เรียงตามเวลา<?php echo $sort === 'asc' ? 'จากเก่าไปใหม่' : 'จากใหม่ไปเก่า' ?> · บิลหรือเอกสารที่ถูกยกเลิกภายหลังมีขีดฆ่า · กด “ดู” เปิดทั้งวันนั้น</span>
+    </div>
+  </div>
+  <?php if (!$show) { ?>
+    <p class="empty"><svg class="ico"><use href="#i-history"/></svg>ไม่มีรายการ<?php echo e($allowed[$t]['label']) ?>ในช่วงที่เลือก<br><small>ลองเลือกเดือน / ปีอื่น</small></p>
+  <?php } else { ?>
+    <div class="tbl-wrap">
+      <table class="tbl hist-all">
+        <thead>
+          <tr><th>วันที่ · เวลา</th><th>ชนิด</th><th>รายการ</th><th>ผู้ทำ</th><th class="r">จำนวน</th><th class="r"><span class="sr-only">ดู</span></th></tr>
+        </thead>
+        <tbody>
+          <?php foreach ($show as $r) { $m = log_type_of($r['type']); ?>
+            <tr<?php echo $r['void'] ? ' class="is-void"' : '' ?>>
+              <td data-label="เวลา" class="num nowrap"><?php echo e(thai_day_month(strtotime($r['date']))) ?> · <?php echo e($r['time']) ?></td>
+              <td data-label="ชนิด"><span class="badge b-<?php echo e($m['tone']) ?>"><?php echo e($m['label']) ?></span></td>
+              <td data-label="รายการ">
+                <b class="hist-t"><?php echo e($r['title']) ?></b>
+                <?php if ($r['void']) { ?><small class="hist-n hist-void">ยกเลิกแล้ว</small><?php } ?>
+                <?php if ($r['note'] !== '') { ?><small class="hist-n"><?php echo e($r['note']) ?></small><?php } ?>
+              </td>
+              <td data-label="ผู้ทำ" class="nowrap"><?php echo e($r['by']) ?></td>
+              <td data-label="จำนวน" class="r num nowrap">
+                <?php if ($r['amount'] === null) { ?>—
+                <?php } elseif (in_array($r['type'], array('receive', 'rvoid'), true)) { ?><?php echo $r['type'] === 'receive' ? '+' : '−' ?><?php echo number_format(abs($r['amount'])) ?> ชิ้น
+                <?php } else { ?><?php echo e(money2($r['amount'])) ?> ฿<?php } ?>
+              </td>
+              <td data-label="" class="r"><a class="btn btn-ghost btn-sm" href="<?php echo e($r['link']) ?>" title="เปิดรายการทั้งวันนั้น">ดู</a></td>
+            </tr>
+          <?php } ?>
+        </tbody>
+      </table>
+    </div>
+    <?php if ($pages > 1) { ?>
+      <nav class="hist-pager" aria-label="หน้า">
+        <?php if ($pg > 1) { ?><a class="btn btn-ghost btn-sm" href="<?php echo e($hq(array('p' => $pg - 1))) ?>">‹ ก่อนหน้า</a><?php } ?>
+        <span>หน้า <?php echo $pg ?> / <?php echo $pages ?> · <?php echo number_format($lr['total']) ?> รายการ</span>
+        <?php if ($pg < $pages) { ?><a class="btn btn-ghost btn-sm" href="<?php echo e($hq(array('p' => $pg + 1))) ?>">ถัดไป ›</a><?php } ?>
+      </nav>
+    <?php } ?>
+  <?php } ?>
+</section>
+  <?php require dirname(__FILE__) . '/inc/footer.php'; exit; ?>
 <?php } ?>
 
 <?php if ($pastTs) { ?>
+  <?php if ($back !== '') { /* มาจากรายการรายเดือน / รายปี → ปุ่มกลับไปที่เดิม */
+      $bq = ($back[0] === 'm') ? $hq(array('mode' => 'month', 'm' => substr($back, 1))) : $hq(array('mode' => 'year', 'y' => (int) substr($back, 1))); ?>
+    <p class="hist-back"><a class="btn btn-ghost btn-sm" href="<?php echo e($bq) ?>">‹ กลับรายการ<?php echo $back[0] === 'm' ? e(thai_month_full(strtotime(substr($back, 1) . '-01'))) : 'ปี ' . ((int) substr($back, 1) + 543) ?></a></p>
+  <?php } ?>
   <?php $PAST_GROUP = $t; require dirname(__FILE__) . '/inc/history-past.php'; ?>
   <?php require dirname(__FILE__) . '/inc/footer.php'; exit; ?>
 <?php } ?>
