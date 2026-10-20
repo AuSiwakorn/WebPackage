@@ -2338,6 +2338,12 @@ table.sr-only{display:block}
   .adm-kpi .lb,.adm-kpi .nm,.adm-kpi .sb{overflow-wrap:anywhere}
   .card-head > div{min-width:0}
 }
+/* ปุ่มกรองชนิดของประวัติขาย (history.php ?k=) — กว้างเท่าปุ่ม · จอแคบ 2 × 2 ไม่ต้องเลื่อน */
+.hist-kinds{justify-self:start}
+@media (max-width:760px){
+  .hist-filter .hist-kinds{display:grid;grid-template-columns:1fr 1fr;justify-self:stretch;overflow:visible}
+  .hist-filter .hist-kinds .seg{padding:0 8px;justify-content:center}
+}
 .rep-csv{margin-left:auto}
 .rep-chip{display:inline-block;margin:0 6px 4px 0;padding:1px 8px;border-radius:8px;background:var(--bg-soft);font-size:.76rem;color:var(--ink-2)}
 .rep-chip b{color:var(--deep-900)}

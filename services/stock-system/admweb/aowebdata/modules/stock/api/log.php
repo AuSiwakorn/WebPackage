@@ -85,7 +85,7 @@ function log_of_day($code, $ts, $limit = 0, $noSetting = false)
     return $out;
 }
 
-/** ประวัติหลายสาขาช่วง $from–$to (นับและแบ่งหน้าใน SQL) · $type = คีย์กลุ่ม · $noSetting = ไม่เอารายการตั้งค่า (พนักงานทั่วไป) · คืน rows / total / counts / perB / perBG */
+/** ประวัติหลายสาขาช่วง $from–$to (นับและแบ่งหน้าใน SQL) · $type = คีย์กลุ่ม หรือ array ของชนิด · $noSetting = ไม่เอารายการตั้งค่า (พนักงานทั่วไป) · คืน rows / total / counts / perB / perBG */
 function log_range($codes, $from, $to, $type = '', $dir = 'desc', $page = 1, $per = 100, $noSetting = false)
 {
     list($in, $params) = sdb_in('b.code', $codes);
@@ -103,8 +103,13 @@ function log_range($codes, $from, $to, $type = '', $dir = 'desc', $page = 1, $pe
         $perB[$r['code']] = (isset($perB[$r['code']]) ? $perB[$r['code']] : 0) + (int) $r['n'];
         $byBT[$r['code']][$r['type']] = (int) $r['n'];
     }
-    $grp   = Stock_getLogGroupOf((string) $type);
-    $types = ($grp !== '') ? Stock_getLogGroups()[$grp]['types'] : array();
+    if (is_array($type)) {                            // รายการชนิดที่ต้องการ (ปุ่มกรองย่อยในกลุ่ม) — ไม่รู้จัก = ไม่มีแถว
+        $types = array_values(array_intersect(array_map('strval', $type), array_keys(log_types())));
+        $type  = 'types';
+    } else {
+        $grp   = Stock_getLogGroupOf((string) $type);
+        $types = ($grp !== '') ? Stock_getLogGroups()[$grp]['types'] : array();
+    }
     $perBG = ($type === '') ? $perB : array();
     foreach ($types ? $byBT : array() as $c => $tn) {
         $n = array_sum(array_intersect_key($tn, array_flip($types)));

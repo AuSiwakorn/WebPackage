@@ -42,7 +42,14 @@ $docs   = $showD ? past_docs($code, $pastTs) : array();
 if ($grp !== '' && $showD) {
     $docs = array_values(array_filter($docs, function ($d) use ($kindOf, $grp) { return $d['kind'] === $kindOf[$grp]; }));
 }
+$pTypes = isset($PAST_TYPES) ? (array) $PAST_TYPES : array();   // ปุ่มกรองย่อยของประวัติขาย (ว่าง = ทั้งกลุ่ม)
+if ($pTypes) {
+    $showB = $showB && (in_array('sale', $pTypes, true) || in_array('void', $pTypes, true));   // ตั้งค่า / สินค้า = ไม่มีส่วนบิล
+}
 $bills = $showB ? past_bills($code, $pastTs) : array();
+if ($pTypes && !in_array('sale', $pTypes, true)) {
+    $bills = array_values(array_filter($bills, function ($b) { return !empty($b['void']); }));   // ยกเลิกบิล = เฉพาะบิลที่ยกเลิก
+}
 $types = past_types();
 $docLb = ($grp !== '' && $showD) ? $types[$kindOf[$grp]]['label'] : 'เอกสารคลัง';
 $icons = array('RC' => 'i-in', 'IS' => 'i-out', 'AD' => 'i-clipboard');
@@ -133,12 +140,12 @@ $age   = (int) round((strtotime(date('Y-m-d')) - $pastTs) / 86400);
 <section class="card">
   <div class="card-head">
     <div>
-      <h2>บิลขายของวันที่ <?php echo e(thai_date_full($pastTs)) ?></h2>
+      <h2><?php echo ($pTypes && !in_array('sale', $pTypes, true)) ? 'บิลที่ยกเลิก' : 'บิลขาย' ?>ของวันที่ <?php echo e(thai_date_full($pastTs)) ?></h2>
       <span class="sub">บิลของวันก่อนยกเลิกย้อนหลังไม่ได้ — ลูกค้าคืนของให้ใช้ “รับคืนสินค้า” (คืนเงินสดจากลิ้นชักวันนี้)</span>
     </div>
   </div>
   <?php if (!$bills) { ?>
-    <p class="empty">ไม่มีบิลขายในวันนี้</p>
+    <p class="empty"><?php echo ($pTypes && !in_array('sale', $pTypes, true)) ? 'ไม่มีบิลที่ยกเลิกในวันนี้' : 'ไม่มีบิลขายในวันนี้' ?></p>
   <?php } else { ?>
     <div class="tbl-wrap">
       <table class="tbl num">
@@ -172,6 +179,7 @@ $age   = (int) round((strtotime(date('Y-m-d')) - $pastTs) / 86400);
 
 <?php $events = array_reverse(log_of_day($code, $pastTs, 0, $user['role'] === 'staff' && !is_branch_manager($user))); /* ช่วงที่ 12: พนักงานทั่วไปไม่เห็นรายการตั้งค่า · ผู้ดูแลเห็น (12 ต.ค.) */ ?>
 <?php $events = ($grp !== '') ? log_filter($events, $grp) : $events; ?>
+<?php $events = $pTypes ? array_values(array_filter($events, function ($r) use ($pTypes) { return in_array($r['type'], $pTypes, true); })) : $events; ?>
 <section class="card">
   <div class="card-head">
     <div>

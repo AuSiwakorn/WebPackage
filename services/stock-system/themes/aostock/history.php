@@ -45,7 +45,16 @@ $t = (isset($_GET['t']) && is_string($_GET['t'])) ? Stock_getLogGroupOf(trim($_G
 if (!isset($allowed[$t])) {
     $t = key($allowed);
 }
-$HIST_BASE     = 'history.php?t=' . $t;     // ลิงก์ / ฟอร์มทุกอันอยู่กลุ่มเดิม (hist_url)
+/* ปุ่มกรองย่อยของประวัติขาย (?k=): ทั้งหมด · ขายสินค้า · ยกเลิกบิล · ตั้งค่า / สินค้า — กลุ่มอื่นไม่มี */
+$kinds = ($t !== 'sale') ? array() : array(
+    ''     => array('ทั้งหมด', array()),
+    'sale' => array('ขายสินค้า', array('sale')),
+    'void' => array('ยกเลิกบิล', array('void')),
+    'set'  => array(is_branch_manager($user) ? 'ตั้งค่า / สินค้า' : 'สินค้า / หมวด', array('setting', 'category', 'stock')),
+);
+$k      = (isset($_GET['k']) && is_string($_GET['k']) && isset($kinds[$_GET['k']])) ? $_GET['k'] : '';
+$kTypes = ($k !== '') ? $kinds[$k][1] : array();
+$HIST_BASE     = 'history.php?t=' . $t . ($k !== '' ? '&k=' . $k : '');     // ลิงก์ / ฟอร์มทุกอันอยู่กลุ่มเดิม + ตัวกรองเดิม (hist_url)
 $CONFIRM_MODAL = true;                      // ยกเลิก / แก้บิลและเอกสารต้องยืนยัน (footer.php)
 
 /* ยังไม่เปิดร้านก็เข้าหน้านี้ได้ — ดูอย่างเดียว ไม่ได้เปลี่ยนสต๊อกหรือเงินสด
@@ -143,11 +152,14 @@ $noSet  = !is_branch_manager($user);                 // ช่วงที่ 12
 $isList = ($mode === 'month' || $mode === 'year');
 
 /** ลิงก์ของหน้านี้ (กลุ่มเดิม) โดยเปลี่ยนค่าบางตัว — ค่าที่ไม่ใช้กับโหมดนั้นตัดทิ้ง */
-$hq = function ($chg) use ($mode, $dayTs, $monTs, $year, $sort) {
-    $q = array_merge(array('mode' => $mode, 'd' => date('Ymd', $dayTs), 'm' => date('Y-m', $monTs), 'y' => $year, 'sort' => $sort), $chg);
-    foreach (array('day' => 'd', 'month' => 'm', 'year' => 'y') as $md => $k) {
+$hq = function ($chg) use ($t, $k, $mode, $dayTs, $monTs, $year, $sort) {
+    $q = array_merge(array('t' => $t, 'k' => $k, 'mode' => $mode, 'd' => date('Ymd', $dayTs), 'm' => date('Y-m', $monTs), 'y' => $year, 'sort' => $sort), $chg);
+    if ($q['k'] === '') {
+        unset($q['k']);
+    }
+    foreach (array('day' => 'd', 'month' => 'm', 'year' => 'y') as $md => $mk) {
         if ($q['mode'] !== $md) {
-            unset($q[$k]);
+            unset($q[$mk]);
         }
     }
     if ($q['mode'] === '' || $q['mode'] === 'day' || $q['sort'] === 'desc') {
@@ -159,7 +171,7 @@ $hq = function ($chg) use ($mode, $dayTs, $monTs, $year, $sort) {
     if (isset($q['p']) && (int) $q['p'] <= 1) {
         unset($q['p']);
     }
-    return hist_url(http_build_query($q));
+    return 'history.php?' . http_build_query($q);
 };
 
 if ($isList) {
@@ -167,11 +179,12 @@ if ($isList) {
     list($from, $to, $rangeTxt) = adm_range($mode, $today, $monTs, $year);
     $per  = 100;
     $pgIn = isset($_GET['p']) ? max(1, (int) $_GET['p']) : 1;
-    $lr   = log_range(array($code), $from, $to, $t, $sort, $pgIn, $per, $noSet);
+    $want = $kTypes ? $kTypes : $t;                      // ปุ่มกรองย่อย = เฉพาะชนิดนั้น · ไม่กรอง = ทั้งกลุ่ม
+    $lr   = log_range(array($code), $from, $to, $want, $sort, $pgIn, $per, $noSet);
     $pages = max(1, (int) ceil($lr['total'] / $per));
     $pg    = min($pgIn, $pages);
     if ($pg !== $pgIn) {
-        $lr = log_range(array($code), $from, $to, $t, $sort, $pg, $per, $noSet);      // ขอหน้าเกิน → หน้าสุดท้าย
+        $lr = log_range(array($code), $from, $to, $want, $sort, $pg, $per, $noSet);      // ขอหน้าเกิน → หน้าสุดท้าย
     }
     $counts = $lr['counts'];
     /* การ์ดสรุปของกลุ่มทั้งช่วง array(ชื่อ, ตัวเลข, คำอธิบาย) · ยอดขายรวมเฉพาะคนที่ดูรายงานทั้งสาขาได้ */
@@ -200,9 +213,9 @@ if ($isList) {
     $show     = array();
     foreach ($lr['rows'] as $r) {
         $note = array();
-        foreach ($noteKeys as $k) {
-            if (isset($r['detail'][$k]) && $r['detail'][$k] !== '' && count($note) < 2) {
-                $note[] = preg_replace('/\s*\(.*$/u', '', (string) $r['detail'][$k]);
+        foreach ($noteKeys as $nk) {                    // ไม่ใช้ $k — เป็นตัวกรองชนิดของหน้านี้
+            if (isset($r['detail'][$nk]) && $r['detail'][$nk] !== '' && count($note) < 2) {
+                $note[] = preg_replace('/\s*\(.*$/u', '', (string) $r['detail'][$nk]);
             }
         }
         if ($r['returned']) {
@@ -217,7 +230,10 @@ if ($isList) {
     }
 } elseif (!$pastTs) {
     $rows   = log_filter(log_today($code, 0, $noSet), $t);
-    $counts = log_counts($rows);
+    $counts = log_counts($rows);                         // การ์ดเอกสารนับทั้งกลุ่ม · รายการ / ของฉัน นับตามที่กรอง
+    if ($kTypes) {
+        $rows = array_values(array_filter($rows, function ($r) use ($kTypes) { return in_array($r['type'], $kTypes, true); }));
+    }
     $mine   = 0;
     foreach ($rows as $r) {
         if ($r['by_user'] === $user['username']) {
@@ -259,6 +275,7 @@ require dirname(__FILE__) . '/inc/header.php';
 <section class="card acct-filter hist-filter">
   <form method="get" action="history.php" class="acct-row">
     <input type="hidden" name="t" value="<?php echo e($t) ?>">
+    <?php if ($k !== '') { ?><input type="hidden" name="k" value="<?php echo e($k) ?>"><?php } ?>
     <div class="segs">
       <a class="seg<?php echo $mode === '' ? ' on' : '' ?>" href="<?php echo e(hist_url()) ?>">วันนี้</a>
       <a class="seg<?php echo $mode === 'day' ? ' on' : '' ?>" href="<?php echo e($hq(array('mode' => 'day', 'd' => date('Ymd', $mode === 'day' ? $dayTs : strtotime('-1 day', $today))))) ?>">รายวัน</a>
@@ -302,6 +319,13 @@ require dirname(__FILE__) . '/inc/header.php';
     <?php } ?>
     <noscript><button class="btn btn-ghost btn-sm" type="submit">ดู</button></noscript>
   </form>
+  <?php if ($kinds) { /* ชนิดรายการ — ติดไปทุกช่วงเวลา */ ?>
+    <div class="segs hist-kinds" role="group" aria-label="ชนิดรายการ">
+      <?php foreach ($kinds as $kk => $kv) { ?>
+        <a class="seg<?php echo $k === (string) $kk ? ' on' : '' ?>" href="<?php echo e($hq(array('k' => (string) $kk, 'p' => 1))) ?>"><?php echo e($kv[0]) ?></a>
+      <?php } ?>
+    </div>
+  <?php } ?>
 </section>
 
 <?php if ($isList) { ?>
@@ -360,12 +384,13 @@ require dirname(__FILE__) . '/inc/header.php';
   <?php require dirname(__FILE__) . '/inc/footer.php'; exit; ?>
 <?php } ?>
 
+<?php if ($mode === 'day' && $back !== '') { /* มาจากรายการรายเดือน / รายปี (รวมแถวของวันนี้) → ปุ่มกลับไปที่เดิม */
+    $bq = ($back[0] === 'm') ? $hq(array('mode' => 'month', 'm' => substr($back, 1))) : $hq(array('mode' => 'year', 'y' => (int) substr($back, 1))); ?>
+  <p class="hist-back"><a class="btn btn-ghost btn-sm" href="<?php echo e($bq) ?>">‹ กลับรายการ<?php echo $back[0] === 'm' ? e(thai_month_full(strtotime(substr($back, 1) . '-01'))) : 'ปี ' . ((int) substr($back, 1) + 543) ?></a></p>
+<?php } ?>
+
 <?php if ($pastTs) { ?>
-  <?php if ($back !== '') { /* มาจากรายการรายเดือน / รายปี → ปุ่มกลับไปที่เดิม */
-      $bq = ($back[0] === 'm') ? $hq(array('mode' => 'month', 'm' => substr($back, 1))) : $hq(array('mode' => 'year', 'y' => (int) substr($back, 1))); ?>
-    <p class="hist-back"><a class="btn btn-ghost btn-sm" href="<?php echo e($bq) ?>">‹ กลับรายการ<?php echo $back[0] === 'm' ? e(thai_month_full(strtotime(substr($back, 1) . '-01'))) : 'ปี ' . ((int) substr($back, 1) + 543) ?></a></p>
-  <?php } ?>
-  <?php $PAST_GROUP = $t; require dirname(__FILE__) . '/inc/history-past.php'; ?>
+  <?php $PAST_GROUP = $t; $PAST_TYPES = $kTypes; require dirname(__FILE__) . '/inc/history-past.php'; ?>
   <?php require dirname(__FILE__) . '/inc/footer.php'; exit; ?>
 <?php } ?>
 
@@ -543,8 +568,8 @@ $c3 = $third[$t]; ?>
             <?php } ?>
             <?php if ($r['detail']) { ?>
               <dl class="tl-d">
-                <?php foreach ($r['detail'] as $k => $v) { ?>
-                  <div><dt><?php echo e($k) ?></dt><dd class="num"><?php echo e($v) ?></dd></div>
+                <?php foreach ($r['detail'] as $dk => $v) { ?>
+                  <div><dt><?php echo e($dk) ?></dt><dd class="num"><?php echo e($v) ?></dd></div>
                 <?php } ?>
               </dl>
             <?php } ?>
