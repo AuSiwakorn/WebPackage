@@ -319,17 +319,16 @@ tr.more-row td{padding:0}
   .keypad button{min-height:58px;font-size:1.45rem}
 }
 
-@media (max-width:900px){
+/* มือถือ / แท็บเล็ต (จอ ≤ 900 px หรือจอสัมผัส เช่น iPad แนวนอน — เงื่อนไขเดียวกับเมนูข้างใน inc/header.php)
+   ไม่แสดงฝั่งแบรนด์ทั้งก้อน ฟอร์มเข้าสู่ระบบขึ้นตั้งแต่บนสุด · โลโก้เล็กเหนือหัวข้อแทน (21 ต.ค. — เดิมแบรนด์อยู่บนฟอร์ม ต้องเลื่อนลงก่อน) */
+.login-card-logo{display:none}
+@media (max-width:900px), (hover:none) and (pointer:coarse){
   .login{grid-template-columns:1fr}
-  .login-brand{padding:32px 28px}
-  .login-brand-mid{padding:28px 0 4px}
-  .login-brand-mid h1{font-size:1.5rem}
-  .login-points{display:none}
-  .login-brand-foot{display:none}
-  .login-panel{padding:36px 22px 56px}
+  .login-brand{display:none}
+  .login-card-logo{display:block;margin-bottom:14px}
+  .login-panel{align-items:flex-start;padding:36px 22px 56px}
 }
 @media (max-width:480px){
-  .login-brand{padding:26px 20px}
   .login-panel{padding:30px 18px 48px}
   .login-form{padding:24px 20px}
   .login-card h2{font-size:1.4rem}
