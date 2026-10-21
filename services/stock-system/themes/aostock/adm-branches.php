@@ -15,6 +15,8 @@
  *   - [x] 15 ต.ค. (ผู้ใช้ขอ): เอาช่อง “เป้าต่อคนต่อวัน” ออก
  *   - [x] 15 ต.ค. (ใบนับแบบรายการ ช่วง 4): เอาช่อง “ระหว่างร้านเปิด ตรวจนับได้ครั้งละ” ออก (ใบนับแบบตารางไม่จำกัดจำนวนแถวแล้ว)
  *   - [x] 15 ต.ค. (เมนูประวัติแยกหน้า ช่วง 6): คำอธิบายผู้จัดการสาขาบอกว่าได้สิทธิ์ดูประวัติอัตโนมัติ
+ *   - [x] 21 ต.ค. (ผู้ใช้ขอ): เลือก “ขายแบบ VAT” รายสาขาตอนเพิ่ม / แก้สาขา — บังคับเลือก ค่าเริ่มต้น “ไม่มี” · ลงประวัติเมื่อเปลี่ยน · หัวการ์ดบอก VAT / ไม่ VAT
+ *         ยังไม่ได้ Reinstall (ไม่มีคอลัมน์ sell_vat) = ช่องนี้ขึ้นเตือนแทน ไม่บังคับ
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -25,7 +27,9 @@ if (!defined('ALLOW_DIRECT_ACCESS')) {
    ----------------------------------------------------------
    เพิ่ม · แก้ไข · ปิดใช้งาน / เปิดใช้งาน · ลบ
    - รหัสสาขา (เช่น HQ, RS) ตั้งตอนเพิ่มแล้วเปลี่ยนไม่ได้ เพราะผูกกับเอกสารทุกใบ
-   - แก้ไขได้: ชื่อ ชื่อย่อ ที่อยู่ เบอร์โทร และค่าตั้งของสาขา (รอบนับ / ย้อนหลัง / เงินทอน)
+   - แก้ไขได้: ชื่อ ชื่อย่อ ที่อยู่ เบอร์โทร และค่าตั้งของสาขา (รอบนับ / ย้อนหลัง / เงินทอน / ขายแบบ VAT)
+   - ขายแบบ VAT: “ไม่มี” = หน้าขายไม่มีตัวเลือก VAT และหน้าตั้งค่าเลขที่บิลซ่อนชุดบิล VAT · “มี” = พนักงานเลือก VAT / ไม่ VAT ได้
+       (ยังต้องให้ฝ่ายบัญชีตั้งเลขผู้เสียภาษี + ชื่อบนหัวบิลก่อน จึงออกบิล VAT ได้จริง)
    - ปิดใช้งาน: ซ่อนจากการใช้งาน แต่ประวัติ บิล และรายงานยังอยู่ครบ
        ต้องย้ายพนักงานออกให้หมด และต้องไม่มีร้านเปิดค้างอยู่
    - ลบ: ได้เฉพาะสาขาที่ยังไม่มีข้อมูลเลย (ไม่มีพนักงาน ไม่มีบิล/เอกสาร/สต๊อก)
@@ -60,6 +64,9 @@ $info = array(
 
 /* ตัวช่วยของหน้านี้ (branch_data_reason, read_info ฯลฯ) อยู่ที่ admweb/aowebdata/modules/stock/api/branch-staff.php */
 
+/* ขายแบบ VAT (21 ต.ค.) — ยังไม่ได้ Reinstall = ยังไม่มีคอลัมน์ sell_vat → ช่องนี้ขึ้นเตือนแทนตัวเลือก ไม่บังคับ */
+$vatCol = Stock_hasBranchVatColumn();
+
 /* ---------- บันทึก ---------- */
 $err   = '';
 $errB  = '';                 // สาขาที่เกิดข้อผิดพลาด ('new' = ฟอร์มเพิ่ม)
@@ -89,6 +96,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($err === '') {
             list($set, $err) = read_settings($fields);
         }
+        if ($err === '' && $vatCol) {
+            $err = Stock_checkBranchVatInput();                    // ขายแบบ VAT — บังคับเลือก (21 ต.ค.)
+        }
+        $in['vat'] = ($vatCol && isset($_POST['sell_vat']) && $_POST['sell_vat'] === '1');
         if ($err === '') {
             if (!preg_match('/^[A-Z0-9]{2,6}$/', $bc)) {
                 $err = 'รหัสสาขาต้องเป็นภาษาอังกฤษพิมพ์ใหญ่หรือตัวเลข 2–6 ตัว';
@@ -105,7 +116,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 log_add($bc, 'setting', $user, 'เพิ่มสาขาใหม่ ' . $in['name'], array(
                     'รหัสสาขา'   => $bc,
-                    'เลขที่บิล'   => $bc . 'V… (VAT) · ' . $bc . '… (ไม่ VAT)',
+                    'ขายแบบ VAT' => Stock_formatBranchVat($in['vat']),
+                    'เลขที่บิล'   => $in['vat'] ? $bc . 'V… (VAT) · ' . $bc . '… (ไม่ VAT)' : $bc . '… (ไม่ VAT)',
                     'เพิ่มโดย'    => $user['name'] . ' (ผู้ดูแล)',
                 ));
                 $go = 'adm-branches.php?ok=' . rawurlencode($bc) . '&do=add#b-' . $bc;
@@ -122,6 +134,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($err === '') {
             list($set, $err) = read_settings($fields);
         }
+        if ($err === '' && $vatCol) {
+            $err = Stock_checkBranchVatInput();                    // ขายแบบ VAT — บังคับเลือก (21 ต.ค.)
+        }
         if ($err === '') {
             $changes = array();
             foreach ($in as $k => $v) {
@@ -136,6 +151,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $changes[$fields[$k]['label']] = number_format($o) . ' → ' . number_format($v) . ' ' . $fields[$k]['unit'];
                 }
                 branch_setting_set($bc, $k, $v);
+            }
+            $vatOn = ($vatCol && $_POST['sell_vat'] === '1');
+            if (Stock_setBranchVat($bc, $vatOn)) {
+                $changes['ขายแบบ VAT'] = Stock_formatBranchVat(!$vatOn) . ' → ' . Stock_formatBranchVat($vatOn);
             }
             if ($changes) {
                 $changes['แก้โดย'] = $user['name'] . ' (ผู้ดูแล)';
@@ -234,6 +253,24 @@ require dirname(__FILE__) . '/inc/header.php';
 $v = function ($bc, $k, $def) use ($old) {
     return isset($old[$bc][$k]) ? $old[$bc][$k] : $def;
 };
+
+/* ช่อง “ขายแบบ VAT” ของฟอร์มเพิ่ม / แก้สาขา (21 ต.ค.) — บังคับเลือก · $on = ค่าที่เลือกไว้ · $miss = สิ่งที่ฝ่ายบัญชียังไม่ได้ตั้ง (Stock_getVatMissing) */
+$vatField = function ($id, $on, $miss) use ($vatCol) {
+    echo '<div class="field br-wide"><span class="lbl">ขายแบบ VAT</span>';
+    if (!$vatCol) {
+        echo '<small class="adm-hint br-vat-miss">ยังตั้งไม่ได้ — ต้องกด Reinstall ฐานข้อมูลที่หลังบ้าน admweb ก่อน (ระหว่างนี้ทุกสาขาออกบิลไม่ VAT อย่างเดียว)</small></div>';
+        return;
+    }
+    echo '<label class="bs-check"><input type="radio" name="sell_vat" value="0" id="' . e($id) . '-vat0" required' . ($on ? '' : ' checked') . '>'
+       . ' ไม่มี — ออกบิลไม่ VAT อย่างเดียว (หน้าขายไม่มีตัวเลือก VAT)</label>'
+       . '<label class="bs-check"><input type="radio" name="sell_vat" value="1" id="' . e($id) . '-vat1"' . ($on ? ' checked' : '') . '>'
+       . ' มี — พนักงานเลือกบิล VAT / ไม่ VAT ได้ตอนขาย</label>'
+       . '<small class="adm-hint">บิล VAT ต้องให้ฝ่ายบัญชีตั้งเลขผู้เสียภาษี 13 หลักและชื่อบนหัวบิลที่หน้าตั้งค่าเลขที่บิลด้วย · เปลี่ยนแล้วมีผลกับบิลใบถัดไป บิลเก่าไม่เปลี่ยน</small>';
+    if ($on && $miss) {
+        echo '<small class="adm-hint br-vat-miss">ตอนนี้ยังออกบิล VAT ไม่ได้ — ฝ่ายบัญชียังไม่ได้ตั้ง' . e(implode(' · ', $miss)) . '</small>';
+    }
+    echo '</div>';
+};
 ?>
 
 <?php if ($err !== '' && $errB === '') { ?>
@@ -290,6 +327,7 @@ $v = function ($bc, $k, $def) use ($old) {
           </div>
         </div>
       <?php } ?>
+      <?php $vatField('new', $v('new', 'sell_vat', '0') === '1', array()); /* ค่าเริ่มต้น “ไม่มี” */ ?>
     </div>
     <div class="fm-foot">
       <button class="btn btn-ghost" type="button" data-fm-close>ยกเลิก</button>
@@ -321,7 +359,7 @@ $openB = ($okB !== '' && isset($list[$okB])) ? $okB : (($errB !== '' && isset($l
         <span class="sub">พนักงาน <?php echo count($staff) ?> คน ·
           ผู้จัดการ <?php echo $mgrs ? e(implode(', ', $mgrs)) : 'ยังไม่มี' ?> ·
           <?php echo $on ? (store_is_open($bc) ? 'ร้านเปิดอยู่' : (store_is_closed($bc) ? 'ปิดร้านแล้ววันนี้' : 'ยังไม่เปิดร้านวันนี้')) : 'ซ่อนจากการใช้งาน ประวัติยังอยู่ครบ' ?>
-          · เลขที่บิล <?php echo e(acct_setting($bc, 'prefix_vat')) ?> / <?php echo e(acct_setting($bc, 'prefix_novat')) ?></span>
+          · <?php if ($b['vat']) { ?>ขาย VAT · เลขที่บิล <?php echo e(acct_setting($bc, 'prefix_vat')) ?> / <?php echo e(acct_setting($bc, 'prefix_novat')) ?><?php } else { ?>ไม่ขาย VAT · เลขที่บิล <?php echo e(acct_setting($bc, 'prefix_novat')) ?><?php } ?></span>
       </div>
       <span class="acc-right">
         <a class="btn btn-ghost btn-sm" href="adm-users.php#g-<?php echo e($bc) ?>"><svg class="ico"><use href="#i-users"/></svg> จัดการพนักงาน</a>
@@ -364,6 +402,8 @@ $openB = ($okB !== '' && isset($list[$okB])) ? $okB : (($errB !== '' && isset($l
             <small class="adm-hint"><?php echo e($f['hint']) ?></small>
           </div>
         <?php } ?>
+        <?php $vatOn = ($v($bc, 'sell_vat', $b['vat'] ? '1' : '0') === '1');
+              $vatField($bc, $vatOn, $b['vat'] ? Stock_getVatMissing($bc) : array()); ?>
       </div>
       <button class="btn btn-primary" type="submit"><svg class="ico"><use href="#i-check"/></svg> บันทึก<?php echo e($b['name']) ?></button>
     </form>

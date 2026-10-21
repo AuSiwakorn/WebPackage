@@ -8,6 +8,8 @@
  *   - [x] ย้ายจาก demo/ เข้า themes/aostock/ (วิ่งผ่าน router ของ admweb)
  *   - [x] ค่าตั้งเลขที่บิล / หัวบิลเก็บใน ao_stock_branch (ช่วงที่ 5)
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
+ *   - [x] 21 ต.ค. (ผู้ใช้เลือก): สาขาที่ไม่ขาย VAT (ผู้ดูแลตั้งที่หน้าจัดการสาขา) — ซ่อนชุดบิล VAT · ไม่ตรวจ / ไม่บังคับเลขผู้เสียภาษี
+ *         ค่าเดิมของชุด VAT เก็บไว้ (ใช้ค่าในฐานข้อมูลแทนค่าที่ไม่ได้ส่งมา) เปิด VAT เมื่อไรก็กลับมาครบ
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -72,6 +74,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'paper'        => (isset($_POST['paper']) && $_POST['paper'] === 'a4') ? 'a4' : '80',
             'novat_tax'    => !empty($_POST['novat_tax']) ? '1' : '0',
         );
+        /* สาขาที่ไม่ขาย VAT (21 ต.ค.) — ฟอร์มไม่มีชุดบิล VAT → ใช้ค่าเดิมในฐานข้อมูล (ไม่เขียนทับ · ไม่ลงประวัติ) และไม่ตรวจชุดนี้ */
+        $vatOn = Stock_isBranchVat($bc);
+        if (!$vatOn) {
+            foreach (array('prefix_vat', 'title_vat', 'tax_id', 'tax_branch') as $k) {
+                $in[$k] = acct_setting($bc, $k);
+            }
+        }
         $old[$bc] = $in;
 
         /* รหัสทุกชุดของทุกสาขา (แทนของสาขานี้ด้วยค่าที่กรอกมา) ไว้เช็กซ้ำ */
@@ -81,19 +90,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $all[$bc] = array('prefix_vat' => $in['prefix_vat'], 'prefix_novat' => $in['prefix_novat']);
 
-        if (($m = acct_prefix_error($bc, 'prefix_vat', $in['prefix_vat'], $all)) !== '') {
+        if ($vatOn && ($m = acct_prefix_error($bc, 'prefix_vat', $in['prefix_vat'], $all)) !== '') {
             $err = 'รหัสบิล VAT: ' . $m;
         } elseif (($m = acct_prefix_error($bc, 'prefix_novat', $in['prefix_novat'], $all)) !== '') {
             $err = 'รหัสบิลไม่ VAT: ' . $m;
-        } elseif (strlen($in['tax_id']) !== 13) {
+        } elseif ($vatOn && strlen($in['tax_id']) !== 13) {
             $err = 'เลขประจำตัวผู้เสียภาษีต้องมี 13 หลัก';
-        } elseif (strlen($in['tax_branch']) !== 5) {
+        } elseif ($vatOn && strlen($in['tax_branch']) !== 5) {
             $err = 'เลขที่สาขาต้องมี 5 หลัก (สำนักงานใหญ่ = 00000)';
         } elseif ($in['company'] === '') {
             $err = 'กรุณากรอกชื่อร้าน / ชื่อบริษัทที่พิมพ์บนหัวบิล';
-        } elseif ($in['title_vat'] === '' || $in['title_novat'] === '') {
-            $err = 'กรุณากรอกหัวกระดาษของบิลทั้งสองชุด';
-        } elseif ($in['title_vat'] === $in['title_novat']) {
+        } elseif ($in['title_novat'] === '' || ($vatOn && $in['title_vat'] === '')) {
+            $err = $vatOn ? 'กรุณากรอกหัวกระดาษของบิลทั้งสองชุด' : 'กรุณากรอกหัวกระดาษของบิลไม่ VAT';
+        } elseif ($vatOn && $in['title_vat'] === $in['title_novat']) {
             $err = 'หัวกระดาษบิล VAT กับบิลไม่ VAT ต้องไม่เหมือนกัน — ลูกค้าต้องแยกออกว่าเป็นใบกำกับภาษีหรือไม่';
         } else {
             $labels  = array('prefix_vat' => 'รหัสบิล VAT', 'prefix_novat' => 'รหัสบิลไม่ VAT',
@@ -148,10 +157,15 @@ $openB = $okB !== '' && isset($br[$okB]) ? $okB : ($old ? key($old) : '');
     <summary class="card-head">
       <div>
         <h2><?php echo e($b['name']) ?></h2>
+        <?php if ($b['vat']) { ?>
         <span class="sub">VAT <b><?php echo e(acct_setting($bc, 'prefix_vat')) ?></b> · ไม่ VAT <b><?php echo e(acct_setting($bc, 'prefix_novat')) ?></b>
           · บิลใบถัดไป <?php echo e(bill_next_no_series($bc, true)) ?> / <?php echo e(bill_next_no_series($bc, false)) ?></span>
-        <?php /* ยังขาดข้อมูลบิล VAT → หน้าขายปิดปุ่ม VAT ของสาขานี้ไว้ (20 ต.ค.) — บอกตรงหัวที่พับอยู่ให้เห็นก่อนเปิด */
-        if ($vMiss = Stock_getVatMissing($bc)) { ?>
+        <?php } else { /* ไม่ขาย VAT (21 ต.ค.) — มีแต่ชุดบิลไม่ VAT */ ?>
+        <span class="sub">ไม่ขาย VAT · ไม่ VAT <b><?php echo e(acct_setting($bc, 'prefix_novat')) ?></b>
+          · บิลใบถัดไป <?php echo e(bill_next_no_series($bc, false)) ?></span>
+        <?php } ?>
+        <?php /* ยังขาดข้อมูลบิล VAT → หน้าขายปิดปุ่ม VAT ของสาขานี้ไว้ (20 ต.ค.) — บอกตรงหัวที่พับอยู่ให้เห็นก่อนเปิด · สาขาที่ไม่ขาย VAT ไม่ต้องบอก (21 ต.ค.) */
+        if ($b['vat'] && ($vMiss = Stock_getVatMissing($bc))) { ?>
           <span class="sub acct-miss">ยังออกบิล VAT ไม่ได้ — ยังไม่ได้ตั้ง<?php echo e(implode(' · ', $vMiss)) ?>
             <?php /* บิลไม่ VAT ไม่บังคับชื่อร้าน (ผู้ใช้เลือก 20 ต.ค.) — บอกผลที่จะเห็นบนบิล */
             if (trim(acct_setting($bc, 'company')) === '') { ?>· บิลไม่ VAT ยังออกได้ แต่หัวบิลจะขึ้นแค่ชื่อสาขา<?php } ?></span>
@@ -208,7 +222,13 @@ $openB = $okB !== '' && isset($br[$okB]) ? $okB : ($old ? key($old) : '');
       </div>
 
       <div class="bs-sets">
-        <!-- ---------- 2) ชุดบิล VAT ---------- -->
+        <!-- ---------- 2) ชุดบิล VAT (เฉพาะสาขาที่ขาย VAT · 21 ต.ค.) ---------- -->
+        <?php if (!$b['vat']) { ?>
+        <div class="bs-set bs-vat-off">
+          <p class="adm-hint">สาขานี้ไม่ขายแบบ VAT — ออกบิลไม่ VAT อย่างเดียว ชุดบิล VAT จึงซ่อนไว้และไม่บังคับเลขผู้เสียภาษี (ค่าเดิมเก็บไว้)
+            · <?php if ($user['role'] === 'admin') { ?><a href="adm-branches.php#b-<?php echo e(rawurlencode($bc)) ?>">เปิดขายแบบ VAT ที่หน้าจัดการสาขา</a><?php } else { ?>ถ้าสาขานี้จะขาย VAT ให้ผู้ดูแลเปิดที่หน้าจัดการสาขา<?php } ?></p>
+        </div>
+        <?php } else { ?>
         <fieldset class="bs-set bs-vat">
           <legend><span class="bdg bdg-move">VAT</span> ชุดบิล VAT</legend>
           <div class="field">
@@ -240,6 +260,7 @@ $openB = $okB !== '' && isset($br[$okB]) ? $okB : ($old ? key($old) : '');
           <button type="button" class="btn btn-ghost btn-sm" data-bill-print="bill-print.php?b=<?php echo e(rawurlencode($bc)) ?>&amp;sample=vat"
                   data-bill-no="ตัวอย่างบิล VAT · <?php echo e($b['name']) ?>"><svg class="ico"><use href="#i-print"/></svg> ดูตัวอย่างบิล VAT</button>
         </fieldset>
+        <?php } ?>
 
         <!-- ---------- 3) ชุดบิลไม่ VAT ---------- -->
         <fieldset class="bs-set">

@@ -261,6 +261,10 @@ function bill_save($code, $user, $method, $received, $vat = false, $net = null)
     if ($recv < $total) {
         $recv = $total;
     }
+    /* สาขาที่ไม่ขาย VAT (ผู้ดูแลตั้งที่หน้าจัดการสาขา · 21 ต.ค.) — หน้าขายไม่มีตัวเลือก VAT · ส่งค่ามาเอง / ผู้ดูแลเพิ่งปิดระหว่างขาย = ปฏิเสธ ตะกร้ายังอยู่ */
+    if ($vat && !Stock_isBranchVat($code)) {
+        return array('error' => 'สาขานี้ไม่ได้ขายแบบ VAT — ออกได้เฉพาะบิลไม่ VAT · ตรวจยอดแล้วกดรับเงินอีกครั้ง (ระบบออกเป็นบิลไม่ VAT)');
+    }
     $prefix = bill_prefix($code, $vat);
     if ($prefix === '') {
         return array('error' => 'สาขานี้ยังไม่ได้ตั้งรหัสเลขที่บิล' . ($vat ? ' VAT' : '') . ' — แจ้งฝ่ายบัญชี / ผู้ดูแล');

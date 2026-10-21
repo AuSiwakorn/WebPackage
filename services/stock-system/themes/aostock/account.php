@@ -10,6 +10,7 @@
  *   - [x] ช่วงที่ 8: สรุปรายเดือน (acct_month) และ CSV ทั้งเดือน (acct_bills_range) เป็น SQL ทั้งช่วง
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  *   - [x] 14 ต.ค.: ลิงก์ดาวน์โหลด CSV ใส่ download — ตัวโหลดกลางจอ (inc/footer.php) ไม่ขึ้นค้างตอนดาวน์โหลด
+ *   - [x] 21 ต.ค.: สาขาที่ไม่ขาย VAT — ตารางแยกสาขาแสดงแค่รหัสบิลไม่ VAT · สรุปเดือนขึ้น “ไม่ขาย VAT” แทน “ยังไม่ได้ตั้ง” (เมื่อไม่มีเลขภาษีและเดือนนั้นไม่มีบิล VAT)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -167,7 +168,7 @@ require dirname(__FILE__) . '/inc/header.php';
         <tbody>
           <?php foreach ($codes as $c) { $s = $days[$c]; ?>
             <tr>
-              <td data-label="สาขา"><b><?php echo e(branch_name($c)) ?></b><small><?php echo e(acct_setting($c, 'prefix_vat')) ?> / <?php echo e(acct_setting($c, 'prefix_novat')) ?></small></td>
+              <td data-label="สาขา"><b><?php echo e(branch_name($c)) ?></b><small><?php echo Stock_isBranchVat($c) ? e(acct_setting($c, 'prefix_vat')) . ' / ' : '' ?><?php echo e(acct_setting($c, 'prefix_novat')) ?><?php echo Stock_isBranchVat($c) ? '' : ' · ไม่ขาย VAT' ?></small></td>
               <td class="r" data-label="บิล VAT"><?php echo number_format($s['v']) ?></td>
               <td class="r" data-label="บิลไม่ VAT"><?php echo number_format($s['n']) ?><?php if ($s['void']) { ?><small>ยกเลิก <?php echo number_format($s['void']) ?></small><?php } ?></td>
               <td class="r" data-label="ยอดขาย"><?php echo e(money2($s['total'])) ?></td>
@@ -230,10 +231,15 @@ require dirname(__FILE__) . '/inc/header.php';
         <tbody>
           <?php foreach ($codes as $c) { $m = $month[$c]; $tx = acct_setting($c, 'tax_id'); ?>
             <tr>
+              <?php /* สาขาที่ไม่ขาย VAT ไม่มีเลขภาษี และเดือนนี้ไม่มีบิล VAT → บอกว่าไม่ขาย VAT แทน “ยังไม่ได้ตั้ง” (21 ต.ค.) */
+              if ($tx === '' && empty($m['v']) && !Stock_isBranchVat($c)) { ?>
+              <td data-label="สาขา"><b><?php echo e(branch_name($c)) ?></b><small>ไม่ขาย VAT</small></td>
+              <?php } else { ?>
               <td data-label="สาขา"><b><?php echo e(branch_name($c)) ?></b><small>เลขผู้เสียภาษี <?php
                 /* ว่าง = บอกให้ชัด + ลิงก์ไปตั้ง (20 ต.ค. — เดิมเว้นว่าง ดูเหมือนข้อมูลหาย) · CSV ยังเว้นว่างเหมือนเดิม */
                 echo $tx !== '' ? e($tx) : '<a class="acct-unset" href="account-settings.php#b-' . e(rawurlencode($c)) . '">ยังไม่ได้ตั้ง</a>' ?>
                 · สาขาที่ <?php echo e(acct_setting($c, 'tax_branch')) ?></small></td>
+              <?php } ?>
               <td class="r" data-label="บิล VAT"><?php echo number_format($m['v']) ?></td>
               <td class="r" data-label="บิลไม่ VAT"><?php echo number_format($m['n']) ?></td>
               <td class="r" data-label="มูลค่าก่อน VAT"><?php echo e(money2($m['base'])) ?></td>

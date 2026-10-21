@@ -2176,6 +2176,7 @@ table.sr-only{display:block}
 .br-add[open] summary .btn{display:none}
 .br-wide{grid-column:1 / -1}
 .br-sub{font-size:.95rem;font-weight:700;color:var(--deep-900);margin:4px 0 12px}
+.br-vat-miss{color:var(--warn)}                      /* ขายแบบ VAT: ยังตั้งไม่ได้ / ฝ่ายบัญชียังตั้งไม่ครบ (21 ต.ค.) */
 .br-danger{border-top:1px solid var(--line-2)}
 .br-danger .adm-sec{border-top:0}
 .br-sure{display:flex;align-items:center;gap:8px;font-size:.88rem;margin:0 0 10px}

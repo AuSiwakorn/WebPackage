@@ -46,6 +46,7 @@ function branches_all()
             'short'   => ($r['short_name'] !== '') ? $r['short_name'] : $r['name'],
             'address' => $r['address'],
             'phone'   => $r['phone'],
+            'vat'     => (isset($r['sell_vat']) && (int) $r['sell_vat'] === 1),     // ขายแบบ VAT ได้ (ยังไม่ได้ Reinstall = ไม่)
             'active'  => ((int) $r['is_active'] === 1),
         );
     }
@@ -90,6 +91,9 @@ function branch_create($code, $info, $settings)
             'tax_branch'   => $hasAny ? str_pad((string) ($taxNo + 1), 5, '0', STR_PAD_LEFT) : '00000',
             'sort'         => $sort + 1,
         );
+        if (Stock_hasBranchVatColumn()) {
+            $row['sell_vat'] = !empty($info['vat']) ? 1 : 0;           // ขายแบบ VAT ไหม — ผู้ดูแลเลือกตอนเพิ่มสาขา (21 ต.ค.)
+        }
         $rules = branch_setting_rules();
         foreach ($settings as $k => $v) {
             if (isset($rules[$k])) {
@@ -119,6 +123,56 @@ function branch_set_active($code, $on)
 {
     sdb_update('branch', array('is_active' => $on ? 1 : 0), array('code' => $code));
     branch_db_rows(true);
+}
+
+/* ---------- ขายแบบ VAT (sell_vat): ผู้ดูแลตั้งรายสาขา · 0 = หน้าขายไม่มีตัวเลือก VAT · bill_save ปฏิเสธ · หน้าตั้งค่าเลขที่บิลซ่อนชุด VAT ---------- */
+
+/** สาขานี้ขายแบบ VAT ได้ไหม (ยังไม่ได้ Reinstall = ไม่)
+    TODO:
+      - [x] 21 ต.ค.: ค่าตั้งรายสาขา sell_vat — ผู้ดูแลเลือกตอนเพิ่ม / แก้สาขา ค่าเริ่มต้น “ไม่” */
+function Stock_isBranchVat($code)
+{
+    $row = branch_row($code);
+    return $row !== null && isset($row['sell_vat']) && (int) $row['sell_vat'] === 1;
+}
+
+/** มีคอลัมน์ sell_vat แล้วหรือยัง (ยังไม่ได้กด Reinstall = ยังไม่มี) — ดูจากแถวสาขาที่อ่านไว้แล้ว ไม่ query เพิ่ม · ยังไม่มีสาขาเลย = ตารางเพิ่งสร้าง (มีคอลัมน์แล้ว)
+    TODO:
+      - [x] 21 ต.ค.: กันหน้าจัดการสาขาเขียนคอลัมน์ที่ยังไม่มี (ขึ้นเซิร์ฟเวอร์แล้วยังไม่ได้ Reinstall) */
+function Stock_hasBranchVatColumn()
+{
+    $rows = branch_db_rows();
+    return !$rows || array_key_exists('sell_vat', reset($rows));
+}
+
+/** ตั้งว่าสาขาขายแบบ VAT ไหม — คืน true ถ้าค่าเปลี่ยน (ยังไม่ได้ Reinstall = ไม่ทำอะไร)
+    TODO:
+      - [x] 21 ต.ค.: ใช้ตอนผู้ดูแลแก้สาขา (ลงประวัติที่หน้า adm-branches.php) */
+function Stock_setBranchVat($code, $on)
+{
+    if (!Stock_hasBranchVatColumn() || Stock_isBranchVat($code) === (bool) $on) {
+        return false;
+    }
+    sdb_update('branch', array('sell_vat' => $on ? 1 : 0), array('code' => $code));
+    branch_db_rows(true);
+    return true;
+}
+
+/** ตรวจช่อง “ขายแบบ VAT” ของฟอร์มสาขา (บังคับเลือก 0 / 1) — '' = ผ่าน · ค่าที่เลือกอ่านจาก $_POST['sell_vat'] === '1'
+    TODO:
+      - [x] 21 ต.ค.: ฟอร์มเพิ่ม / แก้สาขา */
+function Stock_checkBranchVatInput()
+{
+    $raw = (isset($_POST['sell_vat']) && is_string($_POST['sell_vat'])) ? $_POST['sell_vat'] : '';
+    return ($raw === '0' || $raw === '1') ? '' : 'กรุณาเลือกว่าสาขานี้ขายแบบ VAT หรือไม่';
+}
+
+/** ข้อความของค่า “ขายแบบ VAT” สำหรับประวัติ / หัวการ์ดสาขา
+    TODO:
+      - [x] 21 ต.ค.: ใช้ร่วมที่หน้าจัดการสาขา */
+function Stock_formatBranchVat($on)
+{
+    return $on ? 'มี' : 'ไม่มี (ออกบิลไม่ VAT อย่างเดียว)';
 }
 
 /** ลบสาขา (เรียกหลังเช็ก branch_data_reason เท่านั้น) + ลบประวัติ setting ของสาขานั้น */

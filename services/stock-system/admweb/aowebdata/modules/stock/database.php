@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_branch` (
 	`short_name`       varchar(40)  NOT NULL DEFAULT '' COMMENT 'ชื่อย่อบนแถบ/การ์ด',
 	`address`          varchar(255) NOT NULL DEFAULT '',
 	`phone`            varchar(30)  NOT NULL DEFAULT '',
+	`sell_vat`         tinyint(1)   NOT NULL DEFAULT 0 COMMENT '1 = สาขานี้ขายแบบ VAT ได้ (ผู้ดูแลตั้ง) · 0 = ออกบิลไม่ VAT อย่างเดียว',
 	`tax_id`           varchar(20)  NOT NULL DEFAULT '' COMMENT 'เลขผู้เสียภาษี 13 หลัก (บัญชีตั้ง)',
 	`tax_branch`       varchar(5)   NOT NULL DEFAULT '00000' COMMENT 'เลขที่สาขาตามที่จด VAT (00000 = สำนักงานใหญ่)',
 	`prefix_vat`       varchar(6)   NOT NULL DEFAULT '' COMMENT 'รหัสนำหน้าเลขที่บิล VAT เช่น BPV (บัญชีตั้ง)',
@@ -47,6 +48,8 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_branch` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AOSTOCK สาขา';
 ";
 /* daily_goal / count_open_limit เลิกใช้แล้ว — คอลัมน์ในฐานข้อมูลเดิมปล่อยไว้ได้ */
+/* เพิ่มทีหลัง — Reinstall เพื่อเพิ่มคอลัมน์ · สาขาเดิมได้ 0 (ไม่ขาย VAT) ผู้ดูแลเปิดเองที่หน้าจัดการสาขา (21 ต.ค.) */
+$sqlAlter[_DBPREFIX_ . 'stock_branch']['sell_vat'] = "ALTER TABLE `" . _DBPREFIX_ . "stock_branch` ADD COLUMN `sell_vat` tinyint(1) NOT NULL DEFAULT 0 COMMENT '1 = สาขานี้ขายแบบ VAT ได้ (ผู้ดูแลตั้ง) · 0 = ออกบิลไม่ VAT อย่างเดียว' AFTER `phone`";
 
 /* 2) ผู้ใช้ระบบ (พนักงาน PIN · ผู้ดูแล / บัญชี รหัสผ่าน) */
 $sqlArray[_DBPREFIX_ . 'stock_staff'] = "

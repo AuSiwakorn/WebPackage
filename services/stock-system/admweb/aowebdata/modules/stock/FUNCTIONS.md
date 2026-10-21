@@ -2,7 +2,7 @@
 
 > **สถานะ: ร่างรออนุมัติ (ช่วงที่ 15)** — ยังไม่ได้เปลี่ยนชื่อในโค้ด · ตรวจคอลัมน์ "ชื่อใหม่" แล้วแจ้งชื่อที่อยากแก้ได้เลย
 
-ฟังก์ชันทั้งหมด 489 ตัว (เดิม 468 + ตั้งชื่อตามมาตรฐานแล้ว 19 ตัว: บิล VAT ต้องมีเลขภาษี 20 ต.ค. หนึ่งตัว · เทียบจำนวนบนจอก่อนบันทึกใบ 20 ต.ค. หนึ่งตัว · รูปสินค้า 16 ต.ค. หนึ่งตัว · บิลของฉันวันนี้ 16 ต.ค. สองตัว · ช่วงที่ 16 สองตัว · ปุ่มพิมพ์บิล · ช่วงที่ 17 สองตัว · งานความเร็ว 14 ต.ค. แปดตัว · หลุดจากระบบ 14 ต.ค. หนึ่งตัว) อยู่ใน `admweb/aowebdata/modules/stock/api/*.php` (โหลดผ่าน `api.php` · ลบ staff_goal 15 ต.ค. · ใบนับแบบรายการ: เพิ่ม Stock_setCountDraft ลบ adj_limit · adj_full · ลบ count_open_limit · ลองใบนับแบบตารางแล้วกลับมาใช้การ์ด · กลุ่มของประวัติ: เพิ่ม Stock_getLogGroups · Stock_getLogGroupOf · Stock_sumLogGroups · เมนูประวัติแยกหน้า: เพิ่ม Stock_getAllowedLogGroups · Stock_getHistoryPerms) · ธีม `themes/aostock/` และหน้า admweb ของโมดูลเรียกใช้
+ฟังก์ชันทั้งหมด 494 ตัว (เดิม 468 + ตั้งชื่อตามมาตรฐานแล้ว 24 ตัว: ขายแบบ VAT รายสาขา 21 ต.ค. ห้าตัว · บิล VAT ต้องมีเลขภาษี 20 ต.ค. หนึ่งตัว · เทียบจำนวนบนจอก่อนบันทึกใบ 20 ต.ค. หนึ่งตัว · รูปสินค้า 16 ต.ค. หนึ่งตัว · บิลของฉันวันนี้ 16 ต.ค. สองตัว · ช่วงที่ 16 สองตัว · ปุ่มพิมพ์บิล · ช่วงที่ 17 สองตัว · งานความเร็ว 14 ต.ค. แปดตัว · หลุดจากระบบ 14 ต.ค. หนึ่งตัว) อยู่ใน `admweb/aowebdata/modules/stock/api/*.php` (โหลดผ่าน `api.php` · ลบ staff_goal 15 ต.ค. · ใบนับแบบรายการ: เพิ่ม Stock_setCountDraft ลบ adj_limit · adj_full · ลบ count_open_limit · ลองใบนับแบบตารางแล้วกลับมาใช้การ์ด · กลุ่มของประวัติ: เพิ่ม Stock_getLogGroups · Stock_getLogGroupOf · Stock_sumLogGroups · เมนูประวัติแยกหน้า: เพิ่ม Stock_getAllowedLogGroups · Stock_getHistoryPerms) · ธีม `themes/aostock/` และหน้า admweb ของโมดูลเรียกใช้
 
 ## มาตรฐานการตั้งชื่อ
 
@@ -162,7 +162,7 @@
 | `Stock_countLogsByType($rows)` | `log_counts` | สรุปจำนวนรายการแยกตามชนิด (ไว้โชว์บนปุ่มกรอง) |
 | `Stock_historyUrl($q = '')` | `hist_url` | ลิงก์ของหน้าประวัติ — ใช้ร่วมกันระหว่าง history.php (พนักงาน) กับ adm-history.php (ผู้ดูแล) · ใช้ร่วม history.php กับ adm-history.php · เช่น $HIST_BASE = 'history.php?t=sale' หรือ 'adm-history.php?view=day&b=RS' |
 
-## `api/branch-staff.php` — สาขา · พนักงาน / ผู้ดูแล · สิทธิ์ · PIN (76)
+## `api/branch-staff.php` — สาขา · พนักงาน / ผู้ดูแล · สิทธิ์ · PIN (81)
 
 | ชื่อใหม่ | ชื่อเดิม | ทำอะไร |
 |---|---|---|
@@ -170,9 +170,14 @@
 | `Stock_getBranchRow($code)` | `branch_row` | แถวของสาขาเดียว หรือ null |
 | `Stock_getAllBranches()` | `branches_all` | ทุกสาขา รวมที่ปิดใช้งาน — ใช้ตอนต้องแสดงประวัติ / ชื่อสาขาเก่า |
 | `Stock_getActiveBranches()` | `branches_active` | สาขาที่เปิดใช้งาน — ใช้ทั่วไป (ตัวเลือกสาขา ย้ายพนักงาน ภาพรวม) |
-| `Stock_createBranch($code, $info, $settings)` | `branch_create` | เพิ่มสาขาใหม่ — $info: name short address phone · $settings: ค่าตั้ง 4 ค่า (Stock_getBranchSettingRules) · $info: name short address phone · $settings: ค่าตั้ง 4 ค่า (branch_setting_rules) · เลขที่บิลเริ่ม {รหัส}V / {รหัส} · เลขผู้เสียภาษีคัดลอกจากสาขาแรก · เลขที่สาขา (ภาษี) = สูงสุด + 1 · ตรวจจำนวนสาขาซ้ำใน transaction |
+| `Stock_createBranch($code, $info, $settings)` | `branch_create` | เพิ่มสาขาใหม่ — $info: name short address phone (+ vat = ขายแบบ VAT · 21 ต.ค.) · $settings: ค่าตั้ง 4 ค่า (Stock_getBranchSettingRules) · $info: name short address phone · $settings: ค่าตั้ง 4 ค่า (branch_setting_rules) · เลขที่บิลเริ่ม {รหัส}V / {รหัส} · เลขผู้เสียภาษีคัดลอกจากสาขาแรก · เลขที่สาขา (ภาษี) = สูงสุด + 1 · ตรวจจำนวนสาขาซ้ำใน transaction |
 | `Stock_updateBranchInfo($code, $info)` | `branch_update_info` | แก้ชื่อ / ชื่อย่อ / ที่อยู่ / เบอร์โทรของสาขา — $info: name short address phone |
 | `Stock_setBranchActive($code, $on)` | `branch_set_active` | เปิด / ปิดใช้งานสาขา |
+| `Stock_isBranchVat($code)` | — (ใหม่ 21 ต.ค.) | สาขานี้ขายแบบ VAT ได้ไหม (คอลัมน์ sell_vat · ยังไม่ได้ Reinstall = ไม่) — ไม่ = หน้าขายไม่มีตัวเลือก VAT · Stock_saveBill ปฏิเสธบิล VAT · หน้าตั้งค่าเลขที่บิลซ่อนชุดบิล VAT |
+| `Stock_hasBranchVatColumn()` | — (ใหม่ 21 ต.ค.) | มีคอลัมน์ sell_vat แล้วหรือยัง — ดูจากแถวที่ Stock_getBranchRows อ่านไว้แล้ว (ไม่ query เพิ่ม) · ยังไม่มีสาขาเลย = true (ตารางเพิ่งสร้าง) · กันการเขียนคอลัมน์ที่ยังไม่มีหลังขึ้นเซิร์ฟเวอร์แต่ยังไม่ได้ Reinstall |
+| `Stock_setBranchVat($code, $on)` | — (ใหม่ 21 ต.ค.) | ตั้งว่าสาขาขายแบบ VAT ไหม — คืน true ถ้าค่าเปลี่ยน · ยังไม่ได้ Reinstall = ไม่ทำอะไร · ผู้เรียกลงประวัติเอง (หน้าจัดการสาขา) |
+| `Stock_checkBranchVatInput()` | — (ใหม่ 21 ต.ค.) | ตรวจช่อง “ขายแบบ VAT” ของฟอร์มเพิ่ม / แก้สาขา (บังคับเลือก $_POST['sell_vat'] = '0' / '1') — '' = ผ่าน หรือข้อความผิดพลาด |
+| `Stock_formatBranchVat($on)` | — (ใหม่ 21 ต.ค.) | ข้อความของค่า “ขายแบบ VAT” สำหรับประวัติ / หัวการ์ดสาขา — “มี” / “ไม่มี (ออกบิลไม่ VAT อย่างเดียว)” |
 | `Stock_deleteBranch($code)` | `branch_delete` | ลบสาขา — เรียกหลังเช็ก Stock_getBranchDataReason() แล้วเท่านั้น (สาขาที่ยังไม่มีข้อมูล) · ประวัติชนิด setting ของสาขานี้ลบไปด้วย ไม่ให้เหลือแถวที่ชี้สาขาที่ไม่มีแล้ว |
 | `Stock_getBranchLimit()` | `branch_limit` | จำนวนสาขาสูงสุด (0 = ไม่จำกัด) · ตั้งที่หลังบ้าน (ao_stock_setting key branch_limit) · นับรวมสาขาที่ปิดใช้งาน (กันปิดเก่าเปิดใหม่วนไป) · เปิดสาขาที่ปิดไว้กลับได้เสมอ · ลบสาขาได้โควตาคืน · ตั้งต่ำกว่าที่มี = สาขาเดิมใช้ต่อได้ แค่เพิ่มใหม่ไม่ได้ |
 | `Stock_formatBranchLimit($n)` | `branch_limit_label` | ข้อความของจำนวนสาขาสูงสุด เช่น "3 สาขา" / "ไม่จำกัด" |
