@@ -407,14 +407,32 @@ function store_reopen($code, $user, $reason)
     return $ok ? store_state($code) : null;
 }
 
+/** เหตุผลเปิดร้านใหม่หลังปิด (หน้าเปิดร้าน + หน้าภาพรวมผู้ดูแล) · คืน '' = ใช้ได้ · ข้อความ = ให้กรอกใหม่
+ *  TODO:
+ *    - [x] 21 ต.ค.: อย่างน้อย 5 ตัวอักษร — เดิมพิมพ์ตัวเดียว (เช่น “x”) ก็เปิดร้านใหม่ได้ ผู้ดูแลอ่านแล้วไม่รู้เหตุผล */
+function Stock_checkReopenReason($reason)
+{
+    $reason = trim((string) $reason);
+    if ($reason === '') {
+        return 'กรุณาระบุเหตุผลที่ต้องเปิดร้านใหม่';
+    }
+    if (mb_strlen($reason, 'UTF-8') < 5) {
+        return 'เหตุผลสั้นเกินไป — เขียนให้ผู้ดูแลอ่านแล้วเข้าใจ (อย่างน้อย 5 ตัวอักษร) เช่น ลูกค้ากลับมาซื้อหลังปิดร้าน';
+    }
+    return '';
+}
+
 /** เติม (in) / หยิบ (out) เงินระหว่างวัน · คืน array('ok') หรือ array('error') */
 function store_cash_add($code, $user, $dir, $amount, $reason)
 {
     $dir    = ($dir === 'out') ? 'out' : 'in';
     $amount = round((float) $amount, 2);
     $reason = stock_cut($reason, 255);
-    if ($amount <= 0 || $amount > 1000000) {
+    if ($amount <= 0) {
         return array('error' => 'กรุณากรอกจำนวนเงินมากกว่า 0');
+    }
+    if ($amount > 1000000) {
+        return array('error' => 'จำนวนเงินต่อครั้งต้องไม่เกิน 1,000,000 บาท');   // 21 ต.ค. — เดิมขึ้น "มากกว่า 0" ทั้งที่กรอกเกิน
     }
     if ($reason === '') {
         return array('error' => 'กรุณาระบุเหตุผลของการ' . ($dir === 'in' ? 'เติมเงินทอน' : 'หยิบเงินออก'));

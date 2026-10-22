@@ -19,6 +19,7 @@
  *   - [x] 15 ต.ค. (ใบนับแบบรายการ ช่วง 5): เปลี่ยนชื่อ “ตรวจนับ / ปรับยอด” เป็น “ตรวจนับสต๊อก” (ทางลัดในหน้าร้าน)
  *   - [x] 15 ต.ค. (เมนูประวัติแยกหน้า ช่วง 5): ทางลัด “ประวัติการทำรายการ” → “ประวัติ” (พาไปกลุ่มแรกที่ดูได้)
  *   - [x] 16 ต.ค. (ผู้ใช้ขอ): ทางลัด “ประวัติเคลื่อนไหว” → “เคลื่อนไหวรายสินค้า” ให้ตรงกับเมนู
+ *   - [x] 21 ต.ค.: ฟอร์มเงินเข้า / ออก — บันทึกไม่ผ่านแล้วค่าที่กรอกไม่หาย · ผลแสดงในการ์ดของฟอร์ม (#cash-card) · เหตุผลเปิดร้านใหม่อย่างน้อย 5 ตัวอักษร
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -32,6 +33,9 @@ $carry  = store_carry($code);
 $cash   = store_daily_cash($code);
 $notice = '';
 $error  = '';
+$cashErr  = '';                          // ฟอร์มเงินเข้า / ออก: ข้อความแสดงในการ์ดของฟอร์ม · ค่าที่กรอกไว้ไม่หายเมื่อบันทึกไม่ผ่าน (21 ต.ค.)
+$cashNote = '';
+$cashPost = array();
 
 /* ---------- รับค่าจากฟอร์ม ---------- */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -78,8 +82,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         } elseif ($act === 'reopen' && store_is_closed($code)) {
             $reason = isset($_POST['reason']) ? trim($_POST['reason']) : '';
-            if ($reason === '') {
-                $error = 'กรุณาระบุเหตุผลที่ต้องเปิดร้านใหม่';
+            if (($why = Stock_checkReopenReason($reason)) !== '') {
+                $error = $why;
             } else {
                 store_reopen($code, $user, $reason);
                 header('Location: ' . url('store.php?reopened=1'));
@@ -106,9 +110,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 isset($_POST['amount']) ? preg_replace('/[^0-9.]/', '', $_POST['amount']) : 0,
                                 isset($_POST['why']) ? $_POST['why'] : '');
             if (isset($r['error'])) {
-                $error = $r['error'];
+                $cashErr  = $r['error'];
+                $cashPost = $_POST;
             } else {
-                header('Location: ' . url('store.php?cash=1'));
+                header('Location: ' . url('store.php?cash=1#cash-card'));
                 exit;
             }
         }
@@ -118,7 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 if (isset($_GET['opened'])) { $notice = 'เปิดร้านเรียบร้อย เริ่มทำงานได้เลย'; }
 if (isset($_GET['closed'])) { $notice = 'ปิดร้านเรียบร้อย สรุปยอดถูกส่งให้ผู้ดูแลแล้ว'; }
 if (isset($_GET['reopened'])) { $notice = 'เปิดร้านใหม่แล้ว ขายต่อได้ — ปิดร้านอีกครั้งเมื่อเสร็จ'; }
-if (isset($_GET['cash'])) { $notice = 'บันทึกเงินเข้า / ออกลิ้นชักแล้ว'; }
+if (isset($_GET['cash'])) { $cashNote = 'บันทึกเงินเข้า / ออกลิ้นชักแล้ว'; }
 if (isset($_GET['pastclosed']) && ($pcTs = strtotime(preg_replace('/\D/', '', (string) $_GET['pastclosed']))) !== false) {
     $notice = 'ปิดร้านของวัน' . thai_date_full($pcTs) . 'แล้ว — เปิดร้านวันนี้ต่อได้เลย เงินทอนที่แยกไว้ยกมาให้แล้ว';
 }
@@ -141,6 +146,7 @@ $cash     = store_daily_cash($code);                 // อ่านใหม่
 $expected = store_expected_cash($code);
 $cashList = $isOpen ? store_cash_list($code) : array();
 $num      = function ($n) { return rtrim(rtrim(number_format((float) $n, 2, '.', ''), '0'), '.'); };   // ค่าในช่อง input
+$cv       = function ($k) use ($cashPost) { return isset($cashPost[$k]) ? trim((string) $cashPost[$k]) : ''; };   // ค่าที่กรอกไว้ในฟอร์มเงินเข้า / ออก
 
 /* สรุปงานของทั้งสาขาวันนี้ (ใช้ตอนปิดร้าน) */
 $rank      = branch_rank_today($code);
@@ -340,9 +346,15 @@ require dirname(__FILE__) . '/inc/header.php';
   </div>
 
   <!-- เงินเข้า / ออกลิ้นชักระหว่างวัน -->
-  <section class="card store-cash">
+  <section class="card store-cash" id="cash-card">
     <div class="card-head"><div><h3>เติมเงินทอน / หยิบเงินออก</h3><p>ระหว่างวัน · ต้องระบุเหตุผลทุกครั้ง · ลงประวัติให้ผู้ดูแลเห็น</p></div></div>
     <div class="card-body num">
+      <?php /* ผลของฟอร์มนี้แสดงในการ์ด (#cash-card) — เดิมขึ้นบนสุดของหน้า ต้องเลื่อนขึ้นไปดู และค่าที่กรอกหายหมด (21 ต.ค.) */ ?>
+      <?php if ($cashErr !== '') { ?>
+        <div class="alert alert-error" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span><?php echo e($cashErr) ?></span></div>
+      <?php } elseif ($cashNote !== '') { ?>
+        <div class="alert alert-info" role="status"><svg class="ico"><use href="#i-check"/></svg><span><?php echo e($cashNote) ?></span></div>
+      <?php } ?>
       <?php if ($cashList) { ?>
         <div class="kvl">
           <?php foreach ($cashList as $cm) { ?>
@@ -352,24 +364,25 @@ require dirname(__FILE__) . '/inc/header.php';
         </div>
       <?php } ?>
       <?php if (can($user, 'cash')) { ?>
-      <form method="post" action="store.php" class="store-cash-f">
+      <form method="post" action="store.php#cash-card" class="store-cash-f">
         <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
         <input type="hidden" name="act" value="cash">
         <div class="field">
           <label for="cash-dir">รายการ</label>
           <select class="input" id="cash-dir" name="dir">
             <option value="in">เติมเงินทอนเข้าลิ้นชัก</option>
-            <option value="out">หยิบเงินออกจากลิ้นชัก</option>
+            <option value="out"<?php echo $cv('dir') === 'out' ? ' selected' : '' ?>>หยิบเงินออกจากลิ้นชัก</option>
           </select>
         </div>
         <div class="field">
           <label for="cash-amt">จำนวนเงิน</label>
-          <input class="input" type="number" id="cash-amt" name="amount" min="0.01" step="0.01" inputmode="decimal" required>
+          <input class="input" type="number" id="cash-amt" name="amount" min="0.01" max="1000000" step="0.01" inputmode="decimal" required
+                 value="<?php echo e($cv('amount')) ?>">
         </div>
         <div class="field field-why">
           <label for="cash-why">เหตุผล</label>
           <input class="input" type="text" id="cash-why" name="why" maxlength="200" required autocomplete="off"
-                 placeholder="เช่น แลกเหรียญเพิ่ม / ซื้อถุงใส่ของ">
+                 value="<?php echo e($cv('why')) ?>" placeholder="เช่น แลกเหรียญเพิ่ม / ซื้อถุงใส่ของ">
         </div>
         <button class="btn btn-ghost" type="submit"><svg class="ico"><use href="#i-coin"/></svg> บันทึก</button>
       </form>
@@ -499,7 +512,7 @@ require dirname(__FILE__) . '/inc/header.php';
       <input type="hidden" name="act" value="reopen">
       <div class="field">
         <label for="reopen-reason">เหตุผล</label>
-        <input class="input" type="text" id="reopen-reason" name="reason" required autocomplete="off"
+        <input class="input" type="text" id="reopen-reason" name="reason" required minlength="5" maxlength="200" autocomplete="off"
                placeholder="เช่น ลูกค้ากลับมาซื้อหลังปิดร้าน / ปิดร้านผิดสาขา">
       </div>
       <button class="btn btn-ghost" type="submit"><svg class="ico"><use href="#i-store"/></svg> เปิดร้านใหม่</button>

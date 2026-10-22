@@ -288,6 +288,8 @@ input[type="password"]::-ms-reveal,input[type="password"]::-ms-clear{display:non
 }
 .ld-err[hidden]{display:none}
 .ld-err .icon-btn{margin-left:auto;flex:none}
+/* ใส่จำนวนเกินที่ใส่ได้ (#qty-tip · 21 ต.ค.) — ตำแหน่งเดียวกับ .ld-err ปิดเองใน 3 วินาที · ไม่บังการแตะ */
+.qty-tip{pointer-events:none}
 
 /* ---- + / − และพิมพ์จำนวน: นับในเครื่องก่อนแล้วบันทึกเบื้องหลัง (inc/footer.php) ----
    จำนวน / คงเหลือหลังทำ / ส่วนต่างนับ / ยอดชิ้นรวม คิดในเครื่องทันที · ยอดเงิน (ยอดขาย / ต้นทุน) จางไว้จนคำตอบมา */
@@ -1380,6 +1382,10 @@ button,a,summary,input,select{-webkit-tap-highlight-color:rgba(14,122,95,.15)}
   padding:9px 13px;font-size:.85rem;color:var(--down);line-height:1.6;
 }
 .tl-voided .ico{width:16px;height:16px;flex-shrink:0}
+/* ใบเดิม ↔ ใบใหม่ของการแก้ไข (Stock_getEditLink · 21 ต.ค.) */
+.tl-link{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin-top:8px;font-size:.85rem;color:var(--ink-2);line-height:1.6}
+.tl-link .ico{width:15px;height:15px;flex-shrink:0;color:var(--brand)}
+.tl-link b{color:var(--deep-900)}
 
 /* ---------- กล่องยืนยัน ---------- */
 .modal{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;padding:20px}
@@ -2024,6 +2030,14 @@ table.sr-only{display:block}
   .mv-back{display:inline-flex;align-items:center;gap:6px;width:100%;font-size:.86rem;font-weight:600;color:var(--brand);text-decoration:none}
   .mv-back .ico{width:16px;height:16px;transform:rotate(180deg)}
 }
+/* iPad แนวนอน (981–1180px + เมนูข้างเต็ม): เลือกสินค้าแล้วโชว์เฉพาะรายละเอียดแบบจอแคบ (21 ต.ค. · ผลทดสอบ)
+   เดิมสองคอลัมน์ — ตารางเหลือกว้าง ~420px ต้องเลื่อนข้างหาคอลัมน์ “คงเหลือ” */
+@media (min-width:981px) and (max-width:1180px){
+  .mv-wrap.has-pick{grid-template-columns:1fr}
+  .mv-wrap.has-pick .mv-pick{display:none}
+  .mv-wrap.has-pick .mv-back{display:inline-flex;align-items:center;gap:6px;width:100%;font-size:.86rem;font-weight:600;color:var(--brand);text-decoration:none}
+  .mv-wrap.has-pick .mv-back .ico{width:16px;height:16px;transform:rotate(180deg)}
+}
 @media (max-width:760px){
   .mv-head{padding:14px 16px}
   .mv-per{width:100%}
@@ -2195,6 +2209,14 @@ table.sr-only{display:block}
 .pay-disc .d b{color:var(--warn)}
 .pay-err{margin-top:8px;font-size:.82rem;color:var(--down)}
 .btn-pay:disabled{opacity:.5;cursor:not-allowed}
+/* แก้ไขบิล: บอกว่าตะกร้านี้ทำแทนบิลไหน และใช้ส่วนลด / ประเภทบิล / วิธีจ่ายเดิม (Stock_getBillRedo · 21 ต.ค.) */
+.pay-redo{display:flex;align-items:flex-start;gap:8px;margin:0 0 12px;padding:9px 12px;border-radius:10px;
+  background:var(--brand-50);font-size:.82rem;line-height:1.55;color:var(--deep-900)}
+.pay-redo .ico{flex:none;width:16px;height:16px;margin-top:2px;color:var(--brand)}
+#pay-srv-err{margin:12px 0 0}
+/* ฟอร์มสินค้า: ราคาขายต่ำกว่าทุน (inc/footer.php · 21 ต.ค.) */
+.price-warn{display:block;margin-top:5px;font-size:.8rem;font-weight:600;color:var(--warn)}
+.price-warn[hidden]{display:none}
 .dash-reopen{display:flex;gap:6px;margin-top:8px}
 .dash-reopen .input{min-height:36px;padding:4px 10px;font-size:.85rem;max-width:180px}
 /* ปิดร้านย้อนหลัง (ช่วงที่ 17) — พับไว้ใต้ชื่อสาขา กดแล้วกางฟอร์มของแต่ละวัน */
@@ -2241,6 +2263,7 @@ table.sr-only{display:block}
 .stk-out{background:#FDECEC;color:var(--down);font-weight:700}
 .stk-low{background:#FFF4DC;color:#9A6400;font-weight:700}
 .stk-ok{color:var(--ink-2)}
+.stk-none{color:var(--ink-3)}                         /* สาขานี้ไม่เคยมีสินค้านี้ “—” (adm-products · 21 ต.ค.) */
 .rep-bars{display:flex;align-items:flex-end;gap:4px;height:180px;padding:16px 22px 10px;overflow-x:auto}
 .rep-bar{flex:1 0 18px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:4px;text-decoration:none}
 .rep-fill{display:block;width:100%;max-width:34px;background:var(--brand);border-radius:6px 6px 2px 2px;opacity:.85}
@@ -2291,6 +2314,16 @@ table.sr-only{display:block}
 @media (max-width:760px){
   .tbl-mv td[data-label="สาขา"]{grid-column:1;grid-row:5;justify-self:start}
 }
+/* iPad (761–1100px): ตารางเคลื่อนไหวพอดีจอ ไม่ต้องเลื่อนข้างหาคอลัมน์ “คงเหลือ” (21 ต.ค. · ผลทดสอบ)
+   รายการ / หัวคอลัมน์ตัดบรรทัดได้ · ผู้ทำย้ายไปอยู่ใต้รายการ (.mv-by-in) แทนคอลัมน์ “โดย” — จอใหญ่ / มือถือเหมือนเดิม */
+.tbl-mv:not(.mv-feed) .mv-by-in{display:none}
+@media (min-width:761px) and (max-width:1100px){
+  .tbl-mv th{white-space:normal}
+  .tbl-mv td[data-label="รายการ"]{white-space:normal}
+  .tbl-mv th,.tbl-mv td{padding-left:10px;padding-right:10px}
+  .tbl-mv:not(.mv-feed) .mv-by-col{display:none}
+  .tbl-mv:not(.mv-feed) .mv-by-in{display:block;margin-top:3px;color:var(--ink-3);font-size:.76rem}
+}
 .mv-feed .mv-when .hist-br{margin-left:6px;font-size:.72rem;padding:1px 6px;min-width:0}
 @media (min-width:761px){.mv-feed .mv-by-col{display:none}.mv-feed td[data-label="รายการ"]{white-space:normal}.mv-feed td[data-label="รายการ"] .mv-by-in{display:block;color:var(--ink-3);font-size:.76rem;margin-top:3px}.mv-feed .mv-when{white-space:nowrap}}
 @media (max-width:760px){.mv-feed .mv-by-in{display:none}}
@@ -2339,8 +2372,14 @@ table.sr-only{display:block}
   .hist-filter .segs .seg{flex:1 0 auto;padding:0 10px}
   .rep-cmp td,.rep-cmp th{white-space:nowrap}
   .adm-kpi .m{min-width:0}
-  .adm-kpi .lb,.adm-kpi .nm,.adm-kpi .sb{overflow-wrap:anywhere}
+  .adm-kpi .lb,.adm-kpi .sb{overflow-wrap:anywhere}
+  .adm-kpi .nm{white-space:nowrap}                  /* ยอดเงินไม่ตัดกลางตัวเลข (21 ต.ค. — เดิม 707,370. / 00 คนละบรรทัด) */
   .card-head > div{min-width:0}
+}
+/* มือถือ: กล่องสรุปผู้ดูแล 2 คอลัมน์ (ใบสุดท้ายที่เหลือเดี่ยวกินเต็มแถว) — 3 คอลัมน์แคบเกินสำหรับยอดเงินหลักแสน */
+@media (max-width:480px){
+  .mini.adm-kpi{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .mini.adm-kpi .m:last-child:nth-child(odd){grid-column:1 / -1}
 }
 /* ปุ่มกรองชนิดของประวัติขาย (history.php ?k=) — กว้างเท่าปุ่ม · จอแคบ 2 × 2 ไม่ต้องเลื่อน */
 .hist-kinds{justify-self:start}
@@ -2593,7 +2632,7 @@ table.sr-only{display:block}
 .prod-off{opacity:.55}
 
 /* ---------- เติมเงินทอน / หยิบเงินออกระหว่างวัน (store.php) ---------- */
-.store-cash{margin:0 0 18px}
+.store-cash{margin:0 0 18px;scroll-margin-top:84px}   /* store.php#cash-card — หัวการ์ดไม่จมใต้แถบบน (sticky 64px) */
 .store-cash .kvl{margin-bottom:6px}
 .store-cash-f{display:grid;grid-template-columns:1.4fr 1fr 2fr auto;gap:10px;align-items:end}
 .store-cash-f .field{margin:0}

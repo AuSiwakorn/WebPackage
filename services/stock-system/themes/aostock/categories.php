@@ -11,6 +11,7 @@
  *   - [x] ช่วงที่ 11: แยกสิทธิ์เพิ่มหมวด (category_add) / ลบหมวด (category_del) — เช็กทั้งตอนแสดงฟอร์มและตอนบันทึก
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 4): popup รายชื่อสินค้าในหมวดโหลดตอนกด (?list=) ครั้งละ 60 + “แสดงเพิ่ม” — เดิมฝังสินค้าทุกหมวดไว้ใน <template>
+ *   - [x] 21 ต.ค. (ผลทดสอบ): ถามก่อนลบหมวดด้วยกล่องยืนยันของระบบ (data-confirm="ask") แทน confirm() ของเบราว์เซอร์
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -111,6 +112,7 @@ foreach ($cats as $c) {
 }
 
 $branch     = $code;
+$CONFIRM_MODAL = true;                   // ถามก่อนลบหมวดด้วยกล่องยืนยันของระบบ (data-confirm="ask" · 21 ต.ค.)
 $PAGE_TITLE = 'หมวดสินค้า';
 $PAGE_SUB   = count($cats) . ' หมวด · สินค้า ' . $total . ' รายการ · ใช้ร่วมกันทุกสาขา';
 $NAV_ACTIVE = 'categories.php';
@@ -162,7 +164,8 @@ require dirname(__FILE__) . '/inc/header.php';
             <td data-label="" class="r">
               <?php if (!$canDel) { ?>
               <?php } elseif ($x['count'] === 0) { ?>
-                <form method="post" action="categories.php" class="cat-del" data-ask="<?php echo e('ลบหมวด “' . $c . '” ?') ?>" onsubmit="return confirm(this.dataset.ask);">
+                <form method="post" action="categories.php" class="cat-del" data-confirm="ask" data-ask="<?php echo e('ลบหมวด “' . $c . '” ?') ?>"
+                      data-ask-sub="หมวดนี้ยังไม่มีสินค้า · ลบแล้วเพิ่มกลับได้ภายหลัง" data-ask-ok="ลบหมวด">
                   <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
                   <input type="hidden" name="act" value="delete">
                   <input type="hidden" name="c" value="<?php echo e($c) ?>">

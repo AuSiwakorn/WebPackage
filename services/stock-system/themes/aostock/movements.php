@@ -13,6 +13,7 @@
  *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 5): รายการทางซ้ายค้นเองใน inc/movement-list.php ด้วย SQL แบบแบ่งหน้า · จำนวนสินค้านับด้วย SQL (เดิมโหลดทั้งร้าน)
  *   - [x] 15 ต.ค. (ใบนับแบบรายการ ช่วง 5): เปลี่ยนชื่อ “ตรวจนับ / ปรับยอด” เป็น “ตรวจนับสต๊อก” (ช่องสรุป “ตรวจนับ”)
  *   - [x] 16 ต.ค. (ผู้ใช้ขอ): ชื่อหน้า “ประวัติเคลื่อนไหว” → “เคลื่อนไหวรายสินค้า” ให้ตรงกับเมนู
+ *   - [x] 21 ต.ค. (ผลทดสอบ): iPad ตารางพอดีจอ — ผู้ทำ (.mv-by-in) ใต้รายการแทนคอลัมน์ “โดย” (app.css)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -155,7 +156,7 @@ require dirname(__FILE__) . '/inc/header.php';
               <tr>
                 <th>เมื่อ</th>
                 <th>รายการ</th>
-                <th>โดย</th>
+                <th class="mv-by-col">โดย</th>
                 <th class="r">เข้า / ออก</th>
                 <th class="r">คงเหลือ</th>
               </tr>
@@ -170,8 +171,9 @@ require dirname(__FILE__) . '/inc/header.php';
                     <span class="badge b-<?php echo e($m['tone']) ?>"><?php echo e($m['label']) ?></span>
                     <span class="doc"><?php echo e($r['doc']) ?></span>
                     <?php if ($r['note'] !== '') { ?><small><?php echo e($r['note']) ?></small><?php } ?>
+                    <small class="mv-by-in">โดย <?php echo e($r['by']) ?></small><?php /* iPad: ผู้ทำอยู่ใต้รายการแทนคอลัมน์ “โดย” (app.css · 21 ต.ค.) */ ?>
                   </td>
-                  <td data-label="โดย"><?php echo e($r['by']) ?></td>
+                  <td data-label="โดย" class="mv-by-col"><?php echo e($r['by']) ?></td>
                   <td data-label="เข้า / ออก" class="r num">
                     <?php if ($r['delta'] > 0) { ?>
                       <b class="mv-up">+<?php echo number_format($r['delta']) ?></b>

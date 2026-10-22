@@ -16,6 +16,8 @@
  *         · ร้านปิด / ยังไม่เปิด → เลื่อนขึ้นไปที่แถบแจ้งด้านบน
  *   - [x] 12 ต.ค.: ช่อง “ผู้รับคืน” ขึ้น “พนักงาน” แม้เป็นผู้จัดการสาขา → ใช้ user_role_label() แบบเดียวกับแถบบน
  *   - [x] 12 ต.ค.: “แสดงย้อนหลัง N วัน” ตามกำหนดคืนของสาขา + 7 (return_lookback_days($code))
+ *   - [x] 21 ต.ค. (ผลทดสอบ): กล่องยืนยันก่อนบันทึก (data-confirm="return") · ช่องจำนวนที่คืนว่าง + placeholder 0 (เดิมค่า 0 พิมพ์แล้วเป็น 10)
+ *         · บิลที่คืนครบแล้วไม่ขึ้น “คืนไปแล้วบางส่วน” ซ้ำ
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -88,7 +90,8 @@ $bill  = $billNo !== '' ? return_bill($code, $billNo) : null;
 $found = ($bill === null) ? return_find_bills($code, $q) : array();
 $today = array_reverse(returns_today($code));
 
-$branch     = $code;
+$branch        = $code;
+$CONFIRM_MODAL = true;                   // กล่องยืนยันก่อนบันทึกรับคืน (data-confirm="return" · inc/footer.php · 21 ต.ค.)
 $PAGE_TITLE = 'รับคืนสินค้า';
 $PAGE_SUB   = branch_name($code) . ' · คืนได้ภายใน ' . backdate_days($code) . ' วันหลังวันที่ซื้อ';
 $NAV_ACTIVE = 'return.php';
@@ -187,7 +190,8 @@ require dirname(__FILE__) . '/inc/header.php';
                 <td data-label="สถานะ">
                   <?php $bc = array('ok' => 'bdg-ok', 'late' => 'bdg-out', 'done' => 'bdg-adj'); ?>
                   <span class="bdg <?php echo $bc[$st['code']] ?>"><?php echo e($st['code'] === 'late' ? 'เกินกำหนด' : $st['msg']) ?></span>
-                  <?php if (bill_has_returns($b['no'], $b)) { ?><small>มีการคืนไปแล้วบางส่วน</small><?php } ?>
+                  <?php /* คืนครบแล้ว = ไม่ขึ้น “คืนไปแล้วบางส่วน” ซ้ำ (21 ต.ค. — เดิมสองข้อความขัดกัน) */ ?>
+                  <?php if ($st['code'] !== 'done' && bill_has_returns($b['no'], $b)) { ?><small>มีการคืนไปแล้วบางส่วน</small><?php } ?>
                 </td>
                 <td class="r">
                   <?php if ($st['ok']) { ?>
@@ -226,7 +230,7 @@ require dirname(__FILE__) . '/inc/header.php';
   </section>
 
   <?php if ($st['ok']) { ?>
-  <form method="post" action="return.php?bill=<?php echo e(rawurlencode($bill['no'])) ?>" id="ret-form" enctype="multipart/form-data">
+  <form method="post" action="return.php?bill=<?php echo e(rawurlencode($bill['no'])) ?>" id="ret-form" enctype="multipart/form-data" data-confirm="return">
     <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
     <input type="hidden" name="bill" value="<?php echo e($bill['no']) ?>">
 
@@ -245,7 +249,8 @@ require dirname(__FILE__) . '/inc/header.php';
                 <td class="r" data-label="คืนไปแล้ว"><?php echo $l['back'] ? (int) $l['back'] : '—' ?></td>
                 <td class="r" data-label="จำนวนที่คืน">
                   <?php if ($l['remain'] > 0) { ?>
-                    <input class="input ret-q" type="number" name="q_<?php echo e($l['sku']) ?>" value="<?php echo $v ?>"
+                    <?php /* 0 = ช่องว่าง + placeholder — เดิมค่า 0 อยู่ในช่อง พิมพ์ 1 แล้วกลายเป็น 10 / 01 (21 ต.ค.) */ ?>
+                    <input class="input ret-q" type="number" name="q_<?php echo e($l['sku']) ?>" value="<?php echo $v > 0 ? $v : '' ?>" placeholder="0"
                            min="0" max="<?php echo (int) $l['remain'] ?>" step="1" inputmode="numeric"
                            data-price="<?php echo e($l['price']) ?>" aria-label="จำนวนที่คืน <?php echo e($l['name']) ?>">
                     <small>คืนได้อีก <?php echo (int) $l['remain'] ?></small>
@@ -451,6 +456,20 @@ require dirname(__FILE__) . '/inc/header.php';
   form.addEventListener('input', sync);
   form.addEventListener('change', sync);
   sync();
+
+  /* สรุปให้กล่องยืนยัน (data-confirm="return" · inc/footer.php · 21 ต.ค. — เดิมกดแล้วบันทึกทันที คืนเงินผิดแก้ไม่ได้) */
+  form.retSummary = function () {
+    var out = { lines: [], why: '', stock: stock.hidden ? '' : stock.textContent, refund: fmt(noCash ? 0 : num(refund.value)), noCash: noCash };
+    for (var i = 0; i < qs.length; i++) {
+      var q = Math.max(0, Math.min(Number(qs[i].getAttribute('max')), Math.floor(num(qs[i].value))));
+      if (!q) { continue; }
+      var nm = qs[i].closest('tr').querySelector('td[data-label="สินค้า"] b');
+      out.lines.push({ name: nm ? nm.textContent : '', qty: q });
+    }
+    var w = form.querySelector('input[name="why"]:checked');
+    out.why = w ? w.closest('label').querySelector('b').textContent : '';
+    return out;
+  };
 })();
 </script>
 

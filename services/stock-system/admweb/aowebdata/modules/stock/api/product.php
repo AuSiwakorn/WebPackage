@@ -288,6 +288,10 @@ function product_read_form($isNew, $sku)
     if ($d['cost'] < 0 || $d['price'] < 0 || $d['reorder'] < 0) {
         return array($d, 'ทุน / ราคาขาย / จุดสั่งซื้อ ต้องเป็นตัวเลขไม่ติดลบ');
     }
+    /* 21 ต.ค. (ผลทดสอบ): ช่องราคาขายว่างเดิมกลายเป็น 0 บาทเงียบ ๆ — ขายแล้วไม่ได้เงิน · ราคาต่ำกว่าทุนเตือนบนฟอร์ม (inc/footer.php) ไม่บังคับ */
+    if ($d['price'] <= 0) {
+        return array($d, 'กรุณากรอกราคาขาย (มากกว่า 0 บาท) — ราคา 0 บาทขายแล้วไม่ได้เงิน');
+    }
     if ($d['cost'] > 9999999 || $d['price'] > 9999999 || $d['reorder'] > 1000000) {
         return array($d, 'ตัวเลขมากเกินไป');
     }
@@ -437,6 +441,9 @@ function product_image_store($sku, $field, $oldPath)
         return array('error' => 'บันทึกรูปไม่สำเร็จ — ตรวจสิทธิ์เขียนโฟลเดอร์ uploads/stock');
     }
     sdb_update('product', array('image' => $saved), array('sku' => $sku));
+    if ($oldPath !== '' && strpos(ltrim($oldPath, '/'), 'stock/products/') === 0) {
+        @unlink(PATH_UPLOAD . '/' . Stock_buildThumbPath($oldPath));       // รูปย่อของรูปเดิม (21 ต.ค.) — รูปใหม่สร้างรูปย่อตอนแสดงครั้งแรก
+    }
     product_db_reset();
     return array('ok' => $saved);
 }
@@ -448,6 +455,7 @@ function product_image_remove($sku, $oldPath)
         $full = PATH_UPLOAD . '/' . ltrim($oldPath, '/');
         if (strpos(realpath(dirname($full)) ?: '', realpath(PATH_UPLOAD . '/stock/products') ?: '#') === 0 && is_file($full)) {
             @unlink($full);
+            @unlink(PATH_UPLOAD . '/' . Stock_buildThumbPath($oldPath));     // รูปย่อ (21 ต.ค.)
         }
     }
     sdb_update('product', array('image' => ''), array('sku' => $sku));
@@ -814,10 +822,71 @@ function cat_style($cat)
     return array('i-box', $tones[abs(crc32($cat)) % 4]);
 }
 
-/** กล่องรูปสินค้า — ใช้ได้ทั้งในตารางและบนการ์ดหน้าขาย */
+/** ชื่อไฟล์รูปย่อของรูปที่อัปโหลด — uploads/stock/products/A-1.jpg → …/A-1-t.jpg (ข้างรูปเต็ม) */
+function Stock_buildThumbPath($rel)
+{
+    return preg_replace('/(\.[A-Za-z0-9]+)$/', '-t$1', ltrim((string) $rel, '/'));
+}
+
+/** สร้างรูปย่อ ด้านยาวสุด 360 px นามสกุลเดียวกับต้นฉบับ · คืน true = มีไฟล์รูปย่อแล้ว
+ *  ไม่มี GD / รูปเล็กอยู่แล้ว / ใหญ่เกิน 25 ล้านพิกเซล / เขียนไม่ได้ = false (ผู้เรียกใช้รูปเต็มแทน) */
+function Stock_setProductThumb($full, $thumb)
+{
+    $max  = 360;
+    $info = function_exists('imagecreatefromstring') ? @getimagesize($full) : false;
+    if ($info === false || $info[0] * $info[1] > 25000000 || max($info[0], $info[1]) <= $max) {
+        return false;
+    }
+    $src = @imagecreatefromstring((string) @file_get_contents($full));
+    if (!$src) {
+        return false;
+    }
+    $k   = $max / max($info[0], $info[1]);
+    $w   = max(1, (int) round($info[0] * $k));
+    $h   = max(1, (int) round($info[1] * $k));
+    $dst = imagecreatetruecolor($w, $h);
+    if ($info[2] !== IMAGETYPE_JPEG) {                       // PNG / WEBP โปร่งใสได้
+        imagealphablending($dst, false);
+        imagesavealpha($dst, true);
+    }
+    imagecopyresampled($dst, $src, 0, 0, 0, 0, $w, $h, $info[0], $info[1]);
+    $tmp = $thumb . '.tmp';
+    $ok  = ($info[2] === IMAGETYPE_PNG) ? @imagepng($dst, $tmp, 6)
+         : (($info[2] === IMAGETYPE_WEBP && function_exists('imagewebp')) ? @imagewebp($dst, $tmp, 80) : @imagejpeg($dst, $tmp, 80));
+    imagedestroy($src);
+    imagedestroy($dst);
+    if (!$ok || !@rename($tmp, $thumb)) {
+        @unlink($tmp);
+        return false;
+    }
+    return true;
+}
+
+/** รูปสำหรับกล่องเล็ก (thumb_html) — รูปที่อัปโหลดใช้รูปย่อ สร้างครั้งแรกที่ต้องใช้ · ไม่มีรูปอัปโหลด / สร้างไม่ได้ = product_img เดิม
+ *  TODO:
+ *    - [x] 21 ต.ค. (ผลทดสอบ): การ์ด / ตารางเคยโหลดรูปเต็ม 1200 px (80–120 KB ต่อใบ · หน้าขาย 60 ใบ ≈ 6 MB) มาแสดงขนาด ~120 px */
+function Stock_getProductThumbUrl($p)
+{
+    if (empty($p['image']) || !defined('PATH_UPLOAD') || !defined('URL_UPLOAD')) {
+        return product_img($p);
+    }
+    $rel   = ltrim($p['image'], '/');
+    $full  = PATH_UPLOAD . '/' . $rel;
+    $tRel  = Stock_buildThumbPath($rel);
+    $thumb = PATH_UPLOAD . '/' . $tRel;
+    if (!is_file($full)) {
+        return product_img($p);
+    }
+    if ((is_file($thumb) && filemtime($thumb) >= filemtime($full)) || Stock_setProductThumb($full, $thumb)) {
+        return URL_UPLOAD . '/' . $tRel;
+    }
+    return product_img($p);
+}
+
+/** กล่องรูปสินค้า — ใช้ได้ทั้งในตารางและบนการ์ดหน้าขาย (รูปย่อ · Stock_getProductThumbUrl) */
 function thumb_html($p, $extra = '')
 {
-    $img = product_img($p);
+    $img = Stock_getProductThumbUrl($p);
     $sty = cat_style($p['cat']);
     $cls = 'thumb thumb--' . ($img !== '' ? 'img' : $sty[1]) . ($extra !== '' ? ' ' . $extra : '');
 

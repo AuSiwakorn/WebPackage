@@ -20,6 +20,7 @@
  *   - [x] 20 ต.ค.: บันทึกใบเทียบจำนวนบนจอ (ช่องซ่อน screen_qty) กับร่างก่อน — ไม่ตรง = ไม่บันทึก แจ้งแถวที่ต่าง (Stock_checkScreenQty)
  *         · เดิมบันทึกจากร่างใน session เลย ถ้าคำขอบันทึกจำนวนเบื้องหลังยังไม่ถึง ใบได้จำนวนเก่า ทั้งที่กล่องยืนยันโชว์จำนวนใหม่
  *         · act=set อ่านชื่อช่องแบบที่ PHP เปลี่ยน . เป็น _ — SKU ที่มีจุดแก้จำนวนแล้วแถวไม่หาย
+ *   - [x] 21 ต.ค.: แก้ไขใบนี้ → เลขที่เอกสารอ้างอิง / หมายเหตุเดิมติดมาด้วย (Stock_getReceiveDraftMeta — เดิมหาย ต้องกรอกใหม่)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -49,8 +50,9 @@ $q           = isset($_GET['q'])   ? trim($_GET['q'])   : '';
 $cat         = isset($_GET['cat']) ? trim($_GET['cat']) : '';
 $err         = '';
 $done        = null;
-$oldRef  = '';
-$oldNote = '';
+$recvMeta = Stock_getReceiveDraftMeta();   // ดึงใบเก่ามาแก้ → เลขอ้างอิง / หมายเหตุเดิมติดมาด้วย (21 ต.ค.)
+$oldRef  = $recvMeta['ref'];
+$oldNote = $recvMeta['note'];
 $voided  = null;
 $npErr   = '';                       // ข้อผิดพลาดของฟอร์มเพิ่มสินค้าใหม่ (ช่วงที่ 16)
 $npBad   = '';                       // รูปไม่ผ่าน (ยังไม่เพิ่มสินค้า) — ข้อความแดงใต้ช่องรูป
@@ -135,6 +137,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
             }
+            /* ยกเลิกจากหน้าประวัติ → กลับหน้าประวัติ (21 ต.ค.) */
+            Stock_sendBackToHistory($err !== '' ? 'ยกเลิกใบ ' . $no . ' ไม่สำเร็จ — ' . $err
+                                    : 'ยกเลิกใบรับเข้า ' . $voided['no'] . ' แล้ว · ถอนออกจากสต๊อก ' . number_format($voided['qty']) . ' ชิ้น');
         } elseif ($act === 'save') {
             $ref  = isset($_POST['ref'])  ? trim($_POST['ref'])  : '';
             $note = isset($_POST['note']) ? trim($_POST['note']) : '';

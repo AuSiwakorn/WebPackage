@@ -84,7 +84,25 @@ function cart_remove($sku)
 function cart_clear()
 {
     $_SESSION['cart'] = array();
-    unset($_SESSION['draft_edit_of']['SA']);
+    unset($_SESSION['draft_edit_of']['SA'], $_SESSION['bill_redo']);
+}
+
+/** บิลเดิมที่ตะกร้านี้ทำแทน (กด “แก้ไขบิลนี้”) — no · discount (บาท) · vat · method · ตะกร้าว่าง / ไม่ได้แก้บิล = null
+ *  หน้าขายใช้เป็นค่าตั้งต้น: ยอดชำระ = ราคาเต็มตอนนี้ − ส่วนลดเดิม · ประเภทบิล · วิธีจ่าย
+ *  TODO:
+ *    - [x] 21 ต.ค. (ผลทดสอบ · ผู้ใช้เลือก “ดึงค่าเดิมกลับมาให้”): เดิมแก้ไขบิลแล้วส่วนลดหาย ยอดกลับเป็นราคาเต็ม VAT / วิธีจ่ายกลับเป็นค่าเริ่มต้น */
+function Stock_getBillRedo()
+{
+    if (empty($_SESSION['bill_redo']) || !is_array($_SESSION['bill_redo']) || !cart_all()) {
+        return null;
+    }
+    $r = $_SESSION['bill_redo'];
+    return array(
+        'no'       => isset($r['no']) ? (string) $r['no'] : '',
+        'discount' => isset($r['discount']) ? max(0, round((float) $r['discount'], 2)) : 0,
+        'vat'      => !empty($r['vat']),
+        'method'   => (isset($r['method']) && $r['method'] === 'transfer') ? 'transfer' : 'cash',
+    );
 }
 
 /** แปลงตะกร้าเป็นรายการพร้อมราคา (ราคาขายปัจจุบันของสินค้า) */
@@ -236,6 +254,18 @@ function Stock_getMyBillsToday($code, $user, $from = '', $to = '', $limit = 200)
     return sale_bills_query($where, $args, 's.add_date DESC, s.sale_id DESC', (int) $limit);
 }
 
+/** จำนวนบิลที่ผู้ใช้คนนี้ขายวันนี้ที่สาขานี้ — array('paid' => ที่ชำระแล้ว, 'void' => ที่ยกเลิก) · ปุ่ม “บิลของฉันวันนี้” ในหน้าขาย
+ *  TODO:
+ *    - [x] 21 ต.ค. (ผลทดสอบ): ปุ่มเดิมนับรวมบิลที่ยกเลิก (5 ใบ) ไม่ตรงกับยอดขายที่นับเฉพาะชำระแล้ว (3 ใบ) → แยกบอก “3 ใบ · ยกเลิก 2” */
+function Stock_getMyBillCounts($code, $user)
+{
+    $r = sdb_row('SELECT COUNT(CASE WHEN s.status = \'paid\' THEN 1 END) AS paid, COUNT(CASE WHEN s.status = \'void\' THEN 1 END) AS void'
+               . ' FROM ' . sdb_tb('sale') . ' s JOIN ' . sdb_tb('branch') . ' b ON b.branch_id = s.branch_id'
+               . ' JOIN ' . sdb_tb('staff') . ' u ON u.staff_id = s.created_by'
+               . ' WHERE b.code = ? AND s.sale_date = ? AND u.username = ?', array((string) $code, date('Y-m-d'), (string) $user['username']));
+    return array('paid' => $r ? (int) $r['paid'] : 0, 'void' => $r ? (int) $r['void'] : 0);
+}
+
 /** บันทึกบิลจากตะกร้า (ทรานแซกชันเดียว) · คืนบิล / null (ตะกร้าว่าง) / array('error') */
 function bill_save($code, $user, $method, $received, $vat = false, $net = null)
 {
@@ -256,10 +286,11 @@ function bill_save($code, $user, $method, $received, $vat = false, $net = null)
     }
     $total    = ($net !== null && $net > 0 && $net <= $subtotal) ? round($net, 2) : $subtotal;
     $discount = round($subtotal - $total, 2);
-    /* เงินที่รับมารับสตางค์ได้ 2 ตำแหน่ง (เดิมตัดเป็นบาทเต็ม) · เพดานตามคอลัมน์ decimal(12,2) */
-    $recv     = ($method === 'cash') ? round(min(max((float) $received, 0), 9999999999.99), 2) : $total;
+    /* เงินที่รับมารับสตางค์ได้ 2 ตำแหน่ง (เดิมตัดเป็นบาทเต็ม) · เพดานตามคอลัมน์ decimal(12,2)
+       null (ช่องว่าง) = รับพอดี · รับมาน้อยกว่ายอด = ไม่บันทึก (21 ต.ค. — เดิมบันทึกว่ารับเท่ายอดเงียบ ๆ เงินในลิ้นชักขาด) */
+    $recv     = ($method === 'cash' && $received !== null) ? round(min(max((float) $received, 0), 9999999999.99), 2) : $total;
     if ($recv < $total) {
-        $recv = $total;
+        return array('error' => 'รับเงินมา ' . money2($recv) . ' บาท น้อยกว่ายอดที่ต้องชำระ ' . money2($total) . ' บาท — กรอกเงินที่รับมาให้ครบ');
     }
     /* สาขาที่ไม่ขาย VAT (ผู้ดูแลตั้งที่หน้าจัดการสาขา · 21 ต.ค.) — หน้าขายไม่มีตัวเลือก VAT · ส่งค่ามาเอง / ผู้ดูแลเพิ่งปิดระหว่างขาย = ปฏิเสธ ตะกร้ายังอยู่ */
     if ($vat && !Stock_isBranchVat($code)) {
@@ -442,6 +473,9 @@ function cart_from_bill($bill, $branch)
         cart_set($l['sku'], $branch, $l['qty']);
     }
     $_SESSION['draft_edit_of']['SA'] = (int) $bill['id'];
+    /* ส่วนลด / ประเภทบิล / วิธีจ่ายเดิม (Stock_getBillRedo · 21 ต.ค.) */
+    $_SESSION['bill_redo'] = array('no' => $bill['no'], 'discount' => (float) $bill['discount'],
+                                   'vat' => !empty($bill['vat']), 'method' => $bill['method']);
     return cart_count();
 }
 
@@ -482,7 +516,9 @@ function sale_flash($err, $done, $voided, $oob)
            . '<svg class="ico"><use href="#' . ($isEdit ? 'i-arrow' : 'i-ban') . '"/></svg><span>';
         if ($isEdit) {
             echo 'ยกเลิกบิล <b>' . e($voided['no']) . '</b> และดึง ' . (int) $voided['items']
-               . ' รายการกลับเข้าตะกร้าให้แล้ว — แก้จำนวนที่ผิดแล้วกดรับเงินใหม่ได้เลย '
+               . ' รายการกลับเข้าตะกร้าให้แล้ว'
+               . (!empty($voided['discount']) && can(current_user(), 'discount') ? ' พร้อมส่วนลดเดิม <b class="num">' . money2($voided['discount']) . '</b> บาท' : '')
+               . ' — แก้จำนวนที่ผิดแล้วกดรับเงินใหม่ได้เลย '
                . 'ระบบจะออกเลขบิลใหม่ให้อัตโนมัติ';
         } else {
             echo 'ยกเลิกบิล <b>' . e($voided['no']) . '</b> แล้ว · คืนสต๊อก '

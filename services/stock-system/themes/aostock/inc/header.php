@@ -17,6 +17,7 @@
  *   - [x] 15 ต.ค. (เมนูประวัติ ช่วง 3): ผู้ดูแลมีกลุ่มเมนู “ประวัติ” แยกจาก “ตรวจสอบ” · เมนูลิงก์ไปประวัติที่กรองไว้ได้ (?t=) · 'feature' = ซ่อนเมื่อกลุ่มฟีเจอร์ถูกปิด
  *   - [x] 15 ต.ค. (เมนูประวัติแยกหน้า ช่วง 3): ผู้ดูแลไม่มี “ประวัติทั้งหมด” แล้ว — เพิ่ม “ขาย / ตั้งค่า” (adm-history.php?t=sale)
  *   - [x] 15 ต.ค. (เมนูประวัติแยกหน้า ช่วง 5): พนักงานมีกลุ่มเมนู “ประวัติ” 1 เมนู = 1 กลุ่ม (history.php?t=) · 'log' = แสดงเมื่อดูกลุ่มนั้นได้ (Stock_getAllowedLogGroups)
+ *   - [x] 21 ต.ค. (ผลทดสอบ): ใต้ชื่อผู้ใช้ที่ไม่มีสาขา (ผู้ดูแล / บัญชี) ไม่มี “ · ” ห้อยท้าย
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -329,7 +330,8 @@ if (window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)'
           <span class="av"><?php echo e($user['initials']) ?></span>
           <span class="who-t">
             <b><?php echo e($user['name']) ?></b>
-            <small><?php echo e(user_role_label($user)) ?> · <?php echo e(branch_name($user['branch'])) ?></small>
+            <?php $__bn = !empty($user['branch']) ? (string) branch_name($user['branch']) : '';   /* ผู้ดูแล / บัญชีไม่มีสาขา — ไม่มี “ · ” ห้อยท้าย (21 ต.ค.) */ ?>
+            <small><?php echo e(user_role_label($user)) ?><?php echo $__bn !== '' ? ' · ' . e($__bn) : '' ?></small>
           </span>
           <a class="icon-btn" href="logout.php" title="ออกจากระบบ" aria-label="ออกจากระบบ">
             <svg class="ico"><use href="#i-logout"/></svg>

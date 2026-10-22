@@ -300,3 +300,17 @@ function hist_url($q = '')
     }
     return $base . (strpos($base, '?') === false ? '?' : '&') . $q;
 }
+
+/** ยกเลิกใบรับเข้า / ตัดออก / ตรวจนับจากหน้าประวัติ (ฟอร์มมีช่องซ่อน back = hist_url()) → กลับหน้าประวัติเดิม + ข้อความผล ($msg) แล้วจบ
+ *  เฉพาะ act=void — “แก้ไข” ต้องไปหน้าทำรายการ (ดึงรายการกลับเข้าใบที่นั่น) · back ไม่ใช่ history.php?t=… = กลับไปทำงานต่อตามเดิม
+ *  TODO:
+ *    - [x] 21 ต.ค. (ผลทดสอบ): เดิมยกเลิกจากหน้าประวัติแล้วเด้งไปหน้าทำรายการ ต้องกดกลับมาดูประวัติเอง */
+function Stock_sendBackToHistory($msg)
+{
+    $b = (isset($_POST['back']) && is_string($_POST['back'])) ? $_POST['back'] : '';
+    if (!preg_match('/^history\.php\?t=[a-z]+(&k=[a-z]+)?$/', $b) || !isset($_POST['act']) || $_POST['act'] !== 'void') {
+        return;
+    }
+    $_SESSION['flash'] = $msg;
+    Stock_sendRedirect($b);
+}

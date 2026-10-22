@@ -11,6 +11,7 @@
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  *   - [x] ผลทดสอบ 7 ต.ค. (C11): ปุ่ม “แก้ไข” ท้ายทุกแถว (เดิมต้องรู้ว่าแตะชื่อสินค้า)
  *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 4): ตารางครั้งละ 60 แถว + ปุ่ม “แสดงเพิ่ม” — htmx ?from= ส่งกลับแค่แถวชุดถัดไป (เดิมวาดทุกแถว สินค้า 3,000 ตัว = 4.4 MB)
+ *   - [x] 21 ต.ค. (ผลทดสอบ · ผู้ใช้เลือก): สถานะรวมนับเฉพาะสาขาที่เคยมีสินค้านั้น (มีแถวยอดคงเหลือ) — สาขาที่ไม่เคยมีแสดง “—” ไม่ทำให้ขึ้น “หมดแล้ว”
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -61,7 +62,7 @@ $flowDays = 30;
 $flow     = product_flow_stats(array_keys($br), $flowDays);
 
 /* ---------- สร้างแถว ---------- */
-$rank = array('out' => 0, 'low' => 1, 'ok' => 2);
+$rank = array('out' => 0, 'low' => 1, 'ok' => 2, 'none' => 3);   // none = สาขานี้ไม่เคยมีสินค้านี้
 $rows = array();
 $sum  = array('skus' => 0, 'qty' => 0, 'value' => 0, 'sale' => 0, 'low' => 0, 'out' => 0, 'sold' => 0);
 $perB = array();
@@ -81,23 +82,33 @@ foreach (products_list(true) as $p) {
     $cells = array();
     $tot   = 0;
     $worst = 'ok';
+    $had   = 0;
     foreach (array_keys($br) as $c) {
         $q  = product_qty($p, $c);
-        $st = branch_status($p, $c);
+        /* สาขาที่ไม่เคยมีสินค้านี้ (ไม่มีแถวยอดคงเหลือ — ไม่เคยรับเข้า / นับ) = 'none' ไม่นับเป็น “หมด”
+           (21 ต.ค. ผู้ใช้เลือก — เดิมสาขาที่ไม่ได้ขายตัวนี้ เช่นสาขาทดสอบ ทำให้ขึ้น “หมดแล้ว” ทุกตัว) · เคยมีแล้วเหลือ 0 = หมดตามเดิม */
+        $st = isset($p['stock'][$c]) ? branch_status($p, $c) : 'none';
         $cells[$c] = array('qty' => $q, 'st' => $st);
         $tot += $q;
+        if ($st === 'none') {
+            continue;
+        }
+        $had++;
         if ($rank[$st] < $rank[$worst]) {
             $worst = $st;
         }
     }
+    if ($had === 0) {
+        $worst = 'out';                                     // ยังไม่มีสาขาไหนเคยมีของ = ไม่มีขายที่ไหนเลย
+    }
     $focus = $fB !== '' ? $cells[$fB]['st'] : $worst;
-    if ($fSt !== '' && $fSt !== 'off' && !($fSt === 'low' ? $focus !== 'ok' : $focus === 'out')) {
+    if ($fSt !== '' && $fSt !== 'off' && !($fSt === 'low' ? ($focus === 'low' || $focus === 'out') : $focus === 'out')) {
         continue;
     }
     foreach ($cells as $c => $x) {
         $perB[$c]['qty']   += $x['qty'];
         $perB[$c]['value'] += $x['qty'] * $p['cost'];
-        if ($x['st'] !== 'ok') {
+        if ($x['st'] === 'low' || $x['st'] === 'out') {
             $perB[$c][$x['st']]++;
         }
     }
@@ -172,12 +183,12 @@ $row = function ($r) use ($br, $flowDays) {
                 <small class="hist-n"><?php echo e($p['sku']) ?> · <?php echo e($p['cat']) ?><?php echo $p['active'] ? '' : ' · เลิกขาย' ?></small>
               </td>
               <?php foreach ($r['cells'] as $c => $x) { ?>
-                <td data-label="<?php echo e($br[$c]['short']) ?>" class="r num nowrap"><span class="stk stk-<?php echo e($x['st']) ?>"><?php echo number_format($x['qty']) ?></span></td>
+                <td data-label="<?php echo e($br[$c]['short']) ?>" class="r num nowrap"><span class="stk stk-<?php echo e($x['st']) ?>"<?php echo $x['st'] === 'none' ? ' title="สาขานี้ยังไม่เคยมีสินค้านี้"' : '' ?>><?php echo $x['st'] === 'none' ? '—' : number_format($x['qty']) ?></span></td>
               <?php } ?>
               <td data-label="รวม" class="r num nowrap"><b><?php echo number_format($r['sortqty']) ?></b> <small><?php echo e($p['unit']) ?></small></td>
               <td data-label="รับเข้าล่าสุด" class="nowrap"><?php echo $r['last'] !== '' ? e(thai_day_month(strtotime($r['last']))) . ' <small>(' . (int) round((strtotime(date('Y-m-d')) - strtotime($r['last'])) / 86400) . ' วันก่อน)</small>' : '<small>เกิน ' . $flowDays . ' วัน</small>' ?></td>
               <td data-label="มูลค่า (ทุน)" class="r num nowrap"><?php echo e(money2($r['value'])) ?></td>
-              <td data-label="สถานะ"><span class="bdg <?php echo $r['focus'] === 'out' ? 'bdg-out' : ($r['focus'] === 'low' ? 'bdg-adj' : 'bdg-ok') ?>"><?php echo e(stock_label($r['focus'])) ?></span></td>
+              <td data-label="สถานะ"><?php if ($r['focus'] === 'none') { ?><span class="bdg">ไม่มีในสาขานี้</span><?php } else { ?><span class="bdg <?php echo $r['focus'] === 'out' ? 'bdg-out' : ($r['focus'] === 'low' ? 'bdg-adj' : 'bdg-ok') ?>"><?php echo e(stock_label($r['focus'])) ?></span><?php } ?></td>
               <td class="r nowrap"><a class="btn btn-ghost btn-sm" href="adm-product-edit.php?sku=<?php echo e(rawurlencode($p['sku'])) ?>" aria-label="แก้ไข <?php echo e($p['name']) ?>">แก้ไข</a></td>
             </tr>
 <?php
@@ -263,7 +274,7 @@ require dirname(__FILE__) . '/inc/header.php';
   <div class="card-head">
     <div>
       <h2>ยอดคงเหลือรายสินค้า</h2>
-      <span class="sub"><?php echo $fB !== '' ? 'สถานะและการเรียงจำนวนใช้ของ' . e($br[$fB]['name']) : 'สถานะ = สาขาที่แย่ที่สุด' ?> · ช่องสีแดง = หมด · สีเหลือง = ต่ำกว่าจุดสั่งซื้อ · รับเข้าล่าสุดนับย้อนหลัง <?php echo $flowDays ?> วัน</span>
+      <span class="sub"><?php echo $fB !== '' ? 'สถานะและการเรียงจำนวนใช้ของ' . e($br[$fB]['name']) : 'สถานะ = สาขาที่แย่ที่สุด (เฉพาะสาขาที่เคยมีสินค้านั้น)' ?> · ช่องสีแดง = หมด · สีเหลือง = ต่ำกว่าจุดสั่งซื้อ · — = สาขานั้นยังไม่เคยมี · รับเข้าล่าสุดนับย้อนหลัง <?php echo $flowDays ?> วัน</span>
     </div>
     <div class="segs head-tabs">
       <a class="seg<?php echo $fSt === '' ? ' on' : '' ?>" href="<?php echo e($pq(array('st' => ''))) ?>">ทั้งหมด</a>

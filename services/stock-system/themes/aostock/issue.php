@@ -109,6 +109,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
             }
+            /* ยกเลิกจากหน้าประวัติ → กลับหน้าประวัติ (21 ต.ค.) */
+            Stock_sendBackToHistory($err !== '' ? 'ยกเลิกใบ ' . $no . ' ไม่สำเร็จ — ' . $err
+                                    : 'ยกเลิกใบตัดออก ' . $voided['no'] . ' แล้ว · คืนเข้าสต๊อก ' . number_format($voided['qty']) . ' ชิ้น');
         } elseif ($act === 'save') {
             $why  = isset($_POST['why'])  ? trim($_POST['why'])  : '';
             $ref  = isset($_POST['ref'])  ? trim($_POST['ref'])  : '';

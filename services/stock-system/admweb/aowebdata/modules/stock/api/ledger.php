@@ -110,6 +110,28 @@ function stock_move_add($branchId, $productId, $type, $qty, $qtyAfter, $unitCost
           array($qtyAfter, $branchId, $productId));
 }
 
+/** คู่ของเอกสารที่ “ยกเลิกเพื่อแก้ไข” — array('from' => เลขที่ใบเดิมที่ใบนี้ทำแทน, 'to' => เลขที่ใบใหม่ที่ทำแทนใบนี้) · ไม่มี = ''
+ *  $kind = RC / IS / AD / SA · $doc = รูปเอกสาร / บิลของหน้าเว็บ (id · edit_of_id · void · void_mode)
+ *  TODO:
+ *    - [x] 21 ต.ค. (ผลทดสอบ): หน้าประวัติบอกว่าใบไหนแก้แทนใบไหน — เดิมขึ้นแค่ “ยกเลิกเพื่อแก้ไข” ต้องไล่หาใบใหม่เอง */
+function Stock_getEditLink($kind, $doc)
+{
+    $out = array('from' => '', 'to' => '');
+    $k   = stock_doc_kinds();
+    if (!isset($k[$kind]) || empty($doc['id'])) {
+        return $out;
+    }
+    $tb = sdb_tb($k[$kind]['tb']);
+    $id = $k[$kind]['id'];
+    if (!empty($doc['edit_of_id'])) {
+        $out['from'] = (string) sdb_val('SELECT doc_no FROM ' . $tb . ' WHERE ' . $id . ' = ?', array((int) $doc['edit_of_id']));
+    }
+    if (!empty($doc['void']) && isset($doc['void_mode']) && $doc['void_mode'] === 'edit') {
+        $out['to'] = (string) sdb_val('SELECT doc_no FROM ' . $tb . ' WHERE edit_of_id = ? ORDER BY ' . $id . ' LIMIT 1', array((int) $doc['id']));
+    }
+    return $out;
+}
+
 /** ใบเดิมที่ร่างนี้ทำแทน (edit_of_id ของใบใหม่) — ต้องเรียกใน sdb_tx */
 function stock_draft_edit_of($kind, $branchId)
 {

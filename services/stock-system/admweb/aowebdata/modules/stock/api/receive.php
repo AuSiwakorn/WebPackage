@@ -65,7 +65,19 @@ function rdraft_remove($sku)
 function rdraft_clear()
 {
     $_SESSION['recv_draft'] = array();
-    unset($_SESSION['draft_edit_of']['RC']);
+    unset($_SESSION['recv_meta'], $_SESSION['draft_edit_of']['RC']);
+}
+
+/** หัวใบรับเข้าที่จำไว้ตอนดึงใบเก่ามาแก้ (เลขที่เอกสารอ้างอิง / หมายเหตุ) — ไม่มี = ค่าว่าง
+ *  TODO:
+ *    - [x] 21 ต.ค. (ผลทดสอบ): เดิมแก้ไขใบรับเข้าแล้วเลขอ้างอิง / หมายเหตุหาย ต้องกรอกใหม่ (ใบตัดออก / ตรวจนับจำไว้อยู่แล้ว) */
+function Stock_getReceiveDraftMeta()
+{
+    $m = isset($_SESSION['recv_meta']) && is_array($_SESSION['recv_meta']) ? $_SESSION['recv_meta'] : array();
+    return array(
+        'ref'  => isset($m['ref'])  ? (string) $m['ref']  : '',
+        'note' => isset($m['note']) ? (string) $m['note'] : '',
+    );
 }
 
 /** แปลงร่างเป็นรายการพร้อมยอดคงเหลือก่อน/หลัง */
@@ -207,6 +219,7 @@ function rdraft_from_receive($doc)
     foreach ($doc['lines'] as $l) {
         $_SESSION['recv_draft'][$l['sku']] = (int) $l['qty'];
     }
+    $_SESSION['recv_meta'] = array('ref' => $doc['ref'], 'note' => $doc['note']);   // หัวใบเดิม (Stock_getReceiveDraftMeta · 21 ต.ค.)
     $_SESSION['draft_edit_of']['RC'] = (int) $doc['id'];
     return rdraft_count();
 }

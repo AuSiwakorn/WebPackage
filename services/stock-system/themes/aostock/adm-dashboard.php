@@ -13,6 +13,7 @@
  *   - [x] S6: ตารางสต๊อกแยกสาขาเลิกใช้ tbl--compact — 5 คอลัมน์ + รายชื่อสินค้า คงรูปตารางบนมือถือไม่พอดีจอ ให้เป็นการ์ดมีชื่อช่องแทน
  *   - [x] 15 ต.ค. (เมนูประวัติแยกหน้า ช่วง 2): ปุ่ม “ดูประวัติ” ในรายการที่ต้องตรวจ → รายการวันนี้ของสาขานั้น (หน้าประวัติรวมไม่มีแล้ว)
  *            ช่อง “ต้องสั่งก่อน” ใส่ td-stack — รายชื่อสินค้าเรียงลงทีละบรรทัด ชิดขวา
+ *   - [x] 21 ต.ค.: เหตุผลเปิดร้านใหม่ตรวจด้วย Stock_checkReopenReason (อย่างน้อย 5 ตัวอักษร — กฎเดียวกับหน้าเปิดร้าน)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -41,8 +42,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['act']) && $_POST['act
     $bb = branches_active();
     if (!csrf_check(isset($_POST['csrf']) ? $_POST['csrf'] : null) || !isset($bb[$rb])) {
         $_SESSION['flash'] = 'เซสชันหมดอายุ หรือไม่พบสาขา';
-    } elseif ($rr === '') {
-        $_SESSION['flash'] = 'การเปิดร้านใหม่หลังปิดต้องระบุเหตุผล';
+    } elseif (($why = Stock_checkReopenReason($rr)) !== '') {
+        $_SESSION['flash'] = $why;               // กฎเดียวกับหน้าเปิดร้าน (21 ต.ค.)
     } elseif (store_reopen($rb, $user, $rr) === null) {
         $_SESSION['flash'] = branch_name($rb) . ' ยังไม่ได้ปิดร้าน';
     } else {
@@ -215,7 +216,7 @@ $__tones = array('ยกเลิกเอกสาร' => 'bdg-out', 'แก้
                     <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
                     <input type="hidden" name="act" value="reopen">
                     <input type="hidden" name="b" value="<?php echo e($r['code']) ?>">
-                    <input class="input" type="text" name="reason" required placeholder="เหตุผลเปิดใหม่" aria-label="เหตุผลเปิดร้านใหม่">
+                    <input class="input" type="text" name="reason" required minlength="5" maxlength="200" placeholder="เหตุผลเปิดใหม่" aria-label="เหตุผลเปิดร้านใหม่">
                     <button class="btn btn-ghost btn-sm" type="submit"><svg class="ico"><use href="#i-store"/></svg> เปิดใหม่</button>
                   </form>
                 <?php } ?>

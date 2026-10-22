@@ -108,6 +108,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
             }
+            /* ยกเลิกจากหน้าประวัติ → กลับหน้าประวัติ (21 ต.ค.) */
+            Stock_sendBackToHistory($err !== '' ? 'ยกเลิกใบ ' . $no . ' ไม่สำเร็จ — ' . $err
+                                    : 'ยกเลิกใบตรวจนับ ' . $voided['no'] . ' แล้ว · ยอดทุกรายการกลับเป็นก่อนตรวจนับ');
         } elseif ($act === 'save') {
             $why  = isset($_POST['why'])  ? trim($_POST['why'])  : '';
             $note = isset($_POST['note']) ? trim($_POST['note']) : '';

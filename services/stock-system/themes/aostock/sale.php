@@ -14,6 +14,7 @@
  *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 3): htmx แตะสินค้า / ปุ่มในตะกร้า / รับเงิน ส่งกลับแค่ตะกร้า + การ์ดที่ยอดเปลี่ยน ($LIVE_PART / $OOB_SKUS)
  *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 4): การ์ดครั้งละ 60 ใบ — htmx ?from= ส่งกลับแค่ชุดถัดไป
  *   - [x] 14 ต.ค.: รับเงินเทียบยอดที่จอเห็น (full) กับตะกร้าจริง — ไม่ตรง = ไม่บันทึก (กันส่วนลดผิดจากยอดบนจอที่ยังไม่อัปเดต)
+ *   - [x] 21 ต.ค.: ช่องรับเงินว่าง = รับพอดี (null) · รับมาน้อยกว่ายอด = ไม่บันทึก (เดิมส่ง 0 แล้วบันทึกว่ารับเท่ายอด)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -56,6 +57,7 @@ $isHx = isset($_SERVER['HTTP_HX_REQUEST']) && $_SERVER['HTTP_HX_REQUEST'] === 't
 $q    = isset($_GET['q']) ? trim($_GET['q']) : '';
 $cat  = isset($_GET['cat']) ? trim($_GET['cat']) : '';
 $err    = '';
+$payErr = '';                        // รับเงินไม่ผ่าน — แสดงซ้ำในตะกร้าข้างปุ่มรับเงินด้วย (แถบบนสุดอยู่นอกจอบน iPad / มือถือ · 21 ต.ค.)
 $done   = null;
 $voided = null;
 /* htmx ส่งกลับส่วนไหน (งานความเร็ว ช่วง 3): แตะสินค้า / ปุ่มในตะกร้า / รับเงิน = แค่ตะกร้า + การ์ดที่ยอดเปลี่ยน
@@ -127,7 +129,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $method = (isset($_POST['method']) && $_POST['method'] === 'transfer') ? 'transfer' : 'cash';
             /* รับสตางค์ได้ — เดิมตัดทุกอย่างที่ไม่ใช่ตัวเลข พิมพ์ 100.50 แล้วกลายเป็น 10,050 (12 ต.ค.) */
             $recvIn = isset($_POST['received']) ? preg_replace('/[^0-9.]/', '', $_POST['received']) : '';
-            $recv   = ($recvIn === '' || !is_numeric($recvIn)) ? 0 : round((float) $recvIn, 2);
+            $recv   = ($recvIn === '' || !is_numeric($recvIn)) ? null : round((float) $recvIn, 2);   // ว่าง = รับพอดี · น้อยกว่ายอด = bill_save ไม่บันทึก
             $vat    = (isset($_POST['vat']) && $_POST['vat'] === '1');
             $netIn  = isset($_POST['net']) ? preg_replace('/[^0-9.]/', '', $_POST['net']) : '';
             $net    = ($netIn === '' || !is_numeric($netIn)) ? null : (float) $netIn;
@@ -144,6 +146,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $done = null;
                 }
             }
+            $payErr = $err;
         }
     }
 

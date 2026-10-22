@@ -17,6 +17,7 @@
  *   - [x] ผลทดสอบ 7 ต.ค. (M7): ยกเลิก / แก้บิลไม่ผ่าน (เช่น ร้านปิดแล้ว) แสดงข้อความ — เดิม redirect เงียบ ๆ
  *   - [x] 15 ต.ค. (เมนูประวัติ ช่วง 2): ปุ่มกรองเป็น 7 กลุ่ม (Stock_getLogGroups) แทน 15 ชนิด · รายการยกเลิกอยู่ในกลุ่มของเอกสารนั้น
  *   - [x] 15 ต.ค. (เมนูประวัติแยกหน้า ช่วง 4): 1 หน้า = 1 กลุ่ม ไม่มี “ทั้งหมด” / แถบปุ่มกรอง · ต้องมีสิทธิ์ของกลุ่ม (Stock_getAllowedLogGroups) · วันย้อนหลังแสดงเฉพาะกลุ่มนั้น
+ *   - [x] 21 ต.ค. (ผลทดสอบ): ยกเลิกใบรับเข้า / ตัดออก / ตรวจนับแล้วกลับมาหน้านี้ (ช่องซ่อน back) · บอกใบเดิม ↔ ใบใหม่ของการแก้ไข (Stock_getEditLink)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -189,7 +190,7 @@ if ($isList) {
     $counts = $lr['counts'];
     /* การ์ดสรุปของกลุ่มทั้งช่วง array(ชื่อ, ตัวเลข, คำอธิบาย) · ยอดขายรวมเฉพาะคนที่ดูรายงานทั้งสาขาได้ */
     $cardOf = array(
-        'sale'    => array('บิลขาย', $counts['sale'], 'ไม่รวมบิลที่ยกเลิก'),
+        'sale'    => array('บิลขาย', max(0, $counts['sale'] - $counts['void']), 'ไม่รวมบิลที่ยกเลิก'),   // 21 ต.ค.: เดิมนับรวมบิลที่ยกเลิกภายหลัง ทั้งที่เขียนว่าไม่รวม
         'receive' => array('ใบรับเข้า', $counts['receive'], 'ยกเลิกรับเข้า ' . number_format($counts['rvoid']) . ' รายการ'),
         'issue'   => array('ใบเบิก / ตัดออก', $counts['issue'], 'ยกเลิกตัดออก ' . number_format($counts['ivoid']) . ' รายการ'),
         'adjust'  => array('ใบตรวจนับ', $counts['adjust'], 'ยกเลิกใบตรวจนับ ' . number_format($counts['avoid']) . ' รายการ'),
@@ -397,11 +398,16 @@ require dirname(__FILE__) . '/inc/header.php';
 <?php /* การ์ดที่ 3 ของแต่ละกลุ่ม: array(ชื่อ, ชนิดที่นับ, หน่วย) */
 $third = array('sale' => array('บิลขาย', 'sale', 'ใบ'), 'receive' => array('ใบรับเข้า', 'receive', 'ใบ'), 'issue' => array('ใบเบิก / ตัดออก', 'issue', 'ใบ'),
                'adjust' => array('ใบตรวจนับ', 'adjust', 'ใบ'), 'return' => array('ใบรับคืน', 'return', 'ใบ'), 'store' => array('เงินเข้า / ออก', 'cash', 'รายการ'));
-$c3 = $third[$t]; ?>
+$c3  = $third[$t];
+$c3n = $counts[$c3[1]];
+if ($t === 'sale') {   /* บิลขาย = ที่ยังไม่ยกเลิก ให้ตรงกับ “ยอดขายวันนี้” หน้าขาย (21 ต.ค. — เดิม 13 กับ 12) */
+    $c3n   = max(0, $counts['sale'] - $counts['void']);
+    $c3[2] = 'ใบ' . ($counts['void'] ? ' · ไม่รวมยกเลิก ' . number_format($counts['void']) : '');
+} ?>
 <section class="mini num" aria-label="สรุปรายการวันนี้">
   <div class="m"><div class="lb">รายการ</div><div class="nm"><?php echo number_format(count($rows)) ?></div><div class="sb">ของสาขาวันนี้</div></div>
   <div class="m"><div class="lb">ของฉัน</div><div class="nm"><?php echo number_format($mine) ?></div><div class="sb">ที่ฉันเป็นคนทำ</div></div>
-  <div class="m"><div class="lb"><?php echo e($c3[0]) ?></div><div class="nm"><?php echo number_format($counts[$c3[1]]) ?></div><div class="sb"><?php echo e($c3[2]) ?></div></div>
+  <div class="m"><div class="lb"><?php echo e($c3[0]) ?></div><div class="nm"><?php echo number_format($c3n) ?></div><div class="sb"><?php echo e($c3[2]) ?></div></div>
 </section>
 
 <section class="card">
@@ -456,6 +462,7 @@ $c3 = $third[$t]; ?>
                     <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
                     <input type="hidden" name="act" value="<?php echo e($b[0]) ?>">
                     <input type="hidden" name="no" value="<?php echo e($adoc['no']) ?>">
+                    <input type="hidden" name="back" value="<?php echo e(hist_url()) ?>"><?php /* ยกเลิกแล้วกลับมาหน้านี้ (Stock_sendBackToHistory) */ ?>
                     <input class="reason-fb" type="text" name="reason" value=""
                            placeholder="หมายเหตุ (จำเป็น)" aria-label="หมายเหตุ <?php echo e($adoc['no']) ?>">
                     <button class="btn btn-ghost btn-sm" type="submit">
@@ -485,6 +492,7 @@ $c3 = $third[$t]; ?>
                     <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
                     <input type="hidden" name="act" value="<?php echo e($b[0]) ?>">
                     <input type="hidden" name="no" value="<?php echo e($idoc['no']) ?>">
+                    <input type="hidden" name="back" value="<?php echo e(hist_url()) ?>">
                     <input class="reason-fb" type="text" name="reason" value=""
                            placeholder="หมายเหตุ (จำเป็น)" aria-label="หมายเหตุ <?php echo e($idoc['no']) ?>">
                     <button class="btn btn-ghost btn-sm" type="submit">
@@ -514,6 +522,7 @@ $c3 = $third[$t]; ?>
                     <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
                     <input type="hidden" name="act" value="<?php echo e($b[0]) ?>">
                     <input type="hidden" name="no" value="<?php echo e($rdoc['no']) ?>">
+                    <input type="hidden" name="back" value="<?php echo e(hist_url()) ?>">
                     <input class="reason-fb" type="text" name="reason" value=""
                            placeholder="หมายเหตุ (จำเป็น)" aria-label="หมายเหตุ <?php echo e($rdoc['no']) ?>">
                     <button class="btn btn-ghost btn-sm" type="submit">
@@ -565,6 +574,17 @@ $c3 = $third[$t]; ?>
                 — <?php echo e($bill['void_reason']) ?>
               </p>
               <?php } ?>
+            <?php } ?>
+            <?php /* ใบเดิม ↔ ใบใหม่ของการแก้ไข (Stock_getEditLink · 21 ต.ค.) */
+            $lk = ($bill !== null) ? array('SA', $bill) : (($rdoc !== null) ? array('RC', $rdoc) : (($idoc !== null) ? array('IS', $idoc) : (($adoc !== null) ? array('AD', $adoc) : null)));
+            $el = $lk ? Stock_getEditLink($lk[0], $lk[1]) : null;
+            $dn = ($lk && $lk[0] === 'SA') ? 'บิล' : 'ใบ';
+            if ($el && ($el['from'] !== '' || $el['to'] !== '')) { ?>
+              <p class="tl-link">
+                <svg class="ico"><use href="#i-arrow"/></svg>
+                <?php if ($el['from'] !== '') { ?><span>แก้ไขแทน<?php echo $dn ?>เดิม <b><?php echo e($el['from']) ?></b></span><?php } ?>
+                <?php if ($el['to'] !== '') { ?><span>ออก<?php echo $dn ?>ใหม่แทนแล้ว: <b><?php echo e($el['to']) ?></b></span><?php } ?>
+              </p>
             <?php } ?>
             <?php if ($r['detail']) { ?>
               <dl class="tl-d">

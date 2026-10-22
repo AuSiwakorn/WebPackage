@@ -12,6 +12,7 @@
  *   - [x] 12 ต.ค.: ปุ่ม “ลบหมวดนี้” ถามยืนยันก่อนลบ (เดิมลบเลย)
  *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 4): ตารางของแต่ละหมวดครั้งละ 60 แถว + ปุ่ม “แสดงเพิ่ม” (htmx ?c=&from=) · หมวดที่พับอยู่โหลดตารางตอนกดเปิด (?part=table)
  *         — เดิมวาดสินค้าทุกตัวทุกหมวด (3,000 ตัว = 2.6 MB)
+ *   - [x] 21 ต.ค. (ผลทดสอบ): ถามก่อนลบด้วยกล่องยืนยันของระบบ (data-confirm="ask") แทน confirm() ของเบราว์เซอร์
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -137,6 +138,7 @@ if (isset($_SERVER['HTTP_HX_REQUEST']) && $_SERVER['HTTP_HX_REQUEST'] === 'true'
 
 $branch         = 'ALL';
 $NO_BRANCH_PICK = true;
+$CONFIRM_MODAL  = true;                  // ถามก่อนลบหมวดด้วยกล่องยืนยันของระบบ (data-confirm="ask" · 21 ต.ค.)
 $PAGE_TITLE     = 'หมวดสินค้า';
 $PAGE_SUB       = $sum['cats'] . ' หมวด · สินค้า ' . $sum['items'] . ' รายการ · หมวดใช้ร่วมกันทุกสาขา';
 $NAV_ACTIVE     = 'adm-categories.php';
@@ -195,7 +197,8 @@ require dirname(__FILE__) . '/inc/header.php';
     </summary>
     <?php if ($x['count'] === 0) { ?>
       <?php /* ถามก่อนลบแบบเดียวกับหน้าหมวดสินค้าฝั่งพนักงาน (12 ต.ค. — เดิมกดแล้วลบเลย) */ ?>
-      <form class="adm-sec" method="post" action="adm-categories.php" data-ask="<?php echo e('ลบหมวด “' . $c . '” ?') ?>" onsubmit="return confirm(this.dataset.ask);">
+      <form class="adm-sec" method="post" action="adm-categories.php" data-confirm="ask" data-ask="<?php echo e('ลบหมวด “' . $c . '” ?') ?>"
+            data-ask-sub="หมวดนี้ยังไม่มีสินค้า · ลบแล้วเพิ่มกลับได้ภายหลัง" data-ask-ok="ลบหมวด">
         <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
         <input type="hidden" name="act" value="delete">
         <input type="hidden" name="c" value="<?php echo e($c) ?>">

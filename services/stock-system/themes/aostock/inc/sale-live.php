@@ -18,6 +18,9 @@
  *   - [x] 14 ต.ค. (ผู้ใช้เลือก): แตะสินค้าตัวใหม่ขึ้นตะกร้าทันที — แถวเป็น $row ใช้ทั้งวาดตะกร้าและแม่แบบ #pick-row · การ์ดมี data-pick · hx-ext="ao-live" (คำตอบที่มาช้าลงตัวที่อยู่บนจอ)
  *   - [x] 15 ต.ค. (เมนูประวัติแยกหน้า ช่วง 4): ปุ่ม “ดูประวัติบิลวันนี้” เฉพาะคนที่มีสิทธิ์ดูประวัติขาย
  *   - [x] 21 ต.ค. (ผู้ใช้ขอ): สาขาที่ไม่ขาย VAT (Stock_isBranchVat) ไม่มีปุ่มเลือก VAT / ไม่ VAT — ช่องซ่อน vat=0 แทน
+ *   - [x] 21 ต.ค. (ไล่แก้ผลทดสอบ 20 ต.ค.): รับเงินสดน้อยกว่ายอด = ปุ่มรับเงินกดไม่ได้ + ข้อความ (#recv-err) · รับเงินไม่ผ่านแสดงข้างปุ่ม (#pay-srv-err)
+ *         · แก้ไขบิล → ส่วนลด / ประเภทบิล / วิธีจ่ายเดิมเป็นค่าตั้งต้น (Stock_getBillRedo) · ยอดรวมขยับทันทีตอนแก้จำนวน (window.saleSync)
+ *         · #total data-v ทศนิยม 2 ตำแหน่ง (เดิม (int) — ยอดมีสตางค์คิดเงินทอนผิด)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -61,8 +64,10 @@ $tile = function ($p, $oob) use ($base) {
             <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
             <input type="hidden" name="act" value="add">
             <input type="hidden" name="sku" value="<?php echo e($p['sku']) ?>">
+            <?php /* ชื่อปุ่มสั้น ๆ ให้โปรแกรมอ่านหน้าจอ (21 ต.ค. — เดิมอ่านทุกข้อความในการ์ดต่อกัน หมวด ชื่อ ราคา คงเหลือ) */ ?>
             <button class="good<?php echo $p['qty'] <= 0 ? ' is-out' : '' ?><?php echo $inCart > 0 ? ' is-in' : '' ?>"
-                    type="submit" <?php echo $p['qty'] <= 0 ? 'disabled' : '' ?>>
+                    type="submit" <?php echo $p['qty'] <= 0 ? 'disabled' : '' ?>
+                    aria-label="<?php echo e($p['name'] . ' ' . money2($p['price']) . ' บาท · ' . ($p['qty'] <= 0 ? 'หมด' : 'เหลือ ' . number_format($p['qty']) . ' ' . $p['unit'])) ?>">
               <?php if ($inCart > 0) { ?><i class="g-bdg"><?php echo $inCart ?></i><?php } ?>
               <?php echo thumb_html($p, 'thumb--lg') ?>
               <span class="g-cat"><?php echo e($p['cat']) ?></span>
@@ -218,20 +223,45 @@ if ($LIVE_PART === 'more') {
           <input type="hidden" name="act" value="pay">
           <input type="hidden" name="full" value="<?php echo e(number_format($tot, 2, '.', '')) ?>"><?php /* ยอดที่จอเห็น — ไม่ตรงตะกร้าจริง = ไม่บันทึก */ ?>
 
+          <?php /* กด “แก้ไขบิลนี้” → ส่วนลด (บาท) / ประเภทบิล / วิธีจ่ายของบิลเดิมเป็นค่าตั้งต้น (Stock_getBillRedo · 21 ต.ค. ผู้ใช้เลือก)
+                   ราคาเต็มตอนนี้ไม่มากกว่าส่วนลดเดิม (แก้จำนวนลง) = ใช้ราคาเต็มแล้วบอกให้ใส่ยอดใหม่ */
+          $redo    = Stock_getBillRedo();
+          $redoOff = ($redo !== null) ? $redo['discount'] : 0;
+          $netV    = $tot;
+          $redoBad = false;
+          if ($redoOff > 0 && can($user, 'discount')) {
+              if ($tot - $redoOff >= 0.01) { $netV = round($tot - $redoOff, 2); } else { $redoBad = true; }
+          }
+          $totV = number_format($tot, 2, '.', '');   // data-v ทศนิยม 2 ตำแหน่ง — เดิม (int) ตัดสตางค์ทิ้ง ยอด 99.50 คิดเงินทอนจาก 99 ?>
+          <?php if ($redo !== null) { ?>
+          <p class="pay-redo">
+            <svg class="ico" aria-hidden="true"><use href="#i-arrow"/></svg>
+            <span>แก้ไขแทนบิล <b><?php echo e($redo['no']) ?></b>
+              <?php if ($redoOff > 0 && !can($user, 'discount')) { ?>
+                — บิลเดิมลด <?php echo money2($redoOff) ?> บาท แต่คุณไม่มีสิทธิ์ให้ส่วนลด บิลใหม่จะเป็นราคาเต็ม
+              <?php } elseif ($redoBad) { ?>
+                — ส่วนลดเดิม <?php echo money2($redoOff) ?> บาท ไม่น้อยกว่าราคาเต็มตอนนี้ กรอกยอดที่ต้องชำระใหม่
+              <?php } else { ?>
+                · ใช้<?php echo $redoOff > 0 ? 'ส่วนลดเดิม ' . money2($redoOff) . ' บาท · ' : '' ?>ประเภทบิลและวิธีจ่ายเดิมให้แล้ว
+              <?php } ?>
+            </span>
+          </p>
+          <?php } ?>
+
           <?php /* ยอดที่ต้องชำระแก้ได้ — ลดราคาให้ลูกค้า ระบบลงเป็น "ส่วนลด" ในบิลให้เอง (เพิ่มเกินราคาจริงไม่ได้)
                    ไม่มีสิทธิ์ให้ส่วนลด = แสดงยอดเต็มอย่างเดียว (ช่วงที่ 11 — ฝั่งเซิร์ฟเวอร์คิดราคาเต็มเสมออยู่แล้ว) */ ?>
           <?php if (!can($user, 'discount')) { ?>
           <div class="pay-tot">
             <span>ยอดที่ต้องชำระ</span>
-            <b class="num" id="total" data-v="<?php echo (int) $tot ?>"><?php echo money2($tot) ?></b>
+            <b class="num" id="total" data-v="<?php echo e($totV) ?>"><?php echo money2($tot) ?></b>
           </div>
           <?php } else { ?>
           <div class="pay-tot pay-net">
             <label for="net">ยอดที่ต้องชำระ<small>แก้ได้ถ้าลดราคาให้ลูกค้า</small></label>
             <input class="num" type="text" inputmode="decimal" id="net" name="net" autocomplete="off"
-                   value="<?php echo e(rtrim(rtrim(number_format($tot, 2, '.', ''), '0'), '.')) ?>" data-full="<?php echo e($tot) ?>"
+                   value="<?php echo e(rtrim(rtrim(number_format($netV, 2, '.', ''), '0'), '.')) ?>" data-full="<?php echo e($totV) ?>"
                    aria-label="ยอดที่ต้องชำระ">
-            <b class="num" id="total" data-v="<?php echo (int) $tot ?>" hidden><?php echo money2($tot) ?></b>
+            <b class="num" id="total" data-v="<?php echo e($totV) ?>" hidden><?php echo money2($tot) ?></b>
           </div>
           <div class="pay-disc" id="pay-disc" hidden>
             <div><span>ราคาเต็ม</span><b class="num"><?php echo money2($tot) ?></b></div>
@@ -246,10 +276,11 @@ if ($LIVE_PART === 'more') {
           if (!Stock_isBranchVat($code)) { ?>
           <input type="hidden" name="vat" value="0">
           <?php } else {
-          $vatMiss = Stock_getVatMissing($code); ?>
-          <div class="pay-how pay-vat">
-            <label class="on"><input type="radio" name="vat" value="0" checked> ไม่ VAT</label>
-            <label<?php echo $vatMiss ? ' class="off"' : '' ?>><input type="radio" name="vat" value="1"<?php echo $vatMiss ? ' disabled aria-describedby="vat-off"' : '' ?>> VAT</label>
+          $vatMiss = Stock_getVatMissing($code);
+          $vatOn   = ($redo !== null && $redo['vat'] && !$vatMiss);   // แก้ไขบิล VAT → เลือก VAT ไว้ให้ ?>
+          <div class="pay-how pay-vat" role="radiogroup" aria-label="ประเภทบิล">
+            <label<?php echo $vatOn ? '' : ' class="on"' ?>><input type="radio" name="vat" value="0"<?php echo $vatOn ? '' : ' checked' ?>> ไม่ VAT</label>
+            <label<?php echo $vatMiss ? ' class="off"' : ($vatOn ? ' class="on"' : '') ?>><input type="radio" name="vat" value="1"<?php echo $vatMiss ? ' disabled aria-describedby="vat-off"' : ($vatOn ? ' checked' : '') ?>> VAT</label>
           </div>
           <?php if ($vatMiss) { ?>
           <?php /* หน้าขายมีแต่พนักงาน (ผู้ดูแล / บัญชีถูกพาไปหน้าของตัวเอง) — จึงบอกให้แจ้งคนที่ตั้งได้ ไม่มีลิงก์ */ ?>
@@ -258,13 +289,14 @@ if ($LIVE_PART === 'more') {
           <?php } ?>
           <?php } ?>
 
-          <div class="pay-how" id="pay-how">
-            <label class="on"><input type="radio" name="method" value="cash" checked> เงินสด</label>
-            <label><input type="radio" name="method" value="transfer"> โอน / พร้อมเพย์</label>
+          <?php $byTr = ($redo !== null && $redo['method'] === 'transfer'); ?>
+          <div class="pay-how" id="pay-how" role="radiogroup" aria-label="วิธีชำระเงิน">
+            <label<?php echo $byTr ? '' : ' class="on"' ?>><input type="radio" name="method" value="cash"<?php echo $byTr ? '' : ' checked' ?>> เงินสด</label>
+            <label<?php echo $byTr ? ' class="on"' : '' ?>><input type="radio" name="method" value="transfer"<?php echo $byTr ? ' checked' : '' ?>> โอน / พร้อมเพย์</label>
           </div>
 
           <?php /* รับสตางค์ได้ — ยอดลงตัวแสดงเป็นบาทเต็ม (980) มีสตางค์แสดง 2 ตำแหน่ง (99.50) · เดิม (int) ตัดเป็น 99 เงินทอนติดลบ (12 ต.ค.) */
-          $totIn = (abs($tot - round($tot)) < 0.005) ? (string) (int) round($tot) : number_format($tot, 2, '.', ''); ?>
+          $totIn = (abs($netV - round($netV)) < 0.005) ? (string) (int) round($netV) : number_format($netV, 2, '.', '');   // $netV = ยอดหลังส่วนลดเดิม (แก้ไขบิล) ?>
           <div id="cash-box">
             <span class="lbl lbl-mt">รับเงินมา</span>
             <div class="cash-in">
@@ -275,9 +307,9 @@ if ($LIVE_PART === 'more') {
             <div class="amt-quick" id="recv-quick">
               <button type="button" data-set="<?php echo e($totIn) ?>">พอดี</button>
               <?php
-              $seen = array(round($tot, 2));
+              $seen = array(round($netV, 2));
               foreach (array(100, 500, 1000) as $step) {
-                  $v = (int) (ceil($tot / $step) * $step);
+                  $v = (int) (ceil($netV / $step) * $step);
                   if (in_array($v, $seen)) { continue; }
                   $seen[] = $v;
                   echo '<button type="button" data-set="' . $v . '">' . money($v) . '</button>';
@@ -285,7 +317,14 @@ if ($LIVE_PART === 'more') {
               ?>
             </div>
             <div class="kv1 kv-chg"><span>เงินทอน</span><b class="num" id="change">0.00</b></div>
+            <?php /* รับมาน้อยกว่ายอด = ปุ่มรับเงินกดไม่ได้ (bill_save ตรวจซ้ำ · 21 ต.ค.) */ ?>
+            <p class="pay-err" id="recv-err" role="alert" hidden>รับเงินมาน้อยกว่ายอดที่ต้องชำระ — กรอกเงินที่รับมาให้ครบ</p>
           </div>
+
+          <?php /* รับเงินไม่ผ่าน — ข้อความอยู่ข้างปุ่มด้วย (แถบบนสุดอยู่นอกจอบน iPad / มือถือ · 21 ต.ค.) */ ?>
+          <?php if (!empty($payErr)) { ?>
+          <p class="pay-err" id="pay-srv-err" role="alert"><?php echo e($payErr) ?></p>
+          <?php } ?>
 
           <button class="btn-xl btn-pay" type="submit" data-qty-guard="pay">
             <svg class="ico"><use href="#i-check"/></svg> รับเงินและบันทึกบิล
@@ -313,10 +352,10 @@ if ($LIVE_PART === 'more') {
         </a>
         <?php } ?>
       <?php } ?>
-      <?php $myBills = Stock_getMyBillsToday($code, $user, '', '', 0);   /* บิลที่ลืมพิมพ์ — ดู / พิมพ์ได้ทุกคน (เฉพาะบิลของตัวเอง) */ ?>
-      <?php if ($myBills > 0) { ?>
+      <?php $myBills = Stock_getMyBillCounts($code, $user);   /* บิลที่ลืมพิมพ์ — ดู / พิมพ์ได้ทุกคน (เฉพาะบิลของตัวเอง · รายการมีบิลที่ยกเลิกด้วย) */ ?>
+      <?php if ($myBills['paid'] + $myBills['void'] > 0) { ?>
         <button type="button" class="btn btn-ghost btn-block mb-open" data-mb-open>
-          <svg class="ico"><use href="#i-print"/></svg> บิลของฉันวันนี้ (<?php echo number_format($myBills) ?> ใบ)
+          <svg class="ico"><use href="#i-print"/></svg> บิลของฉันวันนี้ (<?php echo number_format($myBills['paid']) ?> ใบ<?php echo $myBills['void'] ? ' · ยกเลิก ' . number_format($myBills['void']) : '' ?>)
         </button>
       <?php } ?>
     </div>
@@ -334,6 +373,8 @@ if ($LIVE_PART === 'more') {
     var dbox = document.getElementById('pay-disc');
     var disc = document.getElementById('disc');
     var nerr = document.getElementById('net-err');
+    var rerr = document.getElementById('recv-err');
+    var netOk = true;
     var fmt2 = function (n) { return n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
     /* ค่าในช่องรับเงิน: ลงตัว = บาทเต็ม · มีสตางค์ = 2 ตำแหน่ง (แบบเดียวกับ $totIn ฝั่ง PHP) */
     var plain = function (n) { return Math.abs(n - Math.round(n)) < 0.005 ? String(Math.round(n)) : n.toFixed(2); };
@@ -344,6 +385,7 @@ if ($LIVE_PART === 'more') {
       var raw = String(net.value).replace(/[^0-9.]/g, '');
       var v   = raw === '' ? 0 : Number(raw);
       var ok  = v > 0 && v <= full + 0.001;
+      netOk = ok;
       tot = ok ? v : full;
       var d = Math.max(0, full - tot);
       dbox.hidden = !(ok && d >= 0.01);
@@ -351,8 +393,6 @@ if ($LIVE_PART === 'more') {
       disc.textContent = '−' + fmt2(d);
       totEl.setAttribute('data-v', String(tot));
       totEl.textContent = fmt2(tot);
-      var pay = document.querySelector('.btn-pay');
-      if (pay) { pay.disabled = !ok; }
       if (rec && !rec.getAttribute('data-touched')) { rec.value = plain(tot); }
       var q0 = document.querySelector('#recv-quick button');
       if (q0) { q0.setAttribute('data-set', plain(tot)); }
@@ -364,14 +404,46 @@ if ($LIVE_PART === 'more') {
     }
     if (rec) { rec.addEventListener('input', function () { this.setAttribute('data-touched', '1'); }); }
 
+    /* ราคาเต็มใหม่จากจำนวนที่ยังส่งไม่ถึงเซิร์ฟเวอร์ (sums ใน inc/footer.php · 21 ต.ค.) — เดิมยอดเก่าค้างจนเซิร์ฟเวอร์ตอบ
+       ส่วนลด (บาท) คงเดิม · ยังจางไว้ (.is-dirty) จนตะกร้าวาดใหม่จากเซิร์ฟเวอร์ */
+    window.saleSync = function (sum) {
+      if (!document.body.contains(totEl)) { return; }
+      var off = net ? Math.max(0, full - tot) : 0;
+      full = sum;
+      var fb = dbox ? dbox.querySelector('b') : null;
+      if (fb) { fb.textContent = fmt2(sum); }
+      if (net) {
+        net.setAttribute('data-full', String(sum));
+        net.value = plain(Math.max(0, sum - off));
+        netSync();
+        return;
+      }
+      tot = sum;
+      totEl.setAttribute('data-v', String(sum));
+      totEl.textContent = fmt2(sum);
+      if (rec && !rec.getAttribute('data-touched')) { rec.value = plain(sum); }
+      var q0 = document.querySelector('#recv-quick button');
+      if (q0) { q0.setAttribute('data-set', plain(sum)); }
+      paint();
+    };
+
+    /* เงินทอน + ปุ่มรับเงิน: ยอดชำระผิด หรือเงินสดที่รับมาน้อยกว่ายอด (ช่องว่าง = รับพอดี) = กดไม่ได้ (21 ต.ค.) */
     function paint() {
-      if (!rec || !chg) { return; }
-      var v = Number(String(rec.value).replace(/[^0-9.]/g, '')) || 0;
-      var d = Math.round((v - tot) * 100) / 100;
-      chg.textContent = (d < 0 ? '-' : '') + Math.abs(d).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-      chg.className = 'num' + (d < 0 ? ' neg' : '');
+      var raw = rec ? String(rec.value).replace(/[^0-9.]/g, '') : '';
+      var d   = Math.round(((Number(raw) || 0) - tot) * 100) / 100;
+      if (chg) {
+        chg.textContent = (d < 0 ? '-' : '') + Math.abs(d).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        chg.className = 'num' + (d < 0 ? ' neg' : '');
+      }
+      var cashIn = document.querySelector('#pay-how input[value="cash"]');
+      var short  = !!rec && raw !== '' && d < 0 && (!cashIn || cashIn.checked);
+      if (rerr) { rerr.hidden = !short; }
+      var fm  = totEl.closest('form'), pay = fm ? fm.querySelector('.btn-pay') : null;   // ปุ่มของตะกร้า (กล่องยืนยันก็มี .btn-pay)
+      if (pay) { pay.disabled = !netOk || short; }
     }
-    if (rec) { rec.addEventListener('input', paint); paint(); }
+    if (rec) { rec.addEventListener('input', paint); }
+    /* แก้ไขบิลที่มีส่วนลด: ยอดชำระเริ่มที่ราคาเต็ม − ส่วนลดเดิม → คิดส่วนลด / เงินทอนตามนั้นตั้งแต่แรก */
+    if (net && String(net.value) !== plain(full)) { netSync(); } else { paint(); }
 
     var quick = document.getElementById('recv-quick');
     if (quick && rec) {
@@ -409,6 +481,7 @@ if ($LIVE_PART === 'more') {
           labels[k].className = (labels[k].querySelector('input').checked) ? 'on' : '';
         }
         box.style.display = cash ? '' : 'none';
+        paint();                                       // โอน = ไม่เช็กเงินที่รับมา
       };
       for (var j = 0; j < labels.length; j++) {
         labels[j].querySelector('input').addEventListener('change', sync);

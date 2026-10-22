@@ -136,7 +136,7 @@ function logout_user()
     remember_forget();                     // ลบการจดจำของเครื่องนี้
     /* ล้างเฉพาะคีย์ของ POS — session ใช้ร่วมกับหลังบ้าน admweb */
     $personal = array('user', 'pos_login_time', 'cart', 'recv_draft', 'issue_draft', 'issue_meta',
-                      'issue_flash', 'adj_draft', 'adj_meta', 'adj_snap', 'draft_edit_of');
+                      'issue_flash', 'adj_draft', 'adj_meta', 'adj_snap', 'draft_edit_of', 'recv_meta', 'bill_redo');
     foreach ($personal as $k) {
         unset($_SESSION[$k]);
     }

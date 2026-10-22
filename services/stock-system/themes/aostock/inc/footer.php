@@ -28,6 +28,10 @@
  *         · ลืมตัวเลขที่ยังไม่ส่งเฉพาะตอนกดปุ่มล้างใบ (เดิมแตะตรงไหนของหัวใบก็ลืม)
  *   - [x] 20 ต.ค. (Enter / ยิงบาร์โค้ดแล้วกล่องยืนยันขึ้น · ผู้ใช้เลือก): Enter ในช่องของใบนำเข้า / ตัดออก / ตรวจนับไม่บันทึกใบ — บันทึกได้ทางกดปุ่มเท่านั้น
  *         · กล่องยืนยันของ 3 หน้านี้วางโฟกัสที่ตัวกล่อง (เดิมที่ปุ่มยืนยัน — ยิงบาร์โค้ด 2 ครั้ง = บันทึกใบโดยไม่มีใครกดยืนยัน)
+ *   - [x] 21 ต.ค. (ไล่แก้ผลทดสอบ 20 ต.ค.): ข้อความตรวจฟอร์มของเบราว์เซอร์เป็นภาษาไทย (invalid → setCustomValidity)
+ *         · ใส่จำนวนเกินที่ใส่ได้ = ข้อความล่างจอ (#qty-tip) แทนการหยุดเงียบ ๆ
+ *         · หน้าขาย: ราคา × จำนวนของแถว + ยอดที่ต้องชำระ คิดในเครื่องทันที (window.saleSync) · ส่วนลดที่พิมพ์ไว้ไม่หายเมื่อแก้จำนวน
+ *         · รับเงิน / แก้ / ยกเลิกบิลแล้วเลื่อนจอไปให้เห็นแถบผล (#sale-flash)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -135,6 +139,11 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
   <svg class="ico"><use href="#i-info"/></svg>
   <span id="ld-err-t"></span>
   <button class="icon-btn" type="button" id="ld-err-x" aria-label="ปิด"><svg class="ico"><use href="#i-x"/></svg></button>
+</div>
+<?php /* ใส่จำนวนเกินที่ใส่ได้ (+ / แตะการ์ด / พิมพ์เกิน) — บอกแทนการหยุดเงียบ ๆ (21 ต.ค. · คู่มือหน้า 12) */ ?>
+<div class="alert alert-warn ld-err qty-tip" id="qty-tip" role="status" aria-live="polite" hidden>
+  <svg class="ico"><use href="#i-info"/></svg>
+  <span id="qty-tip-t"></span>
 </div>
 
 <!-- htmx: สลับเฉพาะส่วนที่เปลี่ยน ไม่ต้องโหลดหน้าใหม่ (เก็บไฟล์ไว้ในเครื่อง ไม่พึ่ง CDN) -->
@@ -285,6 +294,21 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
   /* ตัวเลขที่คิดจากจำนวนได้ทันที (ยอดเงินรอเซิร์ฟเวอร์ — จางไว้ใน app.css)
      แถว: คงเหลือ → หลังรับเข้า / ตัดออก (data-dir ของ #pick-row) · ราคา × จำนวน (หน้าขาย) · ส่วนต่างที่นับ (ตรวจนับ) */
   var num = function (s) { return parseInt(String(s).replace(/[^\d-]/g, ''), 10) || 0; };
+  var baht = function (s) { return parseFloat(String(s).replace(/[^\d.]/g, '')) || 0; };
+  /* ใส่เกินที่ใส่ได้ → ข้อความล่างจอ 3 วินาที · ใบนำเข้า / ตรวจนับ = เพดานต่อรายการ · ขาย / ตัดออก = ของที่เหลือในสต๊อก */
+  var tipEl = document.getElementById('qty-tip'), tipTm = null;
+  function maxTip(inp, max) {
+    if (!tipEl) { return; }
+    var li = inp.closest('li'), tpl = document.getElementById('pick-row');
+    var dir = tpl ? parseInt(tpl.getAttribute('data-dir') || '0', 10) : 0;
+    var nm = li ? li.querySelector('.cl-t b') : null;
+    document.getElementById('qty-tip-t').textContent = (nm ? nm.textContent.trim() + ' — ' : '')
+      + ((dir > 0 || (li && li.hasAttribute('data-have'))) ? 'ใส่ได้สูงสุด ' + commas(String(max)) + ' ต่อรายการ'
+                                                            : 'เหลือในสต๊อกแค่ ' + commas(String(max)) + ' ใส่เพิ่มไม่ได้');
+    tipEl.hidden = false;
+    if (tipTm) { clearTimeout(tipTm); }
+    tipTm = setTimeout(function () { tipEl.hidden = true; }, 3000);
+  }
   function rowLocal(li, v) {
     var box = li.closest('.sale-cart'), tpl = box ? box.querySelector('#pick-row') : null;
     var dir = tpl ? parseInt(tpl.getAttribute('data-dir') || '0', 10) : 0;
@@ -295,6 +319,9 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
       if (dir < 0) { a.classList.toggle('zero', after <= 0); }
     }
     if (q) { q.textContent = commas(String(v)); }
+    /* หน้าขาย: ราคา × จำนวน ของแถวคิดในเครื่องทันที (21 ต.ค. — เดิมยอดเก่าค้างจนเซิร์ฟเวอร์ตอบ) */
+    var pr = li.querySelector('[data-f="price"]'), sm = li.querySelector('[data-f="sum"]');
+    if (pr && sm) { sm.textContent = commas((baht(pr.textContent) * v).toFixed(2)); }
     if (li.hasAttribute('data-have')) {
       var d = v - num(li.getAttribute('data-have')), c = li.querySelector('.dchip'), mv = li.querySelector('.moved');
       if (mv) { mv.parentNode.removeChild(mv); }                 // นับใหม่แล้ว = รับรู้ยอดที่เปลี่ยน (เซิร์ฟเวอร์ได้ seen)
@@ -316,13 +343,15 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
   }
   function sums(box) {
     if (!box) { return; }
-    var rows = box.querySelectorAll('.cart-list li'), n = 0, all = 0, same = 0, over = 0, short = 0, net = 0;
+    var rows = box.querySelectorAll('.cart-list li'), n = 0, all = 0, same = 0, over = 0, short = 0, net = 0, money = 0, priced = false;
     for (var k = 0; k < rows.length; k++) {
       var i = rows[k].querySelector('input[data-qty]');
       if (!i) { continue; }
       var v = num(i.value);
       n++;
       all += v;
+      var pe = rows[k].querySelector('[data-f="price"]');
+      if (pe) { priced = true; money += baht(pe.textContent) * v; }
       if (rows[k].hasAttribute('data-have')) {
         var d = v - num(rows[k].getAttribute('data-have'));
         net += d;
@@ -340,6 +369,7 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
       return;
     }
     if (sub) { sub.textContent = n + ' รายการ · ' + commas(String(all)) + ' ชิ้น'; }
+    if (priced && window.saleSync) { window.saleSync(Math.round(money * 100) / 100); }   // หน้าขาย: ยอดที่ต้องชำระ (inc/sale-live.php)
     if (tot) {
       tot.setAttribute('data-v', all);
       pcs(tot, commas(String(all)));
@@ -386,6 +416,7 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
     var b = bounds(inp);
     var v = parseInt(String(inp.value).replace(/\D/g, ''), 10) || 0;
     var n = Math.max(b[0], Math.min(b[1], v + d));
+    if (d > 0 && v + d > b[1]) { maxTip(inp, b[1]); }
     if (n === v) { return; }
     want[inp.getAttribute('data-sku')] = n;
     paint(inp, n);
@@ -444,6 +475,7 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
     var sku = i.getAttribute('data-sku'), s = String(i.value).replace(/\D/g, '');
     if (s === '') { delete want[sku]; return; }
     var b = bounds(i);
+    if (parseInt(s, 10) > b[1]) { maxTip(i, b[1]); }
     want[sku] = Math.max(b[0], Math.min(b[1], parseInt(s, 10)));
     paint(i, want[sku]);
     lastTap = Date.now();
@@ -512,7 +544,10 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
     if (!t || t.id !== 'sale-cart') { return; }
     var rec = document.getElementById('received');
     var pick = function (n) { var r = t.querySelector('input[name="' + n + '"]:checked'); return r ? r.value : null; };
-    keep = { rec: (rec && rec.getAttribute('data-touched')) ? rec.value : null, vat: pick('vat'), method: pick('method') };
+    /* ส่วนลดที่พิมพ์ไว้ (บาท) ไม่หายเมื่อแก้จำนวน — ยอดชำระใหม่ = ราคาเต็มใหม่ − ส่วนลดเดิม (21 ต.ค. — เดิมกลับเป็นราคาเต็มเงียบ ๆ) */
+    var nt = document.getElementById('net'), raw = nt ? String(nt.value).replace(/[^0-9.]/g, '') : '';
+    var off = (raw !== '') ? Math.round((Number(nt.getAttribute('data-full')) - Number(raw)) * 100) / 100 : 0;
+    keep = { rec: (rec && rec.getAttribute('data-touched')) ? rec.value : null, vat: pick('vat'), method: pick('method'), off: off > 0 ? off : 0 };
   });
   function restore() {
     if (!keep) { return; }
@@ -523,6 +558,12 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
       var r = k[n] !== null ? c.querySelector('input[name="' + n + '"][value="' + k[n] + '"]') : null;
       if (r && !r.checked && !r.disabled) { r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true })); }   // VAT ที่สาขายังตั้งไม่ครบ = ปิดไว้ ไม่ติ๊กคืน
     });
+    var nt = document.getElementById('net');
+    if (nt && k.off > 0) {
+      var nv = Math.max(0, Number(nt.getAttribute('data-full')) - k.off);
+      nt.value = Math.abs(nv - Math.round(nv)) < 0.005 ? String(Math.round(nv)) : nv.toFixed(2);
+      nt.dispatchEvent(new Event('input', { bubbles: true }));
+    }
     var rec = document.getElementById('received');
     if (rec && k.rec !== null) {
       rec.value = k.rec;
@@ -732,7 +773,13 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
     var curForm = null;      /* ฟอร์มที่กำลังยืนยัน */
     var lastEl  = null;
 
-    var REASONS = ['กรอกจำนวนผิด', 'คิดเงินผิด', 'ลูกค้าเปลี่ยนใจ', 'ยิงสินค้าผิดตัว'];
+    /* ปุ่มเหตุผลสำเร็จรูปแยกตามชนิดเอกสาร (21 ต.ค. — เดิมใบรับเข้า / ตัดออก / ตรวจนับขึ้น “คิดเงินผิด / ลูกค้าเปลี่ยนใจ” ของหน้าขาย) */
+    var REASONS = {
+      bill:  ['กรอกจำนวนผิด', 'คิดเงินผิด', 'ลูกค้าเปลี่ยนใจ', 'ยิงสินค้าผิดตัว'],
+      recv:  ['กรอกจำนวนผิด', 'เลือกสินค้าผิดตัว', 'ใส่เลขเอกสารผิด', 'ของมาไม่ครบ'],
+      issue: ['กรอกจำนวนผิด', 'เลือกสินค้าผิดตัว', 'เลือกเหตุผลผิด', 'ได้ของคืนแล้ว'],
+      adj:   ['นับผิด', 'เลือกสินค้าผิดตัว', 'นับซ้ำ', 'เจอของเพิ่มภายหลัง']
+    };
 
     /* ค่าทุกตัวที่มาจากหน้าเว็บ (ชื่อสินค้า เลขอ้างอิง เหตุผล ฯลฯ) ต้องผ่าน esc() ก่อนต่อเป็น HTML ของกล่องยืนยัน (ช่วงที่ 10 — กัน XSS) */
     function esc(s) {
@@ -871,10 +918,10 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
       } else if (isEdit) {
         h += isRecv
            ? '<p class="cf-lead">เอกสารที่บันทึกแล้วแก้ตัวเลขทับไม่ได้ ระบบจะ<b>ถอนยอดของใบเดิมออกจากสต๊อก</b> '
-             + 'แล้ว<b>ดึงรายการทั้งหมดกลับเข้าใบ</b>ให้ ไม่ต้องเลือกสินค้าใหม่ '
+             + 'แล้ว<b>ดึงรายการทั้งหมดกลับเข้าใบ</b>ให้ พร้อมเลขอ้างอิงและหมายเหตุเดิม ไม่ต้องเลือกสินค้าใหม่ '
              + 'แก้เฉพาะแถวที่ผิดแล้วบันทึกใหม่ ระบบจะออกเลขใบใหม่ให้เอง</p>'
            : '<p class="cf-lead">บิลที่ออกไปแล้วแก้ตัวเลขทับไม่ได้ ระบบจะ<b>ยกเลิกใบเดิม</b> '
-             + 'แล้ว<b>ดึงรายการทั้งหมดกลับเข้าตะกร้า</b>ให้ ไม่ต้องยิงหรือกรอกใหม่ '
+             + 'แล้ว<b>ดึงรายการทั้งหมดกลับเข้าตะกร้า</b>ให้ พร้อมส่วนลด ประเภทบิล และวิธีจ่ายเดิม ไม่ต้องยิงหรือกรอกใหม่ '
              + 'แก้เฉพาะแถวที่ผิดแล้วรับเงินใหม่ ระบบจะออกเลขบิลใหม่ให้เอง</p>';
       }
       h += '<div class="cf-sum">'
@@ -894,8 +941,9 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
          + '<div class="cf-note">'
          + '<label for="cf-note-in">หมายเหตุ <i>จำเป็นต้องกรอก</i></label>'
          + '<div class="cf-chips">';
-      for (var i = 0; i < REASONS.length; i++) {
-        h += '<button type="button" class="cf-chip">' + REASONS[i] + '</button>';
+      var rs = REASONS[doc] || REASONS.bill;
+      for (var i = 0; i < rs.length; i++) {
+        h += '<button type="button" class="cf-chip">' + rs[i] + '</button>';
       }
       h += '</div>'
          + '<textarea id="cf-note" rows="2" placeholder="เกิดอะไรขึ้น เช่น กดจำนวนเกินไป 2 ชิ้น"></textarea>'
@@ -947,8 +995,11 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
               + '<span class="q num">−' + sm.lines[j].qty.toLocaleString('th-TH') + '</span>'
               + '<span class="s">' + esc(sm.lines[j].unit) + '</span></li>';
         }
+        var iRef = form.querySelector('#ref'), iNote = form.querySelector('#note');   // ผู้ขอเบิก / หมายเหตุ ให้ตรวจก่อนบันทึกด้วย (21 ต.ค.)
         hi += '</ul><div class="cf-sum">'
             + '<div class="cf-r"><span>เหตุผล</span><b>' + esc(sm.reason) + '</b></div>'
+            + (iRef && iRef.value.trim() ? '<div class="cf-r"><span>ผู้ขอเบิก / อ้างอิง</span><b>' + esc(iRef.value.trim()) + '</b></div>' : '')
+            + (iNote && iNote.value.trim() ? '<div class="cf-r"><span>หมายเหตุ</span><b>' + esc(iNote.value.trim()) + '</b></div>' : '')
             + (sm.cost ? '<div class="cf-r"><span>มูลค่าต้นทุน</span><b class="num">' + esc(sm.cost) + '</b></div>' : '')
             + '<div class="cf-r cf-big cf-warn"><span>รวมที่ตัดออก</span><b class="num">'
             + tq.toLocaleString('th-TH') + ' ชิ้น</b></div></div>';
@@ -977,6 +1028,32 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
           sub:   bad ? 'ยอดในระบบของ ' + bad + ' รายการจะถูกปรับให้เท่ากับที่นับได้ทันที'
                      : 'บันทึกไว้เป็นหลักฐานว่านับแล้วตรง ไม่มีการเปลี่ยนยอด',
           ok: 'ยืนยัน บันทึกผลการนับ', html: ha, form: form, go: go, hold: true
+        });
+      } else if (kind === 'ask') {
+        /* ถามทั่วไป (ลบหมวด ฯลฯ · 21 ต.ค. — เดิม confirm() ของเบราว์เซอร์ หน้าตาไม่เข้ากับระบบ ปุ่มเป็นภาษาอังกฤษบางเครื่อง)
+           data-ask = คำถาม · data-ask-sub = คำอธิบาย (ไม่บังคับ) · data-ask-ok = ข้อความปุ่มยืนยัน (ไม่บังคับ) */
+        openModal({
+          title: form.getAttribute('data-ask') || 'ยืนยัน', sub: form.getAttribute('data-ask-sub') || '',
+          ok: form.getAttribute('data-ask-ok') || 'ยืนยัน', html: '', form: form, go: go
+        });
+      } else if (kind === 'return') {
+        /* รับคืนสินค้า (21 ต.ค. — เดิมกดแล้วบันทึก + จ่ายเงินคืนทันที ไม่มีให้ตรวจ) · สรุปจาก form.retSummary ของ return.php */
+        var sr = form.retSummary ? form.retSummary() : { lines: [] };
+        if (!sr.lines.length) { go(); return; }
+        var hr = '<ul class="cf-items">', rq = 0;
+        for (var r = 0; r < sr.lines.length; r++) {
+          rq += sr.lines[r].qty;
+          hr += '<li><span class="n">' + esc(sr.lines[r].name) + '</span>'
+              + '<span class="q num">×' + sr.lines[r].qty.toLocaleString('th-TH') + '</span></li>';
+        }
+        hr += '</ul><div class="cf-sum">'
+            + '<div class="cf-r"><span>เหตุผล</span><b>' + esc(sr.why) + '</b></div>'
+            + (sr.stock ? '<div class="cf-r"><span>สต๊อก</span><b>' + esc(sr.stock) + '</b></div>' : '')
+            + '<div class="cf-r cf-big' + (sr.noCash ? '' : ' cf-warn') + '"><span>' + (sr.noCash ? 'คืนเงิน' : 'คืนเงินสดจากลิ้นชัก') + '</span><b class="num">'
+            + (sr.noCash ? 'ไม่คืนเงิน' : esc(sr.refund) + ' บาท') + '</b></div></div>';
+        openModal({
+          title: 'ยืนยันการรับคืน ' + rq.toLocaleString('th-TH') + ' ชิ้น', sub: 'บันทึกแล้วแก้ไม่ได้ — ตรวจจำนวนและยอดเงินคืนให้ถูกก่อน',
+          ok: 'ยืนยัน บันทึกรับคืน', html: hr, form: form, go: go, hold: true
         });
       } else if (kind === 'edit' || kind === 'void') {
         /* ดูจากปลายทางของฟอร์มว่าเป็นเอกสารชนิดไหน จะได้ใช้ถ้อยคำให้ถูก */
@@ -1273,6 +1350,97 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
 
   var btns = document.querySelectorAll('button[data-need]');
   for (var i = 0; i < btns.length; i++) { window.aoNeedSync(btns[i]); }
+})();
+</script>
+<script>
+/* ข้อความตรวจฟอร์มของเบราว์เซอร์เป็นภาษาไทย (21 ต.ค. · ผลทดสอบ) — เครื่องที่ตั้งภาษาอังกฤษขึ้น “Please fill out this field.”
+   ทุกช่องที่มี required / min / max / step / minlength · ข้อความที่หน้าตั้งเอง (setCustomValidity ของหน้า) ไม่ทับ
+   แก้ค่าในช่องแล้วล้างข้อความ (data-th-msg = ข้อความที่ตั้งจากตรงนี้) · ฝั่งเซิร์ฟเวอร์ยังตรวจซ้ำทุกข้อเหมือนเดิม */
+(function () {
+  var dec = function (s) { return (s.split('.')[1] || '').length; };
+  function msg(el) {
+    var v = el.validity, n = el.type === 'number';
+    if (v.valueMissing) {
+      return el.tagName === 'SELECT' ? 'กรุณาเลือกจากรายการ'
+           : (el.type === 'radio' || el.type === 'checkbox') ? 'กรุณาเลือกข้อใดข้อหนึ่ง' : 'กรุณากรอกช่องนี้';
+    }
+    if (v.badInput)        { return 'กรอกเป็นตัวเลขเท่านั้น'; }
+    if (v.rangeUnderflow)  { return 'ต้องไม่น้อยกว่า ' + Number(el.min).toLocaleString('th-TH'); }
+    if (v.rangeOverflow)   { return 'ต้องไม่เกิน ' + Number(el.max).toLocaleString('th-TH'); }
+    if (v.stepMismatch)    { var st = el.getAttribute('step') || '1'; return dec(st) ? 'ทศนิยมได้ไม่เกิน ' + dec(st) + ' ตำแหน่ง' : 'กรอกเป็นจำนวนเต็ม'; }
+    if (v.tooShort)        { return 'ต้องยาวอย่างน้อย ' + el.minLength + ' ตัวอักษร (ตอนนี้ ' + el.value.length + ')'; }
+    if (v.tooLong)         { return 'ยาวได้ไม่เกิน ' + el.maxLength + ' ตัวอักษร'; }
+    if (v.typeMismatch)    { return el.type === 'email' ? 'รูปแบบอีเมลไม่ถูกต้อง' : 'รูปแบบไม่ถูกต้อง'; }
+    if (v.patternMismatch) { return el.title || 'รูปแบบไม่ถูกต้อง'; }
+    return n ? 'กรอกเป็นตัวเลข' : '';
+  }
+  document.addEventListener('invalid', function (e) {
+    var el = e.target;
+    if (!el.setCustomValidity) { return; }
+    if (el.hasAttribute('data-th-msg')) { el.setCustomValidity(''); } else if (el.validity.customError) { return; }
+    var m = msg(el);
+    if (m === '') { el.removeAttribute('data-th-msg'); return; }
+    el.setCustomValidity(m);
+    el.setAttribute('data-th-msg', '');
+  }, true);
+  function clear(e) {
+    var el = e.target;
+    if (!el || !el.hasAttribute || !el.setCustomValidity) { return; }
+    var all = (el.type === 'radio' && el.form && el.name) ? el.form.querySelectorAll('input[type="radio"][name="' + el.name.replace(/["\\]/g, '\\$&') + '"]') : [el];
+    for (var i = 0; i < all.length; i++) {
+      if (all[i].hasAttribute('data-th-msg')) { all[i].setCustomValidity(''); all[i].removeAttribute('data-th-msg'); }
+    }
+  }
+  document.addEventListener('input', clear, true);
+  document.addEventListener('change', clear, true);
+})();
+</script>
+<script>
+/* ฟอร์มสินค้า (เพิ่ม / แก้ — ฟอร์มที่มีช่อง price + cost): ราคาขายต่ำกว่าทุน → เตือนใต้ช่องราคาทันที (21 ต.ค. · ผลทดสอบ)
+   ไม่บังคับ (ขายล้างสต๊อกต่ำกว่าทุนได้) · ราคาว่าง / 0 เซิร์ฟเวอร์ไม่บันทึก (product_read_form) */
+(function () {
+  var n = function (i) { var s = String(i.value).replace(/[^0-9.]/g, ''); return s === '' ? NaN : Number(s); };
+  function chk(f) {
+    var pr = f.querySelector('input[name="price"]'), co = f.querySelector('input[name="cost"]');
+    if (!pr || !co) { return; }
+    var p = n(pr), c = n(co), w = f.querySelector('.price-warn');
+    var bad = !isNaN(p) && !isNaN(c) && c > 0 && p > 0 && p < c;
+    if (bad && !w) {
+      w = document.createElement('small');
+      w.className = 'price-warn';
+      w.setAttribute('role', 'status');
+      pr.parentNode.appendChild(w);
+    }
+    if (!w) { return; }
+    w.hidden = !bad;
+    if (bad) { w.textContent = 'ราคาขายต่ำกว่าทุน ' + (c - p).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' บาทต่อหน่วย — ขายแล้วขาดทุน ตรวจอีกครั้งก่อนบันทึก'; }
+  }
+  document.addEventListener('input', function (e) {
+    var t = e.target;
+    if (t && t.form && (t.name === 'price' || t.name === 'cost')) { chk(t.form); }
+  }, true);
+  document.querySelectorAll('form').forEach(chk);
+})();
+</script>
+<script>
+/* หน้าขาย: รับเงิน / แก้ / ยกเลิกบิลแล้ว แถบผล (#sale-flash · ปุ่มพิมพ์บิล แก้ ยกเลิก) อยู่บนสุดของหน้า
+   iPad / มือถือ ตะกร้าอยู่ใต้สินค้า — เดิมกดรับเงินแล้วไม่เห็นว่าบันทึกแล้ว (21 ต.ค.) → เลื่อนจอขึ้นไปให้เห็นแถบ
+   รับเงินไม่ผ่าน = ข้อความอยู่ในตะกร้าข้างปุ่มแล้ว (#pay-srv-err) ไม่เลื่อน · แก้จำนวน / แตะสินค้า ไม่เลื่อน */
+(function () {
+  if (!window.htmx || !document.getElementById('sale-flash')) { return; }
+  var calm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  document.body.addEventListener('htmx:afterSettle', function (e) {
+    var t = e.detail.target, el = e.detail.requestConfig ? e.detail.requestConfig.elt : e.detail.elt;
+    var k = (el && el.getAttribute) ? el.getAttribute('data-confirm') : null;
+    if (!t || (t.id !== 'sale-cart' && t.id !== 'sale-live') || (k !== 'pay' && k !== 'edit' && k !== 'void')) { return; }
+    var fl = document.getElementById('sale-flash');
+    if (!fl || !fl.querySelector('.alert') || document.getElementById('pay-srv-err')) { return; }
+    var top = document.querySelector('.top'), tb = top ? Math.max(0, top.getBoundingClientRect().bottom) : 0;
+    var r = fl.getBoundingClientRect();
+    if (r.top >= tb && r.bottom <= window.innerHeight) { return; }
+    var dy = r.top - tb - 12;
+    try { window.scrollBy({ top: dy, behavior: calm ? 'auto' : 'smooth' }); } catch (er) { window.scrollBy(0, dy); }
+  });
 })();
 </script>
 <?php if (strpos($NAV_ACTIVE, 'adm-report') === 0) { ?>
