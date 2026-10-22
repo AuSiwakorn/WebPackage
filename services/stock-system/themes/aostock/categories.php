@@ -12,6 +12,7 @@
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 4): popup รายชื่อสินค้าในหมวดโหลดตอนกด (?list=) ครั้งละ 60 + “แสดงเพิ่ม” — เดิมฝังสินค้าทุกหมวดไว้ใน <template>
  *   - [x] 21 ต.ค. (ผลทดสอบ): ถามก่อนลบหมวดด้วยกล่องยืนยันของระบบ (data-confirm="ask") แทน confirm() ของเบราว์เซอร์
+ *   - [x] 22 ต.ค. (สินค้าของสาขา): จำนวน / รายชื่อสินค้าในหมวดนับเฉพาะส่วนกลาง + ของสาขานี้ · ลบหมวดยังดูทั้งระบบ
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -48,7 +49,7 @@ if (isset($_GET['list']) && is_string($_GET['list'])) {
         http_response_code(404);
         exit;
     }
-    $prods = cat_products($lc);
+    $prods = cat_products($lc, $code);                                // ส่วนกลาง + สินค้าของสาขานี้ (22 ต.ค.)
     list($from, $end, $isMore) = Stock_getListRange();
     $url   = 'categories.php?list=' . rawurlencode($lc);
     if (!$isMore) { ?>
@@ -106,10 +107,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $cats  = cat_registry();
-$total = 0;
-foreach ($cats as $c) {
-    $total += $c['count'];
+/* จำนวนสินค้าที่สาขานี้เห็น (ส่วนกลาง + ของสาขานี้ · รวมเลิกขาย) — ลบหมวดยังดูจำนวนทั้งระบบ ($cats[..]['count']) (22 ต.ค.) */
+$mine = array();
+foreach (products_list(true) as $p) {
+    if (Stock_isProductInBranch($p, $code)) {
+        $mine[$p['cat']] = (isset($mine[$p['cat']]) ? $mine[$p['cat']] : 0) + 1;
+    }
 }
+$total = array_sum($mine);
 
 $branch     = $code;
 $CONFIRM_MODAL = true;                   // ถามก่อนลบหมวดด้วยกล่องยืนยันของระบบ (data-confirm="ask" · 21 ต.ค.)
@@ -152,12 +157,12 @@ require dirname(__FILE__) . '/inc/header.php';
     <table class="tbl cat-tbl">
       <thead><tr><th>หมวด</th><th class="r">สินค้า</th><th>ที่มา</th><th class="r"><span class="sr-only">จัดการ</span></th></tr></thead>
       <tbody>
-        <?php foreach ($cats as $c => $x) { ?>
+        <?php foreach ($cats as $c => $x) { $n = isset($mine[$c]) ? $mine[$c] : 0; ?>
           <tr>
             <td data-label="หมวด"><b><?php echo e($c) ?></b></td>
             <td data-label="สินค้า" class="r num">
-              <?php if ($x['count']) { ?>
-                <button type="button" class="cell-link" data-cat-list="<?php echo e($c) ?>" title="ดูรายชื่อสินค้าในหมวดนี้"><?php echo number_format($x['count']) ?> รายการ</button>
+              <?php if ($n) { ?>
+                <button type="button" class="cell-link" data-cat-list="<?php echo e($c) ?>" title="ดูรายชื่อสินค้าในหมวดนี้"><?php echo number_format($n) ?> รายการ</button>
               <?php } else { ?><span class="adm-none">ยังไม่มีสินค้า</span><?php } ?>
             </td>
             <td data-label="ที่มา"><?php echo $x['added'] ? '<small>เพิ่ม' . ($x['by'] !== '' ? 'โดย ' . e($x['by']) . ' · ' : 'เมื่อ ') . e($x['at']) . '</small>' : '<small>หมวดตั้งต้น</small>' ?></td>
@@ -172,7 +177,7 @@ require dirname(__FILE__) . '/inc/header.php';
                   <button class="btn btn-ghost btn-sm br-del" type="submit"><svg class="ico"><use href="#i-trash"/></svg> ลบ</button>
                 </form>
               <?php } else { ?>
-                <small class="adm-none" title="ย้ายสินค้าออกจากหมวดก่อนจึงจะลบได้">ลบไม่ได้ (มีสินค้า)</small>
+                <small class="adm-none" title="ย้ายสินค้าออกจากหมวดก่อนจึงจะลบได้">ลบไม่ได้ (<?php echo $n ? 'มีสินค้า' : 'มีสินค้าของสาขาอื่น' ?>)</small>
               <?php } ?>
             </td>
           </tr>

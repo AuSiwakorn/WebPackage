@@ -18,6 +18,7 @@
  *   - [x] 15 ต.ค. (เมนูประวัติแยกหน้า ช่วง 3): ผู้ดูแลไม่มี “ประวัติทั้งหมด” แล้ว — เพิ่ม “ขาย / ตั้งค่า” (adm-history.php?t=sale)
  *   - [x] 15 ต.ค. (เมนูประวัติแยกหน้า ช่วง 5): พนักงานมีกลุ่มเมนู “ประวัติ” 1 เมนู = 1 กลุ่ม (history.php?t=) · 'log' = แสดงเมื่อดูกลุ่มนั้นได้ (Stock_getAllowedLogGroups)
  *   - [x] 21 ต.ค. (ผลทดสอบ): ใต้ชื่อผู้ใช้ที่ไม่มีสาขา (ผู้ดูแล / บัญชี) ไม่มี “ · ” ห้อยท้าย
+ *   - [x] 22 ต.ค. (สินค้าของสาขา): ไอคอน i-edit (ปุ่มแก้ไขสินค้า)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -202,6 +203,8 @@ $branches = visible_branches($user);
     <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol>
     <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
     <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></symbol>
+
     <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
     <symbol id="i-panel-l" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></symbol>
     <symbol id="i-store" viewBox="0 0 24 24"><path d="M4 9h16v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M3.2 9l1.4-5A1 1 0 0 1 5.6 3h12.8a1 1 0 0 1 1 .8L20.8 9"/><path d="M9 21v-6h6v6"/></symbol>

@@ -1,45 +1,50 @@
 <?php
 /**
  * FILE: themes/aostock/adm-product-edit.php
- * ROLE: [ผู้ดูแล] เพิ่ม / แก้ไขสินค้า (SKU, ชื่อ, หมวด, หน่วย, ทุน, ราคาขาย, จุดสั่งซื้อ, บาร์โค้ด, รูป, เปิด / เลิกขาย)
- * DEPENDS: themes/aostock/include/function.php, themes/aostock/inc/header.php, themes/aostock/inc/footer.php
- * TABLES: ao_stock_product, ao_stock_category (ผ่าน function ใน api.php)
+ * ROLE: [ผู้ดูแล] เพิ่มสินค้าส่วนกลาง / แก้ไขสินค้าทุกตัว (ส่วนกลาง + ของสาขา) · ย้ายสินค้าของสาขาเป็นส่วนกลาง
+ * DEPENDS: themes/aostock/include/function.php, themes/aostock/inc/header.php, themes/aostock/inc/product-form.php, themes/aostock/inc/footer.php
+ * TABLES: ao_stock_product, ao_stock_category, ao_stock_log (ผ่าน function ใน api.php)
  * TODO:
  *   - [x] เพิ่มสินค้าใหม่ · แก้ไข (SKU เปลี่ยนไม่ได้) · รูปสินค้า (UpFile → uploads/stock/products/) · เปิด / เลิกขาย
  *   - [ ] ยอดยกมาของสินค้าใหม่ = ทำใบรับเข้า (หน้า "นำเข้าสินค้า" ของพนักงาน)
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  *   - [x] 15 ต.ค. (ผู้ใช้ขอ): มีเมนูแยก “เพิ่มสินค้า” ชี้มาหน้านี้ — เพิ่มใหม่ไฮไลต์เมนูนั้น · แก้ไขไฮไลต์ “สินค้าในสต๊อก”
+ *   - [x] 22 ต.ค. (ผู้ใช้ขอ): ฟอร์มเดียวกับหน้าสาขา (inc/product-form.php) — SKU อัตโนมัติ / กรอกเอง · พิมพ์หมวดใหม่
+ *         · ทุกการแก้ลงประวัติ “เดิม → ใหม่” (Stock_doSaveProduct · เดิมไม่ลง) · สินค้าของสาขามีป้ายเจ้าของ + ปุ่มย้ายเป็นส่วนกลาง
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
     exit('403 Forbidden');
 }
 /* ==========================================================
-   ?sku=รหัส = แก้สินค้านั้น · ไม่มี = เพิ่มสินค้าใหม่
+   ?sku=รหัส = แก้สินค้านั้น · ไม่มี = เพิ่มสินค้าส่วนกลางใหม่ (ทุกสาขาขาย / นำเข้าได้)
    - SKU ตั้งตอนเพิ่มแล้วเปลี่ยนไม่ได้ (เอกสารเก่าอ้างถึง) · เลิกขาย = ซ่อนจากหน้าขาย / นำเข้า / ตรวจนับ แต่ประวัติอยู่ครบ
    - ยอดคงเหลือไม่ได้ตั้งที่นี่ — สินค้าใหม่เริ่มที่ 0 ทุกสาขา แล้วพนักงานทำใบรับเข้า
+   - สินค้าของสาขา (ผู้จัดการ / พนักงานเพิ่ม · 22 ต.ค.) แก้ได้ที่นี่เหมือนกัน + ย้ายเป็นสินค้าส่วนกลาง (act=move)
    ========================================================== */
 
 require_once dirname(__FILE__) . '/include/function.php';
 
-$user = require_login();                 // หน้า adm- : เฉพาะผู้ดูแล
-
+$user  = require_login();                // หน้า adm- : เฉพาะผู้ดูแล
+$code  = work_branch($user);             // สาขาที่ลงประวัติของสินค้าส่วนกลาง
 $sku   = (isset($_GET['sku']) && is_string($_GET['sku'])) ? strtoupper(trim($_GET['sku'])) : '';
-$rows  = product_db_rows();
-$isNew = ($sku === '' || !isset($rows[$sku]));
-$p     = $isNew ? null : product_by_sku($sku);
+$p     = ($sku !== '') ? product_by_sku($sku) : null;
+$isNew = ($p === null);
 $err   = '';
+$bad   = '';
 $old   = array();
+$self  = 'adm-product-edit.php' . ($isNew ? '' : '?sku=' . rawurlencode($sku));
 $okMsg = array('add' => 'เพิ่มสินค้าแล้ว — สินค้าใหม่มียอด 0 ทุกสาขา ให้พนักงานทำใบรับเข้า', 'save' => 'บันทึกแล้ว มีผลทันที',
                'off' => 'เลิกขายแล้ว — ไม่ขึ้นในหน้าขาย / นำเข้า / ตรวจนับ', 'on' => 'เปิดขายอีกครั้งแล้ว', 'img' => 'ลบรูปแล้ว',
+               'move' => 'ย้ายเป็นสินค้าส่วนกลางแล้ว — ทุกสาขาขาย / นำเข้าได้',
                'addimg' => 'เพิ่มสินค้าแล้ว แต่รูปบันทึกไม่ผ่าน', 'saveimg' => 'บันทึกข้อมูลสินค้าแล้ว แต่รูปบันทึกไม่ผ่าน');
-$ok    = (isset($_GET['ok']) && is_string($_GET['ok']) && isset($okMsg[$_GET['ok']])) ? $_GET['ok'] : '';
+$ok     = (isset($_GET['ok']) && is_string($_GET['ok']) && isset($okMsg[$_GET['ok']])) ? $_GET['ok'] : '';
 $imgErr = ($ok === 'addimg' || $ok === 'saveimg');     // รูปไม่ผ่าน: แจ้งเป็นสีแดงแทน "บันทึกแล้ว"
 $imgWhy = ($imgErr && isset($_SESSION['img_err'])) ? (string) $_SESSION['img_err'] : '';
 unset($_SESSION['img_err']);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $act = isset($_POST['act']) ? $_POST['act'] : '';
+    $act = isset($_POST['act']) ? (string) $_POST['act'] : '';
     $go  = '';
     if (!$_POST && !empty($_SERVER['CONTENT_LENGTH'])) {          // ไฟล์ใหญ่เกิน post_max_size → PHP ทิ้งทั้งฟอร์ม
         $err = 'ไฟล์ที่ส่งมาใหญ่เกินที่เซิร์ฟเวอร์รับได้ — ยังไม่ได้บันทึกอะไร ลองเลือกรูปที่เล็กลงแล้วกดบันทึกอีกครั้ง';
@@ -47,28 +52,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (!csrf_check(isset($_POST['csrf']) ? $_POST['csrf'] : null)) {
         $err = 'เซสชันหมดอายุ กรุณาลองใหม่อีกครั้ง';
 
-    } elseif ($act === 'save') {
-        list($d, $err) = product_read_form($isNew, $sku);
-        $old = $d;
-        if ($err === '') {
-            product_save($isNew, $d);
-            $img = product_image_store($d['sku'], 'image', $isNew ? '' : $p['image']);
-            if (isset($img['error'])) {
-                $_SESSION['img_err'] = $img['error'];
+    } elseif ($act === 'save' && $isNew) {
+        /* เพิ่มสินค้าส่วนกลาง — ตรวจ / SKU อัตโนมัติ / หมวดใหม่ แบบเดียวกับหน้าสาขา (Stock_doAddProduct) */
+        if (($bad = Stock_checkProductImage('image')) !== '') {
+            $err = 'ยังไม่ได้เพิ่มสินค้า — ' . $bad . ' · เลือกรูปใหม่ (หรือไม่ใส่รูป) แล้วกดเพิ่มอีกครั้ง';
+            $old = $_POST;
+        } else {
+            $np = Stock_doAddProduct($user, $code, 'หน้าผู้ดูแล');
+            if (isset($np['error'])) {
+                $err = $np['error'];
+                $old = $_POST;
+            } else {
+                $img = product_image_store($np['sku'], 'image', '');
+                if (isset($img['error'])) {
+                    $_SESSION['img_err'] = $img['error'];
+                }
+                $go = 'adm-product-edit.php?sku=' . rawurlencode($np['sku']) . '&ok=add' . (isset($img['error']) ? 'img' : '');
             }
-            $go = 'adm-product-edit.php?sku=' . rawurlencode($d['sku']) . '&ok=' . ($isNew ? 'add' : 'save') . (isset($img['error']) ? 'img' : '');
         }
 
     } elseif ($isNew) {
         $err = 'ไม่พบสินค้านี้';
 
+    } elseif ($act === 'save') {
+        $r = Stock_doSaveProduct($user, $sku, $code);
+        if (isset($r['error'])) {
+            $err = $r['error'];
+            $bad = isset($r['bad']) ? $r['bad'] : '';
+            $old = $_POST;
+        } else {
+            if ($r['img_error'] !== '') {
+                $_SESSION['img_err'] = $r['img_error'];
+            }
+            $go = $self . '&ok=' . ($r['img_error'] !== '' ? 'saveimg' : 'save');
+        }
+
     } elseif ($act === 'off' || $act === 'on') {
-        product_set_active($sku, $act === 'on');
-        $go = 'adm-product-edit.php?sku=' . rawurlencode($sku) . '&ok=' . $act;
+        $err = Stock_doSetProductActive($user, $sku, $act === 'on', $code);
+        $go  = $self . '&ok=' . $act;
 
     } elseif ($act === 'noimg') {
-        product_image_remove($sku, $p['image']);
-        $go = 'adm-product-edit.php?sku=' . rawurlencode($sku) . '&ok=img';
+        $err = Stock_doRemoveProductImage($user, $sku, $code);
+        $go  = $self . '&ok=img';
+
+    } elseif ($act === 'move') {
+        $err = Stock_doMoveProductToCentral($user, $sku, $code);
+        $go  = $self . '&ok=move';
     }
 
     if ($go !== '' && $err === '') {
@@ -77,20 +106,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$cats  = cat_registry();
-$units = product_units();
 $v = function ($k, $def) use ($old) {
-    return isset($old[$k]) ? $old[$k] : $def;
+    return (isset($old[$k]) && is_string($old[$k])) ? $old[$k] : $def;
 };
-$num = function ($n) {
-    return rtrim(rtrim(number_format((float) $n, 2, '.', ''), '0'), '.');
-};
-$img = $p ? product_img($p) : '';
 
 $branch         = 'ALL';
 $NO_BRANCH_PICK = true;
+$CONFIRM_MODAL  = true;                  // ลบรูป / ย้ายเป็นส่วนกลาง (data-confirm="ask")
 $PAGE_TITLE     = $isNew ? 'เพิ่มสินค้า' : 'แก้ไขสินค้า';
-$PAGE_SUB       = $isNew ? 'สินค้าใหม่เริ่มที่ยอด 0 ทุกสาขา — รับของเข้าที่หน้า "นำเข้าสินค้า"' : $p['sku'] . ' · ' . $p['name'];
+$PAGE_SUB       = $isNew ? 'สินค้าส่วนกลาง เริ่มที่ยอด 0 ทุกสาขา — รับของเข้าที่หน้า "นำเข้าสินค้า"' : $p['sku'] . ' · ' . $p['name'] . ' · ' . Stock_formatProductOwner($p);
 $NAV_ACTIVE     = $isNew ? 'adm-product-edit.php' : 'adm-products.php';   // เพิ่มใหม่ = เมนู “เพิ่มสินค้า”
 require dirname(__FILE__) . '/inc/header.php';
 ?>
@@ -105,118 +129,18 @@ require dirname(__FILE__) . '/inc/header.php';
   <div class="alert alert-ok" role="status"><svg class="ico"><use href="#i-check"/></svg><span><?php echo e($okMsg[$ok]) ?></span></div>
 <?php } ?>
 
-<?php if (!$cats) { ?>
-  <div class="alert alert-error" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span>ยังไม่มีหมวดสินค้า — เพิ่มหมวดก่อนที่หน้า <a href="adm-categories.php">หมวดสินค้า</a> (หรือให้พนักงานที่มีสิทธิ์เพิ่ม)</span></div>
-<?php } ?>
-
-<section class="card">
-  <div class="card-head">
-    <div>
-      <h2><?php echo $isNew ? 'ข้อมูลสินค้าใหม่' : 'ข้อมูลสินค้า' ?></h2>
-      <span class="sub"><?php echo $isNew ? 'SKU ตั้งครั้งเดียว เปลี่ยนภายหลังไม่ได้' : ($p['active'] ? 'ขายอยู่' : 'เลิกขายแล้ว') . ' · ยอดคงเหลือแก้ที่นี่ไม่ได้ (ใช้ใบรับเข้า / เบิก / ตรวจนับ)' ?></span>
-    </div>
-  </div>
-  <form class="adm-sec" method="post" action="adm-product-edit.php<?php echo $isNew ? '' : '?sku=' . e(rawurlencode($sku)) ?>" enctype="multipart/form-data">
-    <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
-    <input type="hidden" name="act" value="save">
-    <div class="adm-fields">
-      <div class="field">
-        <label for="p-sku">SKU</label>
-        <?php if ($isNew) { ?>
-          <input class="input" type="text" id="p-sku" name="sku" value="<?php echo e($v('sku', '')) ?>" maxlength="40" required autocomplete="off" autocapitalize="characters" placeholder="เช่น CS-010">
-          <small class="adm-hint">A–Z 0–9 . _ - · 1 สี / รุ่น = 1 SKU</small>
-        <?php } else { ?>
-          <input class="input" type="text" id="p-sku" value="<?php echo e($sku) ?>" disabled>
-        <?php } ?>
-      </div>
-      <div class="field">
-        <label for="p-name">ชื่อสินค้า</label>
-        <input class="input" type="text" id="p-name" name="name" value="<?php echo e($v('name', $p ? $p['name'] : '')) ?>" maxlength="200" required autocomplete="off">
-      </div>
-      <div class="field">
-        <label for="p-cat">หมวด</label>
-        <select class="input" id="p-cat" name="cat" required>
-          <option value="">— เลือกหมวด —</option>
-          <?php $cv = $v('cat', $p ? $p['cat'] : ''); foreach ($cats as $c => $x) { ?>
-            <option value="<?php echo e($c) ?>" <?php echo $cv === $c ? 'selected' : '' ?>><?php echo e($c) ?></option>
-          <?php } ?>
-        </select>
-      </div>
-      <div class="field">
-        <label for="p-unit">หน่วย</label>
-        <input class="input" type="text" id="p-unit" name="unit" value="<?php echo e($v('unit', $p ? $p['unit'] : 'ชิ้น')) ?>" maxlength="20" list="p-units" autocomplete="off">
-        <datalist id="p-units"><?php foreach ($units as $u) { ?><option value="<?php echo e($u) ?>"><?php } ?></datalist>
-      </div>
-      <div class="field">
-        <label for="p-cost">ทุนต่อหน่วย (บาท)</label>
-        <input class="input" type="text" id="p-cost" name="cost" value="<?php echo e($v('cost', $p ? $num($p['cost']) : '')) ?>" inputmode="decimal" autocomplete="off" placeholder="0.00">
-      </div>
-      <div class="field">
-        <label for="p-price">ราคาขาย (บาท · รวม VAT)</label>
-        <input class="input" type="text" id="p-price" name="price" value="<?php echo e($v('price', $p ? $num($p['price']) : '')) ?>" inputmode="decimal" autocomplete="off" placeholder="0.00">
-      </div>
-      <div class="field">
-        <label for="p-reorder">จุดสั่งซื้อ</label>
-        <input class="input" type="text" id="p-reorder" name="reorder" value="<?php echo e($v('reorder', $p ? $p['reorder'] : '')) ?>" inputmode="numeric" autocomplete="off" placeholder="0">
-        <small class="adm-hint">เหลือเท่านี้หรือน้อยกว่า = ใกล้หมด (ใช้ทุกสาขา)</small>
-      </div>
-      <div class="field">
-        <label for="p-barcode">บาร์โค้ด <small class="adm-none">(ไม่บังคับ)</small></label>
-        <input class="input" type="text" id="p-barcode" name="barcode" value="<?php echo e($v('barcode', $p ? $p['barcode'] : '')) ?>" maxlength="40" autocomplete="off">
-      </div>
-      <div class="field">
-        <label for="p-image">รูปสินค้า <small class="adm-none">(ไม่บังคับ · JPG / PNG / WEBP · รูปใหญ่ระบบย่อให้เอง)</small></label>
-        <input class="input" type="file" id="p-image" name="image" accept="image/jpeg,image/png,image/webp" data-shrink data-prev="p-image-prev" data-note="p-image-note">
-        <?php if ($imgErr) { ?><small class="adm-hint hist-void">รูปไม่ผ่าน<?php echo $imgWhy !== '' ? ': ' . e($imgWhy) : ' — เลือกรูปใหม่อีกครั้ง' ?></small><?php } ?>
-        <?php if ($img !== '') { ?><small class="adm-hint">มีรูปอยู่แล้ว — เลือกไฟล์ใหม่เพื่อแทนที่</small><?php } ?>
-        <img class="prod-edit-img img-prev" id="p-image-prev" alt="" hidden>
-        <small class="adm-hint img-note" id="p-image-note" hidden></small>
-      </div>
-    </div>
-    <button class="btn btn-primary" type="submit"<?php echo $cats ? '' : ' disabled' ?>><svg class="ico"><use href="#i-<?php echo $isNew ? 'plus' : 'check' ?>"/></svg> <?php echo $isNew ? 'เพิ่มสินค้า' : 'บันทึก' ?></button>
-  </form>
-</section>
-
-<?php if (!$isNew) { ?>
-<section class="card">
-  <div class="card-head"><div><h2>รูปและสถานะ</h2><span class="sub">ยอดคงเหลือ: <?php
-      $parts = array();
-      foreach (branches_active() as $bc => $b) {
-          $parts[] = $b['short'] . ' ' . number_format(product_qty($p, $bc));
-      }
-      echo e($parts ? implode(' · ', $parts) : '—');
-  ?></span></div></div>
-  <?php /* รูปซ้าย คำอธิบาย + ปุ่มลบรูปขวา · แถวล่าง = สถานะการขาย */ ?>
-  <div class="adm-sec prod-media">
-    <?php if ($img !== '') { ?>
-      <img class="prod-edit-img" src="<?php echo e($img) ?>" alt="<?php echo e($p['name']) ?>" loading="lazy">
-    <?php } else { ?>
-      <?php echo thumb_html($p, 'prod-edit-thumb') ?>
-    <?php } ?>
-    <div class="prod-media-t">
-      <b>รูปสินค้า</b>
-      <small class="adm-hint"><?php echo $img !== '' ? 'ใช้บนการ์ดหน้าขาย / นำเข้า / เบิก / ตรวจนับ · เปลี่ยนรูปที่ช่อง “รูปสินค้า” ด้านบน'
-                                                 : 'ยังไม่มีรูป — การ์ดจะแสดงไอคอนตามหมวดแทน · เพิ่มรูปที่ช่อง “รูปสินค้า” ด้านบน' ?></small>
-      <?php if ($p['image'] !== '') { ?>
-        <form method="post" action="adm-product-edit.php?sku=<?php echo e(rawurlencode($sku)) ?>">
-          <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
-          <input type="hidden" name="act" value="noimg">
-          <button class="btn btn-ghost btn-sm" type="submit"><svg class="ico"><use href="#i-trash"/></svg> ลบรูป</button>
-        </form>
-      <?php } ?>
-    </div>
-  </div>
-  <div class="adm-sec prod-state">
-    <b>สถานะ</b>
-    <span class="bdg <?php echo $p['active'] ? 'bdg-ok' : 'bdg-out' ?>"><?php echo $p['active'] ? 'ขายอยู่' : 'เลิกขายแล้ว' ?></span>
-    <form method="post" action="adm-product-edit.php?sku=<?php echo e(rawurlencode($sku)) ?>">
-      <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
-      <input type="hidden" name="act" value="<?php echo $p['active'] ? 'off' : 'on' ?>">
-      <button class="btn <?php echo $p['active'] ? 'btn-ghost' : 'btn-primary' ?> btn-sm" type="submit"><?php echo $p['active'] ? 'เลิกขายสินค้านี้' : 'เปิดขายอีกครั้ง' ?></button>
-    </form>
-    <small class="adm-hint"><?php echo $p['active'] ? 'เลิกขาย = ซ่อนจากหน้าขาย / นำเข้า / ตรวจนับ · ประวัติและรายงานยังอยู่ครบ' : 'เปิดขายอีกครั้ง = กลับมาขาย / นำเข้า / ตรวจนับได้ตามปกติ' ?></small>
-  </div>
-</section>
-<?php } ?>
+<?php
+$PF = array(
+    'action'  => $self,
+    'p'       => $p,
+    'v'       => $v,
+    'canCat'  => $isNew,                 // ผู้ดูแลเพิ่มหมวดได้เสมอ
+    'scope'   => $isNew ? 'สินค้าส่วนกลาง (ทุกสาขาขาย / นำเข้าได้)'
+                        : Stock_formatProductOwner($p) . ($p['owner'] !== '' ? ' (ขาย / นำเข้าได้เฉพาะสาขาเจ้าของ · ผู้จัดการสาขานั้นแก้ได้)' : ' (ทุกสาขา)'),
+    'bad'     => $bad,
+    'canMove' => !$isNew && $p['owner'] !== '',
+);
+require dirname(__FILE__) . '/inc/product-form.php';
+?>
 
 <?php require dirname(__FILE__) . '/inc/footer.php'; ?>

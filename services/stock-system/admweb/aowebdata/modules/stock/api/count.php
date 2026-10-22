@@ -53,7 +53,7 @@ function adraft_size()
 function adraft_pick($code, $sku)
 {
     $p = product_by_sku($sku);
-    if ($p === null || isset($_SESSION['adj_draft'][$sku])) {
+    if ($p === null || isset($_SESSION['adj_draft'][$sku]) || !Stock_isProductInBranch($p, $code)) {   // สินค้าของสาขาอื่นนับไม่ได้ (22 ต.ค.)
         return false;
     }
     $have = max(0, product_qty($p, $code));
@@ -90,7 +90,7 @@ function Stock_setCountDraft($code, $sku, $raw, $seen = null)
         return true;
     }
     $p = product_by_sku($sku);
-    if ($p === null) {
+    if ($p === null || !Stock_isProductInBranch($p, $code)) {
         return false;
     }
     $_SESSION['adj_draft'][$sku] = min(STOCK_LINE_MAX, (int) $raw);
@@ -145,7 +145,7 @@ function adraft_lines($code)
     Stock_prefetchProducts(array_keys(adraft_all()));    // ดึงสินค้าในใบคิวรีเดียว (ช่วง 5)
     foreach (adraft_all() as $sku => $counted) {
         $p = product_by_sku($sku);
-        if ($p === null) {
+        if ($p === null || !Stock_isProductInBranch($p, $code)) {
             continue;
         }
         $have  = product_qty($p, $code);

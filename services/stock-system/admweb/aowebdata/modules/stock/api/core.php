@@ -144,7 +144,7 @@ function perm_list()
         'cash'          => array('group' => 'shop',     'label' => 'เงินเข้า / ออกลิ้นชัก',              'short' => 'เงินเข้า / ออก'),
         'bill_fix'      => array('group' => 'shop',     'label' => 'แก้ / ยกเลิกบิลของตัวเอง (วันนี้)',     'short' => 'แก้บิลตัวเอง', 'needs' => array('sale')),
         'receive'       => array('group' => 'stock',    'label' => 'นำเข้าสินค้า (รับเข้าสต๊อก)',          'short' => 'นำเข้าสินค้า'),
-        'product_add'   => array('group' => 'stock',    'label' => 'เพิ่มสินค้าใหม่ (จากหน้านำเข้า)',       'short' => 'เพิ่มสินค้าใหม่', 'needs' => array('receive')),
+        'product_add'   => array('group' => 'stock',    'label' => 'เพิ่มสินค้าใหม่ของสาขา',               'short' => 'เพิ่มสินค้าใหม่', 'needs' => array('receive')),   // 22 ต.ค.: เป็นสินค้าของสาขา
         'issue'         => array('group' => 'stock',    'label' => 'เบิก / ตัดออกสินค้า',                'short' => 'เบิก / ตัดออก'),
         'stocktake'     => array('group' => 'stock',    'label' => 'ตรวจนับสต๊อก',                      'short' => 'ตรวจนับ'),
         'doc_fix'       => array('group' => 'stock',    'label' => 'แก้ / ยกเลิกเอกสารคลังของตัวเอง (วันนี้)', 'short' => 'แก้เอกสารคลังตัวเอง',
@@ -264,7 +264,7 @@ function page_perm($file)
     $map = array('sale.php' => 'sale', 'store.php' => array('store', 'store_reopen', 'cash'),
                  'receive.php' => 'receive', 'issue.php' => 'issue', 'stocktake.php' => 'stocktake',
                  'history.php' => Stock_getHistoryPerms(), 'return.php' => 'refund', 'categories.php' => array('category_add', 'category_del'),
-                 'products.php' => 'products', 'product-add.php' => 'product_add', 'movements.php' => 'movements', 'report-sales.php' => 'report',
+                 'products.php' => 'products', 'product-add.php' => array('product_add', 'manager'), 'movements.php' => 'movements', 'report-sales.php' => 'report',
                  'team.php' => 'manager');
     return isset($map[$file]) ? $map[$file] : '';
 }
@@ -393,6 +393,14 @@ function thai_date_full($ts)
 function money2($n)
 {
     return number_format($n, 2);
+}
+
+/** ตัวเลขสำหรับใส่ในช่อง input — ไม่มีจุลภาค ตัดศูนย์ท้าย (120.50 → 120.5 · 99.00 → 99)
+ *  TODO:
+ *    - [x] 22 ต.ค.: ฟอร์มสินค้ากลาง (inc/product-form.php) — เดิมเป็น closure $num ในหน้าผู้ดูแล */
+function Stock_formatPlainNumber($n)
+{
+    return rtrim(rtrim(number_format((float) $n, 2, '.', ''), '0'), '.');
 }
 
 /** ชื่อวันแบบย่อ อา. จ. อ. … */

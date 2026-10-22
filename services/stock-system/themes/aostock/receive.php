@@ -21,6 +21,7 @@
  *         · เดิมบันทึกจากร่างใน session เลย ถ้าคำขอบันทึกจำนวนเบื้องหลังยังไม่ถึง ใบได้จำนวนเก่า ทั้งที่กล่องยืนยันโชว์จำนวนใหม่
  *         · act=set อ่านชื่อช่องแบบที่ PHP เปลี่ยน . เป็น _ — SKU ที่มีจุดแก้จำนวนแล้วแถวไม่หาย
  *   - [x] 21 ต.ค.: แก้ไขใบนี้ → เลขที่เอกสารอ้างอิง / หมายเหตุเดิมติดมาด้วย (Stock_getReceiveDraftMeta — เดิมหาย ต้องกรอกใหม่)
+ *   - [x] 22 ต.ค. (สินค้าของสาขา): หน้าต่างเพิ่มสินค้าใหม่บอกว่าเป็นสินค้าของสาขานี้
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -94,6 +95,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 header('Location: ' . url('receive.php'));
                 exit;
             }
+        } elseif (($act === 'add' || $act === 'set') && ($pp = product_by_sku($sku)) !== null && !Stock_isProductInBranch($pp, $code)) {
+            $err = 'สินค้านี้เป็น' . Stock_formatProductOwner($pp) . ' — รับเข้าได้เฉพาะสาขานั้น';   // สินค้าของสาขาอื่น (22 ต.ค.)
         } elseif ($act === 'add') {
             rdraft_add($sku, 1);
         } elseif ($act === 'minus') {
@@ -340,7 +343,7 @@ require dirname(__FILE__) . '/inc/header.php';
     $npManual = ($npv('sku_mode') === 'manual'); ?>
 <dialog class="fm-modal np-modal" id="np-modal" aria-labelledby="np-t"<?php echo $npErr !== '' ? ' data-fm-auto' : '' ?>>
   <div class="fm-head">
-    <div><h2 id="np-t">เพิ่มสินค้าใหม่</h2><span class="sub">เพิ่มเข้าระบบ (ใช้ได้ทุกสาขา) แล้วใส่ในใบรับเข้านี้ 1 ชิ้นทันที</span></div>
+    <div><h2 id="np-t">เพิ่มสินค้าใหม่</h2><span class="sub"><?php echo Stock_hasProductOwnerColumn() ? 'เป็นสินค้าของ' . e(branch_name($code)) . ' (ขาย / นำเข้าได้เฉพาะสาขานี้)' : 'เพิ่มเข้าระบบ (ใช้ได้ทุกสาขา)' ?> แล้วใส่ในใบรับเข้านี้ 1 ชิ้นทันที</span></div>
     <button type="button" class="icon-btn" data-fm-close aria-label="ปิด"><svg class="ico"><use href="#i-x"/></svg></button>
   </div>
   <?php if ($npErr !== '') { ?>

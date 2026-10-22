@@ -87,7 +87,7 @@ function rdraft_lines($code)
     Stock_prefetchProducts(array_keys(rdraft_all()));    // ดึงสินค้าในใบคิวรีเดียว (ช่วง 5)
     foreach (rdraft_all() as $sku => $qty) {
         $p = product_by_sku($sku);
-        if ($p === null) {
+        if ($p === null || !Stock_isProductInBranch($p, $code)) {     // สินค้าของสาขาอื่นรับเข้าไม่ได้ (22 ต.ค.)
             continue;
         }
         $have  = product_qty($p, $code);

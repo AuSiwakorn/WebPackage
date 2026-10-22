@@ -12,6 +12,7 @@
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 4): ตารางครั้งละ 60 แถว + ปุ่ม “แสดงเพิ่ม” ($LIVE_PART 'more' = ส่งกลับแค่แถวชุดถัดไป)
  *         เดิมวาดทุกแถว — สินค้า 3,000 ตัว = หน้า 5 MB เปิด 9 วินาทีบน iPad
+ *   - [x] 22 ต.ค. (สินค้าของสาขา): เห็นส่วนกลาง + ของสาขานี้ (stock_rows) · ป้ายเจ้าของ · ลิงก์ “แก้ไข” ของผู้จัดการ (Stock_canEditProduct)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -43,7 +44,9 @@ $row = function ($r) use ($user) {
                       <?php } else { ?>
                         <span class="doc"><?php echo e($p['name']) ?></span>
                       <?php } ?>
-                      <small><?php echo e($p['sku']) ?></small>
+                      <?php /* สินค้าของสาขา: บอกเจ้าของ · ผู้จัดการแก้ได้ (22 ต.ค.) */ ?>
+                      <small><?php echo e($p['sku']) ?><?php echo $p['owner'] !== '' ? ' · ' . e(Stock_formatProductOwner($p)) : '' ?><?php if (Stock_canEditProduct($user, $p)) { ?>
+                        · <a class="own-edit" href="product-add.php?sku=<?php echo e(rawurlencode($p['sku'])) ?>" aria-label="แก้ไข <?php echo e($p['name']) ?>">แก้ไข</a><?php } ?></small>
                     </span>
                   </span>
                 </td>

@@ -31,7 +31,7 @@ function cart_count()
 function cart_add($sku, $branch, $step = 1)
 {
     $p = product_by_sku($sku);
-    if ($p === null) {
+    if ($p === null || !Stock_isProductInBranch($p, $branch)) {    // สินค้าของสาขาอื่นใส่ไม่ได้ (22 ต.ค.)
         return false;
     }
     $have = product_qty($p, $branch);
@@ -57,7 +57,7 @@ function cart_add($sku, $branch, $step = 1)
 function cart_set($sku, $branch, $qty)
 {
     $p = product_by_sku($sku);
-    if ($p === null) {
+    if ($p === null || !Stock_isProductInBranch($p, $branch)) {    // สินค้าของสาขาอื่นใส่ไม่ได้ (22 ต.ค.)
         return false;
     }
     $qty = min(STOCK_LINE_MAX, (int) $qty);

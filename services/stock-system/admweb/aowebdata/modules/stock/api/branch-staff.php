@@ -383,6 +383,23 @@ function branch_id_of($code)
     return ($row !== null) ? (int) $row['branch_id'] : 0;
 }
 
+/** รหัสสาขาจาก branch_id (รวมสาขาที่ปิดแล้ว) · 0 / ไม่พบ = ''
+ *  TODO:
+ *    - [x] 22 ต.ค. (สินค้าของสาขา): แปลง owner_branch_id ของสินค้าเป็นรหัสสาขา */
+function Stock_getBranchCodeById($id)
+{
+    $id = (int) $id;
+    if ($id <= 0) {
+        return '';
+    }
+    foreach (branch_db_rows() as $c => $r) {
+        if ((int) $r['branch_id'] === $id) {
+            return (string) $c;
+        }
+    }
+    return '';
+}
+
 /** เพิ่มผู้ใช้ — $d: username name initials role branch(รหัส) perms(array) และ pin (staff) หรือ password (admin / account) */
 function staff_create($d)
 {
@@ -880,7 +897,7 @@ function perm_boxes($checked, $branch, $only = null)
         'cash'         => 'เติมเงินทอน / หยิบเงินออกระหว่างวัน',
         'refund'       => 'บิลย้อนหลังได้ ' . $days,
         'refund_cash'  => 'ไม่ติ๊ก = รับคืนได้แต่ไม่คืนเงินสด',
-        'product_add'  => 'ตั้งราคาขายได้ด้วย — มีผลกับบิลทันที',
+        'product_add'  => 'เป็นสินค้าของสาขานี้ (สาขาอื่นไม่เห็น) · ตั้งราคาขายได้ด้วย · แก้ภายหลังได้เฉพาะผู้จัดการสาขา',   // 22 ต.ค.
         'backdate'     => 'ย้อนหลังได้ ' . $days,
         'hist_sale'    => 'รายการตั้งค่า (เพิ่ม / แก้พนักงาน ฯลฯ) เห็นเฉพาะผู้จัดการสาขา',         // สิทธิ์ดูประวัติรายเมนู
     );
@@ -1140,7 +1157,7 @@ function staff_position_field($isManager)
 {
     $opts = array(
         'staff'   => array('พนักงาน', 'ทำงานได้ตามสิทธิ์ที่ติ๊กด้านล่าง'),
-        'manager' => array('ผู้จัดการสาขา', 'เห็นทุกอย่างในสาขา + ได้สิทธิ์ดูข้อมูล ดูประวัติ และสิทธิ์เสริมทุกตัวอัตโนมัติ · เพิ่ม / แก้ / รีเซ็ต PIN / พักงานพนักงานในสาขาเองได้ (เมนู “พนักงานในสาขา”) · งานขาย / งานคลังยังตามที่ติ๊ก'),
+        'manager' => array('ผู้จัดการสาขา', 'เห็นทุกอย่างในสาขา + ได้สิทธิ์ดูข้อมูล ดูประวัติ และสิทธิ์เสริมทุกตัวอัตโนมัติ · เพิ่ม / แก้ / รีเซ็ต PIN / พักงานพนักงานในสาขาเองได้ (เมนู “พนักงานในสาขา”) · แก้สินค้าของสาขาได้ (สินค้าส่วนกลางไม่ได้) · งานขาย / งานคลังยังตามที่ติ๊ก'),
     );
     echo '<h4 class="perm-h">ตำแหน่ง</h4><div class="perm-grid staff-pos">';
     foreach ($opts as $k => $o) {

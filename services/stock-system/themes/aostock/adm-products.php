@@ -12,6 +12,7 @@
  *   - [x] ผลทดสอบ 7 ต.ค. (C11): ปุ่ม “แก้ไข” ท้ายทุกแถว (เดิมต้องรู้ว่าแตะชื่อสินค้า)
  *   - [x] 14 ต.ค. (งานความเร็ว ช่วง 4): ตารางครั้งละ 60 แถว + ปุ่ม “แสดงเพิ่ม” — htmx ?from= ส่งกลับแค่แถวชุดถัดไป (เดิมวาดทุกแถว สินค้า 3,000 ตัว = 4.4 MB)
  *   - [x] 21 ต.ค. (ผลทดสอบ · ผู้ใช้เลือก): สถานะรวมนับเฉพาะสาขาที่เคยมีสินค้านั้น (มีแถวยอดคงเหลือ) — สาขาที่ไม่เคยมีแสดง “—” ไม่ทำให้ขึ้น “หมดแล้ว”
+ *   - [x] 22 ต.ค. (สินค้าของสาขา): ป้าย “สินค้าสาขา…” ใต้ชื่อ · สาขาอื่นของสินค้าสาขาแสดง “—” (ไม่ใช่สินค้าของสาขานั้น)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -87,7 +88,7 @@ foreach (products_list(true) as $p) {
         $q  = product_qty($p, $c);
         /* สาขาที่ไม่เคยมีสินค้านี้ (ไม่มีแถวยอดคงเหลือ — ไม่เคยรับเข้า / นับ) = 'none' ไม่นับเป็น “หมด”
            (21 ต.ค. ผู้ใช้เลือก — เดิมสาขาที่ไม่ได้ขายตัวนี้ เช่นสาขาทดสอบ ทำให้ขึ้น “หมดแล้ว” ทุกตัว) · เคยมีแล้วเหลือ 0 = หมดตามเดิม */
-        $st = isset($p['stock'][$c]) ? branch_status($p, $c) : 'none';
+        $st = (isset($p['stock'][$c]) && Stock_isProductInBranch($p, $c)) ? branch_status($p, $c) : 'none';
         $cells[$c] = array('qty' => $q, 'st' => $st);
         $tot += $q;
         if ($st === 'none') {
@@ -180,7 +181,7 @@ $row = function ($r) use ($br, $flowDays) {
             <tr<?php echo $p['active'] ? '' : ' class="prod-off"' ?>>
               <td data-label="สินค้า">
                 <b class="hist-t"><a href="adm-product-edit.php?sku=<?php echo e(rawurlencode($p['sku'])) ?>" title="แก้ไขสินค้า"><?php echo e($p['name']) ?></a></b>
-                <small class="hist-n"><?php echo e($p['sku']) ?> · <?php echo e($p['cat']) ?><?php echo $p['active'] ? '' : ' · เลิกขาย' ?></small>
+                <small class="hist-n"><?php echo e($p['sku']) ?> · <?php echo e($p['cat']) ?><?php echo $p['active'] ? '' : ' · เลิกขาย' ?><?php if ($p['owner'] !== '') { ?> · <span class="own-tag"><?php echo e(Stock_formatProductOwner($p)) ?></span><?php } ?></small>
               </td>
               <?php foreach ($r['cells'] as $c => $x) { ?>
                 <td data-label="<?php echo e($br[$c]['short']) ?>" class="r num nowrap"><span class="stk stk-<?php echo e($x['st']) ?>"<?php echo $x['st'] === 'none' ? ' title="สาขานี้ยังไม่เคยมีสินค้านี้"' : '' ?>><?php echo $x['st'] === 'none' ? '—' : number_format($x['qty']) ?></span></td>

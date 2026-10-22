@@ -2,7 +2,7 @@
 
 > **สถานะ: ร่างรออนุมัติ (ช่วงที่ 15)** — ยังไม่ได้เปลี่ยนชื่อในโค้ด · ตรวจคอลัมน์ "ชื่อใหม่" แล้วแจ้งชื่อที่อยากแก้ได้เลย
 
-ฟังก์ชันทั้งหมด 503 ตัว (เดิม 468 + ตั้งชื่อตามมาตรฐานแล้ว 33 ตัว: ไล่แก้ผลทดสอบ 21 ต.ค. เก้าตัว · ขายแบบ VAT รายสาขา 21 ต.ค. ห้าตัว · บิล VAT ต้องมีเลขภาษี 20 ต.ค. หนึ่งตัว · เทียบจำนวนบนจอก่อนบันทึกใบ 20 ต.ค. หนึ่งตัว · รูปสินค้า 16 ต.ค. หนึ่งตัว · บิลของฉันวันนี้ 16 ต.ค. สองตัว · ช่วงที่ 16 สองตัว · ปุ่มพิมพ์บิล · ช่วงที่ 17 สองตัว · งานความเร็ว 14 ต.ค. แปดตัว · หลุดจากระบบ 14 ต.ค. หนึ่งตัว) อยู่ใน `admweb/aowebdata/modules/stock/api/*.php` (โหลดผ่าน `api.php` · ลบ staff_goal 15 ต.ค. · ใบนับแบบรายการ: เพิ่ม Stock_setCountDraft ลบ adj_limit · adj_full · ลบ count_open_limit · ลองใบนับแบบตารางแล้วกลับมาใช้การ์ด · กลุ่มของประวัติ: เพิ่ม Stock_getLogGroups · Stock_getLogGroupOf · Stock_sumLogGroups · เมนูประวัติแยกหน้า: เพิ่ม Stock_getAllowedLogGroups · Stock_getHistoryPerms) · ธีม `themes/aostock/` และหน้า admweb ของโมดูลเรียกใช้
+ฟังก์ชันทั้งหมด 515 ตัว (เดิม 468 + ตั้งชื่อตามมาตรฐานแล้ว 45 ตัว: สินค้าของสาขา 22 ต.ค. สิบสองตัว · ไล่แก้ผลทดสอบ 21 ต.ค. เก้าตัว · ขายแบบ VAT รายสาขา 21 ต.ค. ห้าตัว · บิล VAT ต้องมีเลขภาษี 20 ต.ค. หนึ่งตัว · เทียบจำนวนบนจอก่อนบันทึกใบ 20 ต.ค. หนึ่งตัว · รูปสินค้า 16 ต.ค. หนึ่งตัว · บิลของฉันวันนี้ 16 ต.ค. สองตัว · ช่วงที่ 16 สองตัว · ปุ่มพิมพ์บิล · ช่วงที่ 17 สองตัว · งานความเร็ว 14 ต.ค. แปดตัว · หลุดจากระบบ 14 ต.ค. หนึ่งตัว) อยู่ใน `admweb/aowebdata/modules/stock/api/*.php` (โหลดผ่าน `api.php` · ลบ staff_goal 15 ต.ค. · ใบนับแบบรายการ: เพิ่ม Stock_setCountDraft ลบ adj_limit · adj_full · ลบ count_open_limit · ลองใบนับแบบตารางแล้วกลับมาใช้การ์ด · กลุ่มของประวัติ: เพิ่ม Stock_getLogGroups · Stock_getLogGroupOf · Stock_sumLogGroups · เมนูประวัติแยกหน้า: เพิ่ม Stock_getAllowedLogGroups · Stock_getHistoryPerms) · ธีม `themes/aostock/` และหน้า admweb ของโมดูลเรียกใช้
 
 ## มาตรฐานการตั้งชื่อ
 
@@ -50,7 +50,7 @@
 | `Stock_encryptSecret($plain)` | `stock_secret_enc` | เข้ารหัส → 'v1:' + base64(iv 12 ไบต์ + tag 16 ไบต์ + ข้อมูล) · ไม่พร้อม = null |
 | `Stock_decryptSecret($stored)` | `stock_secret_dec` | ถอดรหัสค่าจาก Stock_encryptSecret — กุญแจผิด / ข้อมูลเสีย = null |
 
-## `api/core.php` — บทบาท · สิทธิ์ · เมนูที่เปิด / ปิด · ตัวช่วยจัดรูปแบบ (44)
+## `api/core.php` — บทบาท · สิทธิ์ · เมนูที่เปิด / ปิด · ตัวช่วยจัดรูปแบบ (45)
 
 | ชื่อใหม่ | ชื่อเดิม | ทำอะไร |
 |---|---|---|
@@ -92,6 +92,7 @@
 | `Stock_formatThaiMonthShort($ts)` | `thai_month_short` | ชื่อเดือนไทยแบบย่อ เช่น ก.ย. |
 | `Stock_formatThaiDateFull($ts)` | `thai_date_full` | วันที่ไทยแบบเต็ม เช่น 5 ตุลาคม 2569 |
 | `Stock_formatMoney($n)` | `money2` | ตัวเลขเงินทศนิยม 2 ตำแหน่ง เช่น 1,250.00 |
+| `Stock_formatPlainNumber($n)` | — (ใหม่ 22 ต.ค.) | ตัวเลขสำหรับใส่ในช่อง input — ไม่มีจุลภาค ตัดศูนย์ท้าย (120.50 → 120.5 · 99.00 → 99) · ฟอร์มสินค้ากลาง |
 | `Stock_formatThaiWeekdayShort($ts)` | `thai_dow_short` | ชื่อวันแบบย่อ อา. จ. อ. … |
 | `Stock_sendCsv($filename, $head, $rows)` | `csv_send` | ส่งไฟล์ CSV ให้ดาวน์โหลดแล้วจบการทำงาน — ใส่ BOM ให้ Excel อ่านภาษาไทยถูก · $head = หัวคอลัมน์ · $rows = array ของแถว (ตัวเลขส่งดิบ ไม่ใส่ comma) |
 | `Stock_formatCsvMoney($n)` | `csv_money` | ตัวเลขเงินสำหรับ CSV (ทศนิยม 2 ตำแหน่ง ไม่มี comma) |
@@ -163,7 +164,7 @@
 | `Stock_historyUrl($q = '')` | `hist_url` | ลิงก์ของหน้าประวัติ — ใช้ร่วมกันระหว่าง history.php (พนักงาน) กับ adm-history.php (ผู้ดูแล) · ใช้ร่วม history.php กับ adm-history.php · เช่น $HIST_BASE = 'history.php?t=sale' หรือ 'adm-history.php?view=day&b=RS' |
 | `Stock_sendBackToHistory($msg)` | — (ใหม่ 21 ต.ค.) | ยกเลิกใบรับเข้า / ตัดออก / ตรวจนับจากหน้าประวัติ (ช่องซ่อน back = hist_url()) → ตั้ง flash $msg แล้ว redirect กลับหน้าประวัติเดิม · เฉพาะ act=void · back ไม่ใช่ history.php?t=… = ไม่ทำอะไร (หน้าทำรายการทำงานต่อ) |
 
-## `api/branch-staff.php` — สาขา · พนักงาน / ผู้ดูแล · สิทธิ์ · PIN (81)
+## `api/branch-staff.php` — สาขา · พนักงาน / ผู้ดูแล · สิทธิ์ · PIN (82)
 
 | ชื่อใหม่ | ชื่อเดิม | ทำอะไร |
 |---|---|---|
@@ -197,6 +198,7 @@
 | `Stock_getAllUsers()` | `users_all` | ผู้ใช้ทุกคน รวมที่พักงาน — array( username => ข้อมูล ) · ข้อมูล: id name role branch initials perms active · since = วันเริ่มประจำสาขาปัจจุบัน · history = array(branch, from, to) · hash อยู่ที่ staff_auth_row |
 | `Stock_getStaffAuthRow($username)` | `staff_auth_row` | แถวที่ใช้ตรวจ PIN / รหัสผ่าน (มี hash + ตัวนับกรอกผิด) หรือ null |
 | `Stock_getBranchId($code)` | `branch_id_of` | id ของสาขาจากรหัส (ไม่มี = 0) |
+| `Stock_getBranchCodeById($id)` | — (ใหม่ 22 ต.ค.) | รหัสสาขาจาก branch_id (รวมสาขาที่ปิดแล้ว) · 0 / ไม่พบ = '' · แปลงเจ้าของสินค้า (owner_branch_id) |
 | `Stock_createStaff($d)` | `staff_create` | เพิ่มผู้ใช้ — $d: username name initials role branch(รหัส) perms(array) และ pin (staff) หรือ password (admin / account) |
 | `Stock_updateStaff($username, $name, $initials, $perms)` | `staff_update` | แก้ชื่อ / อักษรย่อ / สิทธิ์ |
 | `Stock_renameStaff($username, $new)` | `staff_rename` | เปลี่ยนชื่อผู้ใช้ (ตรวจด้วย Stock_checkStaffUsername ก่อนเรียก) — เอกสาร / ประวัติ / การจดจำเครื่อง ผูกกับ staff_id จึงไม่ต้องแก้ที่อื่น · คนที่เข้าระบบอยู่ด้วยชื่อเดิมถูกพาออกที่หน้าถัดไป แล้วเข้าใหม่ด้วยชื่อใหม่ |
@@ -249,7 +251,7 @@
 | `Stock_setStaffPerms($username, $perms)` | `staff_set_perms` | เขียนเฉพาะสิทธิ์ (ไม่แตะชื่อ / อักษรย่อ) |
 | `Stock_doSetBranchManager($username, $on, $actor)` | `staff_act_set_manager` | ตั้ง / ปลดผู้จัดการสาขา (หน้าจัดการสาขา) — ไม่เปลี่ยน = ไม่ทำอะไร · คืน '' หรือข้อความผิดพลาด |
 
-## `api/product.php` — สินค้า · หมวด · สต๊อกคงเหลือ (57)
+## `api/product.php` — สินค้า · หมวด · สต๊อกคงเหลือ (67)
 
 | ชื่อใหม่ | ชื่อเดิม | ทำอะไร |
 |---|---|---|
@@ -262,8 +264,18 @@
 | `Stock_readProductForm($isNew, $sku)` | `product_read_form` | ตรวจค่าจากฟอร์มสินค้า — คืน array(ค่า, ข้อผิดพลาด) · $isNew = ตรวจ SKU ด้วย |
 | `Stock_saveProduct($isNew, $d)` | `product_save` | เพิ่ม / แก้สินค้า — $d จาก Stock_readProductForm · คืน product_id |
 | `Stock_nextProductSku()` | — (ใหม่ ช่วงที่ 16) | SKU อัตโนมัติถัดไป P0001, P0002, … (ตัวนับใน ao_stock_doc_seq ชุด SKU · ข้ามเลขที่กรอกเองไปแล้ว) — ต้องเรียกใน Stock_dbTransaction · ตัวนับแถวเดียวใน ao_stock_doc_seq (upsert) — เพิ่มพร้อมกันไม่ได้เลขซ้ำ · ข้ามเลขที่มีคนกรอกเองแล้ว |
-| `Stock_doAddProduct($user, $code, $from = 'หน้านำเข้าสินค้า')` | — (ใหม่ ช่วงที่ 16) | พนักงานเพิ่มสินค้าใหม่จากหน้านำเข้า หรือหน้าเพิ่มสินค้า (product-add.php · 15 ต.ค.) (สิทธิ์ product_add) — หมวดใหม่ + สินค้า + ประวัติใน transaction เดียว · คืน array(sku, name) หรือ array(error) · ฟอร์ม: sku_mode (auto / manual) · sku · name · cat · cat_new (ต้องมีสิทธิ์ category_add) · unit · barcode · cost · price · reorder · หมวดใหม่ + สินค้า + ประวัติใน transaction เดียว · $from = หน้าที่เพิ่ม (ลงประวัติ) |
+| `Stock_doAddProduct($user, $code, $from = 'หน้านำเข้าสินค้า')` | — (ใหม่ ช่วงที่ 16) | พนักงานเพิ่มสินค้าใหม่จากหน้านำเข้า หรือหน้าเพิ่มสินค้า (product-add.php · 15 ต.ค.) (สิทธิ์ product_add) — หมวดใหม่ + สินค้า + ประวัติใน transaction เดียว · คืน array(sku, name) หรือ array(error) · ฟอร์ม: sku_mode (auto / manual) · sku · name · cat · cat_new (ต้องมีสิทธิ์ category_add) · unit · barcode · cost · price · reorder · หมวดใหม่ + สินค้า + ประวัติใน transaction เดียว · $from = หน้าที่เพิ่ม (ลงประวัติ) · 22 ต.ค.: ผู้ดูแลใช้ด้วย (ไม่ต้องมีสิทธิ์) = สินค้าส่วนกลาง · พนักงาน / ผู้จัดการ = สินค้าของสาขา $code |
 | `Stock_setProductActive($sku, $on)` | `product_set_active` | เปิดขาย / เลิกขาย |
+| `Stock_hasProductOwnerColumn()` | — (ใหม่ 22 ต.ค.) | มีคอลัมน์ owner_branch_id แล้วหรือยัง (ยังไม่ได้ Reinstall = ไม่มี → ทุกตัวเป็นส่วนกลางแบบเดิม) · ถามฐานข้อมูลครั้งเดียวต่อ request |
+| `Stock_isProductInBranch($p, $code)` | — (ใหม่ 22 ต.ค.) | สินค้านี้ใช้ที่สาขา $code ได้ไหม — ส่วนกลาง = ทุกสาขา · สินค้าของสาขา = เฉพาะสาขาเจ้าของ · 'ALL' = ทุกตัว · ใช้กรองรายการ / กันการใส่ตะกร้า ใบนำเข้า ใบตัดออก ใบตรวจนับ |
+| `Stock_canEditProduct($user, $p)` | — (ใหม่ 22 ต.ค.) | แก้สินค้านี้ได้ไหม — ผู้ดูแล = ทุกตัว · ผู้จัดการสาขา = เฉพาะสินค้าของสาขาตัวเอง · พนักงาน / สินค้าส่วนกลาง = ไม่ได้ |
+| `Stock_formatProductOwner($p)` | — (ใหม่ 22 ต.ค.) | ป้ายเจ้าของ — “สินค้าส่วนกลาง” / “สินค้าสาขารังสิต” / “สินค้าของสาขาที่ไม่มีแล้ว” |
+| `Stock_buildProductDiff($p, $d)` | — (ใหม่ 22 ต.ค.) | ค่าที่เปลี่ยนตอนแก้สินค้า — ชื่อช่อง => 'เดิม → ใหม่' (ชื่อ หมวด หน่วย ทุน ราคาขาย จุดสั่งซื้อ บาร์โค้ด) · ไม่เปลี่ยน = array() |
+| `Stock_getProductLogBranch($p, $code)` | — (ใหม่ 22 ต.ค.) | สาขาที่ลงประวัติเรื่องสินค้า — สินค้าของสาขา = สาขาเจ้าของ · ส่วนกลาง = $code ของคนทำ |
+| `Stock_doSaveProduct($user, $sku, $code)` | — (ใหม่ 22 ต.ค.) | บันทึกการแก้สินค้า (ผู้ดูแล / ผู้จัดการ) — ตรวจสิทธิ์ → รูป → ค่าในฟอร์ม → บันทึก → เก็บรูป → ลงประวัติ “เดิม → ใหม่” · คืน array(ok, img_error) หรือ array(error, bad, old) · เดิมผู้ดูแลแก้แล้วไม่ลงประวัติ |
+| `Stock_doSetProductActive($user, $sku, $on, $code)` | — (ใหม่ 22 ต.ค.) | เลิกขาย / เปิดขายอีกครั้ง พร้อมตรวจสิทธิ์ + ลงประวัติ · คืน '' หรือข้อความ |
+| `Stock_doRemoveProductImage($user, $sku, $code)` | — (ใหม่ 22 ต.ค.) | ลบรูปสินค้า พร้อมตรวจสิทธิ์ + ลงประวัติ · คืน '' หรือข้อความ |
+| `Stock_doMoveProductToCentral($user, $sku, $code)` | — (ใหม่ 22 ต.ค.) | ผู้ดูแลย้ายสินค้าของสาขาเป็นส่วนกลาง (owner_branch_id = 0 · ยอดของสาขาเดิมอยู่ครบ สาขาอื่นเริ่มที่ 0) + ลงประวัติในสาขาเดิม · คืน '' หรือข้อความ |
 | `Stock_checkProductImage($field)` | — (ใหม่ 16 ต.ค.) | ตรวจรูปสินค้าที่อัปโหลดโดยยังไม่เก็บ — คืน '' (ผ่าน / ไม่ได้เลือกรูป) หรือข้อความ · อัปโหลดสำเร็จ · ไม่เกิน 2 MB · เป็น JPG / PNG / WEBP จริง (getimagesize) · ใช้ก่อนเพิ่มสินค้าใหม่ (รูปไม่ผ่าน = ยังไม่เพิ่ม) และใน product_image_store |
 | `Stock_storeProductImage($sku, $field, $oldPath)` | `product_image_store` | รูปสินค้าที่อัปโหลด — ตรวจด้วย Stock_checkProductImage แล้วเก็บด้วย UpFile ของ admweb (แทนรูปเดิม) · เก็บที่ uploads/stock/products/ · ชื่อไฟล์ = SKU + เวลา |
 | `Stock_removeProductImage($sku, $oldPath)` | `product_image_remove` | ลบรูปสินค้า (ไฟล์ + ค่าในฐานข้อมูล) |
@@ -279,7 +291,7 @@
 | `Stock_compareLowRatio($a, $b)` | `compare_low_ratio` | ตัวเรียง (usort): สัดส่วนคงเหลือต่อจุดสั่งซื้อ น้อยก่อน |
 | `Stock_getCategoryNames()` | `product_cats` | ชื่อหมวดสินค้าทั้งหมด (เรียงตามลำดับในทะเบียน) — ใช้กับตัวกรองหมวดทุกหน้า |
 | `Stock_getCategories($reset = false)` | `cat_registry` | ทะเบียนหมวด: ชื่อ => array(id, count จำนวนสินค้า (รวมเลิกขาย), added เพิ่มโดยผู้ใช้ไหม, by, at) |
-| `Stock_getCategoryProducts($name)` | `cat_products` | สินค้าในหมวด (เฉพาะที่ขายอยู่) |
+| `Stock_getCategoryProducts($name, $branch = 'ALL')` | `cat_products` | สินค้าในหมวด (เฉพาะที่ขายอยู่) · $branch = รหัสสาขา (ส่วนกลาง + ของสาขานั้น · 22 ต.ค.) หรือ 'ALL' |
 | `Stock_addCategory($name, $user, $code)` | `cat_add` | เพิ่มหมวด — คืนข้อความผิดพลาด ('' = สำเร็จ) · created_by = staff_id ผู้เพิ่ม (0 = ระบบ / นำเข้า แสดงเป็น "หมวดตั้งต้น") |
 | `Stock_deleteCategory($name, $user, $code)` | `cat_delete` | ลบหมวด — ได้เฉพาะหมวดที่ไม่มีสินค้าอ้างถึง · คืนข้อความผิดพลาด ('' = สำเร็จ) |
 | `Stock_searchSaleProducts($branch, $q, $cat)` | `sale_products` | ค้นหาสินค้าสำหรับหน้าขาย |

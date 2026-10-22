@@ -142,6 +142,7 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_product` (
 	`barcode`       varchar(40)  NULL,
 	`name`          varchar(200) NOT NULL,
 	`cate_id`       int UNSIGNED NOT NULL DEFAULT 0,
+	`owner_branch_id` int UNSIGNED NOT NULL DEFAULT 0 COMMENT '0 = สินค้าส่วนกลาง (ผู้ดูแล) · branch_id = สินค้าของสาขานั้น (ขาย / นำเข้าได้เฉพาะสาขานั้น)',
 	`unit`          varchar(20)  NOT NULL DEFAULT 'ชิ้น',
 	`cost_price`    decimal(10,2) NOT NULL DEFAULT 0 COMMENT 'ทุนล่าสุด',
 	`sell_price`    decimal(10,2) NOT NULL DEFAULT 0,
@@ -152,9 +153,12 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_product` (
 	`edit_date`     datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 	UNIQUE KEY `uq_sku` (`sku`),
 	KEY `idx_barcode` (`barcode`),
-	KEY `idx_cate` (`cate_id`, `is_active`)
+	KEY `idx_cate` (`cate_id`, `is_active`),
+	KEY `idx_owner` (`owner_branch_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AOSTOCK สินค้า';
 ";
+/* เพิ่มทีหลัง — Reinstall เพื่อเพิ่มคอลัมน์ (+ ดัชนีในคำสั่งเดียวกัน รันครั้งเดียวตอนยังไม่มีคอลัมน์) · สินค้าเดิมได้ 0 = ส่วนกลาง (22 ต.ค.) */
+$sqlAlter[_DBPREFIX_ . 'stock_product']['owner_branch_id'] = "ALTER TABLE `" . _DBPREFIX_ . "stock_product` ADD COLUMN `owner_branch_id` int UNSIGNED NOT NULL DEFAULT 0 COMMENT '0 = สินค้าส่วนกลาง (ผู้ดูแล) · branch_id = สินค้าของสาขานั้น (ขาย / นำเข้าได้เฉพาะสาขานั้น)' AFTER `cate_id`, ADD KEY `idx_owner` (`owner_branch_id`)";
 
 
 /* ---------- 2. สต๊อก ---------- */

@@ -62,8 +62,13 @@ function product_shape($r)
     } else {
         $bal = product_balance_rows();
     }
+    /* เจ้าของ (22 ต.ค.): '' = ส่วนกลาง · รหัสสาขา = สินค้าของสาขานั้น · สาขาที่ไม่มีแล้ว = '#id' (ไม่ขึ้นที่สาขาไหน จนผู้ดูแลย้ายเป็นส่วนกลาง) */
+    $oid   = isset($r['owner_branch_id']) ? (int) $r['owner_branch_id'] : 0;
+    $owner = ($oid > 0) ? Stock_getBranchCodeById($oid) : '';
     return array(
         'id'      => $id,
+        'owner'   => ($oid > 0 && $owner === '') ? '#' . $oid : $owner,
+        'owner_id' => $oid,
         'sku'     => $r['sku'],
         'barcode' => (string) $r['barcode'],
         'name'    => $r['name'],
@@ -77,6 +82,49 @@ function product_shape($r)
         'active'  => ((int) $r['is_active'] === 1),
         'stock'   => isset($bal[$id]) ? $bal[$id] : array(),
     );
+}
+
+/** มีคอลัมน์ owner_branch_id แล้วหรือยัง — ขึ้นเซิร์ฟเวอร์แล้วยังไม่ได้ Reinstall = ยังไม่มี (ทุกตัวเป็นส่วนกลางแบบเดิม) · ถามฐานข้อมูลครั้งเดียวต่อ request
+ *  TODO:
+ *    - [x] 22 ต.ค. (สินค้าของสาขา): กันคิวรี / การเขียนอ้างคอลัมน์ที่ยังไม่มี */
+function Stock_hasProductOwnerColumn()
+{
+    static $has = null;
+    if ($has === null) {
+        $has = (sdb_row('SHOW COLUMNS FROM ' . sdb_tb('product') . " LIKE 'owner_branch_id'") !== null);
+    }
+    return $has;
+}
+
+/** สินค้านี้ใช้ที่สาขา $code ได้ไหม — ส่วนกลาง = ทุกสาขา · สินค้าของสาขา = เฉพาะสาขาเจ้าของ · 'ALL' (ผู้ดูแลดูรวม) = ทุกตัว
+ *  TODO:
+ *    - [x] 22 ต.ค. (ผู้ใช้ขอ): ผู้จัดการ / พนักงานเพิ่มสินค้าเป็นของสาขาตัวเอง ไม่ทับส่วนกลาง */
+function Stock_isProductInBranch($p, $code)
+{
+    return $code === 'ALL' || !isset($p['owner']) || $p['owner'] === '' || $p['owner'] === (string) $code;
+}
+
+/** แก้สินค้านี้ได้ไหม — ผู้ดูแล = ทุกตัว · ผู้จัดการสาขา = เฉพาะสินค้าของสาขาตัวเอง · พนักงาน / สินค้าส่วนกลาง = ไม่ได้
+ *  TODO:
+ *    - [x] 22 ต.ค. (ผู้ใช้เลือก “เฉพาะผู้จัดการสาขา”): แก้ได้ทุกช่องเหมือนผู้ดูแล รวมรูป / เลิกขาย */
+function Stock_canEditProduct($user, $p)
+{
+    if (!$user || !$p) {
+        return false;
+    }
+    if (isset($user['role']) && $user['role'] === 'admin') {
+        return true;
+    }
+    return is_branch_manager($user) && $p['owner'] !== '' && $p['owner'] === (string) $user['branch'];
+}
+
+/** ป้ายเจ้าของสินค้า — 'สินค้าส่วนกลาง' / 'สินค้าสาขารังสิต' */
+function Stock_formatProductOwner($p)
+{
+    if (!isset($p['owner']) || $p['owner'] === '') {
+        return 'สินค้าส่วนกลาง';
+    }
+    return ($p['owner'][0] === '#') ? 'สินค้าของสาขาที่ไม่มีแล้ว' : 'สินค้า' . branch_name($p['owner']);
 }
 
 /** สินค้าที่ขายอยู่ (หรือทั้งหมดรวมที่เลิกขาย) — รูปแบบเดียวกับ product_shape */
@@ -172,6 +220,11 @@ function Stock_searchPickProducts($branch, $q, $cat, $offset = 0, $limit = PRODU
 {
     $where = array('p.is_active = 1');
     $args  = array();
+    /* สินค้าของสาขา (22 ต.ค.): สาขาเห็นส่วนกลาง + ของสาขาตัวเอง · 'ALL' = ทั้งหมด */
+    if ($branch !== 'ALL' && Stock_hasProductOwnerColumn()) {
+        $where[] = '(p.owner_branch_id = 0 OR p.owner_branch_id = ?)';
+        $args[]  = branch_id_of($branch);
+    }
     if ($cat !== '') {
         $where[] = 'c.name = ?';
         $args[]  = $cat;
@@ -320,6 +373,9 @@ function product_save($isNew, $d)
     );
     if ($isNew) {
         $row['sku'] = $d['sku'];
+        if (!empty($d['owner_id']) && Stock_hasProductOwnerColumn()) {
+            $row['owner_branch_id'] = (int) $d['owner_id'];          // สินค้าของสาขา (22 ต.ค.) · ไม่ระบุ = ส่วนกลาง
+        }
         $id = sdb_insert('product', $row);
     } else {
         sdb_update('product', $row, array('sku' => $d['sku']));
@@ -338,12 +394,15 @@ function Stock_nextProductSku()
     return $sku;
 }
 
-/** เพิ่มสินค้าใหม่ (พนักงานที่มีสิทธิ์ product_add) · คืน array('sku', 'name') หรือ array('error') */
+/** เพิ่มสินค้าใหม่ · คืน array('sku', 'name') หรือ array('error')
+ *  ผู้ดูแล = สินค้าส่วนกลาง (ทุกสาขา) · พนักงานที่มีสิทธิ์ product_add / ผู้จัดการ = สินค้าของสาขา $code (22 ต.ค. ผู้ใช้เลือก — ไม่ทับส่วนกลาง) */
 function Stock_doAddProduct($user, $code, $from = 'หน้านำเข้าสินค้า')
 {
-    if (!can($user, 'product_add')) {
+    $isAdmin = (isset($user['role']) && $user['role'] === 'admin');
+    if (!$isAdmin && !can($user, 'product_add')) {
         return array('error' => 'ไม่มีสิทธิ์ “เพิ่มสินค้าใหม่” — ติดต่อผู้จัดการสาขาหรือผู้ดูแลเพื่อเปิดสิทธิ์');
     }
+    $owner = ($isAdmin || !Stock_hasProductOwnerColumn()) ? 0 : branch_id_of($code);
     $auto   = !(isset($_POST['sku_mode']) && $_POST['sku_mode'] === 'manual');
     $newCat = (isset($_POST['cat_new']) && is_string($_POST['cat_new'])) ? trim(preg_replace('/\s+/u', ' ', $_POST['cat_new'])) : '';
     if ($newCat !== '') {
@@ -355,11 +414,11 @@ function Stock_doAddProduct($user, $code, $from = 'หน้านำเข้�
             }
         }
     }
-    if ($newCat !== '' && !can($user, 'category_add')) {
+    if ($newCat !== '' && !$isAdmin && !can($user, 'category_add')) {
         return array('error' => 'ไม่มีสิทธิ์เพิ่มหมวดสินค้าใหม่ — เลือกจากหมวดที่มีอยู่ หรือติดต่อผู้จัดการสาขา');
     }
     try {
-        return sdb_tx(function () use ($user, $code, $auto, $newCat, $from) {
+        return sdb_tx(function () use ($user, $code, $auto, $newCat, $from, $owner) {
             if ($newCat !== '') {
                 $e = cat_add($newCat, $user, $code);
                 if ($e !== '') {
@@ -375,9 +434,11 @@ function Stock_doAddProduct($user, $code, $from = 'หน้านำเข้�
             if ($err !== '') {
                 throw new InvalidArgumentException($err);
             }
+            $d['owner_id'] = $owner;
             product_save(true, $d);
             log_add($code, 'stock', $user, 'เพิ่มสินค้าใหม่ ' . $d['name'], array(
                 'SKU'      => $d['sku'] . ($auto ? ' (ตั้งให้อัตโนมัติ)' : ''),
+                'เป็นของ'  => ($owner > 0) ? branch_name($code) . ' (ขาย / นำเข้าได้เฉพาะสาขานี้)' : 'ส่วนกลาง (ทุกสาขา)',
                 'หมวด'     => $d['cat'],
                 'ราคาขาย'  => money2($d['price']) . ' บาท / ' . $d['unit'],
                 'ทุน'      => money2($d['cost']) . ' บาท',
@@ -397,6 +458,131 @@ function product_set_active($sku, $on)
 {
     sdb_update('product', array('is_active' => $on ? 1 : 0), array('sku' => $sku));
     product_db_reset();
+}
+
+/* ---------- แก้สินค้า (ผู้ดูแล = ทุกตัว · ผู้จัดการ = สินค้าของสาขาตัวเอง) — ทุกการแก้ลงประวัติ · 22 ต.ค. ---------- */
+
+/** ค่าที่เปลี่ยน — ชื่อช่อง => 'เดิม → ใหม่' · ไม่มีอะไรเปลี่ยน = array() */
+function Stock_buildProductDiff($p, $d)
+{
+    $none  = function ($s) { return ($s !== '') ? $s : '—'; };
+    $pairs = array(
+        'ชื่อ'        => array($p['name'], $d['name']),
+        'หมวด'       => array($p['cat'], $d['cat']),
+        'หน่วย'       => array($p['unit'], $d['unit']),
+        'ทุน'        => array(money2($p['cost']), money2($d['cost'])),
+        'ราคาขาย'    => array(money2($p['price']), money2($d['price'])),
+        'จุดสั่งซื้อ'   => array(number_format($p['reorder']), number_format($d['reorder'])),
+        'บาร์โค้ด'    => array($none((string) $p['barcode']), $none((string) $d['barcode'])),
+    );
+    $out = array();
+    foreach ($pairs as $k => $x) {
+        if ((string) $x[0] !== (string) $x[1]) {
+            $out[$k] = $x[0] . ' → ' . $x[1];
+        }
+    }
+    return $out;
+}
+
+/** สาขาที่ลงประวัติเรื่องสินค้านี้ — สินค้าของสาขา = สาขาเจ้าของ (ผู้จัดการเห็นในประวัติ) · ส่วนกลาง = สาขาของคนทำ ($code) */
+function Stock_getProductLogBranch($p, $code)
+{
+    return ($p['owner'] !== '' && $p['owner'][0] !== '#') ? $p['owner'] : $code;
+}
+
+/** บันทึกการแก้สินค้า (ฟอร์มกลาง inc/product-form.php) — ตรวจสิทธิ์ → รูป → ค่าในฟอร์ม → บันทึก → เก็บรูป → ลงประวัติ “เดิม → ใหม่”
+ *  คืน array('ok' => true, 'img_error' => '' | ข้อความ) หรือ array('error', 'bad' => รูปไม่ผ่าน, 'old' => ค่าที่กรอก)
+ *  TODO:
+ *    - [x] 22 ต.ค. (ผู้ใช้ขอ): ผู้จัดการแก้สินค้าของสาขาตัวเองได้ทุกช่องเหมือนผู้ดูแล · เดิมผู้ดูแลแก้แล้วไม่ลงประวัติ */
+function Stock_doSaveProduct($user, $sku, $code)
+{
+    $p = product_by_sku($sku);
+    if ($p === null) {
+        return array('error' => 'ไม่พบสินค้านี้');
+    }
+    if (!Stock_canEditProduct($user, $p)) {
+        return array('error' => 'แก้ได้เฉพาะสินค้าของสาขาตัวเอง — สินค้าส่วนกลางให้ผู้ดูแลแก้');
+    }
+    $bad = Stock_checkProductImage('image');
+    if ($bad !== '') {
+        return array('error' => 'ยังไม่ได้บันทึก — ' . $bad . ' · เลือกรูปใหม่ (หรือไม่เปลี่ยนรูป) แล้วกดบันทึกอีกครั้ง', 'bad' => $bad);
+    }
+    list($d, $err) = product_read_form(false, $sku);
+    if ($err !== '') {
+        return array('error' => $err, 'old' => $d);
+    }
+    product_save(false, $d);
+    $img  = product_image_store($sku, 'image', $p['image']);
+    $diff = Stock_buildProductDiff($p, $d);
+    if (isset($img['ok'])) {
+        $diff['รูป'] = ($p['image'] !== '') ? 'เปลี่ยนรูปใหม่' : 'เพิ่มรูป';
+    }
+    if ($diff) {
+        log_add(Stock_getProductLogBranch($p, $code), 'stock', $user, 'แก้ไขสินค้า ' . $d['name'],
+                array('SKU' => $sku . ' · ' . Stock_formatProductOwner($p)) + $diff
+                + array('แก้โดย' => $user['name'] . ' (' . user_role_label($user) . ')'));
+    }
+    return array('ok' => true, 'img_error' => isset($img['error']) ? $img['error'] : '');
+}
+
+/** เลิกขาย / เปิดขายอีกครั้ง (ตรวจสิทธิ์ + ลงประวัติ) · คืน '' หรือข้อความผิดพลาด */
+function Stock_doSetProductActive($user, $sku, $on, $code)
+{
+    $p = product_by_sku($sku);
+    if ($p === null || !Stock_canEditProduct($user, $p)) {
+        return 'แก้ได้เฉพาะสินค้าของสาขาตัวเอง — สินค้าส่วนกลางให้ผู้ดูแลแก้';
+    }
+    if ($p['active'] === (bool) $on) {
+        return '';
+    }
+    product_set_active($sku, $on);
+    log_add(Stock_getProductLogBranch($p, $code), 'stock', $user, ($on ? 'เปิดขายสินค้าอีกครั้ง ' : 'เลิกขายสินค้า ') . $p['name'], array(
+        'SKU'    => $sku . ' · ' . Stock_formatProductOwner($p),
+        'ผล'     => $on ? 'กลับมาขาย / นำเข้า / ตรวจนับได้' : 'ซ่อนจากหน้าขาย / นำเข้า / ตรวจนับ · ประวัติยังอยู่ครบ',
+        'แก้โดย' => $user['name'] . ' (' . user_role_label($user) . ')',
+    ));
+    return '';
+}
+
+/** ลบรูปสินค้า (ตรวจสิทธิ์ + ลงประวัติ) · คืน '' หรือข้อความผิดพลาด */
+function Stock_doRemoveProductImage($user, $sku, $code)
+{
+    $p = product_by_sku($sku);
+    if ($p === null || !Stock_canEditProduct($user, $p)) {
+        return 'แก้ได้เฉพาะสินค้าของสาขาตัวเอง — สินค้าส่วนกลางให้ผู้ดูแลแก้';
+    }
+    if ($p['image'] === '') {
+        return '';
+    }
+    product_image_remove($sku, $p['image']);
+    log_add(Stock_getProductLogBranch($p, $code), 'stock', $user, 'ลบรูปสินค้า ' . $p['name'], array(
+        'SKU'    => $sku . ' · ' . Stock_formatProductOwner($p),
+        'แก้โดย' => $user['name'] . ' (' . user_role_label($user) . ')',
+    ));
+    return '';
+}
+
+/** ผู้ดูแลย้ายสินค้าของสาขาเป็นสินค้าส่วนกลาง (ทุกสาขาขาย / นำเข้าได้) · คืน '' หรือข้อความผิดพลาด
+ *  TODO:
+ *    - [x] 22 ต.ค. (ผู้ใช้เลือก): ยอดคงเหลือของสาขาเดิมอยู่ครบ · สาขาอื่นเริ่มที่ 0 */
+function Stock_doMoveProductToCentral($user, $sku, $code)
+{
+    $p = product_by_sku($sku);
+    if ($p === null || !isset($user['role']) || $user['role'] !== 'admin') {
+        return 'ย้ายเป็นสินค้าส่วนกลางได้เฉพาะผู้ดูแล';
+    }
+    if ($p['owner'] === '' || !Stock_hasProductOwnerColumn()) {
+        return '';
+    }
+    sdb_update('product', array('owner_branch_id' => 0), array('sku' => $sku));
+    product_db_reset();
+    log_add(Stock_getProductLogBranch($p, $code), 'stock', $user, 'ย้ายเป็นสินค้าส่วนกลาง ' . $p['name'], array(
+        'SKU'       => $sku,
+        'เดิมเป็นของ' => Stock_formatProductOwner($p),
+        'ตอนนี้'     => 'สินค้าส่วนกลาง — ทุกสาขาขาย / นำเข้าได้ (ยอดของสาขาเดิมอยู่ครบ สาขาอื่นเริ่มที่ 0)',
+        'ย้ายโดย'    => $user['name'],
+    ));
+    return '';
 }
 
 /** ตรวจรูปสินค้าที่อัปโหลด (ยังไม่เก็บ) · คืน '' = ผ่าน หรือไม่ได้เลือกรูป · ข้อความ = ไม่ผ่าน */
@@ -521,6 +707,9 @@ function product_status($p, $branch)
     }
     $worst = 'ok';
     foreach (array_keys(branches_active()) as $code) {
+        if (!Stock_isProductInBranch($p, $code)) {
+            continue;                                    // สินค้าของสาขาอื่น — ไม่นับเป็นหมดที่สาขานี้ (22 ต.ค.)
+        }
         $st = branch_status($p, $code);
         if ($st === 'out') {
             return 'out';
@@ -538,6 +727,9 @@ function worst_branch($p)
     $best      = null;
     $bestRatio = INF;
     foreach (array_keys(branches_active()) as $code) {
+        if (!Stock_isProductInBranch($p, $code)) {
+            continue;                                    // สินค้าของสาขาอื่น (22 ต.ค.)
+        }
         $qty   = product_qty($p, $code);
         $ratio = $p['reorder'] > 0 ? $qty / $p['reorder'] : 0;
         if ($ratio < $bestRatio) {
@@ -547,7 +739,7 @@ function worst_branch($p)
     }
     if ($best === null) {
         $keys = array_keys(branches_active());
-        $best = $keys[0];
+        $best = (isset($p['owner']) && $p['owner'] !== '' && $p['owner'][0] !== '#') ? $p['owner'] : $keys[0];
     }
     return $best;
 }
@@ -560,6 +752,9 @@ function stock_summary($branch)
     $out   = 0;
 
     foreach (products_list() as $p) {
+        if (!Stock_isProductInBranch($p, $branch)) {
+            continue;                                    // สินค้าของสาขาอื่น (22 ต.ค.)
+        }
         $items++;
         $value += product_qty($p, $branch) * $p['cost'];
         $st = product_status($p, $branch);
@@ -578,6 +773,9 @@ function low_stock_products($branch, $limit = 6)
 {
     $rows = array();
     foreach (products_list() as $p) {
+        if (!Stock_isProductInBranch($p, $branch)) {
+            continue;                                    // สินค้าของสาขาอื่น — ไม่แจ้งว่าหมดที่สาขานี้ (22 ต.ค.)
+        }
         $st = product_status($p, $branch);
         if ($st === 'ok') {
             continue;
@@ -649,12 +847,12 @@ function cat_registry($reset = false)
     return $out;
 }
 
-/** สินค้าในหมวด (เฉพาะที่ขายอยู่) */
-function cat_products($name)
+/** สินค้าในหมวด (เฉพาะที่ขายอยู่) · $branch = รหัสสาขา (เห็นส่วนกลาง + ของสาขานั้น · 22 ต.ค.) หรือ 'ALL' */
+function cat_products($name, $branch = 'ALL')
 {
     $out = array();
     foreach (products_list() as $p) {
-        if ($p['cat'] === $name) {
+        if ($p['cat'] === $name && Stock_isProductInBranch($p, $branch)) {
             $out[] = $p;
         }
     }
@@ -708,7 +906,7 @@ function sale_products($branch, $q, $cat)
     $q   = trim($q);
     $out = array();
     foreach (products_list() as $p) {
-        if ($cat !== '' && $p['cat'] !== $cat) {
+        if (($cat !== '' && $p['cat'] !== $cat) || !Stock_isProductInBranch($p, $branch)) {
             continue;
         }
         if ($q !== '' && stripos($p['name'], $q) === false && stripos($p['sku'], $q) === false) {
@@ -728,7 +926,7 @@ function Stock_getPickProducts($branch, $skus)
     Stock_prefetchProducts($skus);                       // คิวรีเดียวทุกใบที่ต้องวาดใหม่ (ช่วง 5)
     foreach (array_unique($skus) as $sku) {
         $p = product_by_sku((string) $sku);
-        if ($p === null || !$p['active']) {
+        if ($p === null || !$p['active'] || !Stock_isProductInBranch($p, $branch)) {
             continue;
         }
         $p['qty']   = product_qty($p, $branch);
@@ -950,8 +1148,8 @@ function stock_rows($code, $q, $cat, $st, $sort)
     $rows = array();
 
     foreach (products_list() as $p) {
-        if ($cat !== '' && $p['cat'] !== $cat) {
-            continue;
+        if (($cat !== '' && $p['cat'] !== $cat) || !Stock_isProductInBranch($p, $code)) {
+            continue;                                    // สินค้าของสาขาอื่นไม่ขึ้น (22 ต.ค.)
         }
         if ($q !== '' && stripos($p['name'], $q) === false && stripos($p['sku'], $q) === false) {
             continue;
@@ -1043,6 +1241,9 @@ function stock_branch_sum($code)
 {
     $sum = array('skus' => 0, 'qty' => 0, 'low' => 0, 'out' => 0, 'value' => 0);
     foreach (products_list() as $p) {
+        if (!Stock_isProductInBranch($p, $code)) {
+            continue;                                    // สินค้าของสาขาอื่น (22 ต.ค.)
+        }
         $qty = product_qty($p, $code);
         $sum['skus']++;
         $sum['qty']   += $qty;
