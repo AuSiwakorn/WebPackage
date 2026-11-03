@@ -47,7 +47,7 @@ if ($user['role'] === 'admin') {
         'ตรวจสอบ' => array(
             array('file' => 'adm-dashboard.php', 'label' => 'ภาพรวม',              'icon' => 'i-home'),
             array('file' => 'adm-products.php',  'label' => 'สินค้าในสต๊อก',        'icon' => 'i-boxes'),
-            array('file' => 'adm-product-edit.php', 'label' => 'เพิ่มสินค้า',        'icon' => 'i-plus'),
+            array('file' => 'adm-product-edit.php', 'label' => 'เพิ่มสินค้าใหม่',    'icon' => 'i-plus'),
             array('file' => 'adm-categories.php','label' => 'หมวดสินค้า',          'icon' => 'i-tag'),
         ),
         'ประวัติ' => array(                                                       // 1 เมนู = 1 หน้า · ?t= = กลุ่มของประวัติ (Stock_getLogGroups)
@@ -83,7 +83,7 @@ if ($user['role'] === 'admin') {
             array('file' => 'store.php',      'label' => 'เปิด / ปิดร้าน',    'icon' => 'i-store'),
             array('file' => 'sale.php',       'label' => 'ขายสินค้า',         'icon' => 'i-cart'),
             array('file' => 'products.php',   'label' => 'สินค้าในสต๊อก',     'icon' => 'i-boxes'),
-            array('file' => 'product-add.php', 'label' => 'เพิ่มสินค้า',      'icon' => 'i-plus'),     // เฉพาะคนที่มีสิทธิ์ “เพิ่มสินค้าใหม่” (page_perm)
+            array('file' => 'product-add.php', 'label' => 'เพิ่มสินค้าใหม่',  'icon' => 'i-plus'),     // เฉพาะคนที่มีสิทธิ์ “เพิ่มสินค้าใหม่” (page_perm)
             array('file' => 'categories.php', 'label' => 'หมวดสินค้า',        'icon' => 'i-tag'),
             array('file' => 'receive.php',    'label' => 'นำเข้าสินค้า',      'icon' => 'i-in'),
             array('file' => 'issue.php',      'label' => 'เบิก / ตัดออก',     'icon' => 'i-out'),

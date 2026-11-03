@@ -9,7 +9,7 @@
  *   - [x] ใบที่บันทึกแล้วเก็บในตาราง ao_stock_* (ช่วงที่ 6) · บันทึกไม่ผ่านแสดงข้อความแทนหน้า error
  *   - [x] ช่วงที่ 11: แก้ / ยกเลิกใบของตัวเองต้องมีสิทธิ์ doc_fix · ปุ่มแก้ / ยกเลิกและลิงก์ยอดคงเหลือแสดงตามสิทธิ์
  *   - [x] ช่วงที่ 16: ปุ่ม "เพิ่มสินค้าใหม่" (สิทธิ์ product_add) → หน้าต่างฟอร์ม · บันทึกแล้วใส่เข้าใบ 1 ชิ้นทันที
- *         · SKU ตั้งให้อัตโนมัติ (ค่าเริ่มต้น) หรือกรอกเอง · หมวดใหม่ได้ถ้ามีสิทธิ์เพิ่มหมวด · ระบบยังไม่มีสินค้า = กล่อง "เพิ่มสินค้าแรก"
+ *         · SKU กรอกเอง (ต้องกรอก · เลิกแบบอัตโนมัติ 3 พ.ย.) · หมวดใหม่ได้ถ้ามีสิทธิ์เพิ่มหมวด · ระบบยังไม่มีสินค้า = กล่อง "เพิ่มสินค้าแรก"
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  *   - [x] 8 ต.ค.: ยังกรอกไม่ครบแล้วกดบันทึก → เลื่อนไปช่องแรกที่ขาด กะพริบ + ข้อความ (data-need · aoNeedSync ใน inc/footer.php)
  *   - [x] 12 ต.ค.: ช่อง “ผู้รับเข้า” ขึ้น “พนักงาน” แม้เป็นผู้จัดการสาขา → ใช้ user_role_label() แบบเดียวกับแถบบน
@@ -340,7 +340,7 @@ require dirname(__FILE__) . '/inc/header.php';
     $npv = function ($k, $def = '') use ($npErr) {                       // ค่าที่กรอกไว้ (ตอนบันทึกไม่ผ่าน)
         return ($npErr !== '' && isset($_POST[$k]) && is_string($_POST[$k])) ? $_POST[$k] : $def;
     };
-    $npManual = ($npv('sku_mode') === 'manual'); ?>
+    ?>
 <dialog class="fm-modal np-modal" id="np-modal" aria-labelledby="np-t"<?php echo $npErr !== '' ? ' data-fm-auto' : '' ?>>
   <div class="fm-head">
     <div><h2 id="np-t">เพิ่มสินค้าใหม่</h2><span class="sub"><?php echo Stock_hasProductOwnerColumn() ? 'เป็นสินค้าของ' . e(branch_name($code)) . ' (ขาย / นำเข้าได้เฉพาะสาขานี้)' : 'เพิ่มเข้าระบบ (ใช้ได้ทุกสาขา)' ?> แล้วใส่ในใบรับเข้านี้ 1 ชิ้นทันที</span></div>
@@ -361,27 +361,31 @@ require dirname(__FILE__) . '/inc/header.php';
         <input class="input" type="text" id="np-name" name="name" value="<?php echo e($npv('name')) ?>" maxlength="200" required autocomplete="off" placeholder="เช่น สายชาร์จ USB-C 1 เมตร">
       </div>
       <div class="field">
-        <span class="lbl" id="np-sku-l">SKU (รหัสสินค้า)</span>
-        <div class="np-sku" role="radiogroup" aria-labelledby="np-sku-l">
-          <label class="check"><input type="radio" name="sku_mode" value="auto"<?php echo $npManual ? '' : ' checked' ?>> ตั้งให้อัตโนมัติ (P0001 …)</label>
-          <label class="check"><input type="radio" name="sku_mode" value="manual"<?php echo $npManual ? ' checked' : '' ?>> กรอกเอง</label>
-        </div>
-        <input class="input np-sku-in" type="text" id="np-sku" name="sku" value="<?php echo e($npv('sku')) ?>" maxlength="40" autocomplete="off" autocapitalize="characters"
-               placeholder="เช่น CS-010" aria-label="SKU ที่กรอกเอง"<?php echo $npManual ? ' required' : ' hidden' ?>>
-        <small class="adm-hint">A–Z 0–9 . _ - · ตั้งแล้วเปลี่ยนไม่ได้</small>
+        <?php /* SKU กรอกเองอย่างเดียว ต้องกรอก (เลิกตั้งให้อัตโนมัติ) */ ?>
+        <label for="np-sku">SKU (รหัสสินค้า)</label>
+        <input class="input" type="text" id="np-sku" name="sku" value="<?php echo e($npv('sku')) ?>" maxlength="40" autocomplete="off" autocapitalize="characters"
+               placeholder="เช่น CS-010" required>
+        <small class="adm-hint">A–Z 0–9 . _ - · 1 สี / รุ่น = 1 SKU · ตั้งแล้วเปลี่ยนไม่ได้</small>
       </div>
       <div class="field">
         <label for="np-cat">หมวด</label>
-        <select class="input" id="np-cat" name="cat">
-          <option value="">— เลือกหมวด —</option>
-          <?php $cv = $npv('cat'); foreach ($npCats as $c) { ?>
-            <option value="<?php echo e($c) ?>"<?php echo $cv === $c ? ' selected' : '' ?>><?php echo e($c) ?></option>
+        <?php /* ช่องพิมพ์ค้นหมวด (inc/footer.php data-cat-pick) — select / cat_new ข้างในยังเป็นตัวส่งค่า */ ?>
+        <div class="cat-pick" data-cat-pick<?php echo $npCanCat ? ' data-can-new' : '' ?>>
+          <select class="input" id="np-cat" name="cat">
+            <option value="">— เลือกหมวด —</option>
+            <?php $cv = $npv('cat'); foreach ($npCats as $c) { ?>
+              <option value="<?php echo e($c) ?>"<?php echo $cv === $c ? ' selected' : '' ?>><?php echo e($c) ?></option>
+            <?php } ?>
+          </select>
+          <?php if ($npCanCat) { ?>
+            <input class="input np-cat-new" type="text" name="cat_new" value="<?php echo e($npv('cat_new')) ?>" maxlength="50" autocomplete="off"
+                   placeholder="หรือพิมพ์หมวดใหม่ เช่น หูฟัง" aria-label="หมวดใหม่">
           <?php } ?>
-        </select>
+        </div>
         <?php if ($npCanCat) { ?>
-          <input class="input np-cat-new" type="text" name="cat_new" value="<?php echo e($npv('cat_new')) ?>" maxlength="50" autocomplete="off"
-                 placeholder="หรือพิมพ์หมวดใหม่ เช่น หูฟัง" aria-label="หมวดใหม่">
-          <small class="adm-hint">พิมพ์หมวดใหม่ = สร้างหมวดนั้นให้ด้วย (ใช้ได้ทุกสาขา)</small>
+          <small class="adm-hint cat-pick-hint">พิมพ์หมวดใหม่ = สร้างหมวดนั้นให้ด้วย (ใช้ได้ทุกสาขา)</small>
+        <?php } else { ?>
+          <small class="adm-hint cat-pick-hint" hidden></small>
         <?php } ?>
       </div>
       <div class="field">
@@ -392,7 +396,7 @@ require dirname(__FILE__) . '/inc/header.php';
       <div class="field">
         <label for="np-cost">ทุนต่อหน่วย (บาท)</label>
         <input class="input" type="text" id="np-cost" name="cost" value="<?php echo e($npv('cost')) ?>" inputmode="decimal" autocomplete="off" placeholder="0.00">
-        <small class="adm-hint">ใช้คิดมูลค่าการรับเข้าครั้งนี้</small>
+        <small class="adm-hint">ใช้คิดมูลค่าการรับเข้าครั้งนี้ · ไม่ใช้ เว้นว่างหรือใส่ 0 ได้</small>
       </div>
       <div class="field">
         <label for="np-price">ราคาขาย (บาท · รวม VAT)</label>
@@ -400,9 +404,9 @@ require dirname(__FILE__) . '/inc/header.php';
         <small class="adm-hint">มีผลกับบิลทันทีที่บันทึก</small>
       </div>
       <div class="field">
-        <label for="np-reorder">จุดสั่งซื้อ</label>
+        <label for="np-reorder">จำนวนที่ระบบจะแจ้งเตือนสินค้าใกล้หมด</label>
         <input class="input" type="text" id="np-reorder" name="reorder" value="<?php echo e($npv('reorder')) ?>" inputmode="numeric" autocomplete="off" placeholder="0">
-        <small class="adm-hint">เหลือเท่านี้หรือน้อยกว่า = ใกล้หมด</small>
+        <small class="adm-hint">เหลือเท่านี้หรือน้อยกว่า ระบบจะเตือนว่าใกล้หมด · ไม่ใช้การแจ้งเตือนใกล้หมด ให้ใส่ 0 (สินค้าหมดยังแจ้งตามปกติ)</small>
       </div>
       <div class="field">
         <label for="np-barcode">บาร์โค้ด <small class="adm-none">(ไม่บังคับ)</small></label>
@@ -429,15 +433,6 @@ require dirname(__FILE__) . '/inc/header.php';
   document.addEventListener('click', function (ev) {
     if (ev.target.closest('[data-fm-open="np-modal"]')) { dlg.showModal(); var n = document.getElementById('np-name'); if (n) { n.focus(); } return; }
     if (ev.target.closest('#np-modal [data-fm-close]')) { dlg.close(); }
-  });
-  /* SKU: ตั้งให้อัตโนมัติ / กรอกเอง */
-  var skuIn = document.getElementById('np-sku');
-  dlg.addEventListener('change', function (ev) {
-    if (ev.target.name !== 'sku_mode' || !skuIn) { return; }
-    var manual = (ev.target.value === 'manual');
-    skuIn.hidden = !manual;
-    skuIn.required = manual;
-    if (manual) { skuIn.focus(); }
   });
   if (dlg.hasAttribute('data-fm-auto')) { dlg.showModal(); }
 })();

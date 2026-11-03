@@ -36,7 +36,7 @@ $codes = $b === 'ALL' ? array_keys($brAll) : array($b);
 
 $bills = array();
 $sum   = array('bills' => 0, 'void' => 0, 'qty' => 0, 'total' => 0, 'cash' => 0, 'disc' => 0);
-$prods = array();
+$prods = Stock_getSoldProductsOfDay($codes, $ts);   // ตัวเดียวกับหน้าปิดร้าน — ตัวเลขตรงกัน
 foreach ($codes as $c) {
     foreach (acct_bills($c, $ts) as $bl) {
         $bl['branch'] = $c;
@@ -50,20 +50,9 @@ foreach ($codes as $c) {
         $sum['total'] += $bl['total'];
         $sum['cash']  += $bl['method'] === 'cash' ? $bl['total'] : 0;
         $sum['disc']  += !empty($bl['discount']) ? $bl['discount'] : 0;
-        $sub = !empty($bl['subtotal']) ? $bl['subtotal'] : $bl['total'];
-        $fac = $sub > 0 ? $bl['total'] / $sub : 1;
-        foreach ($bl['lines'] as $l) {
-            if (!isset($prods[$l['sku']])) {
-                $prods[$l['sku']] = array('name' => $l['name'], 'unit' => $l['unit'], 'qty' => 0, 'total' => 0, 'bills' => 0);
-            }
-            $prods[$l['sku']]['qty']   += $l['qty'];
-            $prods[$l['sku']]['total'] += $l['sum'] * $fac;
-            $prods[$l['sku']]['bills']++;
-        }
     }
 }
 usort($bills, function ($x, $y) { return strcmp($y['time'], $x['time']); });
-uasort($prods, function ($x, $y) { return $x['qty'] == $y['qty'] ? ($x['total'] < $y['total'] ? 1 : -1) : ($x['qty'] < $y['qty'] ? 1 : -1); });
 $where = $b === 'ALL' ? 'ทุกสาขา' : $brAll[$b]['name'];
 ?>
 <div class="ds-head">

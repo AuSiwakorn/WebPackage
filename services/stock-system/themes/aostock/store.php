@@ -3,12 +3,12 @@
  * FILE: themes/aostock/store.php
  * ROLE: เปิด / ปิดร้านประจำวัน และเงินทอนในลิ้นชัก
  * DEPENDS: themes/aostock/include/function.php, themes/aostock/inc/header.php, themes/aostock/inc/footer.php
- * TABLES: ao_stock_store_day, ao_stock_cash_move, ao_stock_sale, ao_stock_return, ao_stock_log (ผ่าน api.php)
+ * TABLES: ao_stock_store_day, ao_stock_cash_move, ao_stock_sale, ao_stock_sale_item, ao_stock_return, ao_stock_log (ผ่าน api.php)
  * TODO:
  *   - [x] ย้ายจาก demo/ เข้า themes/aostock/ (วิ่งผ่าน router ของ admweb)
  *   - [x] ช่วงที่ 7: เปิด–ปิดร้านลงตาราง · เงินทอนยกมาของจริง · เตือนเมื่อวันก่อนยังไม่ปิดร้าน
  *   - [x] ช่วงที่ 7: ฟอร์มเติมเงินทอน / หยิบเงินออกระหว่างวัน (act=cash) · ยอดเงินเป็นทศนิยม 2 ตำแหน่ง
- *   - [x] ช่วงที่ 8: "งานของสาขาวันนี้" นับจากเอกสารจริง (branch_rank_today — ขาย รับเข้า เบิก ตรวจนับ รับคืน)
+ *   - [x] การ์ดตอนปิดร้าน = สินค้าที่ขายวันนี้ + ยอดเงินสด / โอน (เดิม "งานของสาขาวันนี้" — ดู CHANGELOG 2 พ.ย.)
  *   - [x] ช่วงที่ 11: แยกสิทธิ์ เปิด / ปิดร้าน (store) · เปิดร้านอีกครั้ง (store_reopen — เดิมเปิดได้เฉพาะผู้ดูแลจากหน้าภาพรวม adm-dashboard ซึ่งยังเปิดได้เหมือนเดิม) · เงินเข้า / ออก (cash)
  *   - [x] เขียนเงื่อนไข / วนลูปแบบวงเล็บปีกกา { } แทน endif / endforeach / endfor · แท็กย่อ (short echo) เปลี่ยนเป็น <?php echo
  *   - [x] ช่อง “เติมเงินทอนวันนี้” / “แยกเงินทอนไว้สำหรับพรุ่งนี้” รับยอดใดก็ได้ (ทศนิยม 2 ตำแหน่ง) — เดิม step 100 กรอก 250 แล้วส่งไม่ได้
@@ -148,11 +148,11 @@ $cashList = $isOpen ? store_cash_list($code) : array();
 $num      = function ($n) { return rtrim(rtrim(number_format((float) $n, 2, '.', ''), '0'), '.'); };   // ค่าในช่อง input
 $cv       = function ($k) use ($cashPost) { return isset($cashPost[$k]) ? trim((string) $cashPost[$k]) : ''; };   // ค่าที่กรอกไว้ในฟอร์มเงินเข้า / ออก
 
-/* สรุปงานของทั้งสาขาวันนี้ (ใช้ตอนปิดร้าน) */
-$rank      = branch_rank_today($code);
-$branchQty = 0;
-$branchDoc = 0;
-foreach ($rank as $r) { $branchQty += $r['qty']; $branchDoc += $r['docs']; }
+/* ยอดขายวันนี้ (เงินสด / โอน) + สินค้าที่ขายได้ — การ์ดตอนปิดร้าน และสรุปหลังปิด */
+$daySum  = ($isOpen || $isClosed) ? acct_range($code, strtotime(date('Y-m-d')), strtotime(date('Y-m-d'))) : null;
+$sold    = $isOpen ? Stock_getSoldProductsOfDay($code, time()) : array();
+$soldQty = 0;
+foreach ($sold as $sp) { $soldQty += $sp['qty']; }
 
 $branch = $code;                       // ตัวเลือกสาขาบน topbar ล็อกที่สาขาของร้าน
 
@@ -402,22 +402,37 @@ require dirname(__FILE__) . '/inc/header.php';
     <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
     <input type="hidden" name="act" value="close">
 
-    <!-- สรุปงานวันนี้ -->
-    <section class="card">
+    <!-- สินค้าที่ขายวันนี้ + ยอดเงินสด / โอน -->
+    <section class="card store-sold-card">
       <div class="card-head">
-        <div><h3>งานของสาขาวันนี้</h3><p><?php echo number_format($branchDoc) ?> เอกสาร · <?php echo count($rank) ?> คน</p></div>
+        <div><h3>สินค้าที่ขายวันนี้</h3><p><?php echo number_format(count($sold)) ?> รายการ · <?php echo number_format($soldQty) ?> ชิ้น · ไม่นับบิลที่ยกเลิก</p></div>
       </div>
       <div class="card-body num">
         <div class="kvl">
-          <?php foreach ($rank as $r) { ?>
-            <div>
-              <span><?php echo e($r['name']) ?><?php echo $r['username'] === $user['username'] ? ' (ฉัน)' : '' ?></span>
-              <b><?php echo $r['idle'] ? '—' : number_format($r['docs']) . ' ใบ · ' . number_format($r['qty']) . ' ชิ้น' ?></b>
-            </div>
+          <div><span>ยอดขาย (<?php echo number_format($daySum['bills'] - $daySum['void']) ?> บิล)</span><b><?php echo e(money2($daySum['total'])) ?></b></div>
+          <div><span>เงินสด</span><b><?php echo e(money2($daySum['cash'])) ?></b></div>
+          <div><span>โอน / พร้อมเพย์</span><b><?php echo e(money2($daySum['transfer'])) ?></b></div>
+          <?php if ($daySum['void'] > 0) { ?>
+          <div class="sub"><span>ยกเลิก <?php echo number_format($daySum['void']) ?> บิล (ไม่นับในยอด)</span></div>
           <?php } ?>
-          <div class="tot"><span>รวมทั้งสาขา</span><b><?php echo number_format($branchQty) ?> ชิ้น</b></div>
         </div>
       </div>
+      <?php if (!$sold) { ?>
+        <p class="empty">ยังไม่มีการขายวันนี้</p>
+      <?php } else { ?>
+        <div class="store-sold">
+          <table class="ds-lines">
+            <thead><tr><th>สินค้า</th><th class="r">จำนวน</th><th class="r">ยอดขาย</th></tr></thead>
+            <tbody>
+              <?php $i = 0; foreach ($sold as $sku => $sp) { $i++; ?>
+                <tr><td><span class="rep-rank<?php echo $i <= 3 ? ' r' . $i : '' ?>"><?php echo $i ?></span><?php echo e($sp['name']) ?> <small><?php echo e($sku) ?></small></td>
+                    <td class="r num nowrap"><?php echo number_format($sp['qty']) ?> <?php echo e($sp['unit']) ?></td>
+                    <td class="r num nowrap"><?php echo e(money2($sp['total'])) ?></td></tr>
+              <?php } ?>
+            </tbody>
+          </table>
+        </div>
+      <?php } ?>
     </section>
 
     <!-- เงินสดในลิ้นชัก -->
@@ -484,6 +499,8 @@ require dirname(__FILE__) . '/inc/header.php';
     <div class="card-body num">
       <div class="kvl">
         <div><span>เปิดร้าน</span><b><?php echo e($state['opened_at']) ?> น. โดย <?php echo e($state['opened_by']) ?></b></div>
+        <div><span>ยอดขาย (<?php echo number_format($daySum['bills'] - $daySum['void']) ?> บิล)</span><b><?php echo e(money2($daySum['total'])) ?></b></div>
+        <div><span>เงินสด · โอน / พร้อมเพย์</span><b><?php echo e(money2($daySum['cash'])) ?> · <?php echo e(money2($daySum['transfer'])) ?></b></div>
         <div><span>เงินทอนเริ่มวัน</span><b><?php echo e(money2($state['float'])) ?></b></div>
         <div><span>ควรมีในลิ้นชัก</span><b><?php echo e(money2($expected)) ?></b></div>
         <div><span>นับได้จริง</span><b><?php echo e(money2($state['cash_counted'])) ?></b></div>

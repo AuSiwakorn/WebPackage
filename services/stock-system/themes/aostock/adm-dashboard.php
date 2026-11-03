@@ -275,7 +275,7 @@ $__tones = array('ยกเลิกเอกสาร' => 'bdg-out', 'แก้
 
 <!-- ==================== สต๊อกแยกตามสาขา ==================== -->
 <section class="card">
-  <div class="card-head"><div><h3>สต๊อกแยกตามสาขา</h3><p>มูลค่าตามทุน · สินค้าที่ถึงจุดสั่งซื้อ</p></div></div>
+  <div class="card-head"><div><h3>สต๊อกแยกตามสาขา</h3><p>มูลค่าตามราคาทุน · ใกล้หมด = เหลือไม่เกินจำนวนที่ระบบจะแจ้งเตือนสินค้าใกล้หมด</p></div></div>
   <div class="card-body card-body--flush">
     <div class="tbl-wrap">
       <table class="tbl num">

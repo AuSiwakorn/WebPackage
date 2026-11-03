@@ -55,9 +55,9 @@ $row = function ($r) use ($user) {
                   <b class="num qty-<?php echo e($r['status']) ?>"><?php echo number_format($r['qty']) ?></b>
                   <small><?php echo e($p['unit']) ?></small>
                 </td>
-                <td data-label="จุดสั่งซื้อ" class="r num"><?php echo number_format($p['reorder']) ?></td>
+                <td data-label="จำนวนที่ระบบจะแจ้งเตือนสินค้าใกล้หมด" class="r num"><?php echo number_format($p['reorder']) ?></td>
                 <td data-label="ระดับสต๊อก">
-                  <span class="lvl" title="<?php echo $r['pct'] ?>% ของจุดสั่งซื้อ">
+                  <span class="lvl" title="<?php echo $r['pct'] ?>% ของจำนวนที่ระบบจะแจ้งเตือนสินค้าใกล้หมด">
                     <i class="lvl-<?php echo e($r['status']) ?>" style="width:<?php echo max(2, min(100, $r['pct'])) ?>%"></i>
                   </span>
                 </td>
@@ -100,7 +100,7 @@ $words = stock_filter_words($q, $cat, $st);
     $cards = array(
         array('รายการทั้งหมด', number_format($pool['skus']), 'แตะเพื่อดูทั้งหมด',
               'i-boxes', '',                                       $allU, $st === ''),
-        array('ใกล้หมด',       number_format($pool['low']),  'ถึงหรือต่ำกว่าจุดสั่งซื้อ',
+        array('ใกล้หมด',       number_format($pool['low']),  'เหลือไม่เกินจำนวนที่ระบบจะแจ้งเตือนสินค้าใกล้หมด',
               'i-alert', $pool['low'] > 0 ? ' kpi--warn' : '',     $lowU, $st === 'low'),
         array('หมดแล้ว',       number_format($pool['out']),  'ขายต่อไม่ได้จนกว่าจะรับเข้า',
               'i-ban',   $pool['out'] > 0 ? ' kpi--down' : '',     $outU, $st === 'out'),
@@ -210,7 +210,7 @@ $words = stock_filter_words($q, $cat, $st);
               <th>สินค้า</th>
               <th>หมวด</th>
               <th class="r">คงเหลือ</th>
-              <th class="r">จุดสั่งซื้อ</th>
+              <th class="r th-wrap">จำนวนที่ระบบจะแจ้งเตือนสินค้าใกล้หมด</th>
               <th>ระดับสต๊อก</th>
               <th class="r">ราคาขาย</th>
               <th>สถานะ</th>

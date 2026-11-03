@@ -45,7 +45,7 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
 <?php if (in_array($NAV_ACTIVE, array('sale.php', 'history.php', 'receive.php', 'issue.php', 'stocktake.php'), true) || !empty($CONFIRM_MODAL)) { ?>
 <!-- ===== กล่องยืนยัน — ใช้ทั้งรับเงินและยกเลิกบิล ===== -->
 <div class="modal" id="confirm-modal" hidden>
-  <div class="modal-back" data-close></div>
+  <div class="modal-back"></div><?php /* แตะพื้นหลังไม่ปิด (กันแตะพลาดแล้วเหตุผลที่พิมพ์หาย) — ปิดด้วย × / ย้อนกลับ / Esc */ ?>
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="cf-title" tabindex="-1">
     <div class="modal-head">
       <div>
@@ -158,17 +158,24 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
 (function () {
   var box = document.getElementById('ld-busy'), err = document.getElementById('ld-err'), errT = document.getElementById('ld-err-t');
   if (!box) { return; }
-  var live = [], tm = null, errTm = null, noBusy = false;
+  var live = [], tm = null, errTm = null, noBusy = false, home = box.parentNode;
+  /* <dialog> ที่เปิดด้วย showModal() อยู่ชั้นบนสุดของเบราว์เซอร์ z-index ทับไม่ได้ → ย้ายกล่องเข้าไปในหน้าต่างที่เปิดอยู่ตอนแสดง (3 พ.ย.) */
+  function lift(el) {
+    var ds = document.querySelectorAll('dialog[open]'), to = ds.length ? ds[ds.length - 1] : home;
+    if (el.parentNode !== to) { to.appendChild(el); }
+  }
   function show() {
     if (tm || !box.hidden) { return; }
-    tm = setTimeout(function () { tm = null; box.hidden = false; }, 300);
+    tm = setTimeout(function () { tm = null; lift(box); box.hidden = false; }, 300);
   }
   function hide() {
     if (tm) { clearTimeout(tm); tm = null; }
     box.hidden = true;
+    if (box.parentNode !== home) { home.appendChild(box); }
   }
   function fail(msg) {
     errT.textContent = msg;
+    lift(err);
     err.hidden = false;
     if (errTm) { clearTimeout(errTm); }
     errTm = setTimeout(function () { err.hidden = true; }, 8000);
@@ -669,6 +676,135 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
     };
     img.src = src;
   }, true);
+})();
+</script>
+<script>
+/* ===== ช่องหมวดแบบพิมพ์ค้น (ฟอร์มสินค้า · หน้าต่างเพิ่มสินค้าในหน้านำเข้า — 2 พ.ย.) =====
+   <div data-cat-pick [data-can-new]> ครอบ <select name="cat"> (+ <input name="cat_new"> เมื่อเพิ่มหมวดได้) — ช่องเดิมยังเป็นตัวส่งค่า
+   สคริปต์ซ่อนช่องเดิม แล้ววางช่องพิมพ์ + รายการแทน · เลือกหมวดเดิม = cat · “+ เพิ่มหมวดใหม่” = cat_new
+   ต้องแตะเลือกจากรายการ (พิมพ์ชื่อตรงกับหมวดที่มี = เลือกให้เอง) · ยังไม่เลือกแล้วกดบันทึก = ไม่ส่ง บอกใต้ช่อง */
+(function () {
+  function norm(s) { return String(s || '').replace(/\s+/g, ' ').trim().toLowerCase(); }
+  [].forEach.call(document.querySelectorAll('[data-cat-pick]'), function (box) {
+    var sel = box.querySelector('select'), nw = box.querySelector('input[name="cat_new"]');
+    if (!sel) { return; }
+    var canNew = box.hasAttribute('data-can-new') && !!nw;
+    var cats   = [].slice.call(sel.options).filter(function (o) { return o.value !== ''; }).map(function (o) { return o.value; });
+    var field  = box.parentNode, hint = field.querySelector('.cat-pick-hint'), lbl = field.querySelector('label[for="' + sel.id + '"]');
+    var q = document.createElement('input'), list = document.createElement('ul'), note = document.createElement('small');
+    var lid = sel.id + '-list', items = [], act = -1;
+
+    q.type = 'text'; q.className = 'input cat-pick-q'; q.id = sel.id + '-q'; q.autocomplete = 'off'; q.maxLength = 50;
+    q.placeholder = canNew ? 'พิมพ์ค้นหมวด หรือชื่อหมวดใหม่' : 'พิมพ์ค้นหมวด';
+    q.setAttribute('role', 'combobox'); q.setAttribute('aria-autocomplete', 'list');
+    q.setAttribute('aria-expanded', 'false'); q.setAttribute('aria-controls', lid);
+    list.id = lid; list.className = 'cat-pick-list'; list.setAttribute('role', 'listbox'); list.hidden = true;
+    note.className = 'adm-hint cat-pick-note'; note.hidden = true;
+    sel.hidden = true; sel.required = false; sel.tabIndex = -1;            // ตรวจเองตอนกดบันทึก (ช่องที่ซ่อนไว้ required แล้วเบราว์เซอร์ไม่บอกอะไร)
+    if (nw) { nw.hidden = true; nw.tabIndex = -1; }
+    box.appendChild(q); box.appendChild(list);
+    field.insertBefore(note, box.nextSibling);
+    if (lbl) { lbl.htmlFor = q.id; }
+    if (hint) {
+      hint.textContent = canNew ? 'พิมพ์แล้วแตะเลือกหมวดจากรายการ · ไม่มีหมวดที่ต้องการ แตะ “+ เพิ่มหมวดใหม่” (หมวดใช้ร่วมกันทุกสาขา)'
+                                : 'พิมพ์แล้วแตะเลือกหมวดจากรายการ';
+      hint.hidden = false;
+    }
+
+    function chosen() { return sel.value !== '' || (canNew && nw.value !== ''); }
+    function say(t, bad) {
+      note.textContent = t; note.hidden = (t === '');
+      box.classList.toggle('is-bad', !!bad); note.classList.toggle('is-bad', !!bad);
+    }
+    function sayNew() { say(canNew && nw.value !== '' ? 'จะสร้างหมวดใหม่ “' + nw.value + '” ให้ตอนบันทึก' : '', false); }
+    function choose(it) {
+      if (it.isNew) { sel.value = ''; nw.value = it.name; } else { sel.value = it.name; if (nw) { nw.value = ''; } }
+      q.value = it.name;
+      close(); sayNew();
+    }
+    function mark() {
+      [].forEach.call(list.children, function (li, i) { li.classList.toggle('on', i === act); li.setAttribute('aria-selected', i === act ? 'true' : 'false'); });
+      if (act >= 0 && list.children[act]) {
+        q.setAttribute('aria-activedescendant', list.children[act].id);
+        if (list.children[act].scrollIntoView) { list.children[act].scrollIntoView({ block: 'nearest' }); }
+      } else {
+        q.removeAttribute('aria-activedescendant');
+      }
+    }
+    function render(text) {
+      var t = norm(text), exact = false;
+      items = [];
+      cats.forEach(function (c) {
+        if (t === '' || norm(c).indexOf(t) !== -1) { items.push({ name: c, isNew: false }); }
+        if (norm(c) === t) { exact = true; }
+      });
+      if (canNew && t !== '' && !exact) { items.push({ name: String(text).replace(/\s+/g, ' ').trim(), isNew: true }); }
+      list.innerHTML = '';
+      if (!items.length) {
+        var li0 = document.createElement('li');
+        li0.className = 'cat-pick-none'; li0.textContent = 'ไม่พบหมวดนี้ — ลองพิมพ์ให้สั้นลง';
+        list.appendChild(li0);
+      }
+      items.forEach(function (it, i) {
+        var li = document.createElement('li');
+        li.id = lid + '-' + i; li.setAttribute('role', 'option'); li.setAttribute('data-i', i);
+        if (it.isNew) { li.className = 'cat-pick-add'; }
+        li.textContent = it.isNew ? '+ เพิ่มหมวดใหม่ “' + it.name + '”' : it.name;
+        list.appendChild(li);
+      });
+      act = items.length ? 0 : -1;
+      mark();
+    }
+    function open(text) { render(text); list.hidden = false; q.setAttribute('aria-expanded', 'true'); }
+    function close() { list.hidden = true; q.setAttribute('aria-expanded', 'false'); q.removeAttribute('aria-activedescendant'); }
+
+    q.value = (canNew && nw.value !== '') ? nw.value : sel.value;          // ค่าที่เลือกไว้ (แก้สินค้า / บันทึกไม่ผ่านแล้วกลับมา)
+    sayNew();
+
+    q.addEventListener('focus', function () { open(''); try { q.select(); } catch (er) { /* บางเครื่องเลือกข้อความไม่ได้ */ } });
+    q.addEventListener('input', function () {
+      sel.value = ''; if (nw) { nw.value = ''; }
+      say('', false);
+      open(q.value);
+    });
+    q.addEventListener('keydown', function (ev) {
+      if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+        ev.preventDefault();
+        if (list.hidden) { open(q.value); return; }
+        if (items.length) { act = (act + (ev.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length; mark(); }
+      } else if (ev.key === 'Enter' && !list.hidden && act >= 0) {
+        ev.preventDefault();                                                // Enter = เลือกหมวด ไม่ใช่ส่งฟอร์ม
+        choose(items[act]);
+      } else if (ev.key === 'Escape' && !list.hidden) {
+        ev.preventDefault(); ev.stopPropagation();                         // ปิดแค่รายการ ไม่ปิดหน้าต่าง
+        close();
+      }
+    });
+    q.addEventListener('blur', function () {
+      close();
+      if (chosen()) { return; }
+      var t = norm(q.value);
+      if (t === '') { return; }
+      for (var i = 0; i < cats.length; i++) {
+        if (norm(cats[i]) === t) { choose({ name: cats[i], isNew: false }); return; }   // พิมพ์ชื่อตรงกับหมวดที่มี
+      }
+      say(canNew ? 'ยังไม่ได้เลือกหมวด — แตะชื่อหมวดในรายการ หรือ “+ เพิ่มหมวดใหม่”' : 'ไม่มีหมวดนี้ — แตะเลือกจากรายการ', true);
+    });
+    list.addEventListener('pointerdown', function (ev) { ev.preventDefault(); });   // แตะรายการแล้วช่องพิมพ์ไม่หลุดโฟกัส
+    list.addEventListener('mousedown', function (ev) { ev.preventDefault(); });
+    list.addEventListener('click', function (ev) {
+      var li = ev.target.closest ? ev.target.closest('li[data-i]') : null;
+      if (li) { choose(items[+li.getAttribute('data-i')]); }
+    });
+    if (sel.form) {
+      sel.form.addEventListener('submit', function (ev) {
+        if (chosen()) { return; }
+        ev.preventDefault(); ev.stopImmediatePropagation();
+        say(canNew ? 'ยังไม่ได้เลือกหมวด — พิมพ์แล้วแตะชื่อหมวดในรายการ หรือ “+ เพิ่มหมวดใหม่”' : 'ยังไม่ได้เลือกหมวด — พิมพ์แล้วแตะชื่อหมวดในรายการ', true);
+        q.focus();
+      }, true);
+    }
+  });
 })();
 </script>
 <script>

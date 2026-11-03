@@ -168,7 +168,7 @@ function receive_save($code, $user, $ref, $note, $lines)
         $detail += array(
             'จำนวน'        => count($lines) . ' รายการ · ' . number_format($qty) . ' ชิ้น',
             'รายการ'       => implode(' · ', $names),
-            'ผู้รับเข้า'     => $user['name'] . ' · ' . branch_name($code),
+            'ผู้รับเข้า'     => $user['name'] . ($user['role'] === 'admin' ? ' (ผู้ดูแล)' : '') . ' · ' . branch_name($code),
         );
         if ($note !== '') {
             $detail['หมายเหตุ'] = $note;
@@ -180,6 +180,46 @@ function receive_save($code, $user, $ref, $note, $lines)
     unset($_SESSION['draft_edit_of']['RC']);
     product_db_reset();
     return receive_by_no($code, $no);
+}
+
+/** ผู้ดูแลเพิ่มยอดสินค้าตัวเดียวเข้าสาขา (หน้าสินค้าในสต๊อก) = ใบรับเข้า 1 ใบ · เลขอ้างอิง / หมายเหตุว่างได้ · คืนใบ หรือ array('error')
+ *  TODO:
+ *    - [x] 3 พ.ย. (ผู้ใช้ขอ): แตะช่องยอดของสาขาในหน้า adm-products แล้วเพิ่มยอดได้ */
+function Stock_saveAdminReceive($code, $user, $sku, $qty, $ref, $note)
+{
+    if ($user['role'] !== 'admin') {
+        return array('error' => 'เฉพาะผู้ดูแลเท่านั้น');
+    }
+    $br = branches_active();
+    if (!isset($br[$code])) {
+        return array('error' => 'ไม่พบสาขานี้ หรือสาขาปิดใช้งานอยู่');
+    }
+    $p = product_by_sku((string) $sku);
+    if ($p === null) {
+        return array('error' => 'ไม่พบสินค้านี้');
+    }
+    if (!$p['active']) {
+        return array('error' => 'สินค้านี้เลิกขายแล้ว — เปิดขายก่อนจึงจะเพิ่มยอดได้');
+    }
+    if (!Stock_isProductInBranch($p, $code)) {
+        return array('error' => Stock_formatProductOwner($p) . ' — นำเข้าได้เฉพาะสาขานั้น');
+    }
+    $qty = trim((string) $qty);
+    if (!ctype_digit($qty) || (int) $qty < 1) {
+        return array('error' => 'กรอกจำนวนที่เพิ่ม เป็นจำนวนเต็มตั้งแต่ 1 ขึ้นไป');
+    }
+    if (strlen($qty) > 7 || (int) $qty > STOCK_LINE_MAX) {
+        return array('error' => 'จำนวนมากเกินไป (ไม่เกิน ' . number_format(STOCK_LINE_MAX) . ')');
+    }
+
+    $keep = isset($_SESSION['draft_edit_of']['RC']) ? $_SESSION['draft_edit_of']['RC'] : null;   // ใบนี้ไม่ใช่การแก้ใบเดิม — ไม่ผูกกับร่างที่ค้างอยู่
+    unset($_SESSION['draft_edit_of']['RC']);
+    $line = array('qty' => (int) $qty, 'p' => $p, 'name' => $p['name'], 'unit' => $p['unit']);
+    $doc  = receive_save($code, $user, trim((string) $ref), trim((string) $note), array($line));
+    if ($keep !== null) {
+        $_SESSION['draft_edit_of']['RC'] = $keep;
+    }
+    return $doc;
 }
 
 /** ยกเลิกใบรับเข้าของวันนี้ (ถอนยอดออก) · คืนใบ / array('error' => 'sold') / null */

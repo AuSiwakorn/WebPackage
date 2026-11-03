@@ -5,7 +5,7 @@
  * DEPENDS: themes/aostock/include/function.php · ต้องตั้ง $PF ก่อน include (ดูด้านล่าง)
  * TABLES: - (แสดงผลอย่างเดียว — บันทึกที่หน้าที่เรียกผ่าน Stock_doAddProduct / Stock_doSaveProduct ใน api.php)
  * TODO:
- *   - [x] 22 ต.ค. (ผู้ใช้ขอ): ฟอร์มเพิ่มสินค้าของผู้ดูแลกับผู้จัดการเหมือนกัน — SKU อัตโนมัติ / กรอกเอง · พิมพ์หมวดใหม่ · คำอธิบายใต้ช่อง
+ *   - [x] 22 ต.ค. (ผู้ใช้ขอ): ฟอร์มเพิ่มสินค้าของผู้ดูแลกับผู้จัดการเหมือนกัน — SKU (กรอกเองอย่างเดียว ต้องกรอก — ดู CHANGELOG 3 พ.ย.) · หมวด · คำอธิบายใต้ช่อง
  *         · โหมดแก้ไข (ผู้ดูแล / ผู้จัดการแก้สินค้าของสาขาตัวเอง) + การ์ดรูปและสถานะ · ผู้ดูแลย้ายสินค้าของสาขาเป็นส่วนกลางได้
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
@@ -32,7 +32,6 @@ $pfNew   = ($pfP === null);
 $pfV     = $PF['v'];
 $pfCats  = product_cats();
 $pfAct   = $PF['action'];
-$pfMan   = ($pfV('sku_mode', 'auto') === 'manual');
 $pfImg   = $pfNew ? '' : product_img($pfP);
 ?>
 <section class="card">
@@ -55,14 +54,10 @@ $pfImg   = $pfNew ? '' : product_img($pfP);
         <input class="input" type="text" id="pf-name" name="name" value="<?php echo e($pfV('name', $pfNew ? '' : $pfP['name'])) ?>" maxlength="200" required autocomplete="off" placeholder="เช่น สายชาร์จ USB-C 1 เมตร">
       </div>
       <div class="field">
-        <?php if ($pfNew) { ?>
-          <span class="lbl" id="pf-sku-l">SKU (รหัสสินค้า)</span>
-          <div class="np-sku" role="radiogroup" aria-labelledby="pf-sku-l">
-            <label class="check"><input type="radio" name="sku_mode" value="auto"<?php echo $pfMan ? '' : ' checked' ?>> ตั้งให้อัตโนมัติ (P0001 …)</label>
-            <label class="check"><input type="radio" name="sku_mode" value="manual"<?php echo $pfMan ? ' checked' : '' ?>> กรอกเอง</label>
-          </div>
-          <input class="input np-sku-in" type="text" id="pf-sku" name="sku" value="<?php echo e($pfV('sku', '')) ?>" maxlength="40" autocomplete="off" autocapitalize="characters"
-                 placeholder="เช่น CS-010" aria-label="SKU ที่กรอกเอง"<?php echo $pfMan ? ' required' : ' hidden' ?>>
+        <?php if ($pfNew) { /* SKU กรอกเองอย่างเดียว ต้องกรอก (เลิกตั้งให้อัตโนมัติ) */ ?>
+          <label for="pf-sku">SKU (รหัสสินค้า)</label>
+          <input class="input" type="text" id="pf-sku" name="sku" value="<?php echo e($pfV('sku', '')) ?>" maxlength="40" autocomplete="off" autocapitalize="characters"
+                 placeholder="เช่น CS-010" required>
           <small class="adm-hint">A–Z 0–9 . _ - · 1 สี / รุ่น = 1 SKU · ตั้งแล้วเปลี่ยนไม่ได้</small>
         <?php } else { ?>
           <label for="pf-sku">SKU (รหัสสินค้า)</label>
@@ -72,16 +67,23 @@ $pfImg   = $pfNew ? '' : product_img($pfP);
       </div>
       <div class="field">
         <label for="pf-cat">หมวด</label>
-        <select class="input" id="pf-cat" name="cat"<?php echo $pfNew && $PF['canCat'] ? '' : ' required' ?>>
-          <option value="">— เลือกหมวด —</option>
-          <?php $pfCv = $pfV('cat', $pfNew ? '' : $pfP['cat']); foreach ($pfCats as $c) { ?>
-            <option value="<?php echo e($c) ?>"<?php echo $pfCv === $c ? ' selected' : '' ?>><?php echo e($c) ?></option>
+        <?php /* ช่องพิมพ์ค้นหมวด (inc/footer.php data-cat-pick) — select / cat_new ข้างในยังเป็นตัวส่งค่า */ ?>
+        <div class="cat-pick" data-cat-pick<?php echo $pfNew && $PF['canCat'] ? ' data-can-new' : '' ?>>
+          <select class="input" id="pf-cat" name="cat"<?php echo $pfNew && $PF['canCat'] ? '' : ' required' ?>>
+            <option value="">— เลือกหมวด —</option>
+            <?php $pfCv = $pfV('cat', $pfNew ? '' : $pfP['cat']); foreach ($pfCats as $c) { ?>
+              <option value="<?php echo e($c) ?>"<?php echo $pfCv === $c ? ' selected' : '' ?>><?php echo e($c) ?></option>
+            <?php } ?>
+          </select>
+          <?php if ($pfNew && $PF['canCat']) { ?>
+            <input class="input np-cat-new" type="text" name="cat_new" value="<?php echo e($pfV('cat_new', '')) ?>" maxlength="50" autocomplete="off"
+                   placeholder="หรือพิมพ์หมวดใหม่ เช่น หูฟัง" aria-label="หมวดใหม่">
           <?php } ?>
-        </select>
+        </div>
         <?php if ($pfNew && $PF['canCat']) { ?>
-          <input class="input np-cat-new" type="text" name="cat_new" value="<?php echo e($pfV('cat_new', '')) ?>" maxlength="50" autocomplete="off"
-                 placeholder="หรือพิมพ์หมวดใหม่ เช่น หูฟัง" aria-label="หมวดใหม่">
-          <small class="adm-hint">พิมพ์หมวดใหม่ = สร้างหมวดนั้นให้ด้วย (หมวดใช้ร่วมกันทุกสาขา)</small>
+          <small class="adm-hint cat-pick-hint">พิมพ์หมวดใหม่ = สร้างหมวดนั้นให้ด้วย (หมวดใช้ร่วมกันทุกสาขา)</small>
+        <?php } else { ?>
+          <small class="adm-hint cat-pick-hint" hidden></small>
         <?php } ?>
       </div>
       <div class="field">
@@ -92,7 +94,7 @@ $pfImg   = $pfNew ? '' : product_img($pfP);
       <div class="field">
         <label for="pf-cost">ทุนต่อหน่วย (บาท)</label>
         <input class="input" type="text" id="pf-cost" name="cost" value="<?php echo e($pfV('cost', $pfNew ? '' : Stock_formatPlainNumber($pfP['cost']))) ?>" inputmode="decimal" autocomplete="off" placeholder="0.00">
-        <small class="adm-hint">ใช้คิดมูลค่าตอนรับเข้า / ตรวจนับ</small>
+        <small class="adm-hint">ใช้คิดมูลค่าของในร้าน ตอนรับเข้า / ตรวจนับ · ไม่ใช้ เว้นว่างหรือใส่ 0 ได้</small>
       </div>
       <div class="field">
         <label for="pf-price">ราคาขาย (บาท · รวม VAT)</label>
@@ -100,9 +102,9 @@ $pfImg   = $pfNew ? '' : product_img($pfP);
         <small class="adm-hint">มีผลกับบิลทันทีที่บันทึก</small>
       </div>
       <div class="field">
-        <label for="pf-reorder">จุดสั่งซื้อ</label>
+        <label for="pf-reorder">จำนวนที่ระบบจะแจ้งเตือนสินค้าใกล้หมด</label>
         <input class="input" type="text" id="pf-reorder" name="reorder" value="<?php echo e($pfV('reorder', $pfNew ? '' : (string) $pfP['reorder'])) ?>" inputmode="numeric" autocomplete="off" placeholder="0">
-        <small class="adm-hint">เหลือเท่านี้หรือน้อยกว่า = ใกล้หมด</small>
+        <small class="adm-hint">เหลือเท่านี้หรือน้อยกว่า ระบบจะเตือนว่าใกล้หมด · ไม่ใช้การแจ้งเตือนใกล้หมด ให้ใส่ 0 (สินค้าหมดยังแจ้งตามปกติ)</small>
       </div>
       <div class="field">
         <label for="pf-barcode">บาร์โค้ด <small class="adm-none">(ไม่บังคับ)</small></label>
@@ -178,18 +180,3 @@ $pfImg   = $pfNew ? '' : product_img($pfP);
   <?php } ?>
 </section>
 <?php } ?>
-
-<script>
-/* SKU: ตั้งให้อัตโนมัติ / กรอกเอง (เพิ่มใหม่) */
-(function () {
-  var f = document.getElementById('pf-form'), skuIn = document.getElementById('pf-sku');
-  if (!f || !skuIn || skuIn.disabled) { return; }
-  f.addEventListener('change', function (ev) {
-    if (ev.target.name !== 'sku_mode') { return; }
-    var manual = (ev.target.value === 'manual');
-    skuIn.hidden = !manual;
-    skuIn.required = manual;
-    if (manual) { skuIn.focus(); }
-  });
-})();
-</script>

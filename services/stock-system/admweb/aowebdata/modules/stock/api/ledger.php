@@ -452,7 +452,7 @@ function move_db_rows($codes, $pid, $fromTs)
     }
     $in     = implode(', ', array_fill(0, count($codes), '?'));
     $params = array_merge($codes, array(date('Y-m-d H:i:s', $fromTs)));
-    $sql    = 'SELECT m.move_id, m.type, m.qty, m.doc_no, m.note, m.add_date, b.code, p.sku, s.name AS by_name'
+    $sql    = 'SELECT m.move_id, m.type, m.qty, m.doc_no, m.note, m.add_date, b.code, p.sku, s.name AS by_name, s.role AS by_role'
             . ' FROM ' . sdb_tb('move') . ' m JOIN ' . sdb_tb('branch') . ' b ON b.branch_id = m.branch_id'
             . ' JOIN ' . sdb_tb('product') . ' p ON p.product_id = m.product_id'
             . ' LEFT JOIN ' . sdb_tb('staff') . ' s ON s.staff_id = m.created_by'
@@ -469,7 +469,7 @@ function move_db_rows($codes, $pid, $fromTs)
             'type'  => move_type_key($r['type']),
             'delta' => (int) $r['qty'],
             'doc'   => $r['doc_no'],
-            'by'    => ($r['by_name'] !== null) ? $r['by_name'] : '-',
+            'by'    => ($r['by_name'] !== null) ? $r['by_name'] . ($r['by_role'] === 'admin' ? ' (ผู้ดูแล)' : '') : '-',   // ผู้ดูแลทำ = บอกไว้ (3 พ.ย.)
             'note'  => $r['note'],
         );
     }

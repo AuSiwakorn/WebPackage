@@ -20,9 +20,9 @@ setlocale(LC_ALL, 'en_EN.UTF8');
 
 # database setting
 $db_host         = 'localhost';
-$db_name         = 'websiam_stock';
-$db_user         = 'websiam_stock';
-$db_passwd       = 'BMKcmVbaJPhfNSuAzUD7';
+$db_name         = 'mestockdee_admweb';
+$db_user         = 'mestockdee_admweb';
+$db_passwd       = 'dVaSQr8BnxVQmDv73EZ6';
 
 # ให้กำหนดเป็น on เมื่อติดตั้ง admweb แล้วหากยังไม่ได้ติดตั้งต้องกำหนด off เท่านั้น
 define("_IS_COOKIE_LOGIN_TIME_", 'off');
@@ -58,8 +58,7 @@ define("DASHBOARD_NAME", 'main_v2');
 # web setting
 // โฟลเดอร์ที่ติดตั้งเว็บนี้ใต้โดเมน (ขึ้นต้นด้วย / ไม่มี / ท้าย) — ติดตั้งที่ root ของโดเมนให้ใส่ ''
 // ต้องตรงกับ RewriteBase ใน .htaccess
-$webBase = '/aostock';
-$webUrl = '//' . $_SERVER['HTTP_HOST'] . $webBase;
+$webUrl = '//' . $_SERVER['HTTP_HOST'];
 $webPath = (@$webPath != '') ? $webPath : dirname(dirname(dirname(__FILE__)));
 
 // เฉพาะโมดูลที่มีโฟลเดอร์จริงใน aowebdata/modules/ หรือ admweb/core/ (ชื่อที่ไม่มีโฟลเดอร์ระบบข้ามไปเงียบ ๆ)

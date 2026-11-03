@@ -494,6 +494,7 @@ tr.more-row td{padding:0}
 .tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:.9rem}
 .tbl th,.tbl td{padding:12px 22px;text-align:left;border-bottom:1px solid var(--line-2);vertical-align:middle}
 .tbl thead th{background:var(--bg-soft);font-size:.78rem;font-weight:600;color:var(--ink-3);letter-spacing:.02em;white-space:nowrap}
+.tbl thead th.th-wrap{white-space:normal;min-width:150px;max-width:170px;line-height:1.4}   /* หัวคอลัมน์ยาว — ตัดเป็น 2 บรรทัด */
 .tbl tbody tr:last-child td{border-bottom:0}
 .tbl tbody tr:hover td{background:#FAFCFB}
 .tbl .r{text-align:right}
@@ -998,6 +999,23 @@ button,a,summary,input,select{-webkit-tap-highlight-color:rgba(14,122,95,.15)}
 .store-h3{margin-top:6px;font-size:1.2rem}
 .store-sub{margin-top:4px;font-size:.9rem;color:var(--ink-3)}
 .store-two{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+/* สินค้าที่ขายวันนี้ (ตอนปิดร้าน) — รายการยาวเลื่อนในการ์ด หัวตารางติดบน */
+.store-sold-card .card-body{padding-bottom:8px}
+.store-sold{max-height:420px;overflow:auto;border-top:1px solid var(--line-2);overscroll-behavior:contain}
+.store-sold thead th{position:sticky;top:0;background:#fff;z-index:1}
+.store-sold td:first-child{overflow-wrap:anywhere}
+
+/* ช่องหมวดแบบพิมพ์ค้น (inc/footer.php data-cat-pick) — รายการลอยใต้ช่อง */
+.cat-pick{position:relative}
+.cat-pick-list{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:30;max-height:240px;overflow:auto;overscroll-behavior:contain;
+  margin:0;padding:4px;list-style:none;background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+.cat-pick-list li{padding:11px 12px;border-radius:8px;cursor:pointer;font-size:.92rem;color:var(--ink);line-height:1.4}
+.cat-pick-list li.on{background:var(--brand-50);color:var(--brand)}
+.cat-pick-list .cat-pick-add{font-weight:600;color:var(--brand)}
+.cat-pick-list .cat-pick-none{color:var(--ink-3);cursor:default}
+.cat-pick.is-bad .cat-pick-q{border-color:var(--down)}
+.adm-hint.cat-pick-note{display:block;margin-top:6px;color:var(--brand)}
+.adm-hint.cat-pick-note.is-bad{color:var(--down)}
 .store-note{text-align:center;font-size:.84rem;color:var(--ink-3);line-height:1.65}
 
 /* ---------- แถวชื่อ/ตัวเลข ---------- */
@@ -2264,6 +2282,28 @@ table.sr-only{display:block}
 .stk-low{background:#FFF4DC;color:#9A6400;font-weight:700}
 .stk-ok{color:var(--ink-2)}
 .stk-none{color:var(--ink-3)}                         /* สาขานี้ไม่เคยมีสินค้านี้ “—” (adm-products · 21 ต.ค.) */
+/* แตะช่องยอด = เพิ่มยอดเข้าสาขา (adm-products #rc-modal · 3 พ.ย.) — หน้าตาเหมือนตัวเลขเดิม ชี้ / โฟกัสแล้วมีกรอบ */
+button.stk-add{font:inherit;line-height:1.5;min-height:32px;padding:4px 10px;border:1px solid transparent;cursor:pointer;font-variant-numeric:tabular-nums;transition:border-color .12s,background-color .12s}
+button.stk-add.stk-ok,button.stk-add.stk-none{background:transparent}
+button.stk-add:hover{border-color:var(--brand)}
+button.stk-add.stk-ok:hover,button.stk-add.stk-none:hover{background:var(--brand-50);color:var(--brand)}
+button.stk-add:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
+.adm-stock tbody tr[id]{scroll-margin-top:88px}          /* กลับมาที่แถวเดิมแล้วไม่จมใต้แถบหัว */
+.adm-stock tbody tr:target > td{animation:rc-flash 2.6s ease-out}
+@keyframes rc-flash{from{background:var(--brand-50)}to{background:transparent}}
+.rc-modal{width:min(620px,calc(100vw - 24px))}
+.rc-now{margin:0 0 14px;font-size:.95rem;color:var(--ink-2)}
+.rc-now b{color:var(--ink)}
+.rc-hint{display:block;margin-top:2px}
+.rc-done form{margin:0}
+/* ช่องค้นหาที่หัวการ์ดยอดคงเหลือ (adm-products #stock-list · 3 พ.ย.) — เต็มความกว้าง ระยะเท่าหัวการ์ด */
+#stock-list{scroll-margin-top:84px}                     /* ค้น / กดแท็บแล้วเลื่อนมาที่การ์ด ไม่จมใต้แถบหัว */
+.stock-q{display:flex;align-items:center;gap:8px;padding:14px 22px;border-bottom:1px solid var(--line-2)}
+.stock-q .input{flex:1 1 auto;min-width:0;padding:10px 14px}
+.stock-q .btn{flex:0 0 auto;align-self:stretch;min-height:44px}   /* สูงเท่าช่องค้นหา */
+#stock-list .tbl-wrap{position:relative}               /* หัวคอลัมน์ “แก้ไข” (.sr-only absolute) หลุดกรอบเลื่อน → ทั้งหน้าเลื่อนซ้ายขวาได้บน iPad แนวตั้ง */
+@media (max-width:900px){.stock-q{padding:12px 18px}}
+@media (max-width:520px){.stock-q{flex-wrap:wrap}.stock-q .input{flex-basis:100%}.stock-q .btn{flex:1 1 0%}}
 .rep-bars{display:flex;align-items:flex-end;gap:4px;height:180px;padding:16px 22px 10px;overflow-x:auto}
 .rep-bar{flex:1 0 18px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:4px;text-decoration:none}
 .rep-fill{display:block;width:100%;max-width:34px;background:var(--brand);border-radius:6px 6px 2px 2px;opacity:.85}
@@ -2288,6 +2328,8 @@ table.sr-only{display:block}
 .cover-warn{color:#9A6400}
 .cover-bad{color:var(--down)}
 @media (min-width:761px){.adm-stock td:first-child{min-width:230px}.adm-stock td,.adm-stock th{padding-left:10px;padding-right:10px}}
+.adm-stock .pcell{align-items:flex-start}                    /* รูปสินค้าหน้าชื่อ — ชื่อยาวหลายบรรทัด รูปอยู่บน */
+.adm-stock .pcell-t{flex:1 1 auto}
 @media (max-width:980px){
   .mv-wrap:not(.has-pick){display:flex;flex-direction:column}
   .mv-wrap:not(.has-pick) .mv-detail{display:block;order:-1}   /* ยังไม่เลือกสินค้า: เห็นเคลื่อนไหวล่าสุดก่อน แล้วค่อยรายการสินค้า */
@@ -2516,8 +2558,7 @@ table.sr-only{display:block}
 .np-first{gap:10px}
 .np-first b{color:var(--deep-900);font-size:1rem}
 .np-first .btn{margin-top:6px}
-.np-sku{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;min-height:48px}
-.np-sku-in,.np-cat-new{margin-top:8px}
+.np-cat-new{margin-top:8px}
 .np-nocat{color:var(--ink-2);line-height:1.6}
 @media (max-width:760px){
   .sale-find .btn.np-open{display:inline-flex;padding:0 14px}

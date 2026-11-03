@@ -90,7 +90,7 @@ foreach ($cats as $c => $x) {
 /* แถวสินค้าในตารางของหมวด — ใช้ทั้งตอนวาดหน้า และตอนกด “แสดงเพิ่ม” */
 $row = function ($p) use ($br) { ?>
               <tr>
-                <td data-label="สินค้า"><b class="hist-t"><?php echo e($p['name']) ?></b><small class="hist-n"><?php echo e($p['sku']) ?> · จุดสั่งซื้อ <?php echo number_format($p['reorder']) ?> <?php echo e($p['unit']) ?></small></td>
+                <td data-label="สินค้า"><b class="hist-t"><?php echo e($p['name']) ?></b><small class="hist-n"><?php echo e($p['sku']) ?> · จำนวนที่ระบบจะแจ้งเตือนสินค้าใกล้หมด <?php echo number_format($p['reorder']) ?> <?php echo e($p['unit']) ?></small></td>
                 <?php foreach ($br as $bc => $b) { $st = branch_status($p, $bc); ?>
                   <td data-label="<?php echo e($b['short']) ?>" class="r num"><span class="stk stk-<?php echo e($st) ?>"><?php echo number_format(product_qty($p, $bc)) ?></span></td>
                 <?php } ?>

@@ -8,8 +8,9 @@
  *   - [x] ประวัติการแก้ไขดู docs/CHANGELOG.md
  *
  * ตั้ง Cron Jobs ของโฮสต์ (DirectAdmin) ทุก 5 นาที · แก้ path ตามบัญชี · ต่อท้าย >/dev/null 2>&1 กันโฮสต์ส่งอีเมลผลทุกรอบ:
- *   *\/5 * * * *   /usr/local/bin/php /home/<ผู้ใช้>/domains/web-siam.com/public_html/aostock/admweb/aowebdata/modules/stock/cron.php web-siam.com >/dev/null 2>&1
- * ทดสอบ: php cron.php web-siam.com · เวลาที่ cron ทำงานล่าสุดดูที่หน้าสถานะระบบในหลังบ้าน
+ *   *\/5 * * * *   /usr/local/bin/php /home/<ผู้ใช้>/domains/mestockdee.com/public_html/admweb/aowebdata/modules/stock/cron.php mestockdee.com >/dev/null 2>&1
+ * ทดสอบ: php cron.php mestockdee.com · เวลาที่ cron ทำงานล่าสุดดูที่หน้าสถานะระบบในหลังบ้าน
+ * (ย้ายโดเมน = แก้ทั้ง path และชื่อโดเมนท้ายคำสั่ง — ต้องตรงกับไฟล์ admweb/aowebdata/fix.<โดเมน>.php)
  */
 if (PHP_SAPI !== 'cli') {
 	http_response_code(403);

@@ -334,7 +334,7 @@ require dirname(__FILE__) . '/inc/header.php';
       <div class="card-body card-body--flush">
         <?php if (!$lows) { ?>
           <div class="card-body">
-            <div class="tasks-empty"><svg class="ico"><use href="#i-check"/></svg> สต๊อกทุกรายการอยู่เหนือจุดสั่งซื้อ</div>
+            <div class="tasks-empty"><svg class="ico"><use href="#i-check"/></svg> ทุกรายการยังเหลือมากกว่าจำนวนที่ระบบจะแจ้งเตือนสินค้าใกล้หมด</div>
           </div>
         <?php } else { ?>
           <div class="lowlist num">
@@ -347,7 +347,7 @@ require dirname(__FILE__) . '/inc/header.php';
                   <small>
                     <?php echo e($r['product']['sku']) ?>
                     <?php if ($branch === 'ALL') { ?>· <?php echo e(branch_name($r['branch'])) ?><?php } ?>
-                    · จุดสั่งซื้อ <?php echo number_format($r['reorder']) ?> <?php echo e($r['product']['unit']) ?>
+                    · จำนวนที่ระบบจะแจ้งเตือนสินค้าใกล้หมด <?php echo number_format($r['reorder']) ?> <?php echo e($r['product']['unit']) ?>
                   </small>
                   <div class="low-bar <?php echo $isOut ? 'out' : '' ?>"><i style="width:<?php echo max($pct, 3) ?>%"></i></div>
                 </div>

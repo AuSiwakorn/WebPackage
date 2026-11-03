@@ -2,7 +2,7 @@
 
 > **สถานะ: ร่างรออนุมัติ (ช่วงที่ 15)** — ยังไม่ได้เปลี่ยนชื่อในโค้ด · ตรวจคอลัมน์ "ชื่อใหม่" แล้วแจ้งชื่อที่อยากแก้ได้เลย
 
-ฟังก์ชันทั้งหมด 515 ตัว (เดิม 468 + ตั้งชื่อตามมาตรฐานแล้ว 45 ตัว: สินค้าของสาขา 22 ต.ค. สิบสองตัว · ไล่แก้ผลทดสอบ 21 ต.ค. เก้าตัว · ขายแบบ VAT รายสาขา 21 ต.ค. ห้าตัว · บิล VAT ต้องมีเลขภาษี 20 ต.ค. หนึ่งตัว · เทียบจำนวนบนจอก่อนบันทึกใบ 20 ต.ค. หนึ่งตัว · รูปสินค้า 16 ต.ค. หนึ่งตัว · บิลของฉันวันนี้ 16 ต.ค. สองตัว · ช่วงที่ 16 สองตัว · ปุ่มพิมพ์บิล · ช่วงที่ 17 สองตัว · งานความเร็ว 14 ต.ค. แปดตัว · หลุดจากระบบ 14 ต.ค. หนึ่งตัว) อยู่ใน `admweb/aowebdata/modules/stock/api/*.php` (โหลดผ่าน `api.php` · ลบ staff_goal 15 ต.ค. · ใบนับแบบรายการ: เพิ่ม Stock_setCountDraft ลบ adj_limit · adj_full · ลบ count_open_limit · ลองใบนับแบบตารางแล้วกลับมาใช้การ์ด · กลุ่มของประวัติ: เพิ่ม Stock_getLogGroups · Stock_getLogGroupOf · Stock_sumLogGroups · เมนูประวัติแยกหน้า: เพิ่ม Stock_getAllowedLogGroups · Stock_getHistoryPerms) · ธีม `themes/aostock/` และหน้า admweb ของโมดูลเรียกใช้
+ฟังก์ชันทั้งหมด 516 ตัว (เดิม 468 + ตั้งชื่อตามมาตรฐานแล้ว 47 ตัว: ผู้ดูแลเพิ่มยอดเข้าสาขา 3 พ.ย. หนึ่งตัว · สินค้าที่ขายของวัน 2 พ.ย. หนึ่งตัว · ลบ Stock_nextProductSku 3 พ.ย. (SKU กรอกเองอย่างเดียว) · สินค้าของสาขา 22 ต.ค. สิบสองตัว · ไล่แก้ผลทดสอบ 21 ต.ค. เก้าตัว · ขายแบบ VAT รายสาขา 21 ต.ค. ห้าตัว · บิล VAT ต้องมีเลขภาษี 20 ต.ค. หนึ่งตัว · เทียบจำนวนบนจอก่อนบันทึกใบ 20 ต.ค. หนึ่งตัว · รูปสินค้า 16 ต.ค. หนึ่งตัว · บิลของฉันวันนี้ 16 ต.ค. สองตัว · ช่วงที่ 16 สองตัว · ปุ่มพิมพ์บิล · ช่วงที่ 17 สองตัว · งานความเร็ว 14 ต.ค. แปดตัว · หลุดจากระบบ 14 ต.ค. หนึ่งตัว) อยู่ใน `admweb/aowebdata/modules/stock/api/*.php` (โหลดผ่าน `api.php` · ลบ staff_goal 15 ต.ค. · ใบนับแบบรายการ: เพิ่ม Stock_setCountDraft ลบ adj_limit · adj_full · ลบ count_open_limit · ลองใบนับแบบตารางแล้วกลับมาใช้การ์ด · กลุ่มของประวัติ: เพิ่ม Stock_getLogGroups · Stock_getLogGroupOf · Stock_sumLogGroups · เมนูประวัติแยกหน้า: เพิ่ม Stock_getAllowedLogGroups · Stock_getHistoryPerms) · ธีม `themes/aostock/` และหน้า admweb ของโมดูลเรียกใช้
 
 ## มาตรฐานการตั้งชื่อ
 
@@ -185,10 +185,10 @@
 | `Stock_formatBranchLimit($n)` | `branch_limit_label` | ข้อความของจำนวนสาขาสูงสุด เช่น "3 สาขา" / "ไม่จำกัด" |
 | `Stock_setBranchLimit($n, $by)` | `branch_limit_set` | ตั้งจำนวนสาขาสูงสุด (หลังบ้าน admweb) + ลงประวัติของระบบ — คืน true ถ้าค่าเปลี่ยน · $by = ชื่อผู้แก้สำหรับประวัติ |
 | `Stock_getBranchLimitError()` | `branch_limit_error` | เพิ่มสาขาใหม่ได้อีกไหม — '' = ได้ · ไม่ได้ = ข้อความบอกผู้ดูแล POS |
-| `Stock_getBranchSettingRules()` | `branch_setting_rules` | ช่วงค่าที่ยอมให้ตั้ง: array(ต่ำสุด, สูงสุด) · count_day = รอบตรวจนับเริ่มวันที่ (1–28) · backdate_days = แก้เอกสาร / รับคืนย้อนหลังได้กี่วัน · default_float = เงินทอนมาตรฐาน |
+| `Stock_getBranchSettingRules()` | `branch_setting_rules` | ช่วงค่าที่ยอมให้ตั้ง: array(ต่ำสุด, สูงสุด) · count_day = รอบตรวจนับเริ่มวันที่ (1–28 · 0 = ไม่ใช้รอบตรวจนับ — 2 พ.ย.) · backdate_days = แก้เอกสาร / รับคืนย้อนหลังได้กี่วัน · default_float = เงินทอนมาตรฐาน |
 | `Stock_getBranchSetting($code, $key)` | `branch_setting` | ค่าตั้งหนึ่งค่าของสาขา (รอบนับ / ย้อนหลัง / นับครั้งละ / เงินทอน) |
 | `Stock_setBranchSetting($code, $key, $val)` | `branch_setting_set` | บันทึกค่าตั้งหนึ่งค่าของสาขา (ตัดให้อยู่ในช่วงที่ยอม) |
-| `Stock_getStocktakeRoundDay($code)` | `count_round_day` | รอบตรวจนับเริ่มวันที่เท่าไรของเดือน |
+| `Stock_getStocktakeRoundDay($code)` | `count_round_day` | รอบตรวจนับเริ่มวันที่เท่าไรของเดือน (0 = ไม่ใช้รอบตรวจนับ) |
 | `Stock_getBackdateDays($code = null)` | `backdate_days` | ย้อนหลังได้ไม่เกินกี่วัน (สิทธิ์ backdate / refund) — ผู้ดูแลตั้งรายสาขา |
 | `Stock_getStaffRows($reset = false)` | `staff_db_rows` | ทุกแถวของ ao_stock_staff (+ รหัสสาขา) — array( username => แถว ) · มี hash ด้วย ใช้ภายในเท่านั้น · พนักงาน = ชื่อผู้ใช้ + PIN 4 หลัก · ผู้ดูแล / บัญชี = ชื่อผู้ใช้ + รหัสผ่าน · ผิด STAFF_LOCK_FAILS ครั้งล็อก STAFF_LOCK_MINUTES นาที · ผู้ดูแล / บัญชีจัดการที่หลังบ้าน · ประวัติประจำสาขาใน ao_stock_staff_branch (แถวปัจจุบัน date_to = NULL) |
 | `Stock_getStaffBranchHistory($reset = false)` | `staff_db_history` | ประวัติการประจำสาขาของทุกคน — array( staff_id => array( array(branch, from, to\|null), ... ) ) เรียงตามวันที่ |
@@ -251,7 +251,7 @@
 | `Stock_setStaffPerms($username, $perms)` | `staff_set_perms` | เขียนเฉพาะสิทธิ์ (ไม่แตะชื่อ / อักษรย่อ) |
 | `Stock_doSetBranchManager($username, $on, $actor)` | `staff_act_set_manager` | ตั้ง / ปลดผู้จัดการสาขา (หน้าจัดการสาขา) — ไม่เปลี่ยน = ไม่ทำอะไร · คืน '' หรือข้อความผิดพลาด |
 
-## `api/product.php` — สินค้า · หมวด · สต๊อกคงเหลือ (67)
+## `api/product.php` — สินค้า · หมวด · สต๊อกคงเหลือ (66)
 
 | ชื่อใหม่ | ชื่อเดิม | ทำอะไร |
 |---|---|---|
@@ -263,14 +263,13 @@
 | `Stock_getProductUnits()` | `product_units` | หน่วยที่เคยใช้ (ไว้เติมในช่องหน่วยของฟอร์มสินค้า) |
 | `Stock_readProductForm($isNew, $sku)` | `product_read_form` | ตรวจค่าจากฟอร์มสินค้า — คืน array(ค่า, ข้อผิดพลาด) · $isNew = ตรวจ SKU ด้วย |
 | `Stock_saveProduct($isNew, $d)` | `product_save` | เพิ่ม / แก้สินค้า — $d จาก Stock_readProductForm · คืน product_id |
-| `Stock_nextProductSku()` | — (ใหม่ ช่วงที่ 16) | SKU อัตโนมัติถัดไป P0001, P0002, … (ตัวนับใน ao_stock_doc_seq ชุด SKU · ข้ามเลขที่กรอกเองไปแล้ว) — ต้องเรียกใน Stock_dbTransaction · ตัวนับแถวเดียวใน ao_stock_doc_seq (upsert) — เพิ่มพร้อมกันไม่ได้เลขซ้ำ · ข้ามเลขที่มีคนกรอกเองแล้ว |
-| `Stock_doAddProduct($user, $code, $from = 'หน้านำเข้าสินค้า')` | — (ใหม่ ช่วงที่ 16) | พนักงานเพิ่มสินค้าใหม่จากหน้านำเข้า หรือหน้าเพิ่มสินค้า (product-add.php · 15 ต.ค.) (สิทธิ์ product_add) — หมวดใหม่ + สินค้า + ประวัติใน transaction เดียว · คืน array(sku, name) หรือ array(error) · ฟอร์ม: sku_mode (auto / manual) · sku · name · cat · cat_new (ต้องมีสิทธิ์ category_add) · unit · barcode · cost · price · reorder · หมวดใหม่ + สินค้า + ประวัติใน transaction เดียว · $from = หน้าที่เพิ่ม (ลงประวัติ) · 22 ต.ค.: ผู้ดูแลใช้ด้วย (ไม่ต้องมีสิทธิ์) = สินค้าส่วนกลาง · พนักงาน / ผู้จัดการ = สินค้าของสาขา $code |
+| `Stock_doAddProduct($user, $code, $from = 'หน้านำเข้าสินค้า')` | — (ใหม่ ช่วงที่ 16) | พนักงานเพิ่มสินค้าใหม่จากหน้านำเข้า หรือหน้าเพิ่มสินค้า (product-add.php · 15 ต.ค.) (สิทธิ์ product_add) — หมวดใหม่ + สินค้า + ประวัติใน transaction เดียว · คืน array(sku, name) หรือ array(error) · ฟอร์ม: sku (ต้องกรอก — เลิกตั้งให้อัตโนมัติ 3 พ.ย.) · name · cat · cat_new (ต้องมีสิทธิ์ category_add) · unit · barcode · cost · price · reorder · หมวดใหม่ + สินค้า + ประวัติใน transaction เดียว · $from = หน้าที่เพิ่ม (ลงประวัติ) · 22 ต.ค.: ผู้ดูแลใช้ด้วย (ไม่ต้องมีสิทธิ์) = สินค้าส่วนกลาง · พนักงาน / ผู้จัดการ = สินค้าของสาขา $code |
 | `Stock_setProductActive($sku, $on)` | `product_set_active` | เปิดขาย / เลิกขาย |
 | `Stock_hasProductOwnerColumn()` | — (ใหม่ 22 ต.ค.) | มีคอลัมน์ owner_branch_id แล้วหรือยัง (ยังไม่ได้ Reinstall = ไม่มี → ทุกตัวเป็นส่วนกลางแบบเดิม) · ถามฐานข้อมูลครั้งเดียวต่อ request |
 | `Stock_isProductInBranch($p, $code)` | — (ใหม่ 22 ต.ค.) | สินค้านี้ใช้ที่สาขา $code ได้ไหม — ส่วนกลาง = ทุกสาขา · สินค้าของสาขา = เฉพาะสาขาเจ้าของ · 'ALL' = ทุกตัว · ใช้กรองรายการ / กันการใส่ตะกร้า ใบนำเข้า ใบตัดออก ใบตรวจนับ |
 | `Stock_canEditProduct($user, $p)` | — (ใหม่ 22 ต.ค.) | แก้สินค้านี้ได้ไหม — ผู้ดูแล = ทุกตัว · ผู้จัดการสาขา = เฉพาะสินค้าของสาขาตัวเอง · พนักงาน / สินค้าส่วนกลาง = ไม่ได้ |
 | `Stock_formatProductOwner($p)` | — (ใหม่ 22 ต.ค.) | ป้ายเจ้าของ — “สินค้าส่วนกลาง” / “สินค้าสาขารังสิต” / “สินค้าของสาขาที่ไม่มีแล้ว” |
-| `Stock_buildProductDiff($p, $d)` | — (ใหม่ 22 ต.ค.) | ค่าที่เปลี่ยนตอนแก้สินค้า — ชื่อช่อง => 'เดิม → ใหม่' (ชื่อ หมวด หน่วย ทุน ราคาขาย จุดสั่งซื้อ บาร์โค้ด) · ไม่เปลี่ยน = array() |
+| `Stock_buildProductDiff($p, $d)` | — (ใหม่ 22 ต.ค.) | ค่าที่เปลี่ยนตอนแก้สินค้า — ชื่อช่อง => 'เดิม → ใหม่' (ชื่อ หมวด หน่วย ทุน ราคาขาย จำนวนที่ระบบจะแจ้งเตือนสินค้าใกล้หมด บาร์โค้ด) · ไม่เปลี่ยน = array() |
 | `Stock_getProductLogBranch($p, $code)` | — (ใหม่ 22 ต.ค.) | สาขาที่ลงประวัติเรื่องสินค้า — สินค้าของสาขา = สาขาเจ้าของ · ส่วนกลาง = $code ของคนทำ |
 | `Stock_doSaveProduct($user, $sku, $code)` | — (ใหม่ 22 ต.ค.) | บันทึกการแก้สินค้า (ผู้ดูแล / ผู้จัดการ) — ตรวจสิทธิ์ → รูป → ค่าในฟอร์ม → บันทึก → เก็บรูป → ลงประวัติ “เดิม → ใหม่” · คืน array(ok, img_error) หรือ array(error, bad, old) · เดิมผู้ดูแลแก้แล้วไม่ลงประวัติ |
 | `Stock_doSetProductActive($user, $sku, $on, $code)` | — (ใหม่ 22 ต.ค.) | เลิกขาย / เปิดขายอีกครั้ง พร้อมตรวจสิทธิ์ + ลงประวัติ · คืน '' หรือข้อความ |
@@ -287,8 +286,8 @@
 | `Stock_getProductStatus($p, $branch)` | `product_status` | สถานะรวมของสินค้า |
 | `Stock_getWorstBranch($p)` | `worst_branch` | สาขาที่วิกฤตที่สุดของสินค้านี้ (ใช้ตอนดูทุกสาขา) |
 | `Stock_getStockSummary($branch)` | `stock_summary` | สรุปสต๊อกของสาขา: จำนวนรายการ มูลค่า ใกล้หมด หมด |
-| `Stock_getLowStockProducts($branch, $limit = 6)` | `low_stock_products` | สินค้าที่ถึงจุดสั่งซื้อหรือหมด เรียงจากวิกฤตที่สุด |
-| `Stock_compareLowRatio($a, $b)` | `compare_low_ratio` | ตัวเรียง (usort): สัดส่วนคงเหลือต่อจุดสั่งซื้อ น้อยก่อน |
+| `Stock_getLowStockProducts($branch, $limit = 6)` | `low_stock_products` | สินค้าที่เหลือไม่เกินจำนวนที่ระบบจะแจ้งเตือนสินค้าใกล้หมด (reorder) หรือหมด เรียงจากวิกฤตที่สุด |
+| `Stock_compareLowRatio($a, $b)` | `compare_low_ratio` | ตัวเรียง (usort): สัดส่วนคงเหลือต่อจำนวนที่ระบบจะแจ้งเตือนสินค้าใกล้หมด น้อยก่อน |
 | `Stock_getCategoryNames()` | `product_cats` | ชื่อหมวดสินค้าทั้งหมด (เรียงตามลำดับในทะเบียน) — ใช้กับตัวกรองหมวดทุกหน้า |
 | `Stock_getCategories($reset = false)` | `cat_registry` | ทะเบียนหมวด: ชื่อ => array(id, count จำนวนสินค้า (รวมเลิกขาย), added เพิ่มโดยผู้ใช้ไหม, by, at) |
 | `Stock_getCategoryProducts($name, $branch = 'ALL')` | `cat_products` | สินค้าในหมวด (เฉพาะที่ขายอยู่) · $branch = รหัสสาขา (ส่วนกลาง + ของสาขานั้น · 22 ต.ค.) หรือ 'ALL' |
@@ -349,7 +348,7 @@
 | `Stock_getMoveType($k)` | `move_type_of` | ข้อมูลของชนิดความเคลื่อนไหวหนึ่ง |
 | `Stock_getMoveGroup($type)` | `move_group` | กลุ่มสรุปบนหัวหน้า: รับเข้า / ขาย / ตัดออก / ตรวจนับ |
 | `Stock_getMoveTypeKey($t)` | `move_type_key` | ชนิดใน stock_move → คีย์ของ Stock_getMoveTypes() |
-| `Stock_getMoveDbRows($codes, $pid, $fromTs)` | `move_db_rows` | ความเคลื่อนไหวใน ao_stock_move ตั้งแต่ $fromTs ของสาขาใน $codes (เฉพาะสินค้า $pid ถ้าระบุ) · คืน สาขา => SKU => แถว (ts seq type delta doc by note) |
+| `Stock_getMoveDbRows($codes, $pid, $fromTs)` | `move_db_rows` | ความเคลื่อนไหวใน ao_stock_move ตั้งแต่ $fromTs ของสาขาใน $codes (เฉพาะสินค้า $pid ถ้าระบุ) · คืน สาขา => SKU => แถว (ts seq type delta doc by note) · by ของผู้ดูแลต่อท้าย “(ผู้ดูแล)” (3 พ.ย.) |
 | `Stock_getMovesOfBranches($codes, $pid = 0)` | `move_rows_multi` | ความเคลื่อนไหวของสินค้าในสาขาใน $codes (ทุกสินค้า หรือเฉพาะ $pid) ย้อนหลัง MOVE_LOOKBACK_DAYS วัน + วันนี้ · bal คำนวณย้อนจากยอดปัจจุบัน (product_qty) · สินค้าที่เลิกขายไม่แสดง |
 | `Stock_getMovesOfProduct($code, $p)` | `move_rows` | ความเคลื่อนไหวทั้งหมดของสินค้าหนึ่งตัวในสาขาหนึ่ง เรียงเก่า → ใหม่ พร้อม 'bal' = คงเหลือหลังรายการนั้น |
 | `Stock_getMovePeriods()` | `move_periods` | ช่วงเวลาที่เลือกดูได้ในหน้าประวัติเคลื่อนไหว |
@@ -365,7 +364,7 @@
 | `Stock_canEditPastDoc($user, $doc)` | `past_can_edit` | แก้/ยกเลิกใบนี้ได้ไหม — คืน array(ok, msg) |
 | `Stock_voidPastDoc($code, $no, $user, $reason, $redo)` | `past_doc_void` | ยกเลิก (หรือยกเลิกเพื่อแก้ไข) เอกสารย้อนหลัง — สต๊อกถูกปรับวันนี้ และลงประวัติของวันนี้ · พนักงานต้องมีสิทธิ์ backdate และย้อนไม่เกิน backdate_days ของสาขา · ใบของคนอื่นต้องมี void_others · ใบเดิมขึ้นว่ายกเลิกย้อนหลังพร้อมชื่อคนยกเลิก · stock_move ลงวันนี้อ้าง ref_id ใบเดิม · แก้ไข = ดึงรายการเป็นใบใหม่ของวันนี้ (edit_of_id = ใบเดิม) |
 
-## `api/receive.php` — นำเข้าสินค้า (14)
+## `api/receive.php` — นำเข้าสินค้า (15)
 
 | ชื่อใหม่ | ชื่อเดิม | ทำอะไร |
 |---|---|---|
@@ -376,7 +375,8 @@
 | `Stock_removeFromReceiveDraft($sku)` | `rdraft_remove` | เอารายการออกจากร่าง |
 | `Stock_clearReceiveDraft()` | `rdraft_clear` | ล้างร่างทั้งใบ |
 | `Stock_getReceiveDraftLines($code)` | `rdraft_lines` | แปลงร่างเป็นรายการพร้อมยอดคงเหลือก่อน/หลัง |
-| `Stock_saveReceive($code, $user, $ref, $note, $lines)` | `receive_save` | บันทึกการรับเข้า: บวกสต๊อก + ลง ledger + ประวัติ ในทรานแซกชันเดียว · ผู้รับเข้าและสาขามาจากบัญชีที่เข้าระบบ · คืนรูปเดียวกับ receive_by_no |
+| `Stock_saveReceive($code, $user, $ref, $note, $lines)` | `receive_save` | บันทึกการรับเข้า: บวกสต๊อก + ลง ledger + ประวัติ ในทรานแซกชันเดียว · ผู้รับเข้าและสาขามาจากบัญชีที่เข้าระบบ · ผู้ดูแลรับเข้า = “ผู้รับเข้า” ต่อท้าย (ผู้ดูแล) · คืนรูปเดียวกับ receive_by_no |
+| `Stock_saveAdminReceive($code, $user, $sku, $qty, $ref, $note)` | — (ใหม่ 3 พ.ย.) | ผู้ดูแลเพิ่มยอดสินค้าตัวเดียวเข้าสาขา จากหน้าสินค้าในสต๊อก (adm-products) — ออกเป็นใบรับเข้า 1 ใบผ่าน receive_save · เลขอ้างอิง / หมายเหตุว่างได้ (ฝั่งพนักงานต้องมีอย่างใดอย่างหนึ่ง) · ไม่รับ: ไม่ใช่ผู้ดูแล · สาขาไม่มี / ปิดใช้งาน · สินค้าเลิกขาย · สินค้าของสาขาอื่น · จำนวนไม่ใช่จำนวนเต็ม 1–STOCK_LINE_MAX · ไม่ผูก edit_of กับร่างที่ค้าง · คืนใบ หรือ array('error') |
 | `Stock_voidReceive($code, $no, $user, $reason, $reopen = false)` | `receive_void` | ยกเลิกใบรับเข้าของวันนี้ — ถอนยอดที่เคยบวกไว้ออกจากสต๊อก (ใบของวันก่อนใช้ Stock_voidPastDoc) · ของถูกขาย / เบิกออกไปบางส่วนแล้ว = ถอนแล้วติดลบ ยกเลิกไม่ได้ ให้ตรวจนับแทน · ใบวันก่อนใช้ past_doc_void |
 | `Stock_loadReceiveDraft($doc)` | `rdraft_from_receive` | ดึงรายการทั้งใบกลับเข้าร่าง เพื่อแก้แล้วรับเข้าใหม่ (ใบใหม่จะชี้ edit_of_id กลับมาที่ใบนี้) · จำเลขอ้างอิง / หมายเหตุเดิมใน $_SESSION['recv_meta'] (21 ต.ค.) |
 | `Stock_getReceiveDraftMeta()` | — (ใหม่ 21 ต.ค.) | หัวใบรับเข้าที่จำไว้ตอนดึงใบเก่ามาแก้ — array(ref, note) ไม่มี = ค่าว่าง · ล้างใน rdraft_clear (บันทึก / ล้างใบ) · เดิมแก้ไขใบรับเข้าแล้วเลขอ้างอิง / หมายเหตุหาย |
@@ -432,14 +432,14 @@
 | `Stock_saveStocktake($code, $user, $reason, $note, $lines)` | `adj_save` | บันทึกผลการนับ: ปรับสต๊อกเท่ากับส่วนต่าง + ledger + ประวัติ ในทรานแซกชันเดียว · ปรับสต๊อกเท่าส่วนต่าง + ledger + ประวัติ · $reason ว่างได้ถ้าตรงหมด · ทุกรายการลง count_item และ stock_move (ตรง = qty 0) · ยอดที่ล็อกได้ไม่ตรงกับตอนแสดงหน้า = ไม่บันทึก ให้นับตัวนั้นใหม่ |
 | `Stock_voidStocktake($code, $no, $user, $reason, $reopen = false)` | `adj_void` | ยกเลิกใบตรวจนับของวันนี้ — ถอยส่วนต่างที่เคยปรับไว้กลับ · ใบเดิมบวกของแล้วของถูกขายไป → ถอยแล้วติดลบ ยกเลิกไม่ได้ ให้นับใหม่แทน · คืนใบ / array('error' => 'sold', 'items') / null ถ้าไม่พบหรือยกเลิกแล้ว |
 | `Stock_loadStocktakeDraft($doc)` | `adraft_from_adj` | ดึงรายการทั้งใบกลับเข้าร่าง (ใบใหม่จะชี้ edit_of_id กลับมาที่ใบนี้) — ยอดตั้งต้นของการนับ = ยอดหลังถอยใบเดิมแล้ว · ยอดตั้งต้นของการนับ = ยอดหลังถอยใบเดิมแล้ว |
-| `Stock_getStocktakeRound($code, $now = null)` | `count_round` | รอบปัจจุบันของสาขา: array(start, end, due) เป็น timestamp เที่ยงคืน |
+| `Stock_getStocktakeRound($code, $now = null)` | `count_round` | รอบปัจจุบันของสาขา: array(start, end, left, none) — start / end เป็น timestamp เที่ยงคืน · left = เหลือกี่วัน · none = true เมื่อสาขาตั้งรอบเป็น 0 (ไม่ใช้รอบตรวจนับ — 2 พ.ย.): ใช้เดือนปฏิทินนี้แยก “นับแล้ว / ยังไม่นับ” ไม่มีกำหนดส่ง และ pending_tasks ไม่ขึ้นงานค้างของการตรวจนับ |
 | `Stock_getStocktakeStatus($code)` | `count_status_all` | สถานะการนับของทุกสินค้าในรอบนี้: array( SKU => array(at, diff, by, no) ) · "นับแล้ว" = มี count_item ในใบที่ไม่ยกเลิกตั้งแต่วันเริ่มรอบปัจจุบัน — ใบหลังสุดชนะ |
 | `Stock_buildStocktakeQuery($q, $cat, $tab)` | `adj_qs` | query string ของหน้าตรวจนับ (แท็บ "ทั้งหมด" เป็นค่าเริ่มต้น ไม่ต้องใส่) |
 | `Stock_getStocktakeTabs()` | `count_tabs` | แท็บของหน้าตรวจนับ (ทั้งหมด / ยังไม่นับ / นับแล้ว) |
 | `Stock_formatStocktakeNote($st)` | `count_note` | ข้อความสั้นบนการ์ด: "นับ 12 ก.ย. · ตรง" / "นับวันนี้ 10:32 · ขาด 2" |
 | `Stock_renderDiffChip($d)` | `diff_chip` | ป้ายส่วนต่าง: +3 / −2 / ตรง |
 
-## `api/sale.php` — ขาย · ตะกร้า · บิล (19)
+## `api/sale.php` — ขาย · ตะกร้า · บิล (20)
 
 | ชื่อใหม่ | ชื่อเดิม | ทำอะไร |
 |---|---|---|
@@ -457,6 +457,7 @@
 | `Stock_canSeeBill($user, $bill)` | — (ใหม่ 16 ต.ค.) | ดู / พิมพ์บิลนี้ได้ไหม — ผู้ดูแล · ฝ่ายบัญชี · สิทธิ์ hist_sale (ประวัติขาย) = ทุกบิล · คนอื่น = เฉพาะบิลที่ตัวเองขาย (by_user) · สาขาตรวจที่หน้าที่เรียก · ใช้ใน bill-print.php และ sale.php?done= / ?voided= |
 | `Stock_getMyBillsToday($code, $user, $from = '', $to = '', $limit = 200)` | — (ใหม่ 16 ต.ค.) | บิลที่ผู้ใช้คนนี้ขายวันนี้ที่สาขานี้ ใหม่สุดก่อน (รวมบิลที่ยกเลิก) · $from / $to = 'HH:MM' ของเวลาขาย (ไม่ถูกรูปแบบ = ทั้งวัน) · $limit = 0 → คืนจำนวนอย่างเดียว · รายการ "บิลของฉันวันนี้" ในหน้าขาย |
 | `Stock_getMyBillCounts($code, $user)` | — (ใหม่ 21 ต.ค.) | จำนวนบิลที่ผู้ใช้คนนี้ขายวันนี้ที่สาขานี้ — array(paid, void) · ปุ่ม “บิลของฉันวันนี้ (3 ใบ · ยกเลิก 2)” (เดิมนับรวมบิลที่ยกเลิก ไม่ตรงกับยอดขาย) |
+| `Stock_getSoldProductsOfDay($codes, $ts)` | — (ใหม่ 2 พ.ย.) | สินค้าที่ขายได้ของวันหนึ่ง ไม่นับบิลที่ยกเลิก — array(SKU => name, unit, qty, total, bills) ขายมากสุดก่อน · $codes = รหัสสาขาเดียวหรือหลายสาขา · total หักส่วนลดท้ายบิลตามสัดส่วน (line_total × total ÷ subtotal) · SQL GROUP BY คำสั่งเดียว · การ์ด “สินค้าที่ขายวันนี้” ตอนปิดร้าน (store.php) และแท็บ “สินค้าที่ขาย” ใน adm-day-sales.php |
 | `Stock_getBillRedo()` | — (ใหม่ 21 ต.ค.) | บิลเดิมที่ตะกร้านี้ทำแทน (กด “แก้ไขบิลนี้”) — array(no, discount บาท, vat, method) · ตะกร้าว่าง / ไม่ได้แก้บิล = null · หน้าขายใช้เป็นค่าตั้งต้น: ยอดชำระ = ราคาเต็มตอนนี้ − ส่วนลดเดิม · ประเภทบิล · วิธีจ่าย · เก็บใน $_SESSION['bill_redo'] (Stock_loadCartFromBill) ล้างใน cart_clear |
 | `Stock_saveBill($code, $user, $method, $received, $vat = false, $net = null)` | `bill_save` | บันทึกบิลจากตะกร้า: ล็อกยอด → เช็กร้านเปิด + ของพอ → ออกเลขบิล → บิล + รายการ + stock_move + ประวัติ (ทรานแซกชันเดียว) · ล็อกยอด → เช็กร้านเปิด + ของพอ → ออกเลขบิล (ชุด vat / novat งวด YYYYMM) → บิล + รายการ + move + ประวัติ · ขายได้เฉพาะตอนร้านเปิด |
 | `Stock_voidBill($code, $no, $user, $reason, $reopen = false)` | `bill_void` | ยกเลิกบิลของวันนี้ — คืนสต๊อกด้วย stock_move sale_void แล้วทำเครื่องหมายว่ายกเลิก (บิลไม่ถูกลบ) · ร้านต้องยังเปิด (ปิดแล้วเงินในลิ้นชักสรุปแล้ว) และบิลยังไม่มีรับคืน · วันก่อนใช้รับคืนสินค้า |

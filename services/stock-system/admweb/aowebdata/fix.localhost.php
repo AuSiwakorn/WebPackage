@@ -1,4 +1,5 @@
 <?php
+
 /**
  * FILE: admweb/aowebdata/fix.localhost.php
  * ROLE: ค่าตั้งของเครื่องทดสอบ http://localhost:8098/aostock/ — ⚠ ไม่ต้องอัปโหลดขึ้นเซิร์ฟเวอร์ · conf.ini.php เลือกไฟล์นี้เมื่อเปิดผ่าน localhost
@@ -58,10 +59,8 @@ define("DASHBOARD_NAME", 'main_v2');
 # web setting
 // โฟลเดอร์ที่ติดตั้งเว็บนี้ใต้โดเมน (ขึ้นต้นด้วย / ไม่มี / ท้าย) — ติดตั้งที่ root ของโดเมนให้ใส่ ''
 // ต้องตรงกับ RewriteBase ใน .htaccess
-$webBase = '/aostock';
-$webUrl = '//' . $_SERVER['HTTP_HOST'] . $webBase;
+$webUrl = '//' . $_SERVER['HTTP_HOST'];
 $webPath = (@$webPath != '') ? $webPath : dirname(dirname(dirname(__FILE__)));
-
 // เฉพาะโมดูลที่มีโฟลเดอร์จริงใน aowebdata/modules/ หรือ admweb/core/ (ชื่อที่ไม่มีโฟลเดอร์ระบบข้ามไปเงียบ ๆ)
 $aModuleUse = array(
     'stock',        // AOSTOCK — ตาราง ao_stock_* + เมนูในหลังบ้าน

@@ -1,8 +1,9 @@
 RewriteEngine On
 
 # โฟลเดอร์ที่ติดตั้งเว็บนี้ — ต้องตรงกับ $webBase ใน admweb/aowebdata/fix.<โดเมน>.php
-# ย้ายไปไว้ที่ root ของโดเมนเมื่อไร ให้เปลี่ยนเป็น RewriteBase / (กฎด้านล่างเขียนแบบ relative ไม่ต้องแก้)
-RewriteBase /aostock/
+# ตอนนี้อยู่ที่ root ของโดเมน (mestockdee.com — 2 พ.ย.) · ถ้าย้ายไปไว้ในโฟลเดอร์ย่อย เช่น /aostock ให้เปลี่ยนเป็น RewriteBase /aostock/
+# (ค่าไม่ตรงกับที่ติดตั้งจริง = หน้าที่ไม่มีไฟล์จริง เช่น login.php วนเขียนทับตัวเองจนขึ้น 500 Internal Server Error)
+RewriteBase /
 
 # หน้าแรกของโฟลเดอร์ = router index.php (→ themes/aostock/home.php → หน้า login)
 DirectoryIndex index.php

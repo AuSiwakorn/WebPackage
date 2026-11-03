@@ -357,7 +357,8 @@ function adraft_from_adj($doc)
 
 /* ---------- รอบการตรวจนับ: “นับแล้ว” = นับในรอบปัจจุบัน ---------- */
 
-/** รอบปัจจุบันของสาขา: array(start, end, due) เป็น timestamp เที่ยงคืน */
+/** รอบปัจจุบันของสาขา: array(start, end, left, none) — start / end เป็น timestamp เที่ยงคืน
+ *  none = true เมื่อสาขาตั้งรอบเป็น 0 (ไม่ใช้รอบตรวจนับ): ใช้เดือนปฏิทินนี้แยก “นับแล้ว / ยังไม่นับ” แต่ไม่มีกำหนดส่ง / งานค้าง */
 function count_round($code, $now = null)
 {
     $now = ($now === null) ? time() : $now;
@@ -365,6 +366,11 @@ function count_round($code, $now = null)
     $y   = (int) date('Y', $now);
     $m   = (int) date('n', $now);
 
+    if ($day <= 0) {
+        $start = mktime(0, 0, 0, $m, 1, $y);
+        $next  = mktime(0, 0, 0, $m + 1, 1, $y);
+        return array('start' => $start, 'end' => $next - 86400, 'left' => (int) floor(($next - mktime(0, 0, 0)) / 86400), 'none' => true);
+    }
     if ((int) date('j', $now) < $day) {          // ยังไม่ถึงวันเริ่มของเดือนนี้ → รอบเริ่มเดือนก่อน
         $m--;
         if ($m < 1) { $m = 12; $y--; }
@@ -375,6 +381,7 @@ function count_round($code, $now = null)
         'start' => $start,
         'end'   => $next - 86400,                 // วันสุดท้ายของรอบ = กำหนดส่ง
         'left'  => (int) floor(($next - mktime(0, 0, 0)) / 86400),   // เหลือกี่วัน (รวมวันนี้)
+        'none'  => false,
     );
 }
 

@@ -323,6 +323,9 @@ function product_read_form($isNew, $sku)
     );
     $rows = product_db_rows();
     $cats = cat_registry();
+    if ($isNew && $d['sku'] === '') {
+        return array($d, 'กรุณากรอก SKU (รหัสสินค้า)');
+    }
     if ($isNew && !preg_match('/^[A-Z0-9][A-Z0-9._-]{0,39}$/', $d['sku'])) {
         return array($d, 'SKU ใช้ได้เฉพาะ A–Z 0–9 . _ - (ขึ้นต้นด้วยตัวอักษรหรือตัวเลข)');
     }
@@ -339,7 +342,7 @@ function product_read_form($isNew, $sku)
         $d['unit'] = 'ชิ้น';
     }
     if ($d['cost'] < 0 || $d['price'] < 0 || $d['reorder'] < 0) {
-        return array($d, 'ทุน / ราคาขาย / จุดสั่งซื้อ ต้องเป็นตัวเลขไม่ติดลบ');
+        return array($d, 'ทุน / ราคาขาย / จำนวนที่ระบบจะแจ้งเตือนสินค้าใกล้หมด ต้องเป็นตัวเลขไม่ติดลบ');
     }
     /* 21 ต.ค. (ผลทดสอบ): ช่องราคาขายว่างเดิมกลายเป็น 0 บาทเงียบ ๆ — ขายแล้วไม่ได้เงิน · ราคาต่ำกว่าทุนเตือนบนฟอร์ม (inc/footer.php) ไม่บังคับ */
     if ($d['price'] <= 0) {
@@ -385,16 +388,7 @@ function product_save($isNew, $d)
     return $id;
 }
 
-/** SKU อัตโนมัติถัดไป P0001, P0002, … — ต้องเรียกใน sdb_tx */
-function Stock_nextProductSku()
-{
-    do {
-        $sku = 'P' . str_pad((string) stock_seq_next(0, 'SKU', '-'), 4, '0', STR_PAD_LEFT);
-    } while (sdb_val('SELECT 1 FROM ' . sdb_tb('product') . ' WHERE sku = ?', array($sku)) !== null);
-    return $sku;
-}
-
-/** เพิ่มสินค้าใหม่ · คืน array('sku', 'name') หรือ array('error')
+/** เพิ่มสินค้าใหม่ · คืน array('sku', 'name') หรือ array('error') · SKU = ที่กรอกมาเสมอ (เลิกตั้งให้อัตโนมัติ 3 พ.ย.)
  *  ผู้ดูแล = สินค้าส่วนกลาง (ทุกสาขา) · พนักงานที่มีสิทธิ์ product_add / ผู้จัดการ = สินค้าของสาขา $code (22 ต.ค. ผู้ใช้เลือก — ไม่ทับส่วนกลาง) */
 function Stock_doAddProduct($user, $code, $from = 'หน้านำเข้าสินค้า')
 {
@@ -403,7 +397,6 @@ function Stock_doAddProduct($user, $code, $from = 'หน้านำเข้�
         return array('error' => 'ไม่มีสิทธิ์ “เพิ่มสินค้าใหม่” — ติดต่อผู้จัดการสาขาหรือผู้ดูแลเพื่อเปิดสิทธิ์');
     }
     $owner = ($isAdmin || !Stock_hasProductOwnerColumn()) ? 0 : branch_id_of($code);
-    $auto   = !(isset($_POST['sku_mode']) && $_POST['sku_mode'] === 'manual');
     $newCat = (isset($_POST['cat_new']) && is_string($_POST['cat_new'])) ? trim(preg_replace('/\s+/u', ' ', $_POST['cat_new'])) : '';
     if ($newCat !== '') {
         foreach (array_keys(cat_registry()) as $c) {                     // พิมพ์ชื่อหมวดที่มีอยู่แล้ว = ใช้หมวดนั้น
@@ -418,16 +411,13 @@ function Stock_doAddProduct($user, $code, $from = 'หน้านำเข้�
         return array('error' => 'ไม่มีสิทธิ์เพิ่มหมวดสินค้าใหม่ — เลือกจากหมวดที่มีอยู่ หรือติดต่อผู้จัดการสาขา');
     }
     try {
-        return sdb_tx(function () use ($user, $code, $auto, $newCat, $from, $owner) {
+        return sdb_tx(function () use ($user, $code, $newCat, $from, $owner) {
             if ($newCat !== '') {
                 $e = cat_add($newCat, $user, $code);
                 if ($e !== '') {
                     throw new InvalidArgumentException($e);
                 }
                 $_POST['cat'] = $newCat;
-            }
-            if ($auto) {
-                $_POST['sku'] = Stock_nextProductSku();
             }
             product_db_reset();
             list($d, $err) = product_read_form(true, '');
@@ -437,7 +427,7 @@ function Stock_doAddProduct($user, $code, $from = 'หน้านำเข้�
             $d['owner_id'] = $owner;
             product_save(true, $d);
             log_add($code, 'stock', $user, 'เพิ่มสินค้าใหม่ ' . $d['name'], array(
-                'SKU'      => $d['sku'] . ($auto ? ' (ตั้งให้อัตโนมัติ)' : ''),
+                'SKU'      => $d['sku'],
                 'เป็นของ'  => ($owner > 0) ? branch_name($code) . ' (ขาย / นำเข้าได้เฉพาะสาขานี้)' : 'ส่วนกลาง (ทุกสาขา)',
                 'หมวด'     => $d['cat'],
                 'ราคาขาย'  => money2($d['price']) . ' บาท / ' . $d['unit'],
@@ -472,7 +462,7 @@ function Stock_buildProductDiff($p, $d)
         'หน่วย'       => array($p['unit'], $d['unit']),
         'ทุน'        => array(money2($p['cost']), money2($d['cost'])),
         'ราคาขาย'    => array(money2($p['price']), money2($d['price'])),
-        'จุดสั่งซื้อ'   => array(number_format($p['reorder']), number_format($d['reorder'])),
+        'จำนวนที่ระบบจะแจ้งเตือนสินค้าใกล้หมด' => array(number_format($p['reorder']), number_format($d['reorder'])),
         'บาร์โค้ด'    => array($none((string) $p['barcode']), $none((string) $d['barcode'])),
     );
     $out = array();
@@ -768,7 +758,7 @@ function stock_summary($branch)
     return array('items' => $items, 'value' => $value, 'low' => $low, 'out' => $out);
 }
 
-/** สินค้าที่ถึงจุดสั่งซื้อหรือหมด เรียงจากวิกฤตที่สุด */
+/** สินค้าที่เหลือไม่เกินจำนวนที่ระบบจะแจ้งเตือนสินค้าใกล้หมด (reorder) หรือหมด เรียงจากวิกฤตที่สุด */
 function low_stock_products($branch, $limit = 6)
 {
     $rows = array();
@@ -1141,7 +1131,7 @@ function stock_qs($q, $cat, $st, $sort)
     return $parts ? '?' . implode('&', $parts) : '';
 }
 
-/** รายการสินค้าของสาขาหนึ่ง พร้อมสถานะและ pct (ยอดเทียบจุดสั่งซื้อ) */
+/** รายการสินค้าของสาขาหนึ่ง พร้อมสถานะและ pct (ยอดเทียบจำนวนที่ระบบจะแจ้งเตือนสินค้าใกล้หมด) */
 function stock_rows($code, $q, $cat, $st, $sort)
 {
     $q    = trim($q);

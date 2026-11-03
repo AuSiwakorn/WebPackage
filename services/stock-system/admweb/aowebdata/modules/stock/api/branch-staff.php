@@ -213,7 +213,7 @@ function branch_limit_set($n, $by)
         return false;
     }
     stock_setting_set('branch_limit', (string) $n, false, 0);
-    log_add('', 'setting', null, 'ตั้งจำนวนสาขาสูงสุดจากหลังบ้าน', array(
+    log_add('', 'setting', null, 'คนดูแลเว็บตั้งจำนวนสาขาสูงสุด', array(          // ชื่อนี้ขึ้นในประวัติของ POS — ห้ามใช้คำว่าหลังบ้าน / admweb
         'จำนวนสาขาสูงสุด' => branch_limit_label($before) . ' → ' . branch_limit_label($n),
         'สาขาที่มีอยู่'    => count(branches_all()) . ' สาขา (นับรวมที่ปิดใช้งาน)',
         'แก้โดย'         => $by,
@@ -237,7 +237,7 @@ function branch_limit_error()
 function branch_setting_rules()
 {
     return array(
-        'count_day'        => array(1, 28),
+        'count_day'        => array(0, 28),          // 0 = ไม่ใช้รอบตรวจนับ
         'backdate_days'    => array(0, 60),
         'default_float'    => array(0, 100000),
     );

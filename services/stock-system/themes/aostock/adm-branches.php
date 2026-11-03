@@ -49,7 +49,7 @@ $user = require_login();                 // หน้า adm- : เฉพาะ�
 /* ค่าตั้งของสาขา — ชื่อ คำอธิบาย หน่วย */
 $fields = array(
     'count_day'        => array('label' => 'รอบตรวจนับเริ่มวันที่',           'unit' => 'ของทุกเดือน',
-                                'hint'  => 'ต้องนับสินค้าให้ครบทุกรายการภายในรอบ (รอบละ 1 เดือน) · 1–28'),
+                                'hint'  => 'ต้องนับสินค้าให้ครบทุกรายการภายในรอบ (รอบละ 1 เดือน) · ใส่ 1–28 · ไม่ใช้รอบตรวจนับ ให้ใส่ 0 (ยังตรวจนับได้ แต่ไม่มีกำหนดส่ง)'),
     'backdate_days'    => array('label' => 'แก้เอกสาร / รับคืนย้อนหลังได้',    'unit' => 'วัน',
                                 'hint'  => 'ใช้กับพนักงานที่มีสิทธิ์เสริม “แก้ย้อนหลัง” หรือ “รับคืนสินค้า” · เกินนี้ผู้ดูแลทำเอง · 0–60'),
     'default_float'    => array('label' => 'เงินทอนมาตรฐาน',                 'unit' => 'บาท',
@@ -145,10 +145,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
             branch_update_info($bc, $in);
+            $setTxt = function ($k, $n) use ($fields) {         // รอบตรวจนับ 0 = ไม่ใช้รอบ
+                return ($k === 'count_day' && $n === 0) ? 'ไม่ใช้รอบตรวจนับ' : number_format($n) . ' ' . $fields[$k]['unit'];
+            };
             foreach ($set as $k => $v) {
                 $o = branch_setting($bc, $k);
                 if ($o !== $v) {
-                    $changes[$fields[$k]['label']] = number_format($o) . ' → ' . number_format($v) . ' ' . $fields[$k]['unit'];
+                    $changes[$fields[$k]['label']] = $setTxt($k, $o) . ' → ' . $setTxt($k, $v);
                 }
                 branch_setting_set($bc, $k, $v);
             }
@@ -258,7 +261,7 @@ $v = function ($bc, $k, $def) use ($old) {
 $vatField = function ($id, $on, $miss) use ($vatCol) {
     echo '<div class="field br-wide"><span class="lbl">ขายแบบ VAT</span>';
     if (!$vatCol) {
-        echo '<small class="adm-hint br-vat-miss">ยังตั้งไม่ได้ — ต้องกด Reinstall ฐานข้อมูลที่หลังบ้าน admweb ก่อน (ระหว่างนี้ทุกสาขาออกบิลไม่ VAT อย่างเดียว)</small></div>';
+        echo '<small class="adm-hint br-vat-miss">ยังตั้งไม่ได้ — ติดต่อคนดูแลเว็บ (ระหว่างนี้ทุกสาขาออกบิลไม่ VAT อย่างเดียว)</small></div>';
         return;
     }
     echo '<label class="bs-check"><input type="radio" name="sell_vat" value="0" id="' . e($id) . '-vat0" required' . ($on ? '' : ' checked') . '>'
@@ -325,6 +328,7 @@ $vatField = function ($id, $on, $miss) use ($vatCol) {
                    min="<?php echo (int) $r[$k][0] ?>" max="<?php echo (int) $r[$k][1] ?>" step="<?php echo $k === 'default_float' ? 100 : 1 ?>" inputmode="numeric" required>
             <span><?php echo e($f['unit']) ?></span>
           </div>
+          <small class="adm-hint"><?php echo e($f['hint']) ?></small>
         </div>
       <?php } ?>
       <?php $vatField('new', $v('new', 'sell_vat', '0') === '1', array()); /* ค่าเริ่มต้น “ไม่มี” */ ?>
@@ -483,7 +487,7 @@ $openB = ($okB !== '' && isset($list[$okB])) ? $okB : (($errB !== '' && isset($l
       if (f) { f.focus(); }
       return;
     }
-    if ((ev.target.closest('[data-fm-close]') && dlg.contains(ev.target)) || ev.target === dlg) { dlg.close(); }
+    if (ev.target.closest('[data-fm-close]') && dlg.contains(ev.target)) { dlg.close(); }   // แตะพื้นหลังไม่ปิด (ข้อมูลที่กรอกไม่หาย)
   });
   if (dlg.hasAttribute('data-fm-auto')) { dlg.showModal(); }
 })();

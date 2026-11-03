@@ -266,6 +266,26 @@ function Stock_getMyBillCounts($code, $user)
     return array('paid' => $r ? (int) $r['paid'] : 0, 'void' => $r ? (int) $r['void'] : 0);
 }
 
+/** สินค้าที่ขายได้ของวันหนึ่ง (ไม่นับบิลที่ยกเลิก) — array(SKU => name, unit, qty, total, bills) ขายมากสุดก่อน · total หักส่วนลดท้ายบิลตามสัดส่วนแล้ว */
+function Stock_getSoldProductsOfDay($codes, $ts)
+{
+    list($in, $params) = sdb_in('b.code', (array) $codes);
+    array_unshift($params, date('Y-m-d', $ts));
+    $sql = 'SELECT i.sku, MAX(i.product_name) AS name, MAX(p.unit) AS unit, SUM(i.qty) AS qty, COUNT(DISTINCT s.sale_id) AS bills,'
+         . ' SUM(CASE WHEN s.subtotal > 0 THEN i.line_total * s.total / s.subtotal ELSE i.line_total END) AS total'
+         . ' FROM ' . sdb_tb('sale_item') . ' i JOIN ' . sdb_tb('sale') . ' s ON s.sale_id = i.sale_id'
+         . ' JOIN ' . sdb_tb('branch') . ' b ON b.branch_id = s.branch_id'
+         . ' LEFT JOIN ' . sdb_tb('product') . ' p ON p.product_id = i.product_id'
+         . ' WHERE s.sale_date = ? AND s.status = \'paid\' AND ' . $in
+         . ' GROUP BY i.sku ORDER BY qty DESC, total DESC, i.sku';
+    $out = array();
+    foreach (sdb_rows($sql, $params) as $r) {
+        $out[$r['sku']] = array('name' => $r['name'], 'unit' => ($r['unit'] !== null) ? $r['unit'] : 'ชิ้น', 'qty' => (int) $r['qty'],
+                                'total' => round((float) $r['total'], 2), 'bills' => (int) $r['bills']);
+    }
+    return $out;
+}
+
 /** บันทึกบิลจากตะกร้า (ทรานแซกชันเดียว) · คืนบิล / null (ตะกร้าว่าง) / array('error') */
 function bill_save($code, $user, $method, $received, $vat = false, $net = null)
 {

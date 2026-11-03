@@ -18,8 +18,9 @@ function pending_tasks($branch)
     /* นับด้วย SQL — เดิมโหลดสินค้าทั้งร้านมานับใน PHP ทุกครั้งที่เปิดหน้าแรก */
     $nAll  = $count ? Stock_searchPickProducts('ALL', '', '', 0, 0)['total'] : 0;
     foreach ($codes as $c) {
-        $done = $count ? count_status_all($c) : array();
-        $left = $count ? Stock_searchPickProducts($c, '', '', 0, 0, null, array_keys($done))['total'] : 0;   // สินค้าที่ขายอยู่และยังไม่นับ
+        $cnt  = $count && !count_round($c)['none'];               // สาขาที่ตั้งรอบเป็น 0 = ไม่มีงานค้างของการตรวจนับ
+        $done = $cnt ? count_status_all($c) : array();
+        $left = $cnt ? Stock_searchPickProducts($c, '', '', 0, 0, null, array_keys($done))['total'] : 0;   // สินค้าที่ขายอยู่และยังไม่นับ
         if ($left > 0) {
             $rd     = count_round($c);
             $rows[] = array('type' => 'count', 'title' => 'ตรวจนับรอบนี้ยังไม่ครบ · เหลือ ' . number_format($left) . ' จาก ' . number_format($nAll) . ' รายการ',

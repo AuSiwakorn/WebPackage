@@ -3,7 +3,7 @@
  * FILE: themes/aostock/product-add.php
  * ROLE: เพิ่มสินค้าของสาขา (พนักงานที่มีสิทธิ์ “เพิ่มสินค้าใหม่”) · แก้ไขสินค้าของสาขา (ผู้จัดการสาขา · ?sku=)
  * DEPENDS: themes/aostock/include/function.php, themes/aostock/inc/header.php, themes/aostock/inc/product-form.php, themes/aostock/inc/footer.php
- * TABLES: ao_stock_product, ao_stock_category, ao_stock_doc_seq (SKU อัตโนมัติ), ao_stock_log (ผ่าน Stock_doAddProduct / Stock_doSaveProduct ใน api.php)
+ * TABLES: ao_stock_product, ao_stock_category, ao_stock_log (ผ่าน Stock_doAddProduct / Stock_doSaveProduct ใน api.php)
  * TODO:
  *   - [x] 15 ต.ค. (ผู้ใช้ขอ): เมนูแยก “เพิ่มสินค้า” — เดิมเพิ่มได้แค่จากหน้าต่างในหน้านำเข้า หาไม่เจอ
  *         ฟอร์ม / การตรวจเหมือนหน้าต่างในหน้านำเข้า (Stock_doAddProduct) · ผู้ดูแลถูกพาไป adm-product-edit.php

@@ -117,16 +117,20 @@ if ($LIVE_PART === 'more') {
         แทน — หน้านี้ใช้นับของจริงเทียบกับยอดในระบบ</span>
     </p>
 
-    <?php /* รอบการนับของสาขา — วันเริ่มรอบผู้ดูแลตั้งที่หน้า จัดการสาขา */ ?>
-    <div class="round<?php echo $nDone >= $nAll ? ' is-done' : ($round['left'] <= 3 ? ' is-due' : '') ?>">
+    <?php /* รอบการนับของสาขา — วันเริ่มรอบผู้ดูแลตั้งที่หน้า จัดการสาขา · ตั้ง 0 = ไม่ใช้รอบ (นับเมื่อไรก็ได้ ตัวเลขนับตั้งแต่ต้นเดือน) */ ?>
+    <div class="round<?php echo $nDone >= $nAll ? ' is-done' : (!$round['none'] && $round['left'] <= 3 ? ' is-due' : '') ?>">
       <div class="round-t">
-        <b>รอบนี้นับแล้ว <span class="num"><?php echo number_format($nDone) ?></span> / <span class="num"><?php echo number_format($nAll) ?></span> รายการ</b>
+        <b><?php echo $round['none'] ? 'เดือนนี้' : 'รอบนี้' ?>นับแล้ว <span class="num"><?php echo number_format($nDone) ?></span> / <span class="num"><?php echo number_format($nAll) ?></span> รายการ</b>
         <small>
-          รอบ <?php echo e(thai_day_month($round['start'])) ?> – <?php echo e(thai_day_month($round['end'])) ?> ·
-          <?php if ($nDone >= $nAll) { ?>
-            นับครบแล้ว
+          <?php if ($round['none']) { ?>
+            สาขานี้ไม่ได้ตั้งรอบตรวจนับ — นับเมื่อไรก็ได้ ไม่มีกำหนดส่ง · ตัวเลขนับตั้งแต่ <?php echo e(thai_day_month($round['start'])) ?>
           <?php } else { ?>
-            ต้องนับให้ครบภายใน <?php echo e(thai_day_month($round['end'])) ?> (อีก <?php echo (int) $round['left'] ?> วัน)
+            รอบ <?php echo e(thai_day_month($round['start'])) ?> – <?php echo e(thai_day_month($round['end'])) ?> ·
+            <?php if ($nDone >= $nAll) { ?>
+              นับครบแล้ว
+            <?php } else { ?>
+              ต้องนับให้ครบภายใน <?php echo e(thai_day_month($round['end'])) ?> (อีก <?php echo (int) $round['left'] ?> วัน)
+            <?php } ?>
           <?php } ?>
         </small>
       </div>
