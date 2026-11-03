@@ -852,17 +852,10 @@ function cat_products($name, $branch = 'ALL')
 /** เพิ่มหมวด — คืนข้อความผิดพลาด ('' = สำเร็จ) */
 function cat_add($name, $user, $code)
 {
-    $name = trim(preg_replace('/\s+/u', ' ', $name));
-    if ($name === '') {
-        return 'กรุณากรอกชื่อหมวด';
-    }
-    if (mb_strlen($name, 'UTF-8') > 50) {
-        return 'ชื่อหมวดยาวเกินไป (ไม่เกิน 50 ตัวอักษร)';
-    }
-    foreach (array_keys(cat_registry()) as $c) {
-        if (mb_strtolower($c, 'UTF-8') === mb_strtolower($name, 'UTF-8')) {
-            return 'มีหมวด “' . $c . '” อยู่แล้ว';
-        }
+    $name = trim((string) preg_replace('/\s+/u', ' ', $name));
+    $err  = Stock_checkCategoryName($name);
+    if ($err !== '') {
+        return $err;
     }
     sdb_insert('category', array(
         'name'       => $name,
@@ -887,6 +880,57 @@ function cat_delete($name, $user, $code)
     sdb_q('DELETE FROM ' . sdb_tb('category') . ' WHERE cate_id = ?', array($all[$name]['id']));
     cat_registry(true);
     log_add($code, 'category', $user, 'ลบหมวดสินค้า “' . $name . '”', array('สินค้าในหมวด' => '0 รายการ'));
+    return '';
+}
+
+/** ตรวจชื่อหมวด (ตัดช่องว่างแล้ว) — ห้ามว่าง · ไม่เกิน 50 ตัวอักษร · ห้ามซ้ำแบบไม่สนตัวพิมพ์ · $except = หมวดที่กำลังเปลี่ยนชื่อ · คืน '' หรือข้อความ
+ *  TODO:
+ *    - [x] 3 พ.ย. (ผู้ใช้ขอ): ใช้ร่วมกันตอนเพิ่มหมวด / เปลี่ยนชื่อหมวด */
+function Stock_checkCategoryName($name, $except = '')
+{
+    if ($name === '') {
+        return 'กรุณากรอกชื่อหมวด';
+    }
+    if (mb_strlen($name, 'UTF-8') > 50) {
+        return 'ชื่อหมวดยาวเกินไป (ไม่เกิน 50 ตัวอักษร)';
+    }
+    foreach (array_keys(cat_registry()) as $c) {
+        $c = (string) $c;                                                  // ชื่อที่เป็นตัวเลขล้วน PHP เก็บเป็นคีย์ int
+        if ($c !== (string) $except && mb_strtolower($c, 'UTF-8') === mb_strtolower($name, 'UTF-8')) {
+            return 'มีหมวด “' . $c . '” อยู่แล้ว';
+        }
+    }
+    return '';
+}
+
+/** ผู้ดูแลเปลี่ยนชื่อหมวด — สินค้าผูกด้วย cate_id เลยตามไปเองทุกสาขา · เปลี่ยนแค่ตัวพิมพ์ได้ · ลงประวัติ · คืน '' หรือข้อความ
+ *  TODO:
+ *    - [x] 3 พ.ย. (ผู้ใช้ขอ): หน้าหมวดสินค้าของผู้ดูแลเปลี่ยนชื่อหมวดได้ (หมวดตั้งต้นที่เปลี่ยนชื่อแล้วใช้ไอคอนกล่อง) */
+function Stock_doRenameCategory($old, $new, $user, $code)
+{
+    if (!isset($user['role']) || $user['role'] !== 'admin') {
+        return 'เฉพาะผู้ดูแลเท่านั้น';
+    }
+    $old = (string) $old;
+    $all = cat_registry();
+    if (!isset($all[$old])) {
+        return 'ไม่พบหมวด “' . $old . '” — อาจถูกลบหรือเปลี่ยนชื่อไปแล้ว';
+    }
+    $new = trim((string) preg_replace('/\s+/u', ' ', (string) $new));
+    if ($new === $old) {
+        return 'ชื่อใหม่ยังเหมือนชื่อเดิม — แก้ชื่อในช่องก่อนกดเปลี่ยนชื่อ';
+    }
+    $err = Stock_checkCategoryName($new, $old);
+    if ($err !== '') {
+        return $err;
+    }
+    sdb_q('UPDATE ' . sdb_tb('category') . ' SET name = ? WHERE cate_id = ?', array($new, $all[$old]['id']));
+    cat_registry(true);
+    product_db_reset();
+    log_add($code, 'category', $user, 'เปลี่ยนชื่อหมวดสินค้า “' . $old . '” เป็น “' . $new . '”', array(
+        'สินค้าในหมวด' => number_format($all[$old]['count']) . ' รายการ (รวมที่เลิกขาย)',
+        'ใช้ได้'       => 'ทุกสาขา',
+    ));
     return '';
 }
 

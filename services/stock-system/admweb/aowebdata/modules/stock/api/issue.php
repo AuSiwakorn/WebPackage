@@ -259,7 +259,7 @@ function issue_save($code, $user, $reason, $ref, $note, $lines)
             'จำนวน'       => count($lines) . ' รายการ · ' . number_format($qty) . ' ชิ้น',
             'มูลค่าต้นทุน'  => money2($cost) . ' บาท',
             'รายการ'      => implode(' · ', $names),
-            'ผู้ทำรายการ'   => $user['name'] . ' · ' . branch_name($code),
+            'ผู้ทำรายการ'   => $user['name'] . ($user['role'] === 'admin' ? ' (ผู้ดูแล)' : '') . ' · ' . branch_name($code),
         );
         if ($ref !== '') {
             $detail['ผู้ขอเบิก / อ้างอิง'] = $ref;
@@ -279,6 +279,57 @@ function issue_save($code, $user, $reason, $ref, $note, $lines)
     $doc = issue_by_no($code, $no);
     if ($doc !== null) {
         notify_on_issue($code, $doc);            // Telegram: สูญหาย / ชำรุด
+    }
+    return $doc;
+}
+
+/** ผู้ดูแลลดยอดสินค้าตัวเดียวออกจากสาขา (หน้าสินค้าในสต๊อก) = ใบตัดออก 1 ใบ · เหตุผลตาม issue_reasons · คืนใบ หรือ array('error')
+ *  TODO:
+ *    - [x] 3 พ.ย. (ผู้ใช้ขอ): หน้าต่างเพิ่มยอดในหน้า adm-products สลับเป็นลดยอดได้ */
+function Stock_saveAdminIssue($code, $user, $sku, $qty, $reason, $ref, $note)
+{
+    if ($user['role'] !== 'admin') {
+        return array('error' => 'เฉพาะผู้ดูแลเท่านั้น');
+    }
+    $br = branches_active();
+    if (!isset($br[$code])) {
+        return array('error' => 'ไม่พบสาขานี้ หรือสาขาปิดใช้งานอยู่');
+    }
+    $p = product_by_sku((string) $sku);
+    if ($p === null) {
+        return array('error' => 'ไม่พบสินค้านี้');
+    }
+    if (!$p['active']) {
+        return array('error' => 'สินค้านี้เลิกขายแล้ว — เปิดขายก่อนจึงจะลดยอดได้');
+    }
+    if (!Stock_isProductInBranch($p, $code)) {
+        return array('error' => Stock_formatProductOwner($p) . ' — ลดยอดได้เฉพาะสาขานั้น');
+    }
+    $have = product_qty($p, $code);
+    if ($have < 1) {
+        return array('error' => branch_name($code) . 'ยังไม่มี “' . $p['name'] . '” — ลดยอดไม่ได้');
+    }
+    $qty = trim((string) $qty);
+    if (!ctype_digit($qty) || (int) $qty < 1) {
+        return array('error' => 'กรอกจำนวนที่ลด เป็นจำนวนเต็มตั้งแต่ 1 ขึ้นไป');
+    }
+    if (strlen($qty) > 7 || (int) $qty > $have) {
+        return array('error' => branch_name($code) . 'มีอยู่ ' . number_format($have) . ' ' . $p['unit'] . ' — ลดได้ไม่เกินนั้น');
+    }
+    $reason = (string) $reason;
+    $note   = trim((string) $note);
+    if (!isset(issue_reasons()[$reason])) {
+        return array('error' => 'กรุณาเลือกเหตุผลที่ลดยอด');
+    }
+    if (issue_reason_needs_note($reason) && $note === '') {
+        return array('error' => 'กรณี “' . issue_reason_label($reason) . '” ต้องกรอกหมายเหตุอธิบายทุกครั้ง');
+    }
+    $keep = isset($_SESSION['draft_edit_of']['IS']) ? $_SESSION['draft_edit_of']['IS'] : null;   // ใบที่พนักงานดึงกลับมาแก้ค้างไว้ — ไม่ผูกกับใบนี้
+    unset($_SESSION['draft_edit_of']['IS']);
+    $line = array('qty' => (int) $qty, 'p' => $p, 'name' => $p['name'], 'unit' => $p['unit']);
+    $doc  = issue_save($code, $user, $reason, trim((string) $ref), $note, array($line));
+    if ($keep !== null) {
+        $_SESSION['draft_edit_of']['IS'] = $keep;
     }
     return $doc;
 }

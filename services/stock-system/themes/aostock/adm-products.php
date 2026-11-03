@@ -4,7 +4,7 @@
  * ROLE: [ผู้ดูแล] สินค้าในสต๊อก เทียบทุกสาขา
  * DEPENDS: themes/aostock/include/function.php, themes/aostock/inc/header.php, themes/aostock/inc/footer.php
  * TABLES: ao_stock_product, ao_stock_category, ao_stock_balance · ao_stock_sale / sale_item + receive / receive_item (ยอดขาย / รับเข้า 30 วัน) — ผ่าน api.php
- *         เขียน: ao_stock_receive / receive_item / move / balance / log (เพิ่มยอดเข้าสาขา · Stock_saveAdminReceive)
+ *         เขียน: ao_stock_receive / receive_item · issue / issue_item / move / balance / log (เพิ่ม / ลดยอดของสาขา · Stock_saveAdminReceive / Stock_saveAdminIssue)
  * TODO:
  *   - [x] ย้ายจาก demo/ เข้า themes/aostock/ (วิ่งผ่าน router ของ admweb)
  *   - [x] อ่าน / เขียนข้อมูลจากตาราง ao_stock_* ผ่าน api.php (ช่วงที่ 5–9)
@@ -17,6 +17,8 @@
  *   - [x] รูปสินค้าหน้าชื่อ (thumb_html แบบหน้าสินค้าของพนักงาน — ดู CHANGELOG 2 พ.ย.)
  *   - [x] แตะช่องยอดของสาขา → หน้าต่างเพิ่มยอดเข้าสาขา #rc-modal (ดู CHANGELOG 3 พ.ย.)
  *   - [x] ช่องค้นหาย้ายมาไว้หัวการ์ด “ยอดคงเหลือรายสินค้า” (#stock-list) · แท็บ / หัวคอลัมน์เลื่อนมาที่ตาราง (3 พ.ย.)
+ *   - [x] หน้าต่างเดียวกันลดยอดได้ (act=issue → ใบตัดออก · ยกเลิกด้วย act=isvoid · 3 พ.ย.)
+ *   - [x] ปุ่มสลับเพิ่ม / ลด + ช่องเหตุผลในหน้าต่าง (.in-only / .out-only · สาขายังไม่มีของ = ลดไม่ได้)
  */
 if (!defined('ALLOW_DIRECT_ACCESS')) {
     http_response_code(403);
@@ -28,9 +30,9 @@ if (!defined('ALLOW_DIRECT_ACCESS')) {
    แถวละ 1 สินค้า · คอลัมน์ละ 1 สาขา (เฉพาะสาขาที่เปิดใช้งาน) + รวมทุกสาขา
    สีของช่องบอกสถานะของสาขานั้น: หมด / ใกล้หมด (เหลือไม่เกินจำนวนที่ระบบจะแจ้งเตือนสินค้าใกล้หมด) / พอใช้
    ผู้ดูแลเพิ่ม / แก้สินค้าได้ (ปุ่ม "เพิ่มสินค้า" / ปุ่ม "แก้ไข" ท้ายแถว หรือแตะชื่อสินค้า → adm-product-edit.php)
-   แตะช่องยอดของสาขา = เพิ่มยอดเข้าสาขานั้น (ออกเป็นใบรับเข้า 1 ใบ) · ลดยอด / เบิก / ตรวจนับ ยังเป็นงานของพนักงาน
+   แตะช่องยอดของสาขา = เพิ่ม / ลดยอดของสาขานั้น (ใบรับเข้า / ใบตัดออก 1 ใบ) · เบิกหลายรายการ / ตรวจนับ ยังเป็นงานของพนักงาน
      กดไม่ได้: สินค้าของสาขาอื่น (นำเข้าได้เฉพาะสาขาเจ้าของ) · สินค้าเลิกขาย
-     เพิ่มแล้ว: กล่องแจ้งผลมีปุ่ม “ยกเลิกใบนี้” (act=rcvoid · เฉพาะใบของวันนี้ที่ผู้ดูแลคนนั้นทำ)
+     เพิ่ม / ลดแล้ว: กล่องแจ้งผลมีปุ่ม “ยกเลิกใบนี้” (act=rcvoid / isvoid · เฉพาะใบของวันนี้ที่ผู้ดูแลคนนั้นทำ)
 
    ตัวกรอง (GET)
      q    = ค้นชื่อสินค้า / SKU (ช่องอยู่หัวการ์ดยอดคงเหลือ) · cat = หมวด
@@ -64,7 +66,7 @@ $pq = function ($chg) use ($fQ, $fCat, $fSt, $fB, $fSort, $fDir) {
     return 'adm-products.php' . ($q ? '?' . http_build_query($q) : '');
 };
 
-/* ---------- เพิ่มยอดเข้าสาขา (หน้าต่าง #rc-modal) ----------
+/* ---------- เพิ่ม / ลดยอดของสาขา (หน้าต่าง #rc-modal) ----------
    ผ่าน = กลับมาที่แถวเดิม + กล่องแจ้งผลมีปุ่ม “ยกเลิกใบนี้” (ขึ้นครั้งเดียว) · ไม่ผ่าน = เปิดหน้าต่างค้างไว้พร้อมค่าที่กรอก */
 $rcErr  = '';
 $rcOld  = null;
@@ -79,45 +81,55 @@ $back   = function ($pid, $n) use ($pq) {                        // กลับ
     header('Location: ' . url($go . '#p-' . (int) $pid));
     exit;
 };
-if ($act === 'recv') {
-    $rcOld = array('sku' => $pv('sku'), 'b' => $pv('b'), 'qty' => $pv('qty'), 'ref' => $pv('ref'), 'note' => $pv('note'), 'n' => $pv('n'));
+if ($act === 'recv' || $act === 'issue') {
+    /* act ของหน้าต่าง: recv = เพิ่มยอด (ใบรับเข้า) · issue = ลดยอด (ใบตัดออก · why = เหตุผลตาม issue_reasons) */
+    $rcOld = array('act' => $act, 'sku' => $pv('sku'), 'b' => $pv('b'), 'qty' => $pv('qty'), 'why' => $pv('why'), 'ref' => $pv('ref'), 'note' => $pv('note'), 'n' => $pv('n'));
     if (!csrf_check($pv('csrf'))) {
         $rcErr = 'เซสชันหมดอายุ กรุณาลองใหม่อีกครั้ง';
     } else {
-        $d = Stock_saveAdminReceive($rcOld['b'], $user, $rcOld['sku'], $rcOld['qty'], $rcOld['ref'], $rcOld['note']);
+        $d = ($act === 'recv')
+           ? Stock_saveAdminReceive($rcOld['b'], $user, $rcOld['sku'], $rcOld['qty'], $rcOld['ref'], $rcOld['note'])
+           : Stock_saveAdminIssue($rcOld['b'], $user, $rcOld['sku'], $rcOld['qty'], $rcOld['why'], $rcOld['ref'], $rcOld['note']);
         if (!is_array($d) || isset($d['error'])) {
             $rcErr = is_array($d) ? $d['error'] : 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง';
         } else {
-            $p = product_by_sku($rcOld['sku']);
-            $n = ctype_digit($rcOld['n']) ? (int) $rcOld['n'] : 0;   // ลำดับแถวที่แตะ
-            $_SESSION['rc_done'] = array('b' => $rcOld['b'], 'no' => $d['no'], 'qty' => (int) $d['qty'], 'pid' => (int) $p['id'], 'n' => $n,
-                'msg' => 'เพิ่ม “' . $p['name'] . '” +' . number_format((int) $d['qty']) . ' ' . $p['unit'] . ' เข้า' . branch_name($rcOld['b'])
-                       . ' แล้ว · ใบรับเข้า ' . $d['no'] . ' · ตอนนี้มี ' . number_format(product_qty($p, $rcOld['b'])) . ' ' . $p['unit']);
+            $p   = product_by_sku($rcOld['sku']);
+            $n   = ctype_digit($rcOld['n']) ? (int) $rcOld['n'] : 0;   // ลำดับแถวที่แตะ
+            $now = ' · ตอนนี้' . ($act === 'recv' ? 'มี ' : 'เหลือ ') . number_format(product_qty($p, $rcOld['b'])) . ' ' . $p['unit'];
+            $_SESSION['rc_done'] = array('kind' => $act, 'b' => $rcOld['b'], 'no' => $d['no'], 'qty' => (int) $d['qty'], 'pid' => (int) $p['id'], 'n' => $n,
+                'msg' => ($act === 'recv')
+                       ? 'เพิ่ม “' . $p['name'] . '” +' . number_format((int) $d['qty']) . ' ' . $p['unit'] . ' เข้า' . branch_name($rcOld['b'])
+                         . ' แล้ว · ใบรับเข้า ' . $d['no'] . $now
+                       : 'ลด “' . $p['name'] . '” −' . number_format((int) $d['qty']) . ' ' . $p['unit'] . ' ออกจาก' . branch_name($rcOld['b'])
+                         . ' แล้ว (' . issue_reason_label($d['reason']) . ') · ใบตัดออก ' . $d['no'] . $now);
             $back($p['id'], $n);
         }
     }
-} elseif ($act === 'rcvoid') {
-    /* ยกเลิกใบที่เพิ่งเพิ่ม — เฉพาะใบของวันนี้ที่ผู้ดูแลคนนี้ทำ (ใบวันก่อนยกเลิกจากประวัติของวันนั้น) */
-    $b   = $pv('b');
-    $doc = isset($br[$b]) ? receive_by_no($b, trim($pv('no'))) : null;
-    $why = trim($pv('reason'));
+} elseif ($act === 'rcvoid' || $act === 'isvoid') {
+    /* ยกเลิกใบที่เพิ่งเพิ่ม / ลด — เฉพาะใบของวันนี้ที่ผู้ดูแลคนนี้ทำ (ใบวันก่อนยกเลิกจากประวัติของวันนั้น) */
+    $isIn = ($act === 'rcvoid');
+    $b    = $pv('b');
+    $doc  = !isset($br[$b]) ? null : ($isIn ? receive_by_no($b, trim($pv('no'))) : issue_by_no($b, trim($pv('no'))));
+    $why  = trim($pv('reason'));
     if (!csrf_check($pv('csrf'))) {
         $rcVErr = 'เซสชันหมดอายุ กรุณาลองใหม่อีกครั้ง';
     } elseif ($doc === null || $doc['void'] || $doc['by_user'] !== $user['username']) {
-        $rcVErr = 'ยกเลิกไม่ได้ — ไม่พบใบนี้ ใบถูกยกเลิกไปแล้ว หรือไม่ใช่ใบที่คุณเพิ่มวันนี้';
+        $rcVErr = 'ยกเลิกไม่ได้ — ไม่พบใบนี้ ใบถูกยกเลิกไปแล้ว หรือไม่ใช่ใบที่คุณทำวันนี้';
     } elseif ($why === '') {
         $rcVErr = 'ยังไม่ได้ยกเลิก — ต้องกรอกหมายเหตุว่าทำไมยกเลิก';
     } else {
-        $v = receive_void($b, $doc['no'], $user, $why);
+        $v = $isIn ? receive_void($b, $doc['no'], $user, $why) : issue_void($b, $doc['no'], $user, $why);
         if (isset($v['error'])) {
             $rcVErr = 'ยกเลิกไม่ได้ เพราะของบางส่วนถูกขายออกไปแล้ว — ' . implode(' · ', $v['items']) . ' · กรณีนี้ให้พนักงานตรวจนับสต๊อกแทน';
         } elseif ($v === null) {
             $rcVErr = 'ยกเลิกไม่สำเร็จ ลองใหม่อีกครั้ง';
         } else {
-            $l = $doc['lines'][0];
-            $p = product_by_sku($l['sku']);
-            $_SESSION['flash'] = 'ยกเลิกใบรับเข้า ' . $doc['no'] . ' แล้ว — ถอน “' . $l['name'] . '” −' . number_format($doc['qty']) . ' ' . $l['unit']
-                               . ' ออกจาก' . branch_name($b) . ($p !== null ? ' · ตอนนี้มี ' . number_format(product_qty($p, $b)) . ' ' . $l['unit'] : '');
+            $l   = $doc['lines'][0];
+            $p   = product_by_sku($l['sku']);
+            $now = ($p !== null) ? ' · ตอนนี้มี ' . number_format(product_qty($p, $b)) . ' ' . $l['unit'] : '';
+            $_SESSION['flash'] = $isIn
+                ? 'ยกเลิกใบรับเข้า ' . $doc['no'] . ' แล้ว — ถอน “' . $l['name'] . '” −' . number_format($doc['qty']) . ' ' . $l['unit'] . ' ออกจาก' . branch_name($b) . $now
+                : 'ยกเลิกใบตัดออก ' . $doc['no'] . ' แล้ว — คืน “' . $l['name'] . '” +' . number_format($doc['qty']) . ' ' . $l['unit'] . ' เข้า' . branch_name($b) . $now;
             $back($l['pid'], ctype_digit($pv('n')) ? (int) $pv('n') : 0);
         }
     }
@@ -156,7 +168,7 @@ foreach (products_list(true) as $p) {
         /* สาขาที่ไม่เคยมีสินค้านี้ (ไม่มีแถวยอดคงเหลือ — ไม่เคยรับเข้า / นับ) = 'none' ไม่นับเป็น “หมด”
            (21 ต.ค. ผู้ใช้เลือก — เดิมสาขาที่ไม่ได้ขายตัวนี้ เช่นสาขาทดสอบ ทำให้ขึ้น “หมดแล้ว” ทุกตัว) · เคยมีแล้วเหลือ 0 = หมดตามเดิม */
         $st = (isset($p['stock'][$c]) && Stock_isProductInBranch($p, $c)) ? branch_status($p, $c) : 'none';
-        $cells[$c] = array('qty' => $q, 'st' => $st, 'add' => $p['active'] && Stock_isProductInBranch($p, $c));   // add = แตะเพิ่มยอดได้
+        $cells[$c] = array('qty' => $q, 'st' => $st, 'add' => $p['active'] && Stock_isProductInBranch($p, $c));   // add = แตะเพิ่ม / ลดยอดได้
         $tot += $q;
         if ($st === 'none') {
             continue;
@@ -245,8 +257,8 @@ $th = function ($k, $label, $cls = '') use ($fSort, $fDir, $pq) {
 /* แถวสินค้าหนึ่งแถว — ใช้ทั้งตอนวาดตาราง และตอนกด “แสดงเพิ่ม” */
 $row = function ($r) use ($br, $flowDays, $fB) {
     $p = $r['p'];
-    $tip = ($p['owner'] === '') ? '' : (($p['owner'][0] === '#') ? 'สินค้าของสาขาที่ไม่มีแล้ว — ย้ายเป็นสินค้าส่วนกลางก่อน (ปุ่ม “แก้ไข”) จึงจะเพิ่มยอดได้'
-                                                                  : Stock_formatProductOwner($p) . ' — เพิ่มยอดได้เฉพาะสาขานั้น');   // ช่องที่แตะไม่ได้ ?>
+    $tip = ($p['owner'] === '') ? '' : (($p['owner'][0] === '#') ? 'สินค้าของสาขาที่ไม่มีแล้ว — ย้ายเป็นสินค้าส่วนกลางก่อน (ปุ่ม “แก้ไข”) จึงจะเพิ่ม / ลดยอดได้'
+                                                                  : Stock_formatProductOwner($p) . ' — เพิ่ม / ลดยอดได้เฉพาะสาขานั้น');   // ช่องที่แตะไม่ได้ ?>
             <tr id="p-<?php echo (int) $p['id'] ?>" data-sku="<?php echo e($p['sku']) ?>" data-name="<?php echo e($p['name']) ?>" data-unit="<?php echo e($p['unit']) ?>"<?php echo $p['active'] ? '' : ' class="prod-off"' ?>>
               <td data-label="สินค้า">
                 <span class="pcell">
@@ -258,7 +270,7 @@ $row = function ($r) use ($br, $flowDays, $fB) {
                 </span>
               </td>
               <?php foreach ($r['cells'] as $c => $x) { ?>
-                <td data-label="<?php echo e($br[$c]['short']) ?>" class="r num nowrap"><?php if ($x['add']) { /* แตะ = หน้าต่างเพิ่มยอดเข้าสาขา (#rc-modal) */ ?><button type="button" class="stk stk-<?php echo e($x['st']) ?> stk-add" data-b="<?php echo e($c) ?>" data-q="<?php echo (int) $x['qty'] ?>" title="<?php echo $x['st'] === 'none' ? 'ยังไม่มีในสาขานี้ · ' : '' ?>แตะเพื่อเพิ่มยอด"><?php echo $x['st'] === 'none' ? '—' : number_format($x['qty']) ?></button><?php } else { ?><span class="stk stk-<?php echo e($x['st']) ?>"<?php echo $p['active'] ? ' title="' . e($tip) . '"' : ($x['st'] === 'none' ? ' title="สาขานี้ไม่มีสินค้านี้"' : '') ?>><?php echo $x['st'] === 'none' ? '—' : number_format($x['qty']) ?></span><?php } ?></td>
+                <td data-label="<?php echo e($br[$c]['short']) ?>" class="r num nowrap"><?php if ($x['add']) { /* แตะ = หน้าต่างเพิ่มยอดเข้าสาขา (#rc-modal) */ ?><button type="button" class="stk stk-<?php echo e($x['st']) ?> stk-add" data-b="<?php echo e($c) ?>" data-q="<?php echo (int) $x['qty'] ?>" title="<?php echo $x['st'] === 'none' ? 'ยังไม่มีในสาขานี้ · แตะเพื่อเพิ่มยอด' : 'แตะเพื่อเพิ่ม / ลดยอด' ?>"><?php echo $x['st'] === 'none' ? '—' : number_format($x['qty']) ?></button><?php } else { ?><span class="stk stk-<?php echo e($x['st']) ?>"<?php echo $p['active'] ? ' title="' . e($tip) . '"' : ($x['st'] === 'none' ? ' title="สาขานี้ไม่มีสินค้านี้"' : '') ?>><?php echo $x['st'] === 'none' ? '—' : number_format($x['qty']) ?></span><?php } ?></td>
               <?php } ?>
               <td data-label="<?php echo $fB !== '' ? 'จำนวน (' . e($br[$fB]['short']) . ')' : 'รวมทุกสาขา' ?>" class="r num nowrap"><b><?php echo number_format($r['sortqty']) ?></b> <small><?php echo e($p['unit']) ?></small></td>
               <td data-label="รับของเข้าล่าสุด" class="nowrap"><?php echo $r['last'] !== '' ? e(thai_day_month(strtotime($r['last']))) . ' <small>(' . (int) round((strtotime(date('Y-m-d')) - strtotime($r['last'])) / 86400) . ' วันก่อน)</small>' : '<small>ไม่ได้รับของเข้าใน ' . $flowDays . ' วัน</small>' ?></td>
@@ -291,14 +303,14 @@ require dirname(__FILE__) . '/inc/header.php';
 
 <?php if ($rcVErr !== '') { ?>
   <div class="alert alert-error" role="alert"><svg class="ico"><use href="#i-alert"/></svg><span><?php echo e($rcVErr) ?></span></div>
-<?php } elseif ($rcDone !== null) { /* เพิ่งเพิ่มยอด — ผิดยกเลิกได้ทันที (ใบของวันนี้ ผู้ดูแลยกเลิกจากประวัติไม่ได้) */ ?>
+<?php } elseif ($rcDone !== null) { /* เพิ่งเพิ่ม / ลดยอด — ผิดยกเลิกได้ทันที (ใบของวันนี้ ผู้ดูแลยกเลิกจากประวัติไม่ได้) */ $rcIn = (!isset($rcDone['kind']) || $rcDone['kind'] === 'recv'); ?>
   <div class="alert alert-ok rc-done" role="status">
     <svg class="ico"><use href="#i-check"/></svg>
     <span><?php echo e($rcDone['msg']) ?></span>
     <div class="alert-act">
-      <form method="post" action="<?php echo e($pq(array())) ?>" data-confirm="void" data-doc="recv" data-bill="<?php echo e($rcDone['no']) ?>" data-qty="<?php echo (int) $rcDone['qty'] ?>" data-items="1">
+      <form method="post" action="<?php echo e($pq(array())) ?>" data-confirm="void" data-doc="<?php echo $rcIn ? 'recv' : 'issue' ?>" data-bill="<?php echo e($rcDone['no']) ?>" data-qty="<?php echo (int) $rcDone['qty'] ?>" data-items="1">
         <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
-        <input type="hidden" name="act" value="rcvoid">
+        <input type="hidden" name="act" value="<?php echo $rcIn ? 'rcvoid' : 'isvoid' ?>">
         <input type="hidden" name="b" value="<?php echo e($rcDone['b']) ?>">
         <input type="hidden" name="no" value="<?php echo e($rcDone['no']) ?>">
         <input type="hidden" name="n" value="<?php echo (int) $rcDone['n'] ?>">
@@ -368,7 +380,7 @@ require dirname(__FILE__) . '/inc/header.php';
   <div class="card-head">
     <div>
       <h2>ยอดคงเหลือรายสินค้า</h2>
-      <span class="sub">สีแดง = หมด · สีเหลือง = ใกล้หมด · — = สาขานั้นไม่มีสินค้านี้ · <?php echo $fB !== '' ? 'สถานะและจำนวนเป็นของ' . e($br[$fB]['name']) : 'สถานะดูจากสาขาที่ของเหลือน้อยที่สุด' ?></span>
+      <span class="sub">สีแดง = หมด · สีเหลือง = ใกล้หมด · — = สาขานั้นไม่มีสินค้านี้ · แตะตัวเลขของสาขาเพื่อเพิ่ม / ลดยอด · <?php echo $fB !== '' ? 'สถานะและจำนวนเป็นของ' . e($br[$fB]['name']) : 'สถานะดูจากสาขาที่ของเหลือน้อยที่สุด' ?></span>
     </div>
     <div class="segs head-tabs">
       <a class="seg<?php echo $fSt === '' ? ' on' : '' ?>" href="<?php echo e($pq(array('st' => ''))) ?>#stock-list">ทั้งหมด</a>
@@ -413,16 +425,18 @@ require dirname(__FILE__) . '/inc/header.php';
 </section>
 
 <?php
-/* หน้าต่างเพิ่มยอดเข้าสาขา — ใช้ร่วมทุกช่อง (สคริปต์ใส่สินค้า / สาขาของช่องที่แตะ) · บันทึกไม่ผ่าน = เปิดค้าง ค่าที่กรอกยังอยู่ */
+/* หน้าต่างเพิ่ม / ลดยอดของสาขา — ใช้ร่วมทุกช่อง (สคริปต์ใส่สินค้า / สาขาของช่องที่แตะ) · บันทึกไม่ผ่าน = เปิดค้าง ค่าที่กรอกยังอยู่
+   ปุ่มสลับคือ radio name="act" (recv / issue) · ข้อความของแต่ละแบบ: .in-only / .out-only (app.css ซ่อนตาม .is-out) */
 $rcP    = ($rcOld !== null) ? product_by_sku($rcOld['sku']) : null;
 $rcB    = ($rcOld !== null && isset($br[$rcOld['b']])) ? $rcOld['b'] : '';
 $rcV    = function ($k) use ($rcOld) { return ($rcOld !== null) ? $rcOld[$k] : ''; };
 $rcHave = ($rcP !== null && $rcB !== '') ? product_qty($rcP, $rcB) : 0;
 $rcUnit = ($rcP !== null) ? $rcP['unit'] : 'ชิ้น';
+$rcOut  = ($rcV('act') === 'issue');
 ?>
-<dialog class="fm-modal rc-modal" id="rc-modal" aria-labelledby="rc-t" data-have="<?php echo (int) $rcHave ?>"<?php echo $rcErr !== '' ? ' data-fm-auto' : '' ?>>
+<dialog class="fm-modal rc-modal<?php echo $rcOut ? ' is-out' : '' ?>" id="rc-modal" aria-labelledby="rc-t" data-have="<?php echo (int) $rcHave ?>"<?php echo $rcErr !== '' ? ' data-fm-auto' : '' ?>>
   <div class="fm-head">
-    <div><h2 id="rc-t">เพิ่มยอดเข้าสาขา</h2><span class="sub"><b id="rc-name"><?php echo $rcP ? e($rcP['name']) : '' ?></b> · SKU <span id="rc-sku"><?php echo $rcP ? e($rcP['sku']) : '' ?></span></span></div>
+    <div><h2 id="rc-t"><span class="in-only">เพิ่มยอดเข้าสาขา</span><span class="out-only">ลดยอดออกจากสาขา</span></h2><span class="sub"><b id="rc-name"><?php echo $rcP ? e($rcP['name']) : '' ?></b> · SKU <span id="rc-sku"><?php echo $rcP ? e($rcP['sku']) : '' ?></span></span></div>
     <button type="button" class="icon-btn" data-fm-close aria-label="ปิด"><svg class="ico"><use href="#i-x"/></svg></button>
   </div>
   <?php if ($rcErr !== '') { ?>
@@ -430,50 +444,99 @@ $rcUnit = ($rcP !== null) ? $rcP['unit'] : 'ชิ้น';
   <?php } ?>
   <form class="adm-sec" method="post" action="<?php echo e($pq(array())) ?>">
     <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
-    <input type="hidden" name="act" value="recv">
     <input type="hidden" name="sku" id="rc-sku-in" value="<?php echo e($rcV('sku')) ?>">
     <input type="hidden" name="b" id="rc-b" value="<?php echo e($rcV('b')) ?>">
     <input type="hidden" name="n" id="rc-n" value="<?php echo e($rcV('n')) ?>">
-    <p class="rc-now">ตอนนี้ <b id="rc-bn"><?php echo $rcB !== '' ? e($br[$rcB]['name']) : '' ?></b> มี <b id="rc-have"><?php echo number_format($rcHave) ?></b> <span class="rc-unit"><?php echo e($rcUnit) ?></span></p>
+    <div class="segs rc-mode" role="radiogroup" aria-label="เพิ่มหรือลดยอด">
+      <label class="seg<?php echo $rcOut ? '' : ' on' ?>"><input type="radio" name="act" value="recv" <?php echo $rcOut ? '' : 'checked' ?>><svg class="ico"><use href="#i-plus"/></svg> เพิ่มยอด</label>
+      <label class="seg<?php echo $rcOut ? ' on' : '' ?>"><input type="radio" name="act" value="issue" <?php echo $rcOut ? 'checked' : '' ?>><svg class="ico"><use href="#i-minus"/></svg> ลดยอด</label>
+    </div>
+    <p class="rc-now">ตอนนี้ <b id="rc-bn"><?php echo $rcB !== '' ? e($br[$rcB]['name']) : '' ?></b> มี <b id="rc-have"><?php echo number_format($rcHave) ?></b> <span class="rc-unit"><?php echo e($rcUnit) ?></span>
+      <span class="rc-zero" id="rc-zero" hidden> · ยังไม่มีของ ลดยอดไม่ได้</span></p>
     <div class="adm-fields">
       <div class="field">
-        <label for="rc-qty">จำนวนที่เพิ่ม</label>
+        <label for="rc-qty"><span class="in-only">จำนวนที่เพิ่ม</span><span class="out-only">จำนวนที่ลด</span></label>
         <div class="adm-unit">
           <input class="input" type="number" id="rc-qty" name="qty" value="<?php echo e($rcV('qty')) ?>" min="1" max="<?php echo (int) STOCK_LINE_MAX ?>" step="1" inputmode="numeric" required>
           <span class="rc-unit"><?php echo e($rcUnit) ?></span>
         </div>
-        <small class="adm-hint">หลังเพิ่มจะมี <b id="rc-after">—</b> <span class="rc-unit"><?php echo e($rcUnit) ?></span></small>
+        <small class="adm-hint"><span class="in-only">หลังเพิ่มจะมี</span><span class="out-only">หลังลดจะเหลือ</span> <b id="rc-after">—</b> <span class="rc-unit"><?php echo e($rcUnit) ?></span></small>
+      </div>
+      <div class="field out-only">
+        <label for="rc-why">เหตุผลที่ลด</label>
+        <select class="select" id="rc-why" name="why">
+          <option value="">— เลือกเหตุผล —</option>
+          <?php foreach (issue_reasons() as $k => $x) { ?>
+            <option value="<?php echo e($k) ?>" data-hint="<?php echo e($x['hint']) ?>"<?php echo $x['note'] ? ' data-note="1"' : '' ?><?php echo $rcV('why') === $k ? ' selected' : '' ?>><?php echo e($x['label']) ?></option>
+          <?php } ?>
+        </select>
+        <small class="adm-hint" id="rc-why-h">บางเหตุผลต้องกรอกหมายเหตุด้วย</small>
       </div>
       <div class="field">
-        <label for="rc-ref">เลข INV / เลขที่เอกสารนำเข้า <small class="adm-none">(ไม่บังคับ)</small></label>
-        <input class="input" type="text" id="rc-ref" name="ref" value="<?php echo e($rcV('ref')) ?>" maxlength="60" autocomplete="off" placeholder="เช่น INV-2026-0012">
+        <label for="rc-ref"><span class="in-only">เลข INV / เลขที่เอกสารนำเข้า</span><span class="out-only">เลขที่เอกสารอ้างอิง</span> <small class="adm-none">(ไม่บังคับ)</small></label>
+        <input class="input" type="text" id="rc-ref" name="ref" value="<?php echo e($rcV('ref')) ?>" maxlength="60" autocomplete="off" placeholder="เช่น INV-2026-0012"
+               data-ph-in="เช่น INV-2026-0012" data-ph-out="เช่น เลขใบเคลม / ใบส่งของ">
       </div>
-      <div class="field br-wide">
-        <label for="rc-note">หมายเหตุ <small class="adm-none">(ไม่บังคับ)</small></label>
-        <input class="input" type="text" id="rc-note" name="note" value="<?php echo e($rcV('note')) ?>" maxlength="255" autocomplete="off" placeholder="เช่น ของโอนมาจากคลังกลาง">
+      <div class="field br-wide rc-note-f">
+        <label for="rc-note">หมายเหตุ <small class="adm-none" id="rc-note-t">(ไม่บังคับ)</small></label>
+        <input class="input" type="text" id="rc-note" name="note" value="<?php echo e($rcV('note')) ?>" maxlength="255" autocomplete="off" placeholder="เช่น ของโอนมาจากคลังกลาง"
+               data-ph-in="เช่น ของโอนมาจากคลังกลาง" data-ph-out="เช่น กล่องแตกตอนขนส่ง">
       </div>
     </div>
-    <small class="adm-hint rc-hint">บันทึกเป็นใบรับเข้าของสาขานี้ (วันนี้) ใช้ราคาทุนของสินค้าตอนนี้ · ยอด ประวัตินำเข้า และเคลื่อนไหวรายสินค้าขึ้นทันที</small>
+    <small class="adm-hint rc-hint"><span class="in-only">บันทึกเป็นใบรับเข้าของสาขานี้ (วันนี้) ใช้ราคาทุนของสินค้าตอนนี้ · ยอด ประวัตินำเข้า และเคลื่อนไหวรายสินค้าขึ้นทันที</span><span class="out-only">บันทึกเป็นใบตัดออกของสาขานี้ (วันนี้) ใช้ราคาทุนของสินค้าตอนนี้ · ยอด ประวัติเบิก / ตัดออก และเคลื่อนไหวรายสินค้าขึ้นทันที</span></small>
     <div class="fm-foot">
       <button class="btn btn-ghost" type="button" data-fm-close>ยกเลิก</button>
-      <button class="btn btn-primary" type="submit"><svg class="ico"><use href="#i-plus"/></svg> เพิ่มเข้าสาขา</button>
+      <button class="btn btn-primary" type="submit"><span class="in-only"><svg class="ico"><use href="#i-plus"/></svg> เพิ่มเข้าสาขา</span><span class="out-only"><svg class="ico"><use href="#i-minus"/></svg> ลดยอดออกจากสาขา</span></button>
     </div>
   </form>
 </dialog>
 
 <script>
-/* แตะช่องยอด (.stk-add) → ใส่สินค้า / สาขาของช่องนั้นแล้วเปิดหน้าต่าง · แถวจาก “แสดงเพิ่ม” ก็ใช้ได้ (delegation) · แตะพื้นหลังไม่ปิด */
+/* แตะช่องยอด (.stk-add) → ใส่สินค้า / สาขาของช่องนั้นแล้วเปิดหน้าต่าง (เริ่มที่เพิ่มยอด) · แถวจาก “แสดงเพิ่ม” ก็ใช้ได้ (delegation) · แตะพื้นหลังไม่ปิด */
 (function () {
   var dlg = document.getElementById('rc-modal');
   if (!dlg || !dlg.showModal) { return; }
   var BR  = <?php echo json_encode(array_map(function ($x) { return $x['name']; }, $br), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;
+  var MAX = <?php echo (int) STOCK_LINE_MAX ?>;
   var el  = function (id) { return document.getElementById(id); };
-  var qty = el('rc-qty');
+  var qty = el('rc-qty'), why = el('rc-why'), note = el('rc-note'), ref = el('rc-ref');
+  var rIn = dlg.querySelector('input[name="act"][value="recv"]'), rOut = dlg.querySelector('input[name="act"][value="issue"]');
   var fmt = function (n) { return n.toLocaleString('en-US'); };
+  var have = function () { return parseInt(dlg.getAttribute('data-have'), 10) || 0; };
   function upd() {
-    var have = parseInt(dlg.getAttribute('data-have'), 10) || 0, n = parseInt(qty.value, 10);
-    el('rc-after').textContent = (n > 0) ? fmt(have + n) : '—';
+    var h = have(), n = parseInt(qty.value, 10), out = rOut.checked;
+    el('rc-after').textContent = !(n > 0) || (out && n > h) ? '—' : fmt(out ? h - n : h + n);   // ลดเกินที่มี = เบราว์เซอร์ไม่ให้ส่ง (max)
   }
+  /* เหตุผลที่ต้องมีหมายเหตุ (ส่งไปสาขาอื่น · สูญหาย · อื่น ๆ) → หมายเหตุจำเป็น */
+  function updWhy() {
+    var o = why.options[why.selectedIndex], need = rOut.checked && o && o.getAttribute('data-note') === '1';
+    el('rc-why-h').textContent = (o && o.value) ? o.getAttribute('data-hint') + (need ? ' · ต้องกรอกหมายเหตุ' : '') : 'บางเหตุผลต้องกรอกหมายเหตุด้วย';
+    el('rc-note-t').textContent = need ? '(จำเป็น)' : '(ไม่บังคับ)';
+    el('rc-note-t').classList.toggle('rc-need', need);
+    note.required = need;
+  }
+  /* สลับเพิ่ม / ลด — สาขายังไม่มีของ = ลดไม่ได้ */
+  function setMode() {
+    var none = have() < 1;
+    rOut.disabled = none;
+    rOut.parentNode.classList.toggle('off', none);
+    el('rc-zero').hidden = !none;
+    if (none && rOut.checked) { rIn.checked = true; }
+    var out = rOut.checked;
+    dlg.classList.toggle('is-out', out);
+    rIn.parentNode.classList.toggle('on', !out);
+    rOut.parentNode.classList.toggle('on', out);
+    why.disabled = !out;
+    why.required = out;
+    qty.max = out ? Math.max(1, have()) : MAX;
+    ref.placeholder  = ref.getAttribute(out ? 'data-ph-out' : 'data-ph-in');
+    note.placeholder = note.getAttribute(out ? 'data-ph-out' : 'data-ph-in');
+    updWhy();
+    upd();
+  }
+  rIn.addEventListener('change', setMode);
+  rOut.addEventListener('change', setMode);
+  why.addEventListener('change', updWhy);
   document.addEventListener('click', function (ev) {
     var b = ev.target.closest('.stk-add');
     if (b) {
@@ -487,10 +550,11 @@ $rcUnit = ($rcP !== null) ? $rcP['unit'] : 'ชิ้น';
       el('rc-have').textContent = fmt(q);
       dlg.setAttribute('data-have', q);
       dlg.querySelectorAll('.rc-unit').forEach(function (u) { u.textContent = tr.getAttribute('data-unit'); });
-      qty.value = el('rc-ref').value = el('rc-note').value = '';
+      qty.value = ref.value = note.value = why.value = '';
+      rIn.checked = true;
       var al = dlg.querySelector('.alert');
       if (al) { al.parentNode.removeChild(al); }                     // ข้อความผิดพลาดของรอบก่อน
-      upd();
+      setMode();
       dlg.showModal();
       qty.focus();
       return;
@@ -498,7 +562,7 @@ $rcUnit = ($rcP !== null) ? $rcP['unit'] : 'ชิ้น';
     if (ev.target.closest('[data-fm-close]') && dlg.contains(ev.target)) { dlg.close(); }
   });
   qty.addEventListener('input', upd);
-  upd();
+  setMode();
   if (dlg.hasAttribute('data-fm-auto')) { dlg.showModal(); qty.focus(); }
 })();
 </script>

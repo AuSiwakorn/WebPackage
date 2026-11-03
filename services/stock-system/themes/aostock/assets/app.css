@@ -2295,6 +2295,19 @@ button.stk-add:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
 .rc-now{margin:0 0 14px;font-size:.95rem;color:var(--ink-2)}
 .rc-now b{color:var(--ink)}
 .rc-hint{display:block;margin-top:2px}
+/* ปุ่มสลับเพิ่ม / ลดยอด (radio name="act") · ข้อความของแต่ละแบบ .in-only / .out-only */
+.rc-mode{display:flex;width:100%;margin:0 0 14px}
+.rc-mode .seg{flex:1;justify-content:center;cursor:pointer;position:relative}
+.rc-mode input{position:absolute;opacity:0;pointer-events:none}
+.rc-mode .seg:focus-within{outline:2px solid var(--brand);outline-offset:1px}
+.rc-mode .seg.off{opacity:.45;cursor:not-allowed}
+.rc-modal.is-out .rc-mode .seg.on{color:var(--down)}
+.rc-modal:not(.is-out) .out-only,.rc-modal.is-out .in-only{display:none}
+.rc-modal.is-out .rc-note-f{grid-column:auto}
+.rc-modal .field .select{width:100%;min-height:55px}             /* สูงเท่าช่องจำนวนข้าง ๆ */
+@media (max-width:420px){.rc-modal .fm-foot{flex-wrap:wrap-reverse}.rc-modal .fm-foot .btn{flex:1 1 100%}}   /* มือถือ: ปุ่มยาว “ลดยอดออกจากสาขา” ไม่ดันปุ่มยกเลิกล้น — เรียงคนละแถว */
+.rc-zero{color:var(--ink-3)}
+.rc-need{color:var(--down)}
 .rc-done form{margin:0}
 /* ช่องค้นหาที่หัวการ์ดยอดคงเหลือ (adm-products #stock-list · 3 พ.ย.) — เต็มความกว้าง ระยะเท่าหัวการ์ด */
 #stock-list{scroll-margin-top:84px}                     /* ค้น / กดแท็บแล้วเลื่อนมาที่การ์ด ไม่จมใต้แถบหัว */
@@ -2386,6 +2399,12 @@ button.stk-add:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
 .cat-add{display:flex;flex-wrap:wrap;gap:10px;padding:16px 22px 20px}
 .cat-add .input{flex:1 1 260px;width:auto}
 .cat-del{display:inline}
+/* เปลี่ยนชื่อหมวด (adm-categories) — เสร็จแล้วเลื่อนกลับมาที่หมวดนั้น ไม่จมใต้แถบหัว */
+.acc-item{scroll-margin-top:84px}
+.cat-edit .alert{margin:0 0 12px}
+.cat-ren{flex:1 1 340px}
+.cat-edit .adm-hint{margin-bottom:0}
+@media (max-width:520px){.cat-ren .btn,.cat-edit .cat-del,.cat-edit .cat-del .btn{flex:1 1 100%;width:100%}}
 .card-head .head-tabs{margin-left:auto;flex:0 0 auto}
 @media (max-width:760px){.card-head .head-tabs{margin-left:0;width:100%;overflow-x:auto}.card-head .head-tabs .seg{white-space:nowrap}}
 .rep-links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:14px}
