@@ -554,14 +554,14 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
     /* ส่วนลดที่พิมพ์ไว้ (บาท) ไม่หายเมื่อแก้จำนวน — ยอดชำระใหม่ = ราคาเต็มใหม่ − ส่วนลดเดิม (21 ต.ค. — เดิมกลับเป็นราคาเต็มเงียบ ๆ) */
     var nt = document.getElementById('net'), raw = nt ? String(nt.value).replace(/[^0-9.]/g, '') : '';
     var off = (raw !== '') ? Math.round((Number(nt.getAttribute('data-full')) - Number(raw)) * 100) / 100 : 0;
-    keep = { rec: (rec && rec.getAttribute('data-touched')) ? rec.value : null, vat: pick('vat'), method: pick('method'), off: off > 0 ? off : 0 };
+    keep = { rec: (rec && rec.getAttribute('data-touched')) ? rec.value : null, vat: pick('vat'), method: pick('method'), change_to: pick('change_to'), off: off > 0 ? off : 0 };
   });
   function restore() {
     if (!keep) { return; }
     var k = keep, c = document.getElementById('sale-cart');
     keep = null;
     if (!c) { return; }
-    ['vat', 'method'].forEach(function (n) {
+    ['vat', 'method', 'change_to'].forEach(function (n) {             // ทอนเป็น เงินสด / โอน ไม่หายเมื่อแก้จำนวน (24 พ.ย.)
       var r = k[n] !== null ? c.querySelector('input[name="' + n + '"][value="' + k[n] + '"]') : null;
       if (r && !r.checked && !r.disabled) { r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true })); }   // VAT ที่สาขายังตั้งไม่ครบ = ปิดไว้ ไม่ติ๊กคืน
     });
@@ -939,6 +939,12 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
       cfBody.innerHTML    = opt.html;
       pending = opt.go;
       curForm = opt.form;
+      var rfs = cfBody.querySelectorAll('input[name="cf-refund"]');   // ยกเลิกบิล: ปุ่มเลือกช่องทางคืน
+      for (var r = 0; r < rfs.length; r++) {
+        rfs[r].addEventListener('change', function () {
+          for (var r2 = 0; r2 < rfs.length; r2++) { rfs[r2].parentNode.className = rfs[r2].checked ? 'on' : ''; }
+        });
+      }
       modal.hidden = false;
       document.body.style.overflow = 'hidden';
 
@@ -983,6 +989,8 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
         var box = curForm.querySelector('input[name="reason"]');
         if (box) { box.value = note.value.trim(); }
       }
+      var rfPick = cfBody.querySelector('input[name="cf-refund"]:checked'), rfBox = curForm ? curForm.querySelector('input[name="refund_ch"]') : null;
+      if (rfPick && rfBox) { rfBox.value = rfPick.value; }
       var go = pending;
       closeModal();
       if (go) { go(); }
@@ -1007,10 +1015,15 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
       h += '</ul>';
 
       var tot    = document.getElementById('total');
-      var cash   = form.querySelector('input[name="method"][value="cash"]');
-      var isCash = cash && cash.checked;
+      var how    = form.querySelector('input[name="method"]:checked');
+      var m      = how ? how.value : 'cash';                  // cash · transfer · mixed (สด + โอน)
+      var isCash = (m === 'cash');
       var rec    = document.getElementById('received');
       var chg    = document.getElementById('change');
+      var chTr   = form.querySelector('input[name="change_to"][value="transfer"]');
+      var baht   = function (n) { return n.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+      var cashV  = rec ? (Number(String(rec.value).replace(/[^0-9.]/g, '')) || 0) : 0;
+      var totV   = tot ? Number(tot.getAttribute('data-v')) || 0 : 0;
 
       h += '<div class="cf-sum">'
          + (function () {
@@ -1020,14 +1033,17 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
                   + '<div class="cf-r cf-warn"><span>ส่วนลด</span><b class="num">' + esc(document.getElementById('disc').textContent) + ' บาท</b></div>';
            })()
          + '<div class="cf-r"><span>ยอดชำระ</span><b class="num">' + esc(tot ? tot.textContent : '') + ' บาท</b></div>'
-         + '<div class="cf-r"><span>ชำระโดย</span><b>' + (isCash ? 'เงินสด' : 'โอน / พร้อมเพย์') + '</b></div>';
+         + '<div class="cf-r"><span>ชำระโดย</span><b>' + (isCash ? 'เงินสด' : (m === 'mixed' ? 'สด + โอน' : 'โอน / พร้อมเพย์')) + '</b></div>';
       var vatOn = form.querySelector('input[name="vat"][value="1"]');
       h += '<div class="cf-r"><span>ประเภทบิล</span><b>' + (vatOn && vatOn.checked && !vatOn.disabled ? 'บิล VAT' : 'บิลธรรมดา (ไม่ VAT)') + '</b></div>';
       if (isCash) {
-        h += '<div class="cf-r"><span>รับมา</span><b class="num">'
-           + (Number(String(rec.value).replace(/[^0-9.]/g, '')) || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' บาท</b></div>'
-           + '<div class="cf-r cf-big"><span>เงินทอน</span><b class="num">'
+        var toTr = chTr && chTr.checked && chg && chg.textContent !== '0.00';
+        h += '<div class="cf-r"><span>รับมา</span><b class="num">' + baht(cashV) + ' บาท</b></div>'
+           + '<div class="cf-r cf-big"><span>' + (toTr ? 'ทอนเป็นโอน' : 'เงินทอน') + '</span><b class="num">'
            + esc(chg ? chg.textContent : '0.00') + ' บาท</b></div>';
+      } else if (m === 'mixed') {
+        h += '<div class="cf-r"><span>รับเงินสด</span><b class="num">' + baht(cashV) + ' บาท</b></div>'
+           + '<div class="cf-r cf-big"><span>ลูกค้าโอนส่วนที่เหลือ</span><b class="num">' + baht(Math.round((totV - cashV) * 100) / 100) + ' บาท</b></div>';
       }
       h += '</div>';
       return h;
@@ -1073,8 +1089,17 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
         h += '<div class="cf-r cf-warn"><span>' + (isRecv ? 'จะถอนออกจากสต๊อก' : (isAdj ? 'ส่วนต่างที่จะปรับกลับเป็นก่อนนับ' : 'ของที่จะคืนเข้าสต๊อก'))
            + '</span><b class="num">' + esc(qty) + ' ชิ้น</b></div>';
       }
-      h += '</div>'
-         + '<div class="cf-note">'
+      h += '</div>';
+      /* ยกเลิกบิล: คืนเงินลูกค้าทางไหน (23 พ.ย.) — ค่าตั้งต้นจาก data-refund · ยืนยันแล้วเขียนลงช่อง refund_ch ของฟอร์ม */
+      var rfIn = (doc === 'bill' && !isEdit) ? form.querySelector('input[name="refund_ch"]') : null;
+      if (rfIn) {
+        var rf = form.getAttribute('data-refund') || rfIn.value || 'cash';
+        h += '<div class="chg-to cf-refund" role="radiogroup" aria-label="คืนเงินลูกค้าเป็น"><span>คืนเงินลูกค้า ' + esc(tot) + ' บาท เป็น</span>'
+           + '<label' + (rf === 'cash' ? ' class="on"' : '') + '><input type="radio" name="cf-refund" value="cash"' + (rf === 'cash' ? ' checked' : '') + '> เงินสด</label>'
+           + '<label' + (rf === 'transfer' ? ' class="on"' : '') + '><input type="radio" name="cf-refund" value="transfer"' + (rf === 'transfer' ? ' checked' : '') + '> โอน</label>'
+           + '</div>';
+      }
+      h += '<div class="cf-note">'
          + '<label for="cf-note-in">หมายเหตุ <i>จำเป็นต้องกรอก</i></label>'
          + '<div class="cf-chips">';
       var rs = REASONS[doc] || REASONS.bill;
@@ -1185,7 +1210,7 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
         hr += '</ul><div class="cf-sum">'
             + '<div class="cf-r"><span>เหตุผล</span><b>' + esc(sr.why) + '</b></div>'
             + (sr.stock ? '<div class="cf-r"><span>สต๊อก</span><b>' + esc(sr.stock) + '</b></div>' : '')
-            + '<div class="cf-r cf-big' + (sr.noCash ? '' : ' cf-warn') + '"><span>' + (sr.noCash ? 'คืนเงิน' : 'คืนเงินสดจากลิ้นชัก') + '</span><b class="num">'
+            + '<div class="cf-r cf-big' + (sr.noCash ? '' : ' cf-warn') + '"><span>' + (sr.noCash ? 'คืนเงิน' : sr.ch === 'transfer' ? 'โอนคืนจากบัญชีสาขา' : 'คืนเงินสดจากลิ้นชัก') + '</span><b class="num">'
             + (sr.noCash ? 'ไม่คืนเงิน' : esc(sr.refund) + ' บาท') + '</b></div></div>';
         openModal({
           title: 'ยืนยันการรับคืน ' + rq.toLocaleString('th-TH') + ' ชิ้น', sub: 'บันทึกแล้วแก้ไม่ได้ — ตรวจจำนวนและยอดเงินคืนให้ถูกก่อน',

@@ -48,18 +48,38 @@ foreach ($codes as $c) {
         $sum['bills']++;
         $sum['qty']   += $bl['qty'];
         $sum['total'] += $bl['total'];
-        $sum['cash']  += $bl['method'] === 'cash' ? $bl['total'] : 0;
+        $sum['cash']  += $bl['pay_cash'] - $bl['change_cash'];     // เงินสดสุทธิ (รับ − ทอน) · โอน = ยอด − เงินสด
         $sum['disc']  += !empty($bl['discount']) ? $bl['discount'] : 0;
     }
 }
 usort($bills, function ($x, $y) { return strcmp($y['time'], $x['time']); });
 $where = $b === 'ALL' ? 'ทุกสาขา' : $brAll[$b]['name'];
+$sd    = ($b === 'ALL') ? null : store_day_result($b, $ts);     // สรุปเงินของวัน (เลือกสาขาเดียว · 23 พ.ย.)
+/* ผลต่าง: ตรง / ขาด −x / เกิน +x */
+$dTxt  = function ($d) {
+    return (abs($d) < 0.005) ? '<span class="ok-txt">ตรง</span>' : '<b class="warn-txt">' . ($d < 0 ? 'ขาด −' : 'เกิน +') . e(money2(abs($d))) . '</b>';
+};
 ?>
 <div class="ds-head">
   <h2><?php echo e($where) ?> · <?php echo e(thai_date_full($ts)) ?></h2>
   <p class="sub">ยอดขาย <b><?php echo e(money2($sum['total'])) ?></b> บาท · <?php echo number_format($sum['bills']) ?> บิล · <?php echo number_format($sum['qty']) ?> ชิ้น
     · เงินสด <?php echo e(money2($sum['cash'])) ?> · โอน <?php echo e(money2($sum['total'] - $sum['cash'])) ?>
     <?php echo $sum['disc'] > 0 ? ' · ส่วนลด ' . e(money2($sum['disc'])) : '' ?><?php echo $sum['void'] ? ' · ยกเลิก ' . $sum['void'] . ' ใบ' : '' ?></p>
+  <?php if ($sd !== null) { ?>
+  <div class="ds-money">
+    <?php if (!$sd['closed']) { ?>
+      <div><span>เงินของวัน</span> ยังไม่ปิดร้าน — เปิดเมื่อ <?php echo e($sd['opened_at']) ?> น. โดย <?php echo e($sd['opened_by']) ?></div>
+    <?php } else { ?>
+      <div><span>เงินสดในลิ้นชัก</span> ควรมี <b class="num"><?php echo e(money2($sd['expect'])) ?></b> ·
+        นับได้ <b class="num"><?php echo $sd['counted'] !== null ? e(money2($sd['counted'])) : '—' ?></b><?php echo $sd['diff'] !== null ? ' · ' . $dTxt($sd['diff']) : '' ?></div>
+      <?php if ($sd['bank_expect'] !== null) { ?>
+      <div><span>บัญชีโอน</span> ควรมี <b class="num"><?php echo e(money2($sd['bank_expect'])) ?></b> ·
+        <?php if ($sd['bank_counted'] !== null) { ?>ยอดในแอป <b class="num"><?php echo e(money2($sd['bank_counted'])) ?></b> · <?php echo $dTxt($sd['bank_diff']) ?><?php } else { ?>ไม่ได้กรอกยอดในแอป<?php } ?></div>
+      <?php } ?>
+      <div class="ds-money-by">ปิดเมื่อ <?php echo e($sd['closed_at']) ?> น. โดย <?php echo e($sd['closed_by']) ?><?php echo $sd['note'] !== '' ? ' · ' . e($sd['note']) : '' ?></div>
+    <?php } ?>
+  </div>
+  <?php } ?>
 </div>
 
 <div class="cats tabbar ds-tabs" role="tablist">
@@ -78,7 +98,7 @@ $where = $b === 'ALL' ? 'ทุกสาขา' : $brAll[$b]['name'];
             <summary>
               <span class="ds-t num"><?php echo e($bl['time']) ?></span>
               <span class="ds-no"><b><?php echo e($bl['no']) ?></b>
-                <small><?php echo $b === 'ALL' ? e($brAll[$bl['branch']]['short']) . ' · ' : '' ?><?php echo e($bl['by']) ?> · <?php echo $bl['method'] === 'cash' ? 'เงินสด' : 'โอน' ?> · <?php echo !empty($bl['vat']) ? 'VAT' : 'ไม่ VAT' ?><?php echo $void ? ' · ยกเลิกแล้ว' : '' ?></small></span>
+                <small><?php echo $b === 'ALL' ? e($brAll[$bl['branch']]['short']) . ' · ' : '' ?><?php echo e($bl['by']) ?> · <?php echo e(Stock_formatPayMethod($bl)) ?> ·<?php echo !empty($bl['vat']) ? 'VAT' : 'ไม่ VAT' ?><?php echo $void ? ' · ยกเลิกแล้ว' : '' ?></small></span>
               <span class="ds-amt num"><?php echo (int) $bl['items'] ?> รายการ · <b><?php echo e(money2($bl['total'])) ?></b></span>
             </summary>
             <table class="ds-lines">

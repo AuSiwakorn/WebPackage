@@ -183,7 +183,7 @@ require dirname(__FILE__) . '/inc/header.php';
           <?php if (abs($cut) >= 0.01) { ?>
             <tr><td colspan="3" class="r">ปรับยอด<?php echo $v['refund_note'] !== '' ? ' — ' . e($v['refund_note']) : '' ?></td><td class="r num">−<?php echo e(money2($cut)) ?></td></tr>
           <?php } ?>
-          <tr class="ret-total"><td colspan="3" class="r"><b>คืนเงินสด (จากลิ้นชักวันที่คืน)</b></td><td class="r num"><b><?php echo e(money2($v['refund'])) ?></b></td></tr>
+          <tr class="ret-total"><td colspan="3" class="r"><b><?php echo $v['refund_channel'] === 'transfer' ? 'โอนคืน (จากบัญชีโอนของสาขา)' : 'คืนเงินสด (จากลิ้นชักวันที่คืน)' ?></b></td><td class="r num"><b><?php echo e(money2($v['refund'])) ?></b></td></tr>
         </tfoot>
       </table>
     </div>
@@ -266,7 +266,7 @@ require dirname(__FILE__) . '/inc/header.php';
 <section class="mini num adm-kpi" aria-label="สรุปการรับคืน">
   <div class="m"><div class="lb">ใบรับคืน</div><div class="nm"><?php echo number_format($sum['docs']) ?></div>
     <div class="sb"><?php echo number_format($sum['qty']) ?> ชิ้น</div></div>
-  <div class="m"><div class="lb">คืนเงินสด</div><div class="nm"><?php echo e(money2($sum['refund'])) ?></div>
+  <div class="m"><div class="lb">คืนเงินลูกค้า</div><div class="nm"><?php echo e(money2($sum['refund'])) ?></div>
     <div class="sb"><?php echo $sum['cut'] > 0 ? 'หักไว้จากยอดคำนวณ ' . e(money2($sum['cut'])) . ' บาท' : 'คืนเต็มยอดทุกใบ' ?></div></div>
   <div class="m"><div class="lb">สินค้าที่รับคืน</div><div class="nm"><?php echo number_format($sum['in']) ?> / <?php echo number_format($sum['out']) ?></div>
     <div class="sb">กลับเข้าสต๊อก / แยกเก็บ (ไม่ขายต่อ)</div></div>
@@ -326,7 +326,7 @@ require dirname(__FILE__) . '/inc/header.php';
               </td>
               <td data-label="รับคืนโดย" class="nowrap"><?php echo e($r['by']) ?></td>
               <td data-label="จำนวน" class="r num nowrap"><?php echo number_format($r['qty']) ?> ชิ้น</td>
-              <td data-label="คืนเงิน" class="r num nowrap"><?php echo e(money2($r['refund'])) ?> ฿<?php if ($r['calc'] - $r['refund'] >= 0.01) { ?><small class="hist-n">จาก <?php echo e(money2($r['calc'])) ?></small><?php } ?></td>
+              <td data-label="คืนเงิน" class="r num nowrap"><?php echo e(money2($r['refund'])) ?> ฿<?php if ($r['calc'] - $r['refund'] >= 0.01) { ?><small class="hist-n">จาก <?php echo e(money2($r['calc'])) ?></small><?php } ?><?php if ($r['refund_channel'] === 'transfer' && $r['refund'] > 0) { ?><small class="hist-n">โอนคืน</small><?php } ?></td>
               <td data-label="" class="r"><a class="btn btn-ghost btn-sm" href="adm-return.php?no=<?php echo e(rawurlencode($r['no'])) ?>&amp;b=<?php echo e(rawurlencode($r['branch'])) ?>">ดู</a></td>
             </tr>
           <?php } ?>

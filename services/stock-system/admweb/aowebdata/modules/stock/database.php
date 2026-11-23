@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_branch` (
 	`receipt_footer`   varchar(300) NOT NULL DEFAULT '' COMMENT 'ข้อความท้ายบิล ขึ้นบรรทัดใหม่ได้ (หน้าตั้งค่าเลขที่บิล)',
 	`count_day`        tinyint UNSIGNED NOT NULL DEFAULT 1 COMMENT 'รอบตรวจนับเริ่มวันที่เท่าไรของเดือน (1-28 · 0 = ไม่ใช้รอบตรวจนับ) ผู้ดูแลตั้ง',
 	`default_float`    decimal(12,2) NOT NULL DEFAULT 0 COMMENT 'เงินทอนมาตรฐาน (โมดูล POS)',
+	`bank_start`       decimal(12,2) NOT NULL DEFAULT 0 COMMENT 'ยอดในบัญชีโอนของสาขาตอนเริ่มใช้ (ผู้ดูแลกรอก · ใช้จนปิดร้านพร้อมยอดบัญชีครั้งแรก)',
 	`backdate_days`    smallint UNSIGNED NOT NULL DEFAULT 7 COMMENT 'แก้เอกสาร/รับคืนย้อนหลังได้กี่วัน ผู้ดูแลตั้ง',
 	`allow_negative`   tinyint(1) NOT NULL DEFAULT 0 COMMENT '1=ยอมให้สต๊อกติดลบ',
 	`is_active`        tinyint(1) NOT NULL DEFAULT 1,
@@ -50,6 +51,8 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_branch` (
 /* daily_goal / count_open_limit เลิกใช้แล้ว — คอลัมน์ในฐานข้อมูลเดิมปล่อยไว้ได้ */
 /* เพิ่มทีหลัง — Reinstall เพื่อเพิ่มคอลัมน์ · สาขาเดิมได้ 0 (ไม่ขาย VAT) ผู้ดูแลเปิดเองที่หน้าจัดการสาขา (21 ต.ค.) */
 $sqlAlter[_DBPREFIX_ . 'stock_branch']['sell_vat'] = "ALTER TABLE `" . _DBPREFIX_ . "stock_branch` ADD COLUMN `sell_vat` tinyint(1) NOT NULL DEFAULT 0 COMMENT '1 = สาขานี้ขายแบบ VAT ได้ (ผู้ดูแลตั้ง) · 0 = ออกบิลไม่ VAT อย่างเดียว' AFTER `phone`";
+/* บัญชีโอนของสาขา (งานเงินโอน 23 พ.ย.) */
+$sqlAlter[_DBPREFIX_ . 'stock_branch']['bank_start'] = "ALTER TABLE `" . _DBPREFIX_ . "stock_branch` ADD COLUMN `bank_start` decimal(12,2) NOT NULL DEFAULT 0 COMMENT 'ยอดในบัญชีโอนของสาขาตอนเริ่มใช้ (ผู้ดูแลกรอก · ใช้จนปิดร้านพร้อมยอดบัญชีครั้งแรก)' AFTER `default_float`";
 
 /* 2) ผู้ใช้ระบบ (พนักงาน PIN · ผู้ดูแล / บัญชี รหัสผ่าน) */
 $sqlArray[_DBPREFIX_ . 'stock_staff'] = "
@@ -362,18 +365,29 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_store_day` (
 	`open_reason`   varchar(255) NOT NULL DEFAULT '',
 	`float_topup`   decimal(12,2) NOT NULL DEFAULT 0,
 	`open_cash`     decimal(12,2) NOT NULL DEFAULT 0 COMMENT 'เงินทอนเริ่มวัน',
+	`bank_carried`      decimal(12,2) NULL COMMENT 'ยอดบัญชีโอนยกมา (NULL = วันที่เปิดก่อนใช้บัญชีโอน)',
+	`bank_open_counted` decimal(12,2) NULL COMMENT 'ยอดในแอปตอนเปิดร้านเมื่อไม่ตรงกับยกมา (NULL = ตรง)',
+	`bank_open_reason`  varchar(255) NOT NULL DEFAULT '' COMMENT 'เหตุผลที่ยอดบัญชียกมาไม่ตรง',
 	`closed_by`     int UNSIGNED NULL,
 	`closed_at`     datetime NULL,
 	`expected_cash` decimal(12,2) NULL,
 	`counted_cash`  decimal(12,2) NULL,
 	`keep_cash`     decimal(12,2) NULL COMMENT 'แยกไว้เป็นเงินทอนพรุ่งนี้',
 	`handover_cash` decimal(12,2) NULL COMMENT 'counted - keep = นำส่ง',
+	`bank_expected` decimal(12,2) NULL COMMENT 'บัญชีโอนควรมีตอนปิด',
+	`bank_counted`  decimal(12,2) NULL COMMENT 'ยอดในแอปธนาคารที่กรอกตอนปิด (ปิดย้อนหลังเว้นได้)',
 	`close_note`    varchar(255) NOT NULL DEFAULT '',
 	UNIQUE KEY `uq_branch_date` (`branch_id`, `store_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AOSTOCK POS เปิด-ปิดร้าน';
 ";
 /* เพิ่มทีหลัง — Reinstall เพื่อเพิ่มคอลัมน์ */
 $sqlAlter[_DBPREFIX_ . 'stock_store_day']['reopen_count'] = "ALTER TABLE `" . _DBPREFIX_ . "stock_store_day` ADD COLUMN `reopen_count` tinyint UNSIGNED NOT NULL DEFAULT 0 COMMENT 'ผู้ดูแลเปิดร้านใหม่หลังปิดกี่ครั้ง' AFTER `status`";
+/* บัญชีโอนของสาขา (งานเงินโอน 23 พ.ย.) — วันเก่าเป็น NULL = ไม่มีส่วนบัญชีโอน */
+$sqlAlter[_DBPREFIX_ . 'stock_store_day']['bank_carried'] = "ALTER TABLE `" . _DBPREFIX_ . "stock_store_day` ADD COLUMN `bank_carried` decimal(12,2) NULL COMMENT 'ยอดบัญชีโอนยกมา (NULL = วันที่เปิดก่อนใช้บัญชีโอน)' AFTER `open_cash`";
+$sqlAlter[_DBPREFIX_ . 'stock_store_day']['bank_open_counted'] = "ALTER TABLE `" . _DBPREFIX_ . "stock_store_day` ADD COLUMN `bank_open_counted` decimal(12,2) NULL COMMENT 'ยอดในแอปตอนเปิดร้านเมื่อไม่ตรงกับยกมา (NULL = ตรง)' AFTER `bank_carried`";
+$sqlAlter[_DBPREFIX_ . 'stock_store_day']['bank_open_reason'] = "ALTER TABLE `" . _DBPREFIX_ . "stock_store_day` ADD COLUMN `bank_open_reason` varchar(255) NOT NULL DEFAULT '' COMMENT 'เหตุผลที่ยอดบัญชียกมาไม่ตรง' AFTER `bank_open_counted`";
+$sqlAlter[_DBPREFIX_ . 'stock_store_day']['bank_expected'] = "ALTER TABLE `" . _DBPREFIX_ . "stock_store_day` ADD COLUMN `bank_expected` decimal(12,2) NULL COMMENT 'บัญชีโอนควรมีตอนปิด' AFTER `handover_cash`";
+$sqlAlter[_DBPREFIX_ . 'stock_store_day']['bank_counted'] = "ALTER TABLE `" . _DBPREFIX_ . "stock_store_day` ADD COLUMN `bank_counted` decimal(12,2) NULL COMMENT 'ยอดในแอปธนาคารที่กรอกตอนปิด (ปิดย้อนหลังเว้นได้)' AFTER `bank_expected`";
 
 /* 13) เงินเข้า / ออกลิ้นชักระหว่างวัน */
 $sqlArray[_DBPREFIX_ . 'stock_cash_move'] = "
@@ -383,12 +397,14 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_cash_move` (
 	`branch_id`  int UNSIGNED NOT NULL,
 	`direction`  enum('in','out') NOT NULL,
 	`amount`     decimal(12,2) NOT NULL,
+	`channel`    enum('cash','transfer') NOT NULL DEFAULT 'cash' COMMENT 'เงินสดในลิ้นชัก / บัญชีโอนของสาขา',
 	`reason`     varchar(255) NOT NULL DEFAULT '',
 	`created_by` int UNSIGNED NOT NULL,
 	`add_date`   datetime DEFAULT CURRENT_TIMESTAMP,
 	KEY `idx_day` (`day_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AOSTOCK POS เงินเข้าออกลิ้นชัก';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AOSTOCK POS เงินเข้าออกลิ้นชัก / บัญชีโอน';
 ";
+$sqlAlter[_DBPREFIX_ . 'stock_cash_move']['channel'] = "ALTER TABLE `" . _DBPREFIX_ . "stock_cash_move` ADD COLUMN `channel` enum('cash','transfer') NOT NULL DEFAULT 'cash' COMMENT 'เงินสดในลิ้นชัก / บัญชีโอนของสาขา' AFTER `amount`";
 
 /* 14) บิลขาย */
 $sqlArray[_DBPREFIX_ . 'stock_sale'] = "
@@ -398,7 +414,7 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_sale` (
 	`branch_id`     int UNSIGNED NOT NULL,
 	`day_id`        int UNSIGNED NOT NULL COMMENT 'stock_store_day ที่บิลนี้อยู่',
 	`sale_date`     date NOT NULL,
-	`pay_method`    enum('cash','transfer') NOT NULL DEFAULT 'cash',
+	`pay_method`    enum('cash','transfer','mixed') NOT NULL DEFAULT 'cash' COMMENT 'mixed = เงินสด + โอนในบิลเดียว',
 	`is_vat`        tinyint(1) NOT NULL DEFAULT 0 COMMENT '1 = บิล VAT (ใช้เลขชุด prefix_vat)',
 	`base_amount`   decimal(12,2) NOT NULL DEFAULT 0 COMMENT 'มูลค่าก่อน VAT (บิล VAT)',
 	`vat_amount`    decimal(12,2) NOT NULL DEFAULT 0 COMMENT 'VAT 7% (บิล VAT)',
@@ -410,8 +426,13 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_sale` (
 	`total_cost`    decimal(12,2) NOT NULL DEFAULT 0 COMMENT 'ไว้คิดกำไรขั้นต้น',
 	`received`      decimal(12,2) NOT NULL DEFAULT 0,
 	`change_amount` decimal(12,2) NOT NULL DEFAULT 0,
+	`pay_cash`        decimal(12,2) NULL COMMENT 'เงินสดที่รับ (NULL = บิลก่อนใช้บัญชีโอน อ่านจาก pay_method / received)',
+	`pay_transfer`    decimal(12,2) NULL COMMENT 'เงินที่ลูกค้าโอน',
+	`change_cash`     decimal(12,2) NULL COMMENT 'ทอนเป็นเงินสด',
+	`change_transfer` decimal(12,2) NULL COMMENT 'ทอนเป็นโอน',
 	`status`        enum('paid','void') NOT NULL DEFAULT 'paid',
 	`void_mode`     enum('void','edit') NULL,
+	`void_refund_channel` enum('cash','transfer') NULL COMMENT 'ยกเลิกบิลแล้วคืนเงินลูกค้าทางไหน (NULL = ยกเลิกก่อนใช้ / ยกเลิกเพื่อแก้ไข)',
 	`void_reason`   varchar(255) NOT NULL DEFAULT '',
 	`void_by`       int UNSIGNED NULL,
 	`void_date`     datetime NULL,
@@ -423,6 +444,14 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_sale` (
 	KEY `idx_staff_date` (`created_by`, `sale_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AOSTOCK POS บิลขาย';
 ";
+/* จ่ายผสม · ทอนเป็นโอน · ยกเลิกเลือกช่องทางคืน (งานเงินโอน 23 พ.ย.) — บิลเก่าเป็น NULL อ่านผ่าน Stock_buildPaySql
+   pay_method_mixed ไม่ใช่ชื่อคอลัมน์จริง → ตัวติดตั้งรันทุกครั้งที่ Reinstall (MODIFY ซ้ำได้) แบบ perms_text */
+$sqlAlter[_DBPREFIX_ . 'stock_sale']['pay_method_mixed'] = "ALTER TABLE `" . _DBPREFIX_ . "stock_sale` MODIFY COLUMN `pay_method` enum('cash','transfer','mixed') NOT NULL DEFAULT 'cash' COMMENT 'mixed = เงินสด + โอนในบิลเดียว'";
+$sqlAlter[_DBPREFIX_ . 'stock_sale']['pay_cash'] = "ALTER TABLE `" . _DBPREFIX_ . "stock_sale` ADD COLUMN `pay_cash` decimal(12,2) NULL COMMENT 'เงินสดที่รับ (NULL = บิลก่อนใช้บัญชีโอน อ่านจาก pay_method / received)' AFTER `change_amount`";
+$sqlAlter[_DBPREFIX_ . 'stock_sale']['pay_transfer'] = "ALTER TABLE `" . _DBPREFIX_ . "stock_sale` ADD COLUMN `pay_transfer` decimal(12,2) NULL COMMENT 'เงินที่ลูกค้าโอน' AFTER `pay_cash`";
+$sqlAlter[_DBPREFIX_ . 'stock_sale']['change_cash'] = "ALTER TABLE `" . _DBPREFIX_ . "stock_sale` ADD COLUMN `change_cash` decimal(12,2) NULL COMMENT 'ทอนเป็นเงินสด' AFTER `pay_transfer`";
+$sqlAlter[_DBPREFIX_ . 'stock_sale']['change_transfer'] = "ALTER TABLE `" . _DBPREFIX_ . "stock_sale` ADD COLUMN `change_transfer` decimal(12,2) NULL COMMENT 'ทอนเป็นโอน' AFTER `change_cash`";
+$sqlAlter[_DBPREFIX_ . 'stock_sale']['void_refund_channel'] = "ALTER TABLE `" . _DBPREFIX_ . "stock_sale` ADD COLUMN `void_refund_channel` enum('cash','transfer') NULL COMMENT 'ยกเลิกบิลแล้วคืนเงินลูกค้าทางไหน (NULL = ยกเลิกก่อนใช้ / ยกเลิกเพื่อแก้ไข)' AFTER `void_mode`";
 
 $sqlArray[_DBPREFIX_ . 'stock_sale_item'] = "
 CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_sale_item` (
@@ -456,7 +485,8 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_return` (
 	`item_count`  int NOT NULL DEFAULT 0,
 	`total_qty`   int NOT NULL DEFAULT 0,
 	`calc_amount` decimal(12,2) NOT NULL DEFAULT 0 COMMENT 'ตามราคาที่ขาย',
-	`refund`      decimal(12,2) NOT NULL DEFAULT 0 COMMENT 'เงินสดที่คืนจริง',
+	`refund`      decimal(12,2) NOT NULL DEFAULT 0 COMMENT 'เงินที่คืนจริง',
+	`refund_channel` enum('cash','transfer') NOT NULL DEFAULT 'cash' COMMENT 'คืนเป็นเงินสดจากลิ้นชัก / โอนจากบัญชีสาขา',
 	`refund_note` varchar(255) NOT NULL DEFAULT '',
 	`photos`      varchar(600) NOT NULL DEFAULT '' COMMENT 'รูปแนบ JSON array ของพาธใต้ uploads/ (สูงสุด 3 รูป · stock/returns/)',
 	`created_by`  int UNSIGNED NOT NULL COMMENT 'ผู้รับคืน',
@@ -466,6 +496,7 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_return` (
 	KEY `idx_branch_date` (`branch_id`, `doc_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AOSTOCK POS ใบรับคืนสินค้า';
 ";
+$sqlAlter[_DBPREFIX_ . 'stock_return']['refund_channel'] = "ALTER TABLE `" . _DBPREFIX_ . "stock_return` ADD COLUMN `refund_channel` enum('cash','transfer') NOT NULL DEFAULT 'cash' COMMENT 'คืนเป็นเงินสดจากลิ้นชัก / โอนจากบัญชีสาขา' AFTER `refund`";
 
 $sqlArray[_DBPREFIX_ . 'stock_return_item'] = "
 CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_return_item` (

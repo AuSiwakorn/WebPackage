@@ -98,10 +98,14 @@ function Stock_getBillRedo()
     }
     $r = $_SESSION['bill_redo'];
     return array(
-        'no'       => isset($r['no']) ? (string) $r['no'] : '',
-        'discount' => isset($r['discount']) ? max(0, round((float) $r['discount'], 2)) : 0,
-        'vat'      => !empty($r['vat']),
-        'method'   => (isset($r['method']) && $r['method'] === 'transfer') ? 'transfer' : 'cash',
+        'no'        => isset($r['no']) ? (string) $r['no'] : '',
+        'discount'  => isset($r['discount']) ? max(0, round((float) $r['discount'], 2)) : 0,
+        'vat'       => !empty($r['vat']),
+        'method'    => (isset($r['method']) && in_array($r['method'], array('transfer', 'mixed'), true)) ? $r['method'] : 'cash',
+        'change_to' => (isset($r['change_to']) && $r['change_to'] === 'transfer') ? 'transfer' : 'cash',   // ทอนเป็นโอน (23 พ.ย.)
+        /* บิลเดิมทอนเป็นโอนไปแล้ว — ช่องรับเงินใช้เงินสดที่รับจริง ไม่ใช่ยอดบิล (ไม่งั้นลิ้นชัก / บัญชีโอนเพี้ยน · 24 พ.ย.) */
+        'cash_in'   => isset($r['cash_in']) ? max(0, round((float) $r['cash_in'], 2)) : 0,
+        'change_tr' => isset($r['change_tr']) ? max(0, round((float) $r['change_tr'], 2)) : 0,
     );
 }
 
@@ -218,7 +222,48 @@ function sale_bill_shape($h, $items)
         'void_user'   => ($h['void_user'] !== null) ? $h['void_user'] : '',
         'void_at'     => $vts ? date(date('Ymd', $vts) === date('Ymd', $ts) ? 'H:i' : 'j/n H:i', $vts) : '',
         'edit_of_id'  => (int) $h['edit_of_id'],
+        'void_refund_channel' => isset($h['void_refund_channel']) ? $h['void_refund_channel'] : null,
+    ) + Stock_getBillPayParts($h);
+}
+
+/** ชิ้น SQL เงิน 4 ช่องของบิลหนึ่งแถว ($a = alias ของ stock_sale) — cash_in รับสด · cash_out ทอนสด · tr_in รับโอน · tr_out ทอนโอน
+ *  บิลก่อนใช้บัญชีโอน (ช่องเป็น NULL) อ่านจาก pay_method / received / change_amount / total · สูตรเดียวกับ Stock_getBillPayParts
+ *  TODO:
+ *    - [x] 23 พ.ย. (งานเงินโอน ช่วง 1): ทุก query ที่แยกเงินสด / โอนใช้ตัวนี้ */
+function Stock_buildPaySql($a = 's')
+{
+    $a = preg_replace('/\W/', '', (string) $a);
+    return array(
+        'cash_in'  => "COALESCE($a.pay_cash, IF($a.pay_method = 'cash', $a.received, 0))",
+        'cash_out' => "COALESCE($a.change_cash, IF($a.pay_method = 'cash', $a.change_amount, 0))",
+        'tr_in'    => "COALESCE($a.pay_transfer, IF($a.pay_method = 'transfer', $a.total, 0))",
+        'tr_out'   => "COALESCE($a.change_transfer, 0)",
     );
+}
+
+/** เงิน 4 ช่องของบิลจากแถวในฐานข้อมูล (pay_cash · pay_transfer · change_cash · change_transfer) — สูตรเดียวกับ Stock_buildPaySql
+ *  TODO:
+ *    - [x] 23 พ.ย. (งานเงินโอน ช่วง 1): sale_bill_shape เติมค่าเหล่านี้ให้ทุกบิล */
+function Stock_getBillPayParts($h)
+{
+    $cash = ($h['pay_method'] === 'cash');
+    $v    = function ($k, $old) use ($h) { return isset($h[$k]) ? (float) $h[$k] : (float) $old; };   // NULL = บิลเก่า
+    return array(
+        'pay_cash'        => $v('pay_cash', $cash ? $h['received'] : 0),
+        'pay_transfer'    => $v('pay_transfer', ($h['pay_method'] === 'transfer') ? $h['total'] : 0),
+        'change_cash'     => $v('change_cash', $cash ? $h['change_amount'] : 0),
+        'change_transfer' => $v('change_transfer', 0),
+    );
+}
+
+/** ป้ายวิธีจ่ายของบิล — เงินสด · โอน / พร้อมเพย์ · สด + โอน (+ “· ทอนเป็นโอน”)
+ *  TODO:
+ *    - [x] 23 พ.ย. (งานเงินโอน ช่วง 1): ทุกหน้าที่แสดงวิธีจ่ายใช้ตัวนี้ */
+function Stock_formatPayMethod($bill)
+{
+    $m = isset($bill['method']) ? $bill['method'] : 'cash';
+    $t = ($m === 'transfer') ? 'โอน / พร้อมเพย์' : (($m === 'mixed') ? 'สด + โอน' : 'เงินสด');
+    return $t . ((isset($bill['change_transfer']) && $bill['change_transfer'] > 0) ? ' · ทอนเป็นโอน' : '');
 }
 
 /** บิลของวันนี้จากเลขที่ — แก้ / ยกเลิกได้เฉพาะบิลของวันนี้ */
@@ -286,8 +331,9 @@ function Stock_getSoldProductsOfDay($codes, $ts)
     return $out;
 }
 
-/** บันทึกบิลจากตะกร้า (ทรานแซกชันเดียว) · คืนบิล / null (ตะกร้าว่าง) / array('error') */
-function bill_save($code, $user, $method, $received, $vat = false, $net = null)
+/** บันทึกบิลจากตะกร้า (ทรานแซกชันเดียว) · คืนบิล / null (ตะกร้าว่าง) / array('error')
+ *  $method = cash | transfer | mixed (สด + โอน) · $received = เงินสดที่รับ (cash: null = พอดี · mixed: ต้องกรอก) · $changeTo = ทอนเป็น cash | transfer */
+function bill_save($code, $user, $method, $received, $vat = false, $net = null, $changeTo = 'cash')
 {
     $lines = cart_lines();
     if (!$lines) {
@@ -297,7 +343,7 @@ function bill_save($code, $user, $method, $received, $vat = false, $net = null)
     if ($bid <= 0) {
         return array('error' => 'ไม่พบสาขาที่ทำรายการ');
     }
-    $method   = ($method === 'transfer') ? 'transfer' : 'cash';
+    $method   = in_array($method, array('transfer', 'mixed'), true) ? $method : 'cash';
     $vat      = (bool) $vat;
     $subtotal = round(cart_total(), 2);
     /* แก้ยอดที่ต้องชำระ = ส่วนลดท้ายบิล (ไม่เกินราคาเต็ม) · ไม่มีสิทธิ์ discount = ราคาเต็มเสมอ */
@@ -308,10 +354,25 @@ function bill_save($code, $user, $method, $received, $vat = false, $net = null)
     $discount = round($subtotal - $total, 2);
     /* เงินที่รับมารับสตางค์ได้ 2 ตำแหน่ง (เดิมตัดเป็นบาทเต็ม) · เพดานตามคอลัมน์ decimal(12,2)
        null (ช่องว่าง) = รับพอดี · รับมาน้อยกว่ายอด = ไม่บันทึก (21 ต.ค. — เดิมบันทึกว่ารับเท่ายอดเงียบ ๆ เงินในลิ้นชักขาด) */
-    $recv     = ($method === 'cash' && $received !== null) ? round(min(max((float) $received, 0), 9999999999.99), 2) : $total;
-    if ($recv < $total) {
-        return array('error' => 'รับเงินมา ' . money2($recv) . ' บาท น้อยกว่ายอดที่ต้องชำระ ' . money2($total) . ' บาท — กรอกเงินที่รับมาให้ครบ');
+    $cashIn   = ($received !== null) ? round(min(max((float) $received, 0), 9999999999.99), 2) : null;
+    if ($method === 'cash') {
+        $cashIn = ($cashIn !== null) ? $cashIn : $total;
+        if ($cashIn < $total) {
+            return array('error' => 'รับเงินมา ' . money2($cashIn) . ' บาท น้อยกว่ายอดที่ต้องชำระ ' . money2($total) . ' บาท — กรอกเงินที่รับมาให้ครบ');
+        }
+        $chg  = round($cashIn - $total, 2);
+        $pay  = array('pay_cash' => $cashIn, 'pay_transfer' => 0,
+                      'change_cash' => ($changeTo === 'transfer') ? 0 : $chg, 'change_transfer' => ($changeTo === 'transfer') ? $chg : 0);
+    } elseif ($method === 'mixed') {
+        /* สด + โอน: เงินสดบางส่วน ที่เหลือโอน — ไม่มีเงินทอน (23 พ.ย.) */
+        if ($cashIn === null || $cashIn <= 0 || $cashIn >= $total) {
+            return array('error' => 'เงินสดในบิลสด + โอนต้องมากกว่า 0 และน้อยกว่ายอดที่ต้องชำระ (' . money2($total) . ' บาท)');
+        }
+        $pay = array('pay_cash' => $cashIn, 'pay_transfer' => round($total - $cashIn, 2), 'change_cash' => 0, 'change_transfer' => 0);
+    } else {
+        $pay = array('pay_cash' => 0, 'pay_transfer' => $total, 'change_cash' => 0, 'change_transfer' => 0);
     }
+    $recv     = round($pay['pay_cash'] + $pay['pay_transfer'], 2);
     /* สาขาที่ไม่ขาย VAT (ผู้ดูแลตั้งที่หน้าจัดการสาขา · 21 ต.ค.) — หน้าขายไม่มีตัวเลือก VAT · ส่งค่ามาเอง / ผู้ดูแลเพิ่งปิดระหว่างขาย = ปฏิเสธ ตะกร้ายังอยู่ */
     if ($vat && !Stock_isBranchVat($code)) {
         return array('error' => 'สาขานี้ไม่ได้ขายแบบ VAT — ออกได้เฉพาะบิลไม่ VAT · ตรวจยอดแล้วกดรับเงินอีกครั้ง (ระบบออกเป็นบิลไม่ VAT)');
@@ -326,7 +387,7 @@ function bill_save($code, $user, $method, $received, $vat = false, $net = null)
                               . ' (ฝ่ายบัญชี / ผู้ดูแลตั้งได้ที่หน้า “ตั้งค่าเลขที่บิล”) · เลือก “ไม่ VAT” เพื่อขายต่อ');
     }
 
-    $no = sdb_tx(function () use ($code, $bid, $user, $method, $vat, $lines, $subtotal, $total, $discount, $recv, $prefix) {
+    $no = sdb_tx(function () use ($code, $bid, $user, $method, $vat, $lines, $subtotal, $total, $discount, $recv, $pay, $prefix) {
         $day = sdb_row('SELECT day_id, status FROM ' . sdb_tb('store_day') . ' WHERE branch_id = ? AND store_date = ? LOCK IN SHARE MODE',
                        array($bid, date('Y-m-d')));
         if ($day === null || $day['status'] !== 'open') {
@@ -373,7 +434,11 @@ function bill_save($code, $user, $method, $received, $vat = false, $net = null)
             'total'         => $total,
             'total_cost'    => round($cost, 2),
             'received'      => $recv,
-            'change_amount' => round($recv - $total, 2),
+            'change_amount' => round($pay['change_cash'] + $pay['change_transfer'], 2),
+            'pay_cash'        => $pay['pay_cash'],
+            'pay_transfer'    => $pay['pay_transfer'],
+            'change_cash'     => $pay['change_cash'],
+            'change_transfer' => $pay['change_transfer'],
             'status'        => 'paid',
             'edit_of_id'    => stock_draft_edit_of('SA', $bid),
             'created_by'    => $uid,
@@ -407,11 +472,15 @@ function bill_save($code, $user, $method, $received, $vat = false, $net = null)
             'ยอดรวม'   => number_format($total, 2) . ' บาท'
                           . ($discount > 0 ? ' (ราคาเต็ม ' . number_format($subtotal, 2) . ' ส่วนลด ' . number_format($discount, 2) . ')' : ''),
             'ประเภทบิล' => $vat ? 'VAT (ก่อน VAT ' . number_format($vs[0], 2) . ' + VAT ' . number_format($vs[1], 2) . ')' : 'ไม่ VAT',
-            'ชำระโดย'  => ($method === 'cash') ? 'เงินสด' : 'โอน / พร้อมเพย์',
+            'ชำระโดย'  => Stock_formatPayMethod(array('method' => $method, 'change_transfer' => $pay['change_transfer'])),
         );
+        if ($method !== 'transfer') {
+            $detail['รับมา'] = ($method === 'mixed')
+                             ? 'เงินสด ' . number_format($pay['pay_cash'], 2) . ' · โอน ' . number_format($pay['pay_transfer'], 2) . ' บาท'
+                             : number_format($pay['pay_cash'], 2) . ' บาท';
+        }
         if ($method === 'cash') {
-            $detail['รับมา']   = number_format($recv, 2) . ' บาท';
-            $detail['เงินทอน'] = number_format($recv - $total, 2) . ' บาท';
+            $detail['เงินทอน'] = number_format($pay['change_cash'] + $pay['change_transfer'], 2) . ' บาท' . ($pay['change_transfer'] > 0 ? ' (โอนให้ลูกค้า)' : '');
         }
         log_add($code, 'sale', $user, 'ขายสินค้า บิล ' . $no, $detail, $total, $no);
         return $no;
@@ -425,15 +494,26 @@ function bill_save($code, $user, $method, $received, $vat = false, $net = null)
     return bill_by_no($code, $no);
 }
 
-/** ยกเลิกบิลของวันนี้ (move sale_void · บิลไม่ถูกลบ) · คืนบิล / null / array('error') */
-function bill_void($code, $no, $user, $reason, $reopen = false)
+/** ช่องทางคืนเงินที่เลือกไว้ก่อนตอนยกเลิกบิล — เงินสด ถ้าบิลรับเงินสด ไม่งั้นโอน
+ *  TODO:
+ *    - [x] 23 พ.ย. (งานเงินโอน ช่วง 6): ยกเลิกบิลเลือกคืนเงินลูกค้าเป็นเงินสด / โอน (แบบ ข. ที่ผู้ใช้เลือก) */
+function Stock_getVoidRefundDefault($bill)
+{
+    return (isset($bill['pay_cash']) && $bill['pay_cash'] > 0) ? 'cash' : 'transfer';
+}
+
+/** ยกเลิกบิลของวันนี้ (move sale_void · บิลไม่ถูกลบ) · คืนบิล / null / array('error')
+ *  $refundCh = คืนเงินลูกค้าทางไหน cash | transfer (ยกเลิกเท่านั้น · ค่าอื่น = Stock_getVoidRefundDefault) · แก้ไขบิล ($reopen) ไม่เก็บช่องทาง — บิลเดิมถอยทั้งใบ */
+function bill_void($code, $no, $user, $reason, $reopen = false, $refundCh = null)
 {
     $b = bill_by_no($code, $no);
     if ($b === null || $b['void']) {
         return null;
     }
     $reason = trim($reason);
-    $res = sdb_tx(function () use ($code, $b, $user, $reason, $reopen) {
+    $refCh  = $reopen ? null : (in_array($refundCh, array('cash', 'transfer'), true) ? $refundCh : Stock_getVoidRefundDefault($b));
+    $b['void_refund_channel'] = $refCh;                              // ให้ข้อความ Telegram บอกช่องทางคืน
+    $res = sdb_tx(function () use ($code, $b, $user, $reason, $reopen, $refCh) {
         $st = sdb_val('SELECT status FROM ' . sdb_tb('sale') . ' WHERE sale_id = ? FOR UPDATE', array($b['id']));
         if ($st !== 'paid') {
             return null;
@@ -456,6 +536,7 @@ function bill_void($code, $no, $user, $reason, $reopen = false)
         sdb_update('sale', array(
             'status'      => 'void',
             'void_mode'   => $reopen ? 'edit' : 'void',
+            'void_refund_channel' => $refCh,
             'void_reason' => stock_cut($reason, 255),
             'void_by'     => $uid,
             'void_date'   => $now,
@@ -473,6 +554,8 @@ function bill_void($code, $no, $user, $reason, $reopen = false)
         );
         if ($reopen) {
             $detail['การทำต่อ'] = 'ดึงรายการกลับเข้าตะกร้าเพื่อออกบิลใหม่ทดแทน';
+        } else {
+            $detail['คืนเงินลูกค้า'] = number_format($b['total'], 2) . ' บาท · ' . ($refCh === 'cash' ? 'เงินสดจากลิ้นชัก' : 'โอนจากบัญชีสาขา');
         }
         log_add($code, 'void', $user, ($reopen ? 'ยกเลิกเพื่อแก้ไข บิล ' : 'ยกเลิกบิล ') . $b['no'], $detail, $b['total'], $b['no']);
         return true;
@@ -495,7 +578,9 @@ function cart_from_bill($bill, $branch)
     $_SESSION['draft_edit_of']['SA'] = (int) $bill['id'];
     /* ส่วนลด / ประเภทบิล / วิธีจ่ายเดิม (Stock_getBillRedo · 21 ต.ค.) */
     $_SESSION['bill_redo'] = array('no' => $bill['no'], 'discount' => (float) $bill['discount'],
-                                   'vat' => !empty($bill['vat']), 'method' => $bill['method']);
+                                   'vat' => !empty($bill['vat']), 'method' => $bill['method'],
+                                   'change_to' => (!empty($bill['change_transfer']) && $bill['change_transfer'] > 0) ? 'transfer' : 'cash',
+                                   'cash_in' => (float) $bill['pay_cash'], 'change_tr' => (float) $bill['change_transfer']);   // เงินจริงของบิลเดิม (ทอนเป็นโอนไปแล้ว)
     return cart_count();
 }
 
@@ -506,14 +591,15 @@ function bill_returned_any($no)
                  . ' WHERE s.doc_no = ? LIMIT 1', array((string) $no)) !== null;
 }
 
-/** สรุปยอดขายวันนี้ของสาขา (บิลที่ยกเลิกนับแยก ไม่นับเป็นยอดขาย) */
+/** สรุปยอดขายวันนี้ของสาขา (บิลที่ยกเลิกนับแยก ไม่นับเป็นยอดขาย) · cash / transfer = สุทธิต่อช่องทาง (รับ − ทอน · รวมกัน = total) */
 function sale_summary($code)
 {
+    $q = Stock_buildPaySql('s');
     $r = sdb_row('SELECT COUNT(CASE WHEN s.status = \'paid\' THEN 1 END) AS bills,'
                . ' COALESCE(SUM(CASE WHEN s.status = \'paid\' THEN s.total_qty END), 0) AS qty,'
                . ' COALESCE(SUM(CASE WHEN s.status = \'paid\' THEN s.total END), 0) AS total,'
-               . ' COALESCE(SUM(CASE WHEN s.status = \'paid\' AND s.pay_method = \'cash\' THEN s.total END), 0) AS cash,'
-               . ' COALESCE(SUM(CASE WHEN s.status = \'paid\' AND s.pay_method = \'transfer\' THEN s.total END), 0) AS transfer,'
+               . ' COALESCE(SUM(CASE WHEN s.status = \'paid\' THEN ' . $q['cash_in'] . ' - ' . $q['cash_out'] . ' END), 0) AS cash,'
+               . ' COALESCE(SUM(CASE WHEN s.status = \'paid\' THEN ' . $q['tr_in'] . ' - ' . $q['tr_out'] . ' END), 0) AS transfer,'
                . ' COUNT(CASE WHEN s.status = \'void\' THEN 1 END) AS void'
                . ' FROM ' . sdb_tb('sale') . ' s JOIN ' . sdb_tb('branch') . ' b ON b.branch_id = s.branch_id'
                . ' WHERE b.code = ? AND s.sale_date = ?', array((string) $code, date('Y-m-d')));
@@ -551,8 +637,11 @@ function sale_flash($err, $done, $voided, $oob)
            . 'บันทึกบิล <b>' . e($done['no']) . '</b> แล้ว · ยอด <b class="num">' . money2($done['total']) . '</b> บาท · '
            . (!empty($done['discount']) ? 'ส่วนลด <b class="num">' . money2($done['discount']) . '</b> บาท · ' : '');
         if ($done['method'] === 'cash') {
-            echo 'รับเงิน <span class="num">' . money2($done['received']) . '</span> บาท · '
-               . 'เงินทอน <b class="num">' . money2($done['change']) . '</b> บาท';
+            echo 'รับเงิน <span class="num">' . money2($done['pay_cash']) . '</span> บาท · '
+               . ($done['change_transfer'] > 0 ? 'ทอนเป็นโอน <b class="num">' . money2($done['change_transfer']) . '</b> บาท'
+                                               : 'เงินทอน <b class="num">' . money2($done['change_cash']) . '</b> บาท');
+        } elseif ($done['method'] === 'mixed') {
+            echo 'เงินสด <span class="num">' . money2($done['pay_cash']) . '</span> · โอน <span class="num">' . money2($done['pay_transfer']) . '</span> บาท';
         } else {
             echo 'ชำระโดยการโอน / พร้อมเพย์';
         }
@@ -577,10 +666,12 @@ function sale_flash($err, $done, $voided, $oob)
                . '<svg class="ico"><use href="#i-arrow"/></svg> แก้ไขบิลนี้</button>'
                . '</form>';
 
-            echo '<form method="post" action="sale.php" data-confirm="void" hx-confirm="ยกเลิกบิล"' . $atts . '>'
+            $rch = Stock_getVoidRefundDefault($done);   // กล่องยืนยันให้เลือกคืนเงินสด / โอน (footer) · ค่าตั้งต้น
+            echo '<form method="post" action="sale.php" data-confirm="void" hx-confirm="ยกเลิกบิล"' . $atts . ' data-refund="' . $rch . '">'
                . '<input type="hidden" name="csrf" value="' . e(csrf_token()) . '">'
                . '<input type="hidden" name="act" value="void">'
                . '<input type="hidden" name="no" value="' . e($done['no']) . '">'
+               . '<input type="hidden" name="refund_ch" value="' . $rch . '">'
                . '<input class="reason-fb" type="text" name="reason" value=""'
                . ' placeholder="หมายเหตุ (จำเป็น)" aria-label="หมายเหตุการยกเลิกบิล">'
                . '<button class="btn btn-ghost btn-sm" type="submit">'

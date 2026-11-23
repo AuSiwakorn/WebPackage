@@ -60,6 +60,17 @@ if (!$bill) {
     http_response_code(404);
     exit('ไม่พบบิล');
 }
+if (!isset($bill['pay_cash'])) {                      // บิลตัวอย่าง (ตั้งค่าเลขที่บิล) ไม่มีเงิน 4 ช่อง
+    $bill += Stock_getBillPayParts(array('pay_method' => $bill['method'], 'received' => $bill['received'], 'change_amount' => $bill['change'], 'total' => $bill['total']));
+}
+/* บรรทัดการชำระเงิน (23 พ.ย.): เงินสด = รับเงิน + เงินทอน / ทอนเป็นโอน · สด + โอน = รับเงินสด + รับโอน · โอน = ไม่มีบรรทัดเงิน */
+$payRows = array();
+if ($bill['method'] === 'cash') {
+    $payRows = array('รับเงิน' => $bill['pay_cash']);
+    $payRows += ($bill['change_transfer'] > 0) ? array('ทอนเป็นโอน' => $bill['change_transfer']) : array('เงินทอน' => $bill['change_cash']);
+} elseif ($bill['method'] === 'mixed') {
+    $payRows = array('รับเงินสด' => $bill['pay_cash'], 'รับโอน' => $bill['pay_transfer']);
+}
 
 $h     = bill_head($code);
 $vat   = !empty($bill['vat']);
@@ -197,10 +208,9 @@ $selfQs  = function ($o) {
     <div class="sm c">(ราคารวมภาษีมูลค่าเพิ่มแล้ว)</div>
   <?php } ?>
   <hr>
-  <div class="kv"><span>ชำระโดย</span><span><?php echo $bill['method'] === 'cash' ? 'เงินสด' : 'โอน / พร้อมเพย์' ?></span></div>
-  <?php if ($bill['method'] === 'cash') { ?>
-    <div class="kv"><span>รับเงิน</span><span class="num"><?php echo e(money2($bill['received'])) ?></span></div>
-    <div class="kv"><span>เงินทอน</span><span class="num"><?php echo e(money2($bill['change'])) ?></span></div>
+  <div class="kv"><span>ชำระโดย</span><span><?php echo e(Stock_formatPayMethod(array('method' => $bill['method']))) ?></span></div>
+  <?php foreach ($payRows as $pl => $pv) { ?>
+    <div class="kv"><span><?php echo e($pl) ?></span><span class="num"><?php echo e(money2($pv)) ?></span></div>
   <?php } ?>
   <?php if (trim($h['footer']) !== '') { ?><hr><div class="ft"><?php echo e($h['footer']) ?></div><?php } ?>
   <?php if ($void) { ?><div class="stamp">ยกเลิก<small>บิลนี้ถูกยกเลิกแล้ว</small></div>
@@ -257,7 +267,7 @@ $selfQs  = function ($o) {
     </div>
   </div>
 
-  <div class="pay">ชำระโดย <?php echo $bill['method'] === 'cash' ? 'เงินสด · รับเงิน ' . e(money2($bill['received'])) . ' · เงินทอน ' . e(money2($bill['change'])) : 'โอน / พร้อมเพย์' ?> บาท</div>
+  <div class="pay">ชำระโดย <?php echo e(Stock_formatPayMethod(array('method' => $bill['method']))) ?><?php foreach ($payRows as $pl => $pv) { echo ' · ' . e($pl) . ' ' . e(money2($pv)); } ?> บาท</div>
 
   <div class="sign"><div>ผู้รับเงิน</div><div>ผู้ซื้อ / ลูกค้า</div></div>
   <?php if (trim($h['footer']) !== '') { ?><div class="ft"><?php echo e($h['footer']) ?></div><?php } ?>

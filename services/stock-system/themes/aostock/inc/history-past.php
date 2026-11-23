@@ -141,7 +141,7 @@ $age   = (int) round((strtotime(date('Y-m-d')) - $pastTs) / 86400);
   <div class="card-head">
     <div>
       <h2><?php echo ($pTypes && !in_array('sale', $pTypes, true)) ? 'บิลที่ยกเลิก' : 'บิลขาย' ?>ของวันที่ <?php echo e(thai_date_full($pastTs)) ?></h2>
-      <span class="sub">บิลของวันก่อนยกเลิกย้อนหลังไม่ได้ — ลูกค้าคืนของให้ใช้ “รับคืนสินค้า” (คืนเงินสดจากลิ้นชักวันนี้)</span>
+      <span class="sub">บิลของวันก่อนยกเลิกย้อนหลังไม่ได้ — ลูกค้าคืนของให้ใช้ “รับคืนสินค้า” (คืนเป็นเงินสดหรือโอนก็ได้)</span>
     </div>
   </div>
   <?php if (!$bills) { ?>
@@ -155,7 +155,7 @@ $age   = (int) round((strtotime(date('Y-m-d')) - $pastTs) / 86400);
               $names = array();
               foreach ($b['lines'] as $l) { $names[] = $l['name'] . ' ×' . $l['qty']; } ?>
             <tr>
-              <td class="doc" data-label="เลขบิล"><?php echo e($b['no']) ?><small><?php echo e($b['time']) ?> น. · <?php echo e($b['by']) ?> · <?php echo $b['method'] === 'cash' ? 'เงินสด' : 'โอน' ?></small></td>
+              <td class="doc" data-label="เลขบิล"><?php echo e($b['no']) ?><small><?php echo e($b['time']) ?> น. · <?php echo e($b['by']) ?> · <?php echo e(Stock_formatPayMethod($b)) ?></small></td>
               <td data-label="รายการ"><span class="ret-names"><?php echo e(implode(' · ', $names)) ?></span></td>
               <td class="r" data-label="ยอด"><?php echo e(money2($b['total'])) ?></td>
               <td class="r">

@@ -9,7 +9,7 @@
  * ⚠ โหลดทุก request — มีได้แค่ define() + function (ห้าม echo / header / query ตอนโหลด)
  */
 
-/* ---------- รับคืนสินค้า (ใบ RT): ภายใน backdate_days ของสาขา · คืนไม่เกินที่ซื้อ · คืนเงินสดจากลิ้นชักวันนี้ · เข้าสต๊อกเฉพาะเหตุผลที่ขายต่อได้ ---------- */
+/* ---------- รับคืนสินค้า (ใบ RT): ภายใน backdate_days ของสาขา · คืนไม่เกินที่ซื้อ · คืนเงินสดจากลิ้นชัก / โอนจากบัญชีสาขา (ยอดของวันนี้) · เข้าสต๊อกเฉพาะเหตุผลที่ขายต่อได้ ---------- */
 
 /** ค้นบิลย้อนหลังได้กี่วัน (กำหนดคืน + 7 อย่างน้อย 14 — ให้เห็นบิลที่เกินกำหนดด้วย) */
 function return_lookback_days($code = null)
@@ -208,6 +208,7 @@ function returns_query($where, $params)
             'calc'        => (float) $h['calc_amount'],
             'refund'      => (float) $h['refund'],
             'refund_note' => $h['refund_note'],
+            'refund_channel' => (isset($h['refund_channel']) && $h['refund_channel'] === 'transfer') ? 'transfer' : 'cash',
             'photos'      => $photos,
         );
     }
@@ -228,13 +229,13 @@ function return_by_no($code, $no)
 }
 
 /** บันทึกการรับคืน (ล็อกบิลเดิม → เช็ก → ใบ + รายการ + move + ประวัติ) · คืน array('doc') หรือ array('error') */
-function return_save($code, $user, $bill, $qtys, $reason, $note, $refund, $refundNote)
+function return_save($code, $user, $bill, $qtys, $reason, $note, $refund, $refundNote, $refundCh = 'cash')
 {
     if ($user['role'] !== 'staff' || !can($user, 'refund')) {
         return array('error' => 'ไม่มีสิทธิ์รับคืนสินค้า — การรับคืนเป็นหน้าที่ของพนักงานที่ได้รับมอบหมาย');
     }
     if (!store_is_open($code)) {
-        return array('error' => 'ต้องเปิดร้านก่อน เพราะเงินคืนจ่ายจากลิ้นชักของวันนี้');
+        return array('error' => 'ต้องเปิดร้านก่อน เพราะเงินที่คืนลูกค้าต้องหักจากยอดเงินของวันนี้');
     }
     $st = bill_return_status($bill, $user);
     if (!$st['ok']) {
@@ -270,10 +271,12 @@ function return_save($code, $user, $bill, $qtys, $reason, $note, $refund, $refun
         return array('error' => 'ยังไม่ได้ใส่จำนวนที่คืนสักรายการ');
     }
     $calc   = round($calc, 2);
-    /* ไม่มีสิทธิ์คืนเงินสด = รับคืนแบบไม่คืนเงิน ยอดคืนเป็น 0 เสมอ */
+    $refundCh = ($refundCh === 'transfer') ? 'transfer' : 'cash';      // คืนเงินสดจากลิ้นชัก / โอนจากบัญชีสาขา
+    /* ไม่มีสิทธิ์คืนเงิน = รับคืนแบบไม่คืนเงิน ยอดคืนเป็น 0 เสมอ */
     if (!can($user, 'refund_cash')) {
         $refund     = 0;
-        $refundNote = 'รับคืนแบบไม่คืนเงินสด (ผู้รับคืนไม่มีสิทธิ์คืนเงิน)';
+        $refundNote = 'รับคืนแบบไม่คืนเงิน (ผู้รับคืนไม่มีสิทธิ์คืนเงิน)';
+        $refundCh   = 'cash';
     }
     $refund = ($refund === '' || $refund === null) ? $calc : round((float) $refund, 2);
     if ($refund < 0 || $refund > $calc) {
@@ -285,14 +288,14 @@ function return_save($code, $user, $bill, $qtys, $reason, $note, $refund, $refun
     $restock = $reasons[$reason]['restock'];
     $bid     = branch_id_of($code);
 
-    $no = sdb_tx(function () use ($code, $bid, $user, $bill, $lines, $reason, $note, $restock, $qty, $calc, $refund, $refundNote) {
+    $no = sdb_tx(function () use ($code, $bid, $user, $bill, $lines, $reason, $note, $restock, $qty, $calc, $refund, $refundNote, $refundCh) {
         if (sdb_val('SELECT status FROM ' . sdb_tb('sale') . ' WHERE sale_id = ? FOR UPDATE', array($bill['id'])) !== 'paid') {
             return array('error' => 'บิลนี้ถูกยกเลิกไปแล้ว');
         }
         $day = sdb_row('SELECT day_id, status FROM ' . sdb_tb('store_day') . ' WHERE branch_id = ? AND store_date = ? LOCK IN SHARE MODE',
                        array($bid, date('Y-m-d')));
         if ($day === null || $day['status'] !== 'open') {
-            return array('error' => 'ร้านปิดแล้ว — รับคืนไม่ได้ (เงินคืนจ่ายจากลิ้นชักของวันนี้)');
+            return array('error' => 'ร้านปิดแล้ว — รับคืนไม่ได้ เพราะเงินที่คืนลูกค้าต้องหักจากยอดเงินของวันนี้');
         }
         $done = returned_of_bill($bill['no'], $bill);                // อ่านหลังล็อกบิล — อีกเครื่องที่คืนพร้อมกันต้องรอ
         foreach ($lines as $l) {
@@ -318,6 +321,7 @@ function return_save($code, $user, $bill, $qtys, $reason, $note, $refund, $refun
             'total_qty'   => $qty,
             'calc_amount' => $calc,
             'refund'      => $refund,
+            'refund_channel' => $refundCh,
             'refund_note' => stock_cut($refundNote, 255),
             'photos'      => '',
             'created_by'  => $uid,
@@ -357,7 +361,7 @@ function return_save($code, $user, $bill, $qtys, $reason, $note, $refund, $refun
             'เหตุผล'       => return_reason_label($reason) . (trim($note) !== '' ? ' — ' . trim($note) : ''),
             'สต๊อก'        => $restock ? 'กลับเข้าสต๊อก ' . $qty . ' ชิ้น' : 'ไม่เข้าสต๊อก (แยกเก็บ)',
             'ยอดตามราคาขาย' => money2($calc) . ' บาท',
-            'คืนเงินสด'     => money2($refund) . ' บาท' . (trim($refundNote) !== '' ? ' — ปรับยอด: ' . trim($refundNote) : ''),
+            'คืนเงินลูกค้า'  => money2($refund) . ' บาท' . ($refund > 0 ? ' · ' . ($refundCh === 'transfer' ? 'โอนจากบัญชีสาขา' : 'เงินสดจากลิ้นชัก') : '') . (trim($refundNote) !== '' ? ' — ปรับยอด: ' . trim($refundNote) : ''),
             'ผู้รับคืน'      => $user['name'],
         );
         log_add($code, 'return', $user, 'รับคืนสินค้า ' . $no . ' (บิล ' . $bill['no'] . ')', $detail, $refund, $no);

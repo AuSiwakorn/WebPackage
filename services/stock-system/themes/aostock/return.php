@@ -25,7 +25,7 @@ if (!defined('ALLOW_DIRECT_ACCESS')) {
 }
 /* ==========================================================
    รับคืนสินค้า
-   พนักงาน (สิทธิ์ refund): ค้นบิลเก่า → เลือกรายการที่คืน → เหตุผล → ยืนยันยอดเงินคืน (เงินสดจากลิ้นชักวันนี้)
+   พนักงาน (สิทธิ์ refund): ค้นบิลเก่า → เลือกรายการที่คืน → เหตุผล → ยืนยันยอดเงินคืน (เงินสดจากลิ้นชัก / โอนจากบัญชีสาขา)
    ผู้ดูแล: ตรวจสอบใบรับคืนทุกสาขาที่ adm-return.php — ไม่ได้ทำรับคืนเอง
    กติกาอยู่ใน admweb/aowebdata/modules/stock/api/return.php
    ========================================================== */
@@ -42,7 +42,7 @@ $isShut  = !$isOpen && store_is_closed($code);       // ปิดร้านแ
 $q       = isset($_GET['q']) ? trim($_GET['q']) : '';
 $billNo  = isset($_GET['bill']) ? trim($_GET['bill']) : '';
 $err     = '';
-$old     = array('why' => '', 'note' => '', 'refund' => '', 'refund_note' => '', 'qty' => array());
+$old     = array('why' => '', 'note' => '', 'refund' => '', 'refund_note' => '', 'refund_ch' => '', 'qty' => array());
 
 /* ---------- บันทึกการรับคืน ---------- */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $allowed) {
@@ -63,6 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $allowed) {
             'note'        => isset($_POST['note']) ? trim($_POST['note']) : '',
             'refund'      => isset($_POST['refund']) ? trim($_POST['refund']) : '',
             'refund_note' => isset($_POST['refund_note']) ? trim($_POST['refund_note']) : '',
+            'refund_ch'   => (isset($_POST['refund_ch']) && $_POST['refund_ch'] === 'transfer') ? 'transfer' : 'cash',
             'qty'         => $qtys,
         );
 
@@ -73,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $allowed) {
             $err = $pics['error'];
         } else {
             $refund = preg_replace('/[^0-9.]/', '', $old['refund']);
-            $r = return_save($code, $user, $bill, $qtys, $old['why'], $old['note'], $refund, $old['refund_note']);
+            $r = return_save($code, $user, $bill, $qtys, $old['why'], $old['note'], $refund, $old['refund_note'], $old['refund_ch']);
             if (isset($r['error'])) {
                 $err = $r['error'];
             } else {
@@ -109,7 +110,7 @@ require dirname(__FILE__) . '/inc/header.php';
 <?php if ($isShut) { ?>
   <div class="alert alert-info" id="store-alert" role="status">
     <svg class="ico"><use href="#i-info"/></svg>
-    <span>ร้านปิดแล้ววันนี้ — ค้นบิลได้ แต่บันทึกรับคืนไม่ได้ เพราะเงินคืนจ่ายเป็นเงินสดจากลิ้นชักของวันนี้<?php echo can($user, 'store_reopen') ? '' : ' · ถ้าต้องรับคืนวันนี้ ติดต่อผู้จัดการสาขาหรือผู้ดูแลให้เปิดร้านอีกครั้ง' ?></span>
+    <span>ร้านปิดแล้ววันนี้ — ค้นบิลได้ แต่บันทึกรับคืนไม่ได้ เพราะเงินที่คืนลูกค้าต้องหักจากยอดเงินของวันนี้<?php echo can($user, 'store_reopen') ? '' : ' · ถ้าต้องรับคืนวันนี้ ติดต่อผู้จัดการสาขาหรือผู้ดูแลให้เปิดร้านอีกครั้ง' ?></span>
     <?php if (can($user, 'store_reopen') && page_ok($user, 'store.php')) { ?>
     <div class="alert-act">
       <a class="btn btn-ghost btn-sm" href="store.php"><svg class="ico"><use href="#i-store"/></svg> ไปเปิดร้านใหม่</a>
@@ -119,7 +120,7 @@ require dirname(__FILE__) . '/inc/header.php';
 <?php } elseif (!$isOpen) { ?>
   <div class="alert alert-info" id="store-alert" role="status">
     <svg class="ico"><use href="#i-info"/></svg>
-    <span>ร้านยังไม่เปิด — ค้นบิลได้ แต่บันทึกรับคืนไม่ได้ เพราะเงินคืนจ่ายเป็นเงินสดจากลิ้นชักของวันนี้</span>
+    <span>ร้านยังไม่เปิด — ค้นบิลได้ แต่บันทึกรับคืนไม่ได้ เพราะเงินที่คืนลูกค้าต้องหักจากยอดเงินของวันนี้</span>
     <?php if (page_ok($user, 'store.php')) { ?>
     <div class="alert-act">
       <a class="btn btn-ghost btn-sm" href="store.php"><svg class="ico"><use href="#i-store"/></svg> ไปเปิดร้าน</a>
@@ -141,7 +142,7 @@ require dirname(__FILE__) . '/inc/header.php';
       รับคืนเรียบร้อย เอกสาร <b><?php echo e($done['no']) ?></b> (บิล <?php echo e($done['bill_no']) ?>) ·
       <?php echo (int) $done['items'] ?> รายการ · <?php echo number_format($done['qty']) ?> ชิ้น ·
       <?php echo $done['restock'] ? 'กลับเข้าสต๊อกแล้ว' : 'ไม่เข้าสต๊อก — แยกเก็บไว้' ?> ·
-      <?php if ($done['refund'] > 0) { ?>คืนเงินสด <b class="num"><?php echo e(money2($done['refund'])) ?></b> บาท<?php } else { ?>ไม่ได้คืนเงินสด<?php } ?>
+      <?php if ($done['refund'] > 0) { ?><?php echo $done['refund_channel'] === 'transfer' ? 'โอนคืน' : 'คืนเงินสด' ?> <b class="num"><?php echo e(money2($done['refund'])) ?></b> บาท<?php } else { ?>ไม่ได้คืนเงิน<?php } ?>
     </span>
   </div>
 <?php } ?>
@@ -183,7 +184,7 @@ require dirname(__FILE__) . '/inc/header.php';
                 <td class="doc" data-label="เลขบิล"><?php echo e($b['no']) ?><small><?php echo e($b['by']) ?></small></td>
                 <td class="td-stack" data-label="วันที่ขาย">
                   <?php echo bill_age_days($b) === 0 ? 'วันนี้' : e(thai_day_month(strtotime($b['date']))) ?>
-                  <small><?php echo e($b['time']) ?> น. · <?php echo $b['method'] === 'cash' ? 'เงินสด' : 'โอน / พร้อมเพย์' ?></small>
+                  <small><?php echo e($b['time']) ?> น. · <?php echo e(Stock_formatPayMethod($b)) ?></small>
                 </td>
                 <td data-label="รายการ"><span class="ret-names"><?php echo e(implode(' · ', $names)) ?></span></td>
                 <td class="r" data-label="ยอด"><?php echo e(money2($b['total'])) ?></td>
@@ -218,7 +219,7 @@ require dirname(__FILE__) . '/inc/header.php';
         <h2>บิล <?php echo e($bill['no']) ?></h2>
         <span class="sub">
           ขายเมื่อ <?php echo e(thai_date_full(strtotime($bill['date']))) ?> <?php echo e($bill['time']) ?> น. โดย <?php echo e($bill['by']) ?> ·
-          <?php echo $bill['method'] === 'cash' ? 'เงินสด' : 'โอน / พร้อมเพย์' ?> · ยอด <?php echo e(money2($bill['total'])) ?> บาท
+          <?php echo e(Stock_formatPayMethod($bill)) ?> · ยอด <?php echo e(money2($bill['total'])) ?> บาท
         </span>
       </div>
       <a class="btn btn-ghost btn-sm" href="return.php"><svg class="ico"><use href="#i-search"/></svg> เลือกบิลอื่น</a>
@@ -307,15 +308,21 @@ require dirname(__FILE__) . '/inc/header.php';
         <div class="field">
           <label>ยอดเงินคืน</label>
           <input type="hidden" id="refund" name="refund" value="0">
-          <small class="ret-calc">ไม่มีสิทธิ์คืนเงินสด — บันทึกเป็นรับคืนแบบไม่คืนเงิน (เช่น เปลี่ยนสินค้า / ของเสีย) ·
+          <small class="ret-calc">ไม่มีสิทธิ์คืนเงิน — บันทึกเป็นรับคืนแบบไม่คืนเงิน (เช่น เปลี่ยนสินค้า / ของเสีย) ·
             ตามราคาที่ขาย <b id="calc" class="num">0.00</b> บาท</small>
         </div>
         <?php } else { ?>
         <div class="field">
-          <label for="refund">ยอดเงินคืน (เงินสดจากลิ้นชัก)</label>
+          <label for="refund">ยอดเงินคืน</label>
           <input class="input cash" type="text" id="refund" name="refund" inputmode="decimal" autocomplete="off"
                  value="<?php echo e($old['refund']) ?>" placeholder="0.00">
           <small class="ret-calc">ตามราคาที่ขาย <b id="calc" class="num">0.00</b> บาท · แก้ได้แต่ไม่เกินยอดนี้</small>
+          <?php /* คืนเป็นเงินสด / โอน (23 พ.ย.) · เลือกไว้ก่อนตามที่ลูกค้าจ่าย */ $rch = ($old['refund_ch'] !== '') ? $old['refund_ch'] : Stock_getVoidRefundDefault($bill); ?>
+          <div class="chg-to ret-ch" id="ret-ch" role="radiogroup" aria-label="คืนเงินเป็น">
+            <span>คืนเงินเป็น</span>
+            <label<?php echo $rch === 'cash' ? ' class="on"' : '' ?>><input type="radio" name="refund_ch" value="cash"<?php echo $rch === 'cash' ? ' checked' : '' ?>> เงินสดจากลิ้นชัก</label>
+            <label<?php echo $rch === 'transfer' ? ' class="on"' : '' ?>><input type="radio" name="refund_ch" value="transfer"<?php echo $rch === 'transfer' ? ' checked' : '' ?>> โอนจากบัญชีสาขา</label>
+          </div>
         </div>
 
         <div class="field" id="rn-wrap" hidden>
@@ -345,7 +352,8 @@ require dirname(__FILE__) . '/inc/header.php';
 <?php if ($today) { ?>
   <!-- ==================== รับคืนวันนี้ ==================== -->
   <section class="card">
-    <div class="card-head"><div><h2>รับคืนวันนี้</h2><span class="sub"><?php echo count($today) ?> ใบ · เงินสดออกจากลิ้นชักรวม <?php echo e(money2(store_refunds($code))) ?> บาท</span></div></div>
+    <?php $trBack = 0; foreach ($today as $r) { $trBack += ($r['refund_channel'] === 'transfer') ? $r['refund'] : 0; } ?>
+    <div class="card-head"><div><h2>รับคืนวันนี้</h2><span class="sub"><?php echo count($today) ?> ใบ · เงินสดออกจากลิ้นชัก <?php echo e(money2(store_refunds($code))) ?> บาท<?php if ($trBack > 0) { ?> · โอนคืน <?php echo e(money2($trBack)) ?> บาท<?php } ?></span></div></div>
     <div class="tbl-wrap">
       <table class="tbl num">
         <thead><tr><th>ใบรับคืน</th><th>บิลเดิม</th><th>เหตุผล</th><th>สต๊อก</th><th class="r">คืนเงิน</th></tr></thead>
@@ -356,7 +364,7 @@ require dirname(__FILE__) . '/inc/header.php';
               <td data-label="บิลเดิม"><?php echo e($r['bill_no']) ?><small>ขายโดย <?php echo e($r['bill_by']) ?></small></td>
               <td data-label="เหตุผล"><?php echo e(return_reason_label($r['reason'])) ?><?php if ($r['note'] !== '') { ?><small><?php echo e($r['note']) ?></small><?php } ?></td>
               <td data-label="สต๊อก"><span class="bdg <?php echo $r['restock'] ? 'bdg-in' : 'bdg-adj' ?>"><?php echo $r['restock'] ? '+' . (int) $r['qty'] . ' เข้าสต๊อก' : 'แยกเก็บ' ?></span></td>
-              <td class="r" data-label="คืนเงิน"><?php echo e(money2($r['refund'])) ?><?php if ($r['refund_note'] !== '') { ?><small>ปรับจาก <?php echo e(money2($r['calc'])) ?> · <?php echo e($r['refund_note']) ?></small><?php } ?></td>
+              <td class="r" data-label="คืนเงิน"><?php echo e(money2($r['refund'])) ?><?php if ($r['refund_channel'] === 'transfer' && $r['refund'] > 0) { ?><small>โอนคืน</small><?php } ?><?php if ($r['refund_note'] !== '') { ?><small>ปรับจาก <?php echo e(money2($r['calc'])) ?> · <?php echo e($r['refund_note']) ?></small><?php } ?></td>
             </tr>
           <?php } ?>
         </tbody>
@@ -452,6 +460,14 @@ require dirname(__FILE__) . '/inc/header.php';
     var f = (k === 'note') ? note : (k === 'refund') ? refund : rn;
     return { box: f, field: f, after: f, msg: lack[1] };
   };
+  /* คืนเงินเป็น เงินสด / โอน — ไฮไลต์ตัวที่เลือก */
+  var chBox = document.getElementById('ret-ch');
+  if (chBox) {
+    chBox.addEventListener('change', function () {
+      var ls = chBox.querySelectorAll('label');
+      for (var i = 0; i < ls.length; i++) { ls[i].classList.toggle('on', ls[i].querySelector('input').checked); }
+    });
+  }
   refund.addEventListener('input', function () { touched = true; sync(); });
   form.addEventListener('input', sync);
   form.addEventListener('change', sync);
@@ -459,7 +475,9 @@ require dirname(__FILE__) . '/inc/header.php';
 
   /* สรุปให้กล่องยืนยัน (data-confirm="return" · inc/footer.php · 21 ต.ค. — เดิมกดแล้วบันทึกทันที คืนเงินผิดแก้ไม่ได้) */
   form.retSummary = function () {
-    var out = { lines: [], why: '', stock: stock.hidden ? '' : stock.textContent, refund: fmt(noCash ? 0 : num(refund.value)), noCash: noCash };
+    var chk = form.querySelector('input[name="refund_ch"]:checked');
+    var out = { lines: [], why: '', stock: stock.hidden ? '' : stock.textContent, refund: fmt(noCash ? 0 : num(refund.value)), noCash: noCash,
+                ch: chk ? chk.value : 'cash' };
     for (var i = 0; i < qs.length; i++) {
       var q = Math.max(0, Math.min(Number(qs[i].getAttribute('max')), Math.floor(num(qs[i].value))));
       if (!q) { continue; }

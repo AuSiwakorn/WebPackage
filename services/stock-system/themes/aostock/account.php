@@ -67,7 +67,7 @@ if (isset($_GET['export'])) {
         $void = !empty($b['void']);
         fputcsv($out, array(date('Y-m-d', strtotime($b['date'])), $b['time'], branch_name($c), acct_setting($c, 'tax_id'),
             acct_setting($c, 'tax_branch'), $b['no'], bill_type_label($b['vat']),
-            $b['method'] === 'cash' ? 'เงินสด' : 'โอน/พร้อมเพย์',
+            Stock_formatPayMethod($b),
             $void ? '0.00' : number_format(isset($b['subtotal']) ? $b['subtotal'] : $b['total'], 2, '.', ''),
             $void ? '0.00' : number_format(isset($b['discount']) ? $b['discount'] : 0, 2, '.', ''),
             $void ? '0.00' : number_format($b['base'], 2, '.', ''),
@@ -202,7 +202,7 @@ require dirname(__FILE__) . '/inc/header.php';
                 <td class="doc" data-label="เลขที่บิล"><?php echo e($b['no']) ?><small><?php echo e($b['time']) ?> น. · <?php echo e(branch_name($b['branch'])) ?> · <?php echo e($b['by']) ?></small></td>
                 <td data-label="ประเภท"><span class="bdg <?php echo $b['vat'] ? 'bdg-move' : 'bdg-adj' ?>"><?php echo e(bill_type_label($b['vat'])) ?></span>
                   <?php if ($void) { ?><span class="bdg bdg-out">ยกเลิก</span><?php } ?></td>
-                <td data-label="ชำระ"><?php echo $b['method'] === 'cash' ? 'เงินสด' : 'โอน / พร้อมเพย์' ?></td>
+                <td data-label="ชำระ"><?php echo e(Stock_formatPayMethod($b)) ?></td>
                 <td class="r" data-label="ก่อน VAT"><?php echo $b['vat'] ? e(money2($b['base'])) : '—' ?></td>
                 <td class="r" data-label="VAT"><?php echo $b['vat'] ? e(money2($b['vatamt'])) : '—' ?></td>
                 <td class="r" data-label="รวม"><?php echo $void ? '<s>' . e(money2($b['total'])) . '</s>' : e(money2($b['total'])) ?>

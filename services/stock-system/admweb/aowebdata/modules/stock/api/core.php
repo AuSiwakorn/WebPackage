@@ -30,7 +30,7 @@ function active_roles()
 function feature_groups()
 {
     return array(
-        'refund'    => array('label' => 'รับคืนสินค้า', 'hint' => 'พนักงานรับคืนสินค้า / คืนเงินสด และหน้าตรวจใบรับคืนของผู้ดูแล',
+        'refund'    => array('label' => 'รับคืนสินค้า', 'hint' => 'พนักงานรับคืนสินค้า / คืนเงิน และหน้าตรวจใบรับคืนของผู้ดูแล',
                              'pages' => array('return.php', 'adm-return.php')),
         'stocktake' => array('label' => 'ตรวจนับสต๊อก', 'hint' => 'หน้าตรวจนับของพนักงาน และงานค้าง "ตรวจนับรอบนี้ยังไม่ครบ"',
                              'pages' => array('stocktake.php')),
@@ -150,7 +150,7 @@ function perm_list()
         'doc_fix'       => array('group' => 'stock',    'label' => 'แก้ / ยกเลิกเอกสารคลังของตัวเอง (วันนี้)', 'short' => 'แก้เอกสารคลังตัวเอง',
                                  'needs' => array('receive', 'issue', 'stocktake')),
         'refund'        => array('group' => 'refund',   'label' => 'รับคืนสินค้า',                      'short' => 'รับคืนสินค้า'),
-        'refund_cash'   => array('group' => 'refund',   'label' => 'คืนเงินสดให้ลูกค้า',                 'short' => 'คืนเงินสด', 'needs' => array('refund')),
+        'refund_cash'   => array('group' => 'refund',   'label' => 'คืนเงินให้ลูกค้า',                   'short' => 'คืนเงิน',   'needs' => array('refund')),
         'category_add'  => array('group' => 'category', 'label' => 'เพิ่มหมวดสินค้า',                    'short' => 'เพิ่มหมวด'),
         'category_del'  => array('group' => 'category', 'label' => 'ลบหมวดสินค้า',                      'short' => 'ลบหมวด'),
         'products'      => array('group' => 'view',     'label' => 'ดูสินค้าในสต๊อก',                    'short' => 'สินค้าในสต๊อก'),

@@ -55,6 +55,20 @@ $fields = array(
     'default_float'    => array('label' => 'เงินทอนมาตรฐาน',                 'unit' => 'บาท',
                                 'hint'  => 'ค่าเริ่มต้นของเงินทอนที่แยกไว้ตอนปิดร้านสำหรับวันถัดไป'),
 );
+/* ยอดบัญชีโอนตอนเริ่มใช้ (23 พ.ย.) — ทศนิยมได้ ไม่บังคับ · ใช้ได้จนกว่าสาขาจะปิดร้านพร้อมยอดในแอปครั้งแรก (Stock_isBankStartUsed) */
+$bankLbl  = 'ยอดเงินในบัญชีโอนตอนเริ่มใช้';
+$bankHint = 'ยอดในบัญชีธนาคารของสาขาก่อนเปิดร้านครั้งแรก · แก้ได้จนกว่าสาขาจะปิดร้านพร้อมกรอกยอดในแอปครั้งแรก — หลังจากนั้นปรับยอดด้วยเติม / หยิบเงินแบบโอนที่หน้าเปิด–ปิดร้าน';
+$readBank = function () use ($bankLbl) {             // คืน array(ยอด, ข้อผิดพลาด) · ว่าง = 0
+    $r   = branch_setting_rules();
+    $raw = isset($_POST['bank_start']) ? str_replace(array(',', ' '), '', trim((string) $_POST['bank_start'])) : '';
+    if ($raw === '') {
+        return array(0.0, '');
+    }
+    if (!preg_match('/^\d+(\.\d{1,2})?$/', $raw) || (float) $raw > $r['bank_start'][1]) {
+        return array(0.0, $bankLbl . ' ต้องเป็นตัวเลข 0–' . number_format($r['bank_start'][1]) . ' บาท (ทศนิยมได้ 2 ตำแหน่ง)');
+    }
+    return array(round((float) $raw, 2), '');
+};
 $info = array(
     'name'    => array('label' => 'ชื่อสาขา',  'max' => 100, 'ph' => 'เช่น สาขาเซ็นทรัลเวสต์เกต', 'req' => true),
     'short'   => array('label' => 'ชื่อย่อ',   'max' => 30,  'ph' => 'เช่น เวสต์เกต (ใช้บนแถบ/การ์ด)', 'req' => false),
@@ -96,10 +110,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($err === '') {
             list($set, $err) = read_settings($fields);
         }
+        if ($err === '') {
+            list($bankAmt, $err) = $readBank();
+        }
         if ($err === '' && $vatCol) {
             $err = Stock_checkBranchVatInput();                    // ขายแบบ VAT — บังคับเลือก (21 ต.ค.)
         }
-        $in['vat'] = ($vatCol && isset($_POST['sell_vat']) && $_POST['sell_vat'] === '1');
+        $in['vat'] =($vatCol && isset($_POST['sell_vat']) && $_POST['sell_vat'] === '1');
         if ($err === '') {
             if (!preg_match('/^[A-Z0-9]{2,6}$/', $bc)) {
                 $err = 'รหัสสาขาต้องเป็นภาษาอังกฤษพิมพ์ใหญ่หรือตัวเลข 2–6 ตัว';
@@ -114,10 +131,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (branch_create($bc, $in, $set) <= 0) {        // มีคนเพิ่มสาขาพร้อมกันจนครบจำนวนก่อน
                 $err = branch_limit_error();
             } else {
+                if ($bankAmt > 0) {
+                    Stock_setBankStart($bc, $bankAmt);
+                }
                 log_add($bc, 'setting', $user, 'เพิ่มสาขาใหม่ ' . $in['name'], array(
                     'รหัสสาขา'   => $bc,
                     'ขายแบบ VAT' => Stock_formatBranchVat($in['vat']),
                     'เลขที่บิล'   => $in['vat'] ? $bc . 'V… (VAT) · ' . $bc . '… (ไม่ VAT)' : $bc . '… (ไม่ VAT)',
+                    $bankLbl     => money2($bankAmt) . ' บาท',
                     'เพิ่มโดย'    => $user['name'] . ' (ผู้ดูแล)',
                 ));
                 $go = 'adm-branches.php?ok=' . rawurlencode($bc) . '&do=add#b-' . $bc;
@@ -133,6 +154,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $old[$bc] = array_merge($in, $_POST);
         if ($err === '') {
             list($set, $err) = read_settings($fields);
+        }
+        $bankLock = Stock_isBankStartUsed($bc);                    // ปิดร้านพร้อมยอดในแอปแล้ว = ไม่รับค่าใหม่
+        if ($err === '' && !$bankLock) {
+            list($bankAmt, $err) = $readBank();
         }
         if ($err === '' && $vatCol) {
             $err = Stock_checkBranchVatInput();                    // ขายแบบ VAT — บังคับเลือก (21 ต.ค.)
@@ -154,6 +179,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $changes[$fields[$k]['label']] = $setTxt($k, $o) . ' → ' . $setTxt($k, $v);
                 }
                 branch_setting_set($bc, $k, $v);
+            }
+            $br0     = branch_row($bc);
+            $bankOld = isset($br0['bank_start']) ? (float) $br0['bank_start'] : 0.0;
+            if (!$bankLock && abs($bankOld - $bankAmt) >= 0.005) {
+                Stock_setBankStart($bc, $bankAmt);
+                $changes[$bankLbl] = money2($bankOld) . ' → ' . money2($bankAmt) . ' บาท';
             }
             $vatOn = ($vatCol && $_POST['sell_vat'] === '1');
             if (Stock_setBranchVat($bc, $vatOn)) {
@@ -331,6 +362,15 @@ $vatField = function ($id, $on, $miss) use ($vatCol) {
           <small class="adm-hint"><?php echo e($f['hint']) ?></small>
         </div>
       <?php } ?>
+      <div class="field">
+        <label for="new-bank_start"><?php echo e($bankLbl) ?> <small class="adm-none">(ไม่บังคับ)</small></label>
+        <div class="adm-unit">
+          <input class="input" type="text" id="new-bank_start" name="bank_start" value="<?php echo e($v('new', 'bank_start', '')) ?>"
+                 inputmode="decimal" autocomplete="off" placeholder="0.00">
+          <span>บาท</span>
+        </div>
+        <small class="adm-hint"><?php echo e($bankHint) ?></small>
+      </div>
       <?php $vatField('new', $v('new', 'sell_vat', '0') === '1', array()); /* ค่าเริ่มต้น “ไม่มี” */ ?>
     </div>
     <div class="fm-foot">
@@ -406,6 +446,20 @@ $openB = ($okB !== '' && isset($list[$okB])) ? $okB : (($errB !== '' && isset($l
             <small class="adm-hint"><?php echo e($f['hint']) ?></small>
           </div>
         <?php } ?>
+        <?php $br0 = branch_row($bc); $bankNow = isset($br0['bank_start']) ? (float) $br0['bank_start'] : 0.0; $bankLock = Stock_isBankStartUsed($bc); ?>
+        <div class="field">
+          <label for="<?php echo e($bc) ?>-bank_start"><?php echo e($bankLbl) ?></label>
+          <div class="adm-unit">
+            <?php if ($bankLock) { ?>
+              <input class="input" type="text" id="<?php echo e($bc) ?>-bank_start" value="<?php echo e(money2($bankNow)) ?>" disabled>
+            <?php } else { ?>
+              <input class="input" type="text" id="<?php echo e($bc) ?>-bank_start" name="bank_start" value="<?php echo e($v($bc, 'bank_start', number_format($bankNow, 2, '.', ''))) ?>"
+                     inputmode="decimal" autocomplete="off" placeholder="0.00">
+            <?php } ?>
+            <span>บาท</span>
+          </div>
+          <small class="adm-hint"><?php echo $bankLock ? 'สาขานี้ปิดร้านพร้อมยอดบัญชีโอนไปแล้ว — ปรับยอดด้วยเติม / หยิบเงินแบบโอนที่หน้าเปิด–ปิดร้าน' : e($bankHint) ?></small>
+        </div>
         <?php $vatOn = ($v($bc, 'sell_vat', $b['vat'] ? '1' : '0') === '1');
               $vatField($bc, $vatOn, $b['vat'] ? Stock_getVatMissing($bc) : array()); ?>
       </div>

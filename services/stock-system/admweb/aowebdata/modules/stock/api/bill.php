@@ -314,7 +314,8 @@ function acct_day($code, $ts)
         $s['total'] += $b['total'];
         $s['base']  += $b['vat'] ? $b['base'] : 0;     // มูลค่าก่อน VAT นับเฉพาะบิล VAT
         $s['vat']   += $b['vatamt'];
-        $s[$b['method'] === 'cash' ? 'cash' : 'transfer'] += $b['total'];
+        $s['cash']     += $b['pay_cash'] - $b['change_cash'];             // สุทธิต่อช่องทาง (รับ − ทอน) · รวมสองช่อง = ยอดขาย
+        $s['transfer'] += $b['pay_transfer'] - $b['change_transfer'];
     }
     $s['refund'] = acct_refunds($code, $ts);                // ทุกวัน (เดิมมีเฉพาะวันนี้)
     $s['net'] = $s['cash'] + $s['transfer'] - $s['refund'];
@@ -325,13 +326,14 @@ function acct_day($code, $ts)
 function acct_range($code, $from, $to)
 {
     $p   = array((string) $code, date('Y-m-d', $from), date('Y-m-d', $to));
+    $q   = Stock_buildPaySql('s');                         // เงินสด / โอนสุทธิต่อช่องทาง (รับ − ทอน)
     $r   = sdb_row('SELECT COUNT(*) AS bills, COALESCE(SUM(s.is_vat = 1), 0) AS v, COALESCE(SUM(s.is_vat = 0), 0) AS n,'
                  . ' COALESCE(SUM(s.status = \'void\'), 0) AS void_n,'
                  . ' COALESCE(SUM(CASE WHEN s.status = \'paid\' THEN s.total ELSE 0 END), 0) AS total,'
                  . ' COALESCE(SUM(CASE WHEN s.status = \'paid\' AND s.is_vat = 1 THEN s.base_amount ELSE 0 END), 0) AS base,'
                  . ' COALESCE(SUM(CASE WHEN s.status = \'paid\' AND s.is_vat = 1 THEN s.vat_amount ELSE 0 END), 0) AS vat,'
-                 . ' COALESCE(SUM(CASE WHEN s.status = \'paid\' AND s.pay_method = \'cash\' THEN s.total ELSE 0 END), 0) AS cash,'
-                 . ' COALESCE(SUM(CASE WHEN s.status = \'paid\' AND s.pay_method <> \'cash\' THEN s.total ELSE 0 END), 0) AS transfer'
+                 . ' COALESCE(SUM(CASE WHEN s.status = \'paid\' THEN ' . $q['cash_in'] . ' - ' . $q['cash_out'] . ' ELSE 0 END), 0) AS cash,'
+                 . ' COALESCE(SUM(CASE WHEN s.status = \'paid\' THEN ' . $q['tr_in'] . ' - ' . $q['tr_out'] . ' ELSE 0 END), 0) AS transfer'
                  . ' FROM ' . sdb_tb('sale') . ' s JOIN ' . sdb_tb('branch') . ' b ON b.branch_id = s.branch_id'
                  . ' WHERE b.code = ? AND s.sale_date BETWEEN ? AND ?', $p);
     $ref = (float) sdb_val('SELECT COALESCE(SUM(r.refund), 0) FROM ' . sdb_tb('return') . ' r JOIN ' . sdb_tb('branch') . ' b ON b.branch_id = r.branch_id'

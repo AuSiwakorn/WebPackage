@@ -60,7 +60,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $r = Stock_closePastDay($code, $day, $user,
                                         isset($_POST['cash_counted']) ? preg_replace('/[^0-9.]/', '', $_POST['cash_counted']) : 0,
                                         isset($_POST['keep']) ? preg_replace('/[^0-9.]/', '', $_POST['keep']) : branch_default_float($code),
-                                        isset($_POST['note']) ? $_POST['note'] : '');
+                                        isset($_POST['note']) ? $_POST['note'] : '',
+                                        isset($_POST['bank_counted']) ? preg_replace('/[^0-9.\-]/', '', $_POST['bank_counted']) : '');
                 if (isset($r['error'])) {
                     $error = $r['error'];
                 } else {
@@ -72,11 +73,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $topup   = isset($_POST['topup']) ? round((float) preg_replace('/[^0-9.]/', '', $_POST['topup']), 2) : 0;
             $counted = (isset($_POST['counted']) && $_POST['counted'] !== '') ? round((float) preg_replace('/[^0-9.]/', '', $_POST['counted']), 2) : null;
             $reason  = isset($_POST['reason']) ? $_POST['reason'] : '';
+            /* ยอดบัญชีโอนยกมาไม่ตรงกับในแอป (23 พ.ย.) — ว่าง = ตรง */
+            $bankIn  = isset($_POST['bank_counted']) ? preg_replace('/[^0-9.\-]/', '', (string) $_POST['bank_counted']) : '';
+            $bankCnt = ($bankIn === '' || !is_numeric($bankIn)) ? null : round((float) $bankIn, 2);
+            $bankWhy = isset($_POST['bank_reason']) ? (string) $_POST['bank_reason'] : '';
+            $bankCar = Stock_getBankCarry($code);
 
             if ($counted !== null && abs($counted - $carry['amount']) >= 0.01 && trim($reason) === '') {
                 $error = 'กรุณาระบุเหตุผลเมื่อยอดเงินทอนไม่ตรงกับที่ยกมา';
+            } elseif ($bankCnt !== null && abs($bankCnt - $bankCar['amount']) >= 0.005 && trim($bankWhy) === '') {
+                $error = 'กรุณาระบุเหตุผลเมื่อยอดบัญชีโอนไม่ตรงกับที่ยกมา';
             } else {
-                store_open($code, $user, $topup, $counted, $reason);
+                store_open($code, $user, $topup, $counted, $reason, $bankCnt, $bankWhy);
                 header('Location: ' . url('store.php?opened=1'));
                 exit;
             }
@@ -94,11 +102,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $keep    = isset($_POST['keep']) ? round((float) preg_replace('/[^0-9.]/', '', $_POST['keep']), 2) : branch_default_float($code);
             $note    = isset($_POST['note']) ? $_POST['note'] : '';
             $diff    = round($counted - store_expected_cash($code), 2);
+            /* บัญชีโอน (วันที่มี) — ต้องกรอกยอดในแอป · ไม่ตรงต้องมีหมายเหตุ (23 พ.ย.) */
+            $bankDay = Stock_getDayBank(store_state($code)['id']);
+            $bankIn  = isset($_POST['bank_counted']) ? preg_replace('/[^0-9.\-]/', '', (string) $_POST['bank_counted']) : '';
+            $bankCnt = ($bankIn === '' || !is_numeric($bankIn)) ? null : round((float) $bankIn, 2);
 
             /* เงินไม่ตรงกับที่ควรมี = การแก้ไขตัวเลข ต้องมีหมายเหตุทุกครั้ง */
             if (abs($diff) >= 0.01 && trim($note) === '') {
                 $error = 'เงินที่นับได้ไม่ตรงกับยอดที่ควรมี กรุณากรอกหมายเหตุว่าเกิดจากอะไร';
-            } elseif (store_close($code, $user, $counted, $keep, $note) === null) {
+            } elseif ($bankDay !== null && $bankCnt === null) {
+                $error = 'กรุณากรอกยอดคงเหลือในแอปธนาคารของบัญชีสาขา';
+            } elseif ($bankDay !== null && abs($bankCnt - $bankDay['expected']) >= 0.005 && trim($note) === '') {
+                $error = 'ยอดในบัญชีโอนไม่ตรงกับยอดที่ควรมี กรุณากรอกหมายเหตุว่าเกิดจากอะไร';
+            } elseif (store_close($code, $user, $counted, $keep, $note, $bankCnt) === null) {
                 $error = 'ร้านปิดไปแล้ว (อาจมีเครื่องอื่นปิดก่อน)';
             } else {
                 header('Location: ' . url('store.php?closed=1'));
@@ -108,7 +124,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             /* เติมเงินทอน / หยิบเงินออกระหว่างวัน — ต้องมีเหตุผลเสมอ */
             $r = store_cash_add($code, $user, isset($_POST['dir']) ? $_POST['dir'] : '',
                                 isset($_POST['amount']) ? preg_replace('/[^0-9.]/', '', $_POST['amount']) : 0,
-                                isset($_POST['why']) ? $_POST['why'] : '');
+                                isset($_POST['why']) ? $_POST['why'] : '',
+                                (isset($_POST['channel']) && $_POST['channel'] === 'transfer') ? 'transfer' : 'cash');
             if (isset($r['error'])) {
                 $cashErr  = $r['error'];
                 $cashPost = $_POST;
@@ -134,7 +151,7 @@ $past  = null;
 if (!store_is_open($code) && !store_is_closed($code) && $carry['unclosed'] !== '') {
     $pr = store_day_row($code, date('Y-m-d', strtotime($carry['unclosed'])));
     if ($pr !== null && $pr['status'] === 'open') {
-        $past = array('ymd' => $carry['unclosed'], 'cash' => Stock_getDayCash($pr['day_id']),
+        $past = array('ymd' => $carry['unclosed'], 'cash' => Stock_getDayCash($pr['day_id']), 'bank' => Stock_getDayBank($pr['day_id']),
                       'opened' => date('H:i', strtotime($pr['opened_at'])), 'by' => ($pr['opened_name'] !== null) ? $pr['opened_name'] : '-');
     }
 }
@@ -145,6 +162,11 @@ $isClosed = store_is_closed($code);
 $cash     = store_daily_cash($code);                 // อ่านใหม่หลังบันทึก
 $expected = store_expected_cash($code);
 $cashList = $isOpen ? store_cash_list($code) : array();
+/* เงินสองกอง (23 พ.ย.): ลิ้นชัก + บัญชีโอนของสาขา · บัญชีโอน null = วันนี้ไม่มี (เปิดก่อนเปิดใช้) */
+$dayCash   = ($state !== null) ? Stock_getDayCash($state['id']) : null;
+$bank      = ($state !== null) ? Stock_getDayBank($state['id']) : null;
+$bankList  = ($isOpen && $bank !== null) ? Stock_getTransferList($state['id']) : array();
+$bankCarry = (!$isOpen && !$isClosed) ? Stock_getBankCarry($code) : null;
 $num      = function ($n) { return rtrim(rtrim(number_format((float) $n, 2, '.', ''), '0'), '.'); };   // ค่าในช่อง input
 $cv       = function ($k) use ($cashPost) { return isset($cashPost[$k]) ? trim((string) $cashPost[$k]) : ''; };   // ค่าที่กรอกไว้ในฟอร์มเงินเข้า / ออก
 
@@ -211,8 +233,8 @@ require dirname(__FILE__) . '/inc/header.php';
         <div><span>+ เติมระหว่างวัน</span><b><?php echo e(money2($pc['topup'])) ?></b></div>
         <div><span>+ ขายเงินสด</span><b><?php echo e(money2($pc['sales'])) ?></b></div>
         <div><span>− หยิบออกใช้จ่าย</span><b><?php echo e(money2($pc['withdraw'])) ?></b></div>
-        <?php if ($pc['refunds'] > 0) { ?>
-        <div><span>− คืนเงินลูกค้า (รับคืนสินค้า)</span><b><?php echo e(money2($pc['refunds'])) ?></b></div>
+        <?php if ($pc['refunds'] + $pc['void_refunds'] > 0) { ?>
+        <div><span>− คืนเงินลูกค้า (รับคืน · ยกเลิกบิล)</span><b><?php echo e(money2($pc['refunds'] + $pc['void_refunds'])) ?></b></div>
         <?php } ?>
         <div class="tot"><span>ควรมีในลิ้นชัก</span><b id="expected" data-v="<?php echo e($num($pc['expected'])) ?>"><?php echo e(money2($pc['expected'])) ?></b></div>
       </div>
@@ -232,6 +254,17 @@ require dirname(__FILE__) . '/inc/header.php';
         <input class="input cash" type="number" id="keep" name="keep"
                value="<?php echo e($num(branch_default_float($code))) ?>" min="0" step="0.01" inputmode="decimal">
       </div>
+
+      <?php if ($past['bank'] !== null) { /* บัญชีโอนของวันนั้น — ยอดในแอปไม่บังคับ (มักไม่รู้ยอดย้อนหลัง) */ ?>
+      <div class="kvl">
+        <div class="tot"><span>บัญชีโอน ควรมี</span><b><?php echo e(money2($past['bank']['expected'])) ?></b></div>
+      </div>
+      <div class="field">
+        <label for="bank_counted">ยอดในแอปธนาคาร <small class="adm-none">(ไม่บังคับ)</small></label>
+        <input class="input" type="number" id="bank_counted" name="bank_counted" step="0.01" inputmode="decimal" placeholder="<?php echo e($num($past['bank']['expected'])) ?>">
+        <small class="adm-hint">เว้นว่าง = ยกยอดที่ควรมีไปเป็นยอดตั้งต้นของวันนี้</small>
+      </div>
+      <?php } ?>
 
       <div class="field">
         <label for="note">ทำไมวันนั้นไม่ได้ปิดร้าน <i class="req">จำเป็น</i></label>
@@ -295,6 +328,29 @@ require dirname(__FILE__) . '/inc/header.php';
         <p class="hint-note">บันทึกเป็นรายการปรับเงินทอน และแจ้งผู้ดูแลอัตโนมัติ</p>
       </div>
 
+      <?php /* บัญชีโอนของสาขา — ช่องยอดในแอปขึ้นเลย ไม่บังคับ (ว่าง = ตรง) · ไม่ตรง → ผลต่าง + เหตุผล (จำเป็น) · วันแรกเติมเหตุผลให้ (24 พ.ย.) */
+      $bankFirst = ($bankCarry['from'] === 'start'); ?>
+      <div class="kvl store-bank-open">
+        <div><span>ยอดบัญชีโอนยกมา</span><b id="bank-carry" data-v="<?php echo e($num($bankCarry['amount'])) ?>"><?php echo e(money2($bankCarry['amount'])) ?></b></div>
+        <div class="sub"><span><?php echo $bankFirst ? 'ยอดตั้งต้นของสาขา (ยังไม่เคยปิดร้านพร้อมยอดบัญชี)'
+                                         : 'ยอดในแอปตอนปิดร้านวัน' . e(thai_date_full(strtotime($bankCarry['ymd']))) ?></span><span></span></div>
+      </div>
+      <div class="field store-bank-in">
+        <label for="bank_counted">ยอดในแอปธนาคารตอนนี้ <small class="adm-none">(ไม่บังคับ)</small></label>
+        <input class="input" type="number" id="bank_counted" name="bank_counted" step="0.01" inputmode="decimal"
+               placeholder="<?php echo e($num($bankCarry['amount'])) ?>">
+        <small class="hint-note">เปิดแอปธนาคารของบัญชีสาขาดูยอดคงเหลือ · ว่างไว้ = ตรงกับยอดยกมา</small>
+      </div>
+      <p class="bank-open-diff" id="bank-open-diff" hidden>ต่างจากยอดยกมา <b id="bank-open-diff-v"></b></p>
+      <div id="bank-adj" hidden>
+        <div class="field">
+          <label for="bank_reason">เหตุผลที่ไม่ตรง <i class="req">จำเป็น</i></label>
+          <input class="input" type="text" id="bank_reason" name="bank_reason" maxlength="255" autocomplete="off"
+                 value="<?php echo $bankFirst ? 'ยอดเริ่มต้นวันแรก' : '' ?>" placeholder="เช่น ฝากเงินนำส่งเมื่อวาน / ลูกค้าโอนมาหลังปิดร้าน">
+        </div>
+        <p class="hint-note">ยอดในแอปเป็นยอดตั้งต้นของวันนี้ · ผลต่างลงประวัติเป็น “เงินขยับระหว่างร้านปิด” ไม่นับเป็นขาด / เกินตอนปิดร้าน</p>
+      </div>
+
       <button class="btn btn-primary btn-block btn-xl" type="submit">
         <svg class="ico"><use href="#i-store"/></svg> เปิดร้าน
       </button>
@@ -339,6 +395,9 @@ require dirname(__FILE__) . '/inc/header.php';
       <?php if ($state['counted'] !== null) { ?>
         <br><span class="warn-txt">แจ้งยอดไม่ตรง: นับได้ <?php echo e(money2($state['counted'])) ?> · <?php echo e($state['reason']) ?></span>
       <?php } ?>
+      <?php if ($state['bank_open_counted'] !== null) { ?>
+        <br><span class="warn-txt">ยอดบัญชีโอนไม่ตรง: ในแอป <?php echo e(money2($state['bank_open_counted'])) ?> · <?php echo e($state['bank_open_reason']) ?></span>
+      <?php } ?>
     </p>
     <a class="btn btn-outline" href="dashboard.php">
       <svg class="ico"><use href="#i-home"/></svg> ไปหน้าภาพรวมของฉัน
@@ -347,7 +406,7 @@ require dirname(__FILE__) . '/inc/header.php';
 
   <!-- เงินเข้า / ออกลิ้นชักระหว่างวัน -->
   <section class="card store-cash" id="cash-card">
-    <div class="card-head"><div><h3>เติมเงินทอน / หยิบเงินออก</h3><p>ระหว่างวัน · ต้องระบุเหตุผลทุกครั้ง · ลงประวัติให้ผู้ดูแลเห็น</p></div></div>
+    <div class="card-head"><div><h3>เติมเงินทอน / หยิบเงินออก</h3><p>ระหว่างวัน · เงินสดในลิ้นชัก หรือบัญชีโอนของสาขา · ต้องระบุเหตุผลทุกครั้ง · ลงประวัติให้ผู้ดูแลเห็น</p></div></div>
     <div class="card-body num">
       <?php /* ผลของฟอร์มนี้แสดงในการ์ด (#cash-card) — เดิมขึ้นบนสุดของหน้า ต้องเลื่อนขึ้นไปดู และค่าที่กรอกหายหมด (21 ต.ค.) */ ?>
       <?php if ($cashErr !== '') { ?>
@@ -359,7 +418,7 @@ require dirname(__FILE__) . '/inc/header.php';
         <div class="kvl">
           <?php foreach ($cashList as $cm) { ?>
             <div><span><?php echo e($cm['time']) ?> น. · <?php echo e($cm['reason']) ?> <small>(<?php echo e($cm['by']) ?>)</small></span>
-                 <b class="<?php echo $cm['dir'] === 'in' ? 'qty-in' : 'qty-out' ?>"><?php echo $cm['dir'] === 'in' ? '+' : '−' ?><?php echo e(money2($cm['amount'])) ?></b></div>
+                 <b class="<?php echo $cm['dir'] === 'in' ? 'qty-in' : 'qty-out' ?>"><?php echo $cm['dir'] === 'in' ? '+' : '−' ?><?php echo e(money2($cm['amount'])) ?><?php echo $cm['channel'] === 'transfer' ? ' <small>โอน</small>' : '' ?></b></div>
           <?php } ?>
         </div>
       <?php } ?>
@@ -367,22 +426,43 @@ require dirname(__FILE__) . '/inc/header.php';
       <form method="post" action="store.php#cash-card" class="store-cash-f">
         <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
         <input type="hidden" name="act" value="cash">
-        <div class="field">
-          <label for="cash-dir">รายการ</label>
-          <select class="input" id="cash-dir" name="dir">
-            <option value="in">เติมเงินทอนเข้าลิ้นชัก</option>
-            <option value="out"<?php echo $cv('dir') === 'out' ? ' selected' : '' ?>>หยิบเงินออกจากลิ้นชัก</option>
-          </select>
+        <?php /* ช่องทาง / รายการเป็นปุ่มเลือก (24 พ.ย.) — คำของรายการ + ตัวอย่างเหตุผลเปลี่ยนตามช่องทาง (สคริปต์ท้ายหน้า) */
+              $cvTr  = ($cv('channel') === 'transfer');
+              $cvOut = ($cv('dir') === 'out');
+              $dirs  = array('in'  => array('i-plus', 'เติมเงินทอนเข้าลิ้นชัก', 'เติมเงินเข้าบัญชีโอน'),
+                             'out' => array('i-minus', 'หยิบเงินออกจากลิ้นชัก', 'โอนเงินออกจากบัญชีโอน'));
+              $phs   = array('cash' => 'เช่น แลกเหรียญเพิ่ม / ซื้อถุงใส่ของ', 'transfer' => 'เช่น เจ้าของโอนเข้าไว้ทอน / ค่าธรรมเนียมธนาคาร'); ?>
+        <div class="cash-picks">
+        <div class="field cash-pick">
+          <span class="lbl" id="cash-ch-lb">ช่องทาง</span>
+          <div class="segs cash-segs" id="cash-ch" role="radiogroup" aria-labelledby="cash-ch-lb">
+            <label class="seg<?php echo $cvTr ? '' : ' on' ?>"><input type="radio" name="channel" value="cash"<?php echo $cvTr ? '' : ' checked' ?>><svg class="ico"><use href="#i-coin"/></svg> เงินสดในลิ้นชัก</label>
+            <label class="seg<?php echo $cvTr ? ' on' : '' ?>"><input type="radio" name="channel" value="transfer"<?php echo $cvTr ? ' checked' : '' ?>><svg class="ico"><use href="#i-transfer"/></svg> บัญชีโอนของสาขา</label>
+          </div>
         </div>
-        <div class="field">
+        <div class="field cash-pick">
+          <span class="lbl" id="cash-dir-lb">รายการ</span>
+          <div class="segs cash-segs cash-segs-dir" id="cash-dir" role="radiogroup" aria-labelledby="cash-dir-lb">
+            <?php foreach ($dirs as $dk => $dv) { $on = ($dk === 'out') === $cvOut; ?>
+            <label class="seg<?php echo $on ? ' on' : '' ?>"><input type="radio" name="dir" value="<?php echo $dk ?>"<?php echo $on ? ' checked' : '' ?>><svg class="ico"><use href="#<?php echo $dv[0] ?>"/></svg>
+              <span data-cash="<?php echo e($dv[1]) ?>" data-transfer="<?php echo e($dv[2]) ?>"><?php echo e($cvTr ? $dv[2] : $dv[1]) ?></span></label>
+            <?php } ?>
+          </div>
+        </div>
+        </div>
+        <div class="field cash-amt-f">
           <label for="cash-amt">จำนวนเงิน</label>
-          <input class="input" type="number" id="cash-amt" name="amount" min="0.01" max="1000000" step="0.01" inputmode="decimal" required
-                 value="<?php echo e($cv('amount')) ?>">
+          <div class="adm-unit">
+            <input class="input" type="number" id="cash-amt" name="amount" min="0.01" max="1000000" step="0.01" inputmode="decimal" required
+                   value="<?php echo e($cv('amount')) ?>" placeholder="0.00">
+            <span>บาท</span>
+          </div>
         </div>
         <div class="field field-why">
           <label for="cash-why">เหตุผล</label>
           <input class="input" type="text" id="cash-why" name="why" maxlength="200" required autocomplete="off"
-                 value="<?php echo e($cv('why')) ?>" placeholder="เช่น แลกเหรียญเพิ่ม / ซื้อถุงใส่ของ">
+                 value="<?php echo e($cv('why')) ?>" placeholder="<?php echo e($phs[$cvTr ? 'transfer' : 'cash']) ?>"
+                 data-ph-cash="<?php echo e($phs['cash']) ?>" data-ph-transfer="<?php echo e($phs['transfer']) ?>">
         </div>
         <button class="btn btn-ghost" type="submit"><svg class="ico"><use href="#i-coin"/></svg> บันทึก</button>
       </form>
@@ -398,10 +478,8 @@ require dirname(__FILE__) . '/inc/header.php';
   <h3 class="store-h3">ปิดร้าน</h3>
   <p class="store-sub">ทำตอนเลิกงาน — ปิดแล้วจะบันทึกรายการเพิ่มไม่ได้</p>
 
-  <form method="post" action="store.php" class="store-two">
-    <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
-    <input type="hidden" name="act" value="close">
-
+  <?php /* การ์ดสินค้าที่ขายวันนี้ — วันที่มีบัญชีโอน: ล่างสุดเต็มแถว (ซ้าย = บัญชีโอน · ขวา = เงินสด · 24 พ.ย.) · ไม่มีบัญชีโอน: คอลัมน์ซ้ายแบบเดิม */
+  ob_start(); ?>
     <!-- สินค้าที่ขายวันนี้ + ยอดเงินสด / โอน -->
     <section class="card store-sold-card">
       <div class="card-head">
@@ -434,6 +512,65 @@ require dirname(__FILE__) . '/inc/header.php';
         </div>
       <?php } ?>
     </section>
+  <?php $soldCard = ob_get_clean(); ?>
+
+  <form method="post" action="store.php" class="store-two">
+    <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
+    <input type="hidden" name="act" value="close">
+
+    <div class="store-col">
+    <?php if ($bank === null) { echo $soldCard; } ?>
+
+    <?php if ($bank !== null) { /* บัญชีโอนของสาขา — ลิ้นชักที่สอง (23 พ.ย.) · กรอกยอดในแอปธนาคารก่อนปิด */
+    $bkKind = array('sale' => 'ลูกค้าโอนจ่าย', 'change' => 'ทอนเป็นโอน', 'void' => 'ยกเลิกบิล คืนแบบโอน', 'refund' => 'คืนเงินลูกค้า (รับคืน)',
+                    'topup' => 'เติมเข้าบัญชี', 'withdraw' => 'โอนออก'); ?>
+    <section class="card store-bank-card">
+      <div class="card-head"><div><h3>บัญชีโอนของสาขา</h3><p>เปิดแอปธนาคารดูยอดคงเหลือ · เทียบรายการด้านล่างก่อนกรอก</p></div></div>
+      <div class="card-body num">
+        <div class="kvl">
+          <?php if ($bank['open_counted'] !== null) { ?>
+          <div><span>ยอดในแอปตอนเปิด</span><b><?php echo e(money2($bank['open_counted'])) ?></b></div>
+          <div class="sub"><span>ยกมา <?php echo e(money2($bank['carried'])) ?> · <?php echo e($state['bank_open_reason']) ?></span><span></span></div>
+          <?php } else { ?>
+          <div><span>ยอดยกมา</span><b><?php echo e(money2($bank['carried'])) ?></b></div>
+          <?php } ?>
+          <div><span>+ เติมเข้าบัญชี</span><b><?php echo e(money2($bank['topup'])) ?></b></div>
+          <div><span>+ ลูกค้าโอนจ่าย</span><b><?php echo e(money2($bank['tr_in'])) ?></b></div>
+          <div><span>− ทอนเป็นโอน</span><b><?php echo e(money2($bank['tr_out'])) ?></b></div>
+          <?php if ($bank['refunds'] + $bank['void_refunds'] > 0) { ?>
+          <div><span>− คืนเงินลูกค้าแบบโอน (รับคืน · ยกเลิกบิล)</span><b><?php echo e(money2($bank['refunds'] + $bank['void_refunds'])) ?></b></div>
+          <?php } ?>
+          <div><span>− โอนออก</span><b><?php echo e(money2($bank['withdraw'])) ?></b></div>
+          <div class="tot"><span>ควรมีในบัญชี</span><b id="bank-expected" data-v="<?php echo e($num($bank['expected'])) ?>"><?php echo e(money2($bank['expected'])) ?></b></div>
+        </div>
+
+        <div class="field">
+          <label for="bank_counted">ยอดคงเหลือในแอปธนาคาร <i class="req">จำเป็น</i></label>
+          <input class="input cash" type="number" id="bank_counted" name="bank_counted" step="0.01" inputmode="decimal" required
+                 placeholder="<?php echo e($num($bank['expected'])) ?>">
+        </div>
+        <div class="diff" id="bank-diff" hidden><span id="bank-diff-lb">ขาด</span><span id="bank-diff-v">0.00</span></div>
+        <p class="hint-note">ยอดนี้ยกไปเป็นยอดตั้งต้นของพรุ่งนี้ · ไม่ตรงต้องกรอกหมายเหตุ (ช่องเดียวกับเงินสด)</p>
+      </div>
+      <?php if (!$bankList) { ?>
+        <p class="empty">ยังไม่มีเงินเข้า-ออกบัญชีวันนี้</p>
+      <?php } else { ?>
+        <div class="store-sold">
+          <table class="ds-lines">
+            <thead><tr><th>เวลา</th><th>รายการ</th><th class="r">เข้า / ออก</th></tr></thead>
+            <tbody>
+              <?php foreach ($bankList as $tr) { ?>
+                <tr class="tl-row"><td class="nowrap"><?php echo e($tr['time']) ?></td>
+                    <td><?php echo e($bkKind[$tr['kind']]) ?> <small><?php echo e($tr['ref']) ?> · <?php echo e($tr['by']) ?></small></td>
+                    <td class="r num nowrap <?php echo $tr['dir'] === 'in' ? 'qty-in' : 'qty-out' ?>"><?php echo $tr['dir'] === 'in' ? '+' : '−' ?><?php echo e(money2($tr['amount'])) ?></td></tr>
+              <?php } ?>
+            </tbody>
+          </table>
+        </div>
+      <?php } ?>
+    </section>
+    <?php } ?>
+    </div>
 
     <!-- เงินสดในลิ้นชัก -->
     <section class="card">
@@ -441,11 +578,12 @@ require dirname(__FILE__) . '/inc/header.php';
       <div class="card-body num">
         <div class="kvl">
           <div><span>เงินทอนเริ่มวัน</span><b><?php echo e(money2($state['float'])) ?></b></div>
-          <div><span>+ เติมระหว่างวัน</span><b><?php echo e(money2($cash['topup'])) ?></b></div>
-          <div><span>+ ขายเงินสด</span><b><?php echo e(money2(store_cash_sales($code))) ?></b></div>
-          <div><span>− หยิบออกใช้จ่าย</span><b><?php echo e(money2($cash['withdraw'])) ?></b></div>
-          <?php if (store_refunds($code) > 0) { ?>
-          <div><span>− คืนเงินลูกค้า (รับคืนสินค้า)</span><b><?php echo e(money2(store_refunds($code))) ?></b></div>
+          <div><span>+ เติมระหว่างวัน</span><b><?php echo e(money2($dayCash['topup'])) ?></b></div>
+          <div><span>+ รับเงินสดจากขาย</span><b><?php echo e(money2($dayCash['cash_in'])) ?></b></div>
+          <div><span>− ทอนเงินสด</span><b><?php echo e(money2($dayCash['cash_out'])) ?></b></div>
+          <div><span>− หยิบออกใช้จ่าย</span><b><?php echo e(money2($dayCash['withdraw'])) ?></b></div>
+          <?php if ($dayCash['refunds'] + $dayCash['void_refunds'] > 0) { ?>
+          <div><span>− คืนเงินลูกค้า (รับคืน · ยกเลิกบิล)</span><b><?php echo e(money2($dayCash['refunds'] + $dayCash['void_refunds'])) ?></b></div>
           <?php } ?>
           <div class="tot"><span>ควรมีในลิ้นชัก</span><b id="expected" data-v="<?php echo e($num($expected)) ?>"><?php echo e(money2($expected)) ?></b></div>
         </div>
@@ -482,6 +620,11 @@ require dirname(__FILE__) . '/inc/header.php';
       </div>
     </section>
   </form>
+  <?php if ($bank !== null) { ?>
+  <div class="store-sold-wide">
+  <?php echo $soldCard; ?>
+  </div>
+  <?php } ?>
   <?php } ?>
 </div>
 
@@ -512,6 +655,14 @@ require dirname(__FILE__) . '/inc/header.php';
           </b>
         </div>
         <div class="tot"><span>แยกเงินทอนไว้พรุ่งนี้</span><b><?php echo e(money2($state['keep'])) ?></b></div>
+        <?php if ($state['bank_expected'] !== null) { $bd = ($state['bank_counted'] !== null) ? round($state['bank_counted'] - $state['bank_expected'], 2) : null; ?>
+        <div><span>บัญชีโอน ควรมี</span><b><?php echo e(money2($state['bank_expected'])) ?></b></div>
+        <div><span>ยอดในแอป</span><b><?php echo $state['bank_counted'] !== null ? e(money2($state['bank_counted'])) : 'ไม่ได้กรอก' ?></b></div>
+        <?php if ($bd !== null) { ?>
+        <div><span>ส่วนต่างบัญชีโอน</span>
+          <b class="<?php echo $bd < 0 ? 'qty-out' : ($bd > 0 ? 'qty-in' : '') ?>"><?php echo $bd == 0 ? 'ตรงพอดี' : ($bd > 0 ? 'เกิน ' : 'ขาด ') . e(money2(abs($bd))) ?></b></div>
+        <?php } ?>
+        <?php } ?>
         <?php if ($state['note'] !== '') { ?>
           <div><span>หมายเหตุ</span><b><?php echo e($state['note']) ?></b></div>
         <?php } ?>
@@ -569,32 +720,70 @@ require dirname(__FILE__) . '/inc/header.php';
     });
   }
 
-  var adjLink = document.getElementById('adj-link');
-  if (adjLink) {
-    adjLink.addEventListener('click', function (e) {
+  /* บัญชีโอนยกมา (หน้าเปิดร้าน): กรอกยอดในแอปไม่ตรง → บอกผลต่าง + ช่องเหตุผล (จำเป็น) · ว่าง / ตรง = ซ่อน */
+  var bCar = document.getElementById('bank-carry');
+  if (bCar) {
+    var bForm = bCar.closest('form'), bIn = bForm.querySelector('input[name=bank_counted]'), bWhy = bForm.querySelector('input[name=bank_reason]');
+    var bAdj = document.getElementById('bank-adj'), bDiff = document.getElementById('bank-open-diff'), bDv = document.getElementById('bank-open-diff-v');
+    var bRun = function () {
+      var d   = (bIn.value === '') ? 0 : Math.round(((Number(bIn.value) || 0) - Number(bCar.getAttribute('data-v'))) * 100) / 100;
+      var off = (d !== 0);
+      bAdj.hidden = !off;
+      bDiff.hidden = !off;
+      bWhy.required = off;
+      if (off) { bDv.textContent = (d > 0 ? '+' : '−') + Math.abs(d).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    };
+    bIn.addEventListener('input', bRun);
+    bRun();
+  }
+
+  /* แจ้งยอดไม่ตรง — เงินทอนยกมา (#adj-link → #adj) */
+  var adjLinks = [document.getElementById('adj-link')];
+  for (var a = 0; a < adjLinks.length; a++) {
+    if (!adjLinks[a]) { continue; }
+    adjLinks[a].addEventListener('click', function (e) {
       e.preventDefault();
-      var box = document.getElementById('adj');
-      box.hidden = false;
-      document.getElementById('counted').focus();
+      document.getElementById(this.getAttribute('data-adj') || 'adj').hidden = false;
+      document.getElementById(this.getAttribute('data-focus') || 'counted').focus();
       /* ซ่อนทั้งกล่องคำแนะนำ — เดิมซ่อนแค่ข้อความ เหลือกล่องเปล่ากับไอคอน (12 ต.ค.) */
       var hint = this.closest('.hint');
       (hint || this.parentNode).style.display = 'none';
     });
   }
 
-  /* ---- หน้าปิดร้าน ---- */
-  var exp  = document.getElementById('expected');
-  var cash = document.getElementById('cash_counted');
-  var diff = document.getElementById('diff');
-  function calcClose() {
-    if (!exp || !cash || !diff) { return; }
-    var d = (Number(cash.value) || 0) - Number(exp.dataset.v);
-    diff.hidden = (d === 0);
-    diff.className = 'diff' + (d > 0 ? ' over' : '');
-    document.getElementById('diff-lb').textContent = d > 0 ? 'เกิน' : 'ขาด';
-    document.getElementById('diff-v').textContent  = (d > 0 ? '+' : '−') + fmt(Math.abs(d));
+  /* ---- หน้าปิดร้าน: ขาด / เกิน ของเงินสด (#diff) และบัญชีโอน (#bank-diff · ช่องว่าง = ยังไม่กรอก ไม่ขึ้น) ---- */
+  function diffOf(expId, inId, boxId, lbId, vId, emptyHides) {
+    var ex = document.getElementById(expId), inp = document.getElementById(inId), box = document.getElementById(boxId);
+    if (!ex || !inp || !box) { return; }
+    var run = function () {
+      var d = Math.round(((Number(inp.value) || 0) - Number(ex.dataset.v)) * 100) / 100;
+      box.hidden = (d === 0) || (emptyHides && inp.value === '');
+      box.className = 'diff' + (d > 0 ? ' over' : '');
+      document.getElementById(lbId).textContent = d > 0 ? 'เกิน' : 'ขาด';
+      document.getElementById(vId).textContent  = (d > 0 ? '+' : '−') + fmt(Math.abs(d));
+    };
+    inp.addEventListener('input', run);
+    run();
   }
-  if (cash) { cash.addEventListener('input', calcClose); calcClose(); }
+  diffOf('expected', 'cash_counted', 'diff', 'diff-lb', 'diff-v', false);
+  diffOf('bank-expected', 'bank_counted', 'bank-diff', 'bank-diff-lb', 'bank-diff-v', true);
+
+  /* ---- เติม / หยิบเงิน: ปุ่มเลือก (ไฮไลต์ตัวที่เลือก) · คำของรายการ + ตัวอย่างเหตุผลตามช่องทาง (ลิ้นชัก / บัญชีโอน) ---- */
+  var cch = document.getElementById('cash-ch'), cdir = document.getElementById('cash-dir'), cwhy = document.getElementById('cash-why');
+  if (cch && cdir) {
+    var segOn = function (box) {
+      var ls = box.querySelectorAll('label.seg');
+      for (var i = 0; i < ls.length; i++) { ls[i].classList.toggle('on', ls[i].querySelector('input').checked); }
+    };
+    cdir.addEventListener('change', function () { segOn(cdir); });
+    cch.addEventListener('change', function () {
+      segOn(cch);
+      var ch = cch.querySelector('input:checked').value;
+      var ts = cdir.querySelectorAll('[data-' + ch + ']');
+      for (var i = 0; i < ts.length; i++) { ts[i].textContent = ts[i].getAttribute('data-' + ch); }
+      if (cwhy) { cwhy.placeholder = cwhy.getAttribute('data-ph-' + ch); }
+    });
+  }
 
   var keepLink = document.getElementById('keep-link');
   if (keepLink) {

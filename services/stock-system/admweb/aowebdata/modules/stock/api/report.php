@@ -227,8 +227,9 @@ function sales_agg($codes, $from, $to, $uid = 0)
     if ($uid > 0) {
         $params[] = (int) $uid;
     }
+    $q   = Stock_buildPaySql('s');                         // เงินสดสุทธิ (รับ − ทอน) · โอน = ยอด − เงินสด
     $sql = 'SELECT s.sale_date AS d, b.code, s.created_by AS uid, u.username, u.name, COUNT(*) AS bills, SUM(s.total_qty) AS qty,'
-         . ' SUM(s.total) AS total, SUM(s.discount) AS disc, SUM(CASE WHEN s.pay_method = \'cash\' THEN s.total ELSE 0 END) AS cash,'
+         . ' SUM(s.total) AS total, SUM(s.discount) AS disc, SUM(' . $q['cash_in'] . ' - ' . $q['cash_out'] . ') AS cash,'
          . ' SUM(s.is_vat) AS vat'
          . ' FROM ' . sdb_tb('sale') . ' s JOIN ' . sdb_tb('branch') . ' b ON b.branch_id = s.branch_id'
          . ' LEFT JOIN ' . sdb_tb('staff') . ' u ON u.staff_id = s.created_by'

@@ -1,7 +1,7 @@
 <?php
 /**
  * FILE: admweb/aowebdata/modules/stock/api/store.php
- * ROLE: เปิด / ปิดร้านประจำวัน · เงินทอนยกมา · เงินเข้า / ออกลิ้นชัก · เปิดร้านใหม่หลังปิด
+ * ROLE: เปิด / ปิดร้านประจำวัน · เงินทอนยกมา · เงินเข้า / ออกลิ้นชัก · บัญชีโอนของสาขา (ลิ้นชักที่สอง) · เปิดร้านใหม่หลังปิด
  * DEPENDS: api.php (ตัวโหลด — ห้าม include ตรง)
  * TABLES: ao_stock_store_day, ao_stock_cash_move, ao_stock_sale, ao_stock_return, ao_stock_log
  * TODO:
@@ -62,6 +62,14 @@ function store_day_result($code, $ts)
         'keep'      => $num($r['keep_cash']),
         'handover'  => $num($r['handover_cash']),
         'note'      => $r['close_note'],
+        /* บัญชีโอน (null = วันนั้นไม่มีบัญชีโอน · ปิดย้อนหลังเว้นยอดในแอปได้) */
+        'bank_expect'  => isset($r['bank_expected']) ? $num($r['bank_expected']) : null,
+        'bank_counted' => isset($r['bank_counted']) ? $num($r['bank_counted']) : null,
+        'bank_diff'    => ($closed && isset($r['bank_counted'], $r['bank_expected'])) ? round((float) $r['bank_counted'] - (float) $r['bank_expected'], 2) : null,
+        /* ตอนเปิดร้าน: ยอดยกมา · ยอดในแอป (กด “ไม่ตรง”) · เหตุผล — Telegram เปิดร้าน */
+        'bank_carry'        => isset($r['bank_carried']) ? (float) $r['bank_carried'] : null,
+        'bank_open_counted' => isset($r['bank_open_counted']) ? (float) $r['bank_open_counted'] : null,
+        'bank_open_reason'  => isset($r['bank_open_reason']) ? $r['bank_open_reason'] : '',
     );
 }
 
@@ -104,20 +112,18 @@ function store_unclosed_days($code)
     return $out;
 }
 
-/** เงินที่เติม / หยิบออกจากลิ้นชักวันนี้ — array(topup, withdraw) */
+/** เงินสดที่เติม / หยิบออกจากลิ้นชักวันนี้ — array(topup, withdraw) (ไม่นับแบบโอน) */
 function store_daily_cash($code)
 {
     $st = store_day_row($code);
     if ($st === null) {
         return array('topup' => 0.0, 'withdraw' => 0.0);
     }
-    $r = sdb_row('SELECT COALESCE(SUM(CASE WHEN direction = \'in\' THEN amount END), 0) AS i,'
-               . ' COALESCE(SUM(CASE WHEN direction = \'out\' THEN amount END), 0) AS o FROM ' . sdb_tb('cash_move') . ' WHERE day_id = ?',
-                 array((int) $st['day_id']));
-    return array('topup' => (float) $r['i'], 'withdraw' => (float) $r['o']);
+    $s = Stock_getDayChannelSums((int) $st['day_id'], 'cash');
+    return array('topup' => $s['topup'], 'withdraw' => $s['withdraw']);
 }
 
-/** รายการเติม / หยิบเงินของวันนี้ (เก่า → ใหม่) — array(time, dir in|out, amount, reason, by) */
+/** รายการเติม / หยิบเงินของวันนี้ (เก่า → ใหม่) — array(time, dir in|out, amount, reason, by, channel cash|transfer) */
 function store_cash_list($code)
 {
     $st = store_day_row($code);
@@ -129,7 +135,8 @@ function store_cash_list($code)
     $out = array();
     foreach (sdb_rows($sql, array((int) $st['day_id'])) as $r) {
         $out[] = array('time' => date('H:i', strtotime($r['add_date'])), 'dir' => $r['direction'], 'amount' => (float) $r['amount'],
-                       'reason' => $r['reason'], 'by' => ($r['by_name'] !== null) ? $r['by_name'] : '-');
+                       'reason' => $r['reason'], 'by' => ($r['by_name'] !== null) ? $r['by_name'] : '-',
+                       'channel' => isset($r['channel']) ? $r['channel'] : 'cash');
     }
     return $out;
 }
@@ -163,6 +170,12 @@ function store_state($code)
         'expected'     => ($r['expected_cash'] !== null) ? (float) $r['expected_cash'] : null,
         'reopen_count' => (int) $r['reopen_count'],
         'last_diff'    => ($open && (int) $r['reopen_count'] > 0 && $hasRnd) ? (float) $r['counted_cash'] - (float) $r['expected_cash'] : null,
+        /* บัญชีโอน — ค่าดิบของวัน (ตัวเลขเต็มดู Stock_getDayBank) · bank_carried null = วันนี้ไม่มีบัญชีโอน */
+        'bank_carried'      => isset($r['bank_carried']) ? (float) $r['bank_carried'] : null,
+        'bank_open_counted' => isset($r['bank_open_counted']) ? (float) $r['bank_open_counted'] : null,
+        'bank_open_reason'  => isset($r['bank_open_reason']) ? $r['bank_open_reason'] : '',
+        'bank_expected'     => isset($r['bank_expected']) ? (float) $r['bank_expected'] : null,
+        'bank_counted'      => isset($r['bank_counted']) ? (float) $r['bank_counted'] : null,
     );
 }
 
@@ -178,8 +191,9 @@ function store_is_closed($code)
     return $st !== null && $st['closed_at'] !== '';
 }
 
-/** บันทึกการเปิดร้าน · $counted = เงินทอนที่นับได้เมื่อไม่ตรง (null = ตรง) · คืนสถานะร้าน */
-function store_open($code, $user, $topup, $counted, $reason)
+/** บันทึกการเปิดร้าน · $counted = เงินทอนที่นับได้เมื่อไม่ตรง (null = ตรง) · คืนสถานะร้าน
+ *  $bankCounted = ยอดในแอปธนาคารเมื่อไม่ตรงกับยอดบัญชีโอนยกมา (null = ตรง) · $bankReason = เหตุผล (หน้าเปิดร้านตรวจว่าต้องมี) */
+function store_open($code, $user, $topup, $counted, $reason, $bankCounted = null, $bankReason = '')
 {
     $bid = branch_id_of($code);
     if ($bid <= 0) {
@@ -190,8 +204,10 @@ function store_open($code, $user, $topup, $counted, $reason)
     $cnt   = ($counted !== null && $counted !== '' && (float) $counted != $carry['amount']) ? max(0, (float) $counted) : null;
     $float = ($cnt !== null ? $cnt : $carry['amount']) + $topup;
     $now   = date('Y-m-d H:i:s');
+    $bank  = Stock_getBankCarry($code);
+    $bcnt  = ($bankCounted !== null && $bankCounted !== '' && abs((float) $bankCounted - $bank['amount']) >= 0.005) ? round((float) $bankCounted, 2) : null;
 
-    $opened = sdb_tx(function () use ($code, $bid, $user, $carry, $topup, $cnt, $float, $reason, $now) {
+    $opened = sdb_tx(function () use ($code, $bid, $user, $carry, $topup, $cnt, $float, $reason, $now, $bank, $bcnt, $bankReason) {
         /* ล็อกแถวสาขาก่อน — สองเครื่องกดพร้อมกันไม่ INSERT ชน UNIQUE (class DB ของ admweb จะเขียน error_log) */
         sdb_val('SELECT branch_id FROM ' . sdb_tb('branch') . ' WHERE branch_id = ? FOR UPDATE', array($bid));
         if (sdb_val('SELECT day_id FROM ' . sdb_tb('store_day') . ' WHERE branch_id = ? AND store_date = ? FOR UPDATE', array($bid, date('Y-m-d'))) !== null) {
@@ -208,6 +224,9 @@ function store_open($code, $user, $topup, $counted, $reason)
             'open_reason'   => ($cnt !== null) ? stock_cut($reason, 255) : '',
             'float_topup'   => $topup,
             'open_cash'     => $float,
+            'bank_carried'      => $bank['amount'],
+            'bank_open_counted' => $bcnt,
+            'bank_open_reason'  => ($bcnt !== null) ? stock_cut($bankReason, 255) : '',
         ));
 
         /* ---- เก็บลงประวัติการทำรายการ ---- */
@@ -226,6 +245,12 @@ function store_open($code, $user, $topup, $counted, $reason)
         }
         $detail['เติมเงินทอนเพิ่ม']  = $topup > 0 ? '+' . money2($topup) . ' บาท' : 'ไม่ได้เติม';
         $detail['เงินทอนเริ่มวันนี้'] = money2($float) . ' บาท';
+        $detail['ยอดบัญชีโอนยกมา'] = money2($bank['amount']) . ' บาท' . ($bank['from'] === 'start' ? ' (ยอดตั้งต้นของสาขา)' : '');
+        if ($bcnt !== null) {
+            $bd = round($bcnt - $bank['amount'], 2);
+            $detail['ยอดในแอปตอนเปิด']       = money2($bcnt) . ' บาท';
+            $detail['เงินขยับระหว่างร้านปิด'] = ($bd > 0 ? '+' : '−') . money2(abs($bd)) . ' บาท' . (trim($bankReason) !== '' ? ' — ' . trim($bankReason) : '');
+        }
         log_add($code, 'open', $user, 'เปิดร้าน ' . branch_name($code), $detail, $float);
         return true;
     });
@@ -250,24 +275,159 @@ function store_expected_cash($code)
     return $c['expected'];
 }
 
-/** เงินในลิ้นชักของวันหนึ่ง (วันนี้หรือวันก่อน) — array(float, topup, withdraw, sales, refunds, expected) */
+/** เงินในลิ้นชักของวันหนึ่ง (วันนี้หรือวันก่อน) — array(float, topup, withdraw, cash_in, cash_out, sales, refunds, void_refunds, expected)
+ *  sales = รับเงินสด − ทอนเงินสดจริง (บิลที่ทอนเป็นโอนได้เงินสดเต็ม · 23 พ.ย.) · บิลเก่าได้ค่าเท่าเดิม (รับ − ทอน = ยอดบิล) */
 function Stock_getDayCash($dayId)
 {
     $dayId = (int) $dayId;
     $float = (float) sdb_val('SELECT open_cash FROM ' . sdb_tb('store_day') . ' WHERE day_id = ?', array($dayId));
-    $m     = sdb_row('SELECT COALESCE(SUM(CASE WHEN direction = \'in\' THEN amount END), 0) AS i,'
-                   . ' COALESCE(SUM(CASE WHEN direction = \'out\' THEN amount END), 0) AS o FROM ' . sdb_tb('cash_move') . ' WHERE day_id = ?',
-                     array($dayId));
-    $sales = (float) sdb_val('SELECT COALESCE(SUM(total), 0) FROM ' . sdb_tb('sale')
-                           . ' WHERE day_id = ? AND status = \'paid\' AND pay_method = \'cash\'', array($dayId));
-    $ref   = (float) sdb_val('SELECT COALESCE(SUM(refund), 0) FROM ' . sdb_tb('return') . ' WHERE day_id = ?', array($dayId));
-    $c     = array('float' => $float, 'topup' => (float) $m['i'], 'withdraw' => (float) $m['o'], 'sales' => $sales, 'refunds' => $ref);
-    $c['expected'] = round($float + $c['topup'] + $sales - $c['withdraw'] - $ref, 2);
+    $s     = Stock_getDayChannelSums($dayId, 'cash');
+    $c     = array('float' => $float, 'topup' => $s['topup'], 'withdraw' => $s['withdraw'], 'cash_in' => $s['in'], 'cash_out' => $s['out'],
+                   'sales' => round($s['in'] - $s['out'], 2), 'refunds' => $s['refunds'], 'void_refunds' => $s['void_refunds']);
+    $c['expected'] = round($float + $c['topup'] - $c['withdraw'] + $c['sales'] - $c['refunds'] - $c['void_refunds'], 2);
     return $c;
 }
 
-/** ปิดร้านย้อนหลัง (วันก่อนที่ยังเปิดค้าง) · ต้องมีหมายเหตุ · คืน array('ok', 'keep') หรือ array('error') */
-function Stock_closePastDay($code, $ymd, $user, $counted, $keep, $note)
+/** ผลรวมเงินของช่องทางหนึ่งในวันหนึ่ง ($channel = cash | transfer) — array(topup, withdraw, in รับจากขาย, out ทอน, refunds คืนจากรับคืน, void_refunds คืนจากยกเลิกบิล)
+ *  บิลที่นับ = paid + ยกเลิกแบบเลือกช่องทางคืน (void_refund_channel) · บิลยกเลิกเก่า / ยกเลิกเพื่อแก้ไขไม่นับทั้งใบ (เหมือนเดิม)
+ *  TODO:
+ *    - [x] 23 พ.ย. (งานเงินโอน ช่วง 4): ลิ้นชัก (Stock_getDayCash) กับบัญชีโอน (Stock_getDayBank) ใช้ตัวนี้ร่วมกัน */
+function Stock_getDayChannelSums($dayId, $channel)
+{
+    $ch  = ($channel === 'transfer') ? 'transfer' : 'cash';
+    $q   = Stock_buildPaySql('s');
+    $in  = ($ch === 'cash') ? $q['cash_in'] : $q['tr_in'];
+    $out = ($ch === 'cash') ? $q['cash_out'] : $q['tr_out'];
+    $m   = sdb_row('SELECT COALESCE(SUM(CASE WHEN direction = \'in\' THEN amount END), 0) AS i,'
+                 . ' COALESCE(SUM(CASE WHEN direction = \'out\' THEN amount END), 0) AS o FROM ' . sdb_tb('cash_move') . ' WHERE day_id = ? AND channel = ?',
+                   array((int) $dayId, $ch));
+    $s   = sdb_row('SELECT COALESCE(SUM(' . $in . '), 0) AS i, COALESCE(SUM(' . $out . '), 0) AS o,'
+                 . ' COALESCE(SUM(CASE WHEN s.status = \'void\' AND s.void_refund_channel = ? THEN s.total END), 0) AS v'
+                 . ' FROM ' . sdb_tb('sale') . ' s WHERE s.day_id = ? AND (s.status = \'paid\' OR s.void_refund_channel IS NOT NULL)',
+                   array($ch, (int) $dayId));
+    $ref = (float) sdb_val('SELECT COALESCE(SUM(refund), 0) FROM ' . sdb_tb('return') . ' WHERE day_id = ? AND refund_channel = ?', array((int) $dayId, $ch));
+    return array('topup' => (float) $m['i'], 'withdraw' => (float) $m['o'], 'in' => (float) $s['i'], 'out' => (float) $s['o'],
+                 'refunds' => $ref, 'void_refunds' => (float) $s['v']);
+}
+
+/** บัญชีโอนของสาขาในวันหนึ่ง — null = วันนั้นไม่มีบัญชีโอน (เปิดก่อนเปิดใช้) · ไม่งั้น array(carried, open_counted, start, topup, withdraw, tr_in, tr_out, refunds, void_refunds, expected)
+ *  start = ยอดในแอปตอนเปิด (กด “ไม่ตรง”) หรือยอดยกมา
+ *  TODO:
+ *    - [x] 23 พ.ย. (งานเงินโอน ช่วง 4): ลิ้นชักที่สองของสาขา (แบบ ก. ที่ผู้ใช้เลือก) */
+function Stock_getDayBank($dayId)
+{
+    $r = sdb_row('SELECT bank_carried, bank_open_counted FROM ' . sdb_tb('store_day') . ' WHERE day_id = ?', array((int) $dayId));
+    if ($r === null || $r['bank_carried'] === null) {
+        return null;
+    }
+    $s = Stock_getDayChannelSums((int) $dayId, 'transfer');
+    $b = array('carried' => (float) $r['bank_carried'], 'open_counted' => ($r['bank_open_counted'] !== null) ? (float) $r['bank_open_counted'] : null);
+    $b['start'] = ($b['open_counted'] !== null) ? $b['open_counted'] : $b['carried'];
+    $b += array('topup' => $s['topup'], 'withdraw' => $s['withdraw'], 'tr_in' => $s['in'], 'tr_out' => $s['out'],
+                'refunds' => $s['refunds'], 'void_refunds' => $s['void_refunds']);
+    $b['expected'] = round($b['start'] + $b['topup'] - $b['withdraw'] + $b['tr_in'] - $b['tr_out'] - $b['refunds'] - $b['void_refunds'], 2);
+    return $b;
+}
+
+/** ยอดบัญชีโอนยกมาสำหรับเปิดร้านวันนี้ — array(amount, from day|start, ymd)
+ *  วันก่อนมีตัวเลขบัญชี = ยอดในแอปตอนปิด (เว้นไว้ = ควรมี) · ไม่เคยมี = ยอดตั้งต้นของสาขา (bank_start)
+ *  TODO:
+ *    - [x] 23 พ.ย. (งานเงินโอน ช่วง 4): ยอดยกไปทั้งก้อน ไม่มีการแยกเก็บแบบเงินทอน */
+function Stock_getBankCarry($code)
+{
+    $br  = branch_row($code);
+    $out = array('amount' => ($br !== null && isset($br['bank_start'])) ? (float) $br['bank_start'] : 0.0, 'from' => 'start', 'ymd' => '');
+    $r   = sdb_row('SELECT d.day_id, d.store_date, d.status, d.bank_carried, d.bank_expected, d.bank_counted FROM ' . sdb_tb('store_day') . ' d'
+                 . ' JOIN ' . sdb_tb('branch') . ' b ON b.branch_id = d.branch_id WHERE b.code = ? AND d.store_date < ? ORDER BY d.store_date DESC LIMIT 1',
+                   array((string) $code, date('Y-m-d')));
+    if ($r === null) {
+        return $out;
+    }
+    if ($r['bank_counted'] !== null || $r['bank_expected'] !== null) {
+        $out = array('amount' => (float) (($r['bank_counted'] !== null) ? $r['bank_counted'] : $r['bank_expected']), 'from' => 'day', 'ymd' => date('Ymd', strtotime($r['store_date'])));
+    } elseif ($r['status'] === 'open' && $r['bank_carried'] !== null) {
+        $b   = Stock_getDayBank((int) $r['day_id']);             // กันไว้ — ปกติเปิดวันใหม่ไม่ได้จนกว่าจะปิดวันค้าง
+        $out = array('amount' => $b['expected'], 'from' => 'day', 'ymd' => date('Ymd', strtotime($r['store_date'])));
+    }
+    return $out;
+}
+
+/** สาขานี้ปิดร้านพร้อมตัวเลขบัญชีโอนแล้วหรือยัง — แล้ว = ยอดตั้งต้น (bank_start) ไม่มีผลอีก ปรับยอดด้วยเติม / หยิบแบบโอน
+ *  TODO:
+ *    - [x] 23 พ.ย. (งานเงินโอน ช่วง 8): หน้าแก้สาขาล็อกช่องยอดตั้งต้น */
+function Stock_isBankStartUsed($code)
+{
+    return sdb_val('SELECT 1 FROM ' . sdb_tb('store_day') . ' d JOIN ' . sdb_tb('branch') . ' b ON b.branch_id = d.branch_id'
+                 . ' WHERE b.code = ? AND (d.bank_counted IS NOT NULL OR d.bank_expected IS NOT NULL) LIMIT 1', array((string) $code)) !== null;
+}
+
+/** ผู้ดูแลตั้งยอดตั้งต้นของบัญชีโอน —สาขาที่ยังไม่เคยปิดร้านพร้อมตัวเลขบัญชี: ยอดยกมาของวันที่เปิดอยู่ตามค่าใหม่ด้วย (แก้ได้ในวันแรก)
+ *  TODO:
+ *    - [x] 23 พ.ย. (งานเงินโอน ช่วง 4): หน้าเพิ่ม / แก้สาขาเรียกตัวนี้ (ช่วง 8) */
+function Stock_setBankStart($code, $amount)
+{
+    $bid = branch_id_of($code);
+    if ($bid <= 0) {
+        return;
+    }
+    $rule   = branch_setting_rules();
+    $amount = round(max($rule['bank_start'][0], min($rule['bank_start'][1], (float) $amount)), 2);
+    sdb_update('branch', array('bank_start' => $amount), array('branch_id' => $bid));
+    branch_db_rows(true);
+    if (!Stock_isBankStartUsed($code)) {
+        sdb_q('UPDATE ' . sdb_tb('store_day') . ' SET bank_carried = ? WHERE branch_id = ? AND status = \'open\' AND bank_carried IS NOT NULL', array($amount, $bid));
+        store_db_reset();
+    }
+}
+
+/** รายการเงินเข้า-ออกบัญชีโอนของวันหนึ่ง เรียงเวลา (ไว้เทียบกับแอปธนาคาร)
+ *  แถว: array(time, kind sale|change|void|refund|topup|withdraw, ref เลขบิล / ใบคืน / เหตุผล, dir in|out, amount, by)
+ *  TODO:
+ *    - [x] 23 พ.ย. (งานเงินโอน ช่วง 4): การ์ดบัญชีโอนตอนปิดร้าน */
+function Stock_getTransferList($dayId)
+{
+    $dayId = (int) $dayId;
+    $q     = Stock_buildPaySql('s');
+    $rows  = array();
+    $sql   = 'SELECT s.doc_no, s.add_date, s.void_date, s.status, s.void_refund_channel, s.total, ' . $q['tr_in'] . ' AS ti, ' . $q['tr_out'] . ' AS tro,'
+           . ' u.name AS by_name, v.name AS void_name FROM ' . sdb_tb('sale') . ' s'
+           . ' LEFT JOIN ' . sdb_tb('staff') . ' u ON u.staff_id = s.created_by LEFT JOIN ' . sdb_tb('staff') . ' v ON v.staff_id = s.void_by'
+           . ' WHERE s.day_id = ? AND (s.status = \'paid\' OR s.void_refund_channel IS NOT NULL)';
+    foreach (sdb_rows($sql, array($dayId)) as $r) {
+        $by = ($r['by_name'] !== null) ? $r['by_name'] : '-';
+        if ((float) $r['ti'] > 0) {
+            $rows[] = array('ts' => $r['add_date'], 'kind' => 'sale', 'ref' => $r['doc_no'], 'dir' => 'in', 'amount' => (float) $r['ti'], 'by' => $by);
+        }
+        if ((float) $r['tro'] > 0) {
+            $rows[] = array('ts' => $r['add_date'], 'kind' => 'change', 'ref' => $r['doc_no'], 'dir' => 'out', 'amount' => (float) $r['tro'], 'by' => $by);
+        }
+        if ($r['status'] === 'void' && $r['void_refund_channel'] === 'transfer') {
+            $rows[] = array('ts' => $r['void_date'], 'kind' => 'void', 'ref' => $r['doc_no'], 'dir' => 'out', 'amount' => (float) $r['total'],
+                            'by' => ($r['void_name'] !== null) ? $r['void_name'] : '-');
+        }
+    }
+    $sql = 'SELECT r.doc_no, r.add_date, r.refund, u.name AS by_name FROM ' . sdb_tb('return') . ' r LEFT JOIN ' . sdb_tb('staff') . ' u ON u.staff_id = r.created_by'
+         . ' WHERE r.day_id = ? AND r.refund_channel = \'transfer\' AND r.refund > 0';
+    foreach (sdb_rows($sql, array($dayId)) as $r) {
+        $rows[] = array('ts' => $r['add_date'], 'kind' => 'refund', 'ref' => $r['doc_no'], 'dir' => 'out', 'amount' => (float) $r['refund'],
+                        'by' => ($r['by_name'] !== null) ? $r['by_name'] : '-');
+    }
+    $sql = 'SELECT m.add_date, m.direction, m.amount, m.reason, u.name AS by_name FROM ' . sdb_tb('cash_move') . ' m LEFT JOIN ' . sdb_tb('staff') . ' u ON u.staff_id = m.created_by'
+         . ' WHERE m.day_id = ? AND m.channel = \'transfer\'';
+    foreach (sdb_rows($sql, array($dayId)) as $r) {
+        $rows[] = array('ts' => $r['add_date'], 'kind' => ($r['direction'] === 'in') ? 'topup' : 'withdraw', 'ref' => $r['reason'],
+                        'dir' => $r['direction'], 'amount' => (float) $r['amount'], 'by' => ($r['by_name'] !== null) ? $r['by_name'] : '-');
+    }
+    usort($rows, function ($a, $b) { return strcmp($a['ts'], $b['ts']); });
+    foreach ($rows as $i => $r) {
+        $rows[$i]['time'] = date('H:i', strtotime($r['ts']));
+    }
+    return $rows;
+}
+
+/** ปิดร้านย้อนหลัง (วันก่อนที่ยังเปิดค้าง) · ต้องมีหมายเหตุ · คืน array('ok', 'keep') หรือ array('error')
+ *  $bankCounted = ยอดในแอปธนาคาร (ไม่บังคับ · ว่าง = ไม่เก็บ ยอดยกมาใช้ควรมีของวันนั้น) */
+function Stock_closePastDay($code, $ymd, $user, $counted, $keep, $note, $bankCounted = '')
 {
     $ymd = preg_replace('/\D/', '', (string) $ymd);
     $ts  = (strlen($ymd) === 8) ? strtotime($ymd) : false;
@@ -285,7 +445,7 @@ function Stock_closePastDay($code, $ymd, $user, $counted, $keep, $note)
     }
     $dayId = (int) $row['day_id'];
     $saved = array();
-    $ok = sdb_tx(function () use ($code, $ts, $row, $dayId, $user, $counted, $keep, $note, &$saved) {
+    $ok = sdb_tx(function () use ($code, $ts, $row, $dayId, $user, $counted, $keep, $note, $bankCounted, &$saved) {
         if (sdb_val('SELECT status FROM ' . sdb_tb('store_day') . ' WHERE day_id = ? FOR UPDATE', array($dayId)) !== 'open') {
             return false;
         }
@@ -294,6 +454,8 @@ function Stock_closePastDay($code, $ymd, $user, $counted, $keep, $note)
         $counted  = max(0, round((float) $counted, 2));
         $keep     = max(0, min(round((float) $keep, 2), $counted));
         $note     = stock_cut($note, 255);
+        $bank     = Stock_getDayBank($dayId);
+        $bcnt     = ($bank !== null && trim((string) $bankCounted) !== '') ? round((float) $bankCounted, 2) : null;
         sdb_update('store_day', array(
             'status'        => 'closed',
             'closed_by'     => stock_uid($user),
@@ -302,12 +464,14 @@ function Stock_closePastDay($code, $ymd, $user, $counted, $keep, $note)
             'counted_cash'  => $counted,
             'keep_cash'     => $keep,
             'handover_cash' => round($counted - $keep, 2),
+            'bank_expected' => ($bank !== null) ? $bank['expected'] : null,
+            'bank_counted'  => $bcnt,
             'close_note'    => $note,
         ), array('day_id' => $dayId));
 
         /* ---- เก็บลงประวัติของวันนี้ (วันที่ปิด) ---- */
-        $diff = round($counted - $expected, 2);
-        log_add($code, 'close', $user, 'ปิดร้านย้อนหลัง ' . branch_name($code) . ' · ของวัน' . thai_date_full($ts), array(
+        $diff   = round($counted - $expected, 2);
+        $detail = array(
             'ของวันที่'        => thai_date_full($ts),
             'เปิดร้านวันนั้น'    => date('H:i', strtotime($row['opened_at'])) . ' น. โดย ' . ($row['opened_name'] !== null ? $row['opened_name'] : '-'),
             'เงินที่ควรมี'       => money2($expected) . ' บาท',
@@ -315,9 +479,11 @@ function Stock_closePastDay($code, $ymd, $user, $counted, $keep, $note)
             'ผลต่าง'           => ($diff > 0 ? 'เกิน +' : ($diff < 0 ? 'ขาด −' : 'ตรงพอดี ')) . money2(abs($diff)) . ' บาท',
             'เงินทอนที่แยกไว้'   => money2($keep) . ' บาท',
             'นำส่ง'            => money2($counted - $keep) . ' บาท',
-            'หมายเหตุ'          => $note,
-            'ปิดโดย'           => $user['name'] . ' (' . actor_label($user) . ')',
-        ), $counted);
+        );
+        $detail += Stock_buildBankCloseDetail($bank, $bcnt);
+        $detail['หมายเหตุ'] = $note;
+        $detail['ปิดโดย']  = $user['name'] . ' (' . actor_label($user) . ')';
+        log_add($code, 'close', $user, 'ปิดร้านย้อนหลัง ' . branch_name($code) . ' · ของวัน' . thai_date_full($ts), $detail, $counted);
         $saved = array('keep' => $keep);
         return true;
     });
@@ -329,14 +495,31 @@ function Stock_closePastDay($code, $ymd, $user, $counted, $keep, $note)
     return array('ok' => true, 'keep' => $saved['keep']);
 }
 
-/** บันทึกการปิดร้าน · คืนสถานะร้าน หรือ null ถ้าไม่ได้เปิดอยู่ */
-function store_close($code, $user, $counted, $keep, $note)
+/** บรรทัดบัญชีโอนในประวัติปิดร้าน — $bank = Stock_getDayBank (null = วันนั้นไม่มีบัญชีโอน) · $counted = ยอดในแอป (null = ไม่ได้กรอก)
+ *  TODO:
+ *    - [x] 23 พ.ย. (งานเงินโอน ช่วง 4): ปิดร้าน + ปิดร้านย้อนหลังใช้ร่วมกัน */
+function Stock_buildBankCloseDetail($bank, $counted)
+{
+    if ($bank === null) {
+        return array();
+    }
+    $d = array('บัญชีโอน ควรมี' => money2($bank['expected']) . ' บาท',
+               'ยอดในแอป'     => ($counted !== null) ? money2($counted) . ' บาท' : 'ไม่ได้กรอก (ยกยอดที่ควรมีไปวันถัดไป)');
+    if ($counted !== null) {
+        $bd = round($counted - $bank['expected'], 2);
+        $d['ผลต่างบัญชีโอน'] = ($bd > 0 ? 'เกิน +' : ($bd < 0 ? 'ขาด −' : 'ตรงพอดี ')) . money2(abs($bd)) . ' บาท';
+    }
+    return $d;
+}
+
+/** บันทึกการปิดร้าน · คืนสถานะร้าน หรือ null ถ้าไม่ได้เปิดอยู่ · $bankCounted = ยอดในแอปธนาคาร (วันที่มีบัญชีโอน · หน้าปิดร้านตรวจว่าต้องกรอก) */
+function store_close($code, $user, $counted, $keep, $note, $bankCounted = null)
 {
     $st = store_state($code);
     if ($st === null || $st['closed_at'] !== '') {
         return null;
     }
-    $ok = sdb_tx(function () use ($code, $st, $user, $counted, $keep, $note) {
+    $ok = sdb_tx(function () use ($code, $st, $user, $counted, $keep, $note, $bankCounted) {
         $s = sdb_val('SELECT status FROM ' . sdb_tb('store_day') . ' WHERE day_id = ? FOR UPDATE', array($st['id']));
         if ($s !== 'open') {
             return false;
@@ -345,6 +528,8 @@ function store_close($code, $user, $counted, $keep, $note)
         $counted  = max(0, round((float) $counted, 2));
         $keep     = max(0, min(round((float) $keep, 2), $counted));
         $note     = stock_cut($note, 255);
+        $bank     = Stock_getDayBank($st['id']);
+        $bcnt     = ($bank !== null && $bankCounted !== null && $bankCounted !== '') ? round((float) $bankCounted, 2) : null;
         sdb_update('store_day', array(
             'status'        => 'closed',
             'closed_by'     => stock_uid($user),
@@ -353,6 +538,8 @@ function store_close($code, $user, $counted, $keep, $note)
             'counted_cash'  => $counted,
             'keep_cash'     => $keep,
             'handover_cash' => round($counted - $keep, 2),
+            'bank_expected' => ($bank !== null) ? $bank['expected'] : null,
+            'bank_counted'  => $bcnt,
             'close_note'    => $note,
         ), array('day_id' => $st['id']));
 
@@ -366,6 +553,7 @@ function store_close($code, $user, $counted, $keep, $note)
             'เงินทอนที่แยกไว้พรุ่งนี้' => money2($keep) . ' บาท',
             'นำส่ง'          => money2($counted - $keep) . ' บาท',
         );
+        $detail += Stock_buildBankCloseDetail($bank, $bcnt);
         if ($note !== '') {
             $detail['หมายเหตุ'] = $note;
         }
@@ -422,12 +610,15 @@ function Stock_checkReopenReason($reason)
     return '';
 }
 
-/** เติม (in) / หยิบ (out) เงินระหว่างวัน · คืน array('ok') หรือ array('error') */
-function store_cash_add($code, $user, $dir, $amount, $reason)
+/** เติม (in) / หยิบ (out) เงินระหว่างวัน · $channel = cash (ลิ้นชัก) | transfer (บัญชีโอนของสาขา) · คืน array('ok') หรือ array('error')
+ *  หยิบเงินสดห้ามเกินที่ควรมีในลิ้นชัก · แบบโอนไม่ห้าม (ธนาคารเป็นตัวจริง · 23 พ.ย.) */
+function store_cash_add($code, $user, $dir, $amount, $reason, $channel = 'cash')
 {
     $dir    = ($dir === 'out') ? 'out' : 'in';
+    $ch     = ($channel === 'transfer') ? 'transfer' : 'cash';
     $amount = round((float) $amount, 2);
     $reason = stock_cut($reason, 255);
+    $what   = ($ch === 'cash') ? (($dir === 'in') ? 'เติมเงินทอน' : 'หยิบเงินออก') : (($dir === 'in') ? 'เติมเงินเข้าบัญชีโอน' : 'โอนเงินออกจากบัญชีโอน');
     if ($amount <= 0) {
         return array('error' => 'กรุณากรอกจำนวนเงินมากกว่า 0');
     }
@@ -435,18 +626,18 @@ function store_cash_add($code, $user, $dir, $amount, $reason)
         return array('error' => 'จำนวนเงินต่อครั้งต้องไม่เกิน 1,000,000 บาท');   // 21 ต.ค. — เดิมขึ้น "มากกว่า 0" ทั้งที่กรอกเกิน
     }
     if ($reason === '') {
-        return array('error' => 'กรุณาระบุเหตุผลของการ' . ($dir === 'in' ? 'เติมเงินทอน' : 'หยิบเงินออก'));
+        return array('error' => 'กรุณาระบุเหตุผลของการ' . $what);
     }
     $st = store_state($code);
     if ($st === null || $st['closed_at'] !== '') {
         return array('error' => 'ร้านไม่ได้เปิดอยู่ — เติม / หยิบเงินได้เฉพาะตอนร้านเปิด');
     }
-    $err = sdb_tx(function () use ($code, $st, $user, $dir, $amount, $reason) {
+    $err = sdb_tx(function () use ($code, $st, $user, $dir, $ch, $what, $amount, $reason) {
         $s = sdb_val('SELECT status FROM ' . sdb_tb('store_day') . ' WHERE day_id = ? FOR UPDATE', array($st['id']));
         if ($s !== 'open') {
             return 'ร้านปิดไปแล้ว';
         }
-        if ($dir === 'out' && $amount > store_expected_cash($code)) {
+        if ($dir === 'out' && $ch === 'cash' && $amount > store_expected_cash($code)) {
             return 'หยิบเงินออกได้ไม่เกินเงินที่ควรมีในลิ้นชัก (' . money2(store_expected_cash($code)) . ' บาท)';
         }
         sdb_insert('cash_move', array(
@@ -454,12 +645,15 @@ function store_cash_add($code, $user, $dir, $amount, $reason)
             'branch_id'  => branch_id_of($code),
             'direction'  => $dir,
             'amount'     => $amount,
+            'channel'    => $ch,
             'reason'     => $reason,
             'created_by' => stock_uid($user),
             'add_date'   => date('Y-m-d H:i:s'),
         ));
-        log_add($code, 'cash', $user, ($dir === 'in' ? 'เติมเงินทอน ' : 'หยิบเงินออกจากลิ้นชัก ') . money2($amount) . ' บาท', array(
+        $title = ($ch === 'cash') ? (($dir === 'in') ? 'เติมเงินทอน ' : 'หยิบเงินออกจากลิ้นชัก ') : $what . ' ';
+        log_add($code, 'cash', $user, $title . money2($amount) . ' บาท', array(
             'จำนวน'     => ($dir === 'in' ? '+' : '−') . money2($amount) . ' บาท',
+            'ช่องทาง'    => ($ch === 'cash') ? 'เงินสดในลิ้นชัก' : 'บัญชีโอนของสาขา',
             'เหตุผล'    => $reason,
             'ผู้ทำรายการ' => $user['name'] . ' · ' . branch_name($code),
         ), $dir === 'in' ? $amount : -$amount);
@@ -468,23 +662,24 @@ function store_cash_add($code, $user, $dir, $amount, $reason)
     return ($err === '') ? array('ok' => true) : array('error' => $err);
 }
 
-/** เงินสดที่คืนลูกค้าวันนี้ (จ่ายจากลิ้นชักวันนี้เสมอ แม้บิลเป็นของวันก่อน) */
+/** เงินสดที่คืนลูกค้าวันนี้จากการรับคืน (จ่ายจากลิ้นชักวันนี้เสมอ แม้บิลเป็นของวันก่อน · คืนแบบโอนไม่นับ) */
 function store_refunds($code)
 {
     $st = store_day_row($code);
     if ($st === null) {
         return 0.0;
     }
-    return (float) sdb_val('SELECT COALESCE(SUM(refund), 0) FROM ' . sdb_tb('return') . ' WHERE day_id = ?', array((int) $st['day_id']));
+    return (float) sdb_val('SELECT COALESCE(SUM(refund), 0) FROM ' . sdb_tb('return') . ' WHERE day_id = ? AND refund_channel = \'cash\'', array((int) $st['day_id']));
 }
 
-/** ยอดขายเงินสดวันนี้ (ไม่นับบิลที่ยกเลิก · บิลโอน/พร้อมเพย์ไม่เข้าลิ้นชัก) */
+/** เงินสดจากการขายวันนี้ = รับเงินสด − ทอนเงินสดจริง (บิลที่ไม่ได้ยกเลิก · ส่วนที่โอนไม่เข้าลิ้นชัก) */
 function store_cash_sales($code)
 {
     $st = store_day_row($code);
     if ($st === null) {
         return 0.0;
     }
-    return (float) sdb_val('SELECT COALESCE(SUM(total), 0) FROM ' . sdb_tb('sale')
-                         . ' WHERE day_id = ? AND status = \'paid\' AND pay_method = \'cash\'', array((int) $st['day_id']));
+    $q = Stock_buildPaySql('s');
+    return (float) sdb_val('SELECT COALESCE(SUM(' . $q['cash_in'] . ' - ' . $q['cash_out'] . '), 0) FROM ' . sdb_tb('sale') . ' s'
+                         . ' WHERE s.day_id = ? AND s.status = \'paid\'', array((int) $st['day_id']));
 }

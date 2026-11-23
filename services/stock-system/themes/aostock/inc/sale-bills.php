@@ -106,7 +106,7 @@ $range = ($bf === '' && $bt === '') ? 'ทั้งวัน' : (($bf !== '' ? $
         <span class="mb-time num"><?php echo e($b['time']) ?></span>
         <span class="mb-no">
           <b><?php echo e($b['no']) ?></b><?php if ($b['void']) { ?> <span class="bdg bdg-out">ยกเลิก</span><?php } ?>
-          <small><?php echo e($first) ?><?php echo $b['items'] > 1 ? ' + อีก ' . ($b['items'] - 1) . ' รายการ' : '' ?> · <?php echo number_format($b['qty']) ?> ชิ้น · <?php echo $b['method'] === 'cash' ? 'เงินสด' : 'โอน / พร้อมเพย์' ?></small>
+          <small><?php echo e($first) ?><?php echo $b['items'] > 1 ? ' + อีก ' . ($b['items'] - 1) . ' รายการ' : '' ?> · <?php echo number_format($b['qty']) ?> ชิ้น · <?php echo e(Stock_formatPayMethod($b)) ?></small>
         </span>
         <span class="mb-amt num"><?php echo money2($b['total']) ?></span>
         <?php echo Stock_buildBillPrintButton($b) ?>

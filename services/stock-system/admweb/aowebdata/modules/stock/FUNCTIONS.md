@@ -2,7 +2,7 @@
 
 > **สถานะ: ร่างรออนุมัติ (ช่วงที่ 15)** — ยังไม่ได้เปลี่ยนชื่อในโค้ด · ตรวจคอลัมน์ "ชื่อใหม่" แล้วแจ้งชื่อที่อยากแก้ได้เลย
 
-ฟังก์ชันทั้งหมด 519 ตัว (เดิม 468 + ตั้งชื่อตามมาตรฐานแล้ว 50 ตัว: ผู้ดูแลลดยอดออกจากสาขา 3 พ.ย. หนึ่งตัว · เปลี่ยนชื่อหมวด 3 พ.ย. สองตัว · ผู้ดูแลเพิ่มยอดเข้าสาขา 3 พ.ย. หนึ่งตัว · สินค้าที่ขายของวัน 2 พ.ย. หนึ่งตัว · ลบ Stock_nextProductSku 3 พ.ย. (SKU กรอกเองอย่างเดียว) · สินค้าของสาขา 22 ต.ค. สิบสองตัว · ไล่แก้ผลทดสอบ 21 ต.ค. เก้าตัว · ขายแบบ VAT รายสาขา 21 ต.ค. ห้าตัว · บิล VAT ต้องมีเลขภาษี 20 ต.ค. หนึ่งตัว · เทียบจำนวนบนจอก่อนบันทึกใบ 20 ต.ค. หนึ่งตัว · รูปสินค้า 16 ต.ค. หนึ่งตัว · บิลของฉันวันนี้ 16 ต.ค. สองตัว · ช่วงที่ 16 สองตัว · ปุ่มพิมพ์บิล · ช่วงที่ 17 สองตัว · งานความเร็ว 14 ต.ค. แปดตัว · หลุดจากระบบ 14 ต.ค. หนึ่งตัว) อยู่ใน `admweb/aowebdata/modules/stock/api/*.php` (โหลดผ่าน `api.php` · ลบ staff_goal 15 ต.ค. · ใบนับแบบรายการ: เพิ่ม Stock_setCountDraft ลบ adj_limit · adj_full · ลบ count_open_limit · ลองใบนับแบบตารางแล้วกลับมาใช้การ์ด · กลุ่มของประวัติ: เพิ่ม Stock_getLogGroups · Stock_getLogGroupOf · Stock_sumLogGroups · เมนูประวัติแยกหน้า: เพิ่ม Stock_getAllowedLogGroups · Stock_getHistoryPerms) · ธีม `themes/aostock/` และหน้า admweb ของโมดูลเรียกใช้
+ฟังก์ชันทั้งหมด 531 ตัว (เดิม 468 + ตั้งชื่อตามมาตรฐานแล้ว 62 ตัว: งานเงินโอน 23 พ.ย. ช่วง 1 สามตัว ช่วง 4 หกตัว ช่วง 6 หนึ่งตัว ช่วง 8 สองตัว · ผู้ดูแลลดยอดออกจากสาขา 3 พ.ย. หนึ่งตัว · เปลี่ยนชื่อหมวด 3 พ.ย. สองตัว · ผู้ดูแลเพิ่มยอดเข้าสาขา 3 พ.ย. หนึ่งตัว · สินค้าที่ขายของวัน 2 พ.ย. หนึ่งตัว · ลบ Stock_nextProductSku 3 พ.ย. (SKU กรอกเองอย่างเดียว) · สินค้าของสาขา 22 ต.ค. สิบสองตัว · ไล่แก้ผลทดสอบ 21 ต.ค. เก้าตัว · ขายแบบ VAT รายสาขา 21 ต.ค. ห้าตัว · บิล VAT ต้องมีเลขภาษี 20 ต.ค. หนึ่งตัว · เทียบจำนวนบนจอก่อนบันทึกใบ 20 ต.ค. หนึ่งตัว · รูปสินค้า 16 ต.ค. หนึ่งตัว · บิลของฉันวันนี้ 16 ต.ค. สองตัว · ช่วงที่ 16 สองตัว · ปุ่มพิมพ์บิล · ช่วงที่ 17 สองตัว · งานความเร็ว 14 ต.ค. แปดตัว · หลุดจากระบบ 14 ต.ค. หนึ่งตัว) อยู่ใน `admweb/aowebdata/modules/stock/api/*.php` (โหลดผ่าน `api.php` · ลบ staff_goal 15 ต.ค. · ใบนับแบบรายการ: เพิ่ม Stock_setCountDraft ลบ adj_limit · adj_full · ลบ count_open_limit · ลองใบนับแบบตารางแล้วกลับมาใช้การ์ด · กลุ่มของประวัติ: เพิ่ม Stock_getLogGroups · Stock_getLogGroupOf · Stock_sumLogGroups · เมนูประวัติแยกหน้า: เพิ่ม Stock_getAllowedLogGroups · Stock_getHistoryPerms) · ธีม `themes/aostock/` และหน้า admweb ของโมดูลเรียกใช้
 
 ## มาตรฐานการตั้งชื่อ
 
@@ -66,7 +66,7 @@
 | `Stock_isRoleEnabled($role)` | `role_enabled` | บทบาทนี้เปิดใช้งานอยู่ไหม |
 | `Stock_isMenuEnabled($file)` | `menu_enabled` | เมนูนี้เปิดให้ใช้ไหม — ต้องมีในระบบ และกลุ่มของเมนูไม่ได้ถูกปิดจากหลังบ้าน |
 | `Stock_getRoles()` | `roles_all` | บทบาทในระบบ: คีย์ => array(name ชื่อ, scope ขอบเขตที่เห็น) |
-| `Stock_getPermList()` | `perm_list` | รายการสิทธิ์ทั้งหมด เรียงตามที่แสดงบนหน้าติ๊กสิทธิ์ |
+| `Stock_getPermList()` | `perm_list` | รายการสิทธิ์ทั้งหมด เรียงตามที่แสดงบนหน้าติ๊กสิทธิ์ · 23 พ.ย.: refund_cash แสดงเป็น “คืนเงินให้ลูกค้า” (คืนเงินสด / โอนได้ · คีย์เดิม) |
 | `Stock_getManagerImpliedPerms()` | `perm_manager_implies` | สิทธิ์ที่ผู้จัดการสาขาได้อัตโนมัติ (ไม่ต้องติ๊กซ้ำ) — ดูข้อมูลทุกอย่าง + สิทธิ์เสริมทุกตัว |
 | `Stock_getHistoryPerms()` | — (ใหม่ 15 ต.ค.) | สิทธิ์ดูประวัติรายเมนู 6 ตัว (แทนคีย์เดิม history — Stock_cleanPerms แปลงให้ตอนอ่าน) |
 | `Stock_getManagerGrantablePerms()` | `perm_manager_grantable` | สิทธิ์ที่ผู้จัดการสาขาติ๊กให้พนักงานในสาขาได้ = ทุกหมวดยกเว้นสิทธิ์เสริม (สิทธิ์เสริม + ตั้งผู้จัดการ เป็นของผู้ดูแล) |
@@ -185,7 +185,7 @@
 | `Stock_formatBranchLimit($n)` | `branch_limit_label` | ข้อความของจำนวนสาขาสูงสุด เช่น "3 สาขา" / "ไม่จำกัด" |
 | `Stock_setBranchLimit($n, $by)` | `branch_limit_set` | ตั้งจำนวนสาขาสูงสุด (หลังบ้าน admweb) + ลงประวัติของระบบ — คืน true ถ้าค่าเปลี่ยน · $by = ชื่อผู้แก้สำหรับประวัติ |
 | `Stock_getBranchLimitError()` | `branch_limit_error` | เพิ่มสาขาใหม่ได้อีกไหม — '' = ได้ · ไม่ได้ = ข้อความบอกผู้ดูแล POS |
-| `Stock_getBranchSettingRules()` | `branch_setting_rules` | ช่วงค่าที่ยอมให้ตั้ง: array(ต่ำสุด, สูงสุด) · count_day = รอบตรวจนับเริ่มวันที่ (1–28 · 0 = ไม่ใช้รอบตรวจนับ — 2 พ.ย.) · backdate_days = แก้เอกสาร / รับคืนย้อนหลังได้กี่วัน · default_float = เงินทอนมาตรฐาน |
+| `Stock_getBranchSettingRules()` | `branch_setting_rules` | ช่วงค่าที่ยอมให้ตั้ง: array(ต่ำสุด, สูงสุด) · count_day = รอบตรวจนับเริ่มวันที่ (1–28 · 0 = ไม่ใช้รอบตรวจนับ — 2 พ.ย.) · backdate_days = แก้เอกสาร / รับคืนย้อนหลังได้กี่วัน · default_float = เงินทอนมาตรฐาน · bank_start = ยอดบัญชีโอนตอนเริ่มใช้ 0–10,000,000 (23 พ.ย. · ทศนิยมได้ ตั้งผ่าน Stock_setBankStart ไม่ใช่ branch_setting_set) |
 | `Stock_getBranchSetting($code, $key)` | `branch_setting` | ค่าตั้งหนึ่งค่าของสาขา (รอบนับ / ย้อนหลัง / นับครั้งละ / เงินทอน) |
 | `Stock_setBranchSetting($code, $key, $val)` | `branch_setting_set` | บันทึกค่าตั้งหนึ่งค่าของสาขา (ตัดให้อยู่ในช่วงที่ยอม) |
 | `Stock_getStocktakeRoundDay($code)` | `count_round_day` | รอบตรวจนับเริ่มวันที่เท่าไรของเดือน (0 = ไม่ใช้รอบตรวจนับ) |
@@ -442,7 +442,7 @@
 | `Stock_formatStocktakeNote($st)` | `count_note` | ข้อความสั้นบนการ์ด: "นับ 12 ก.ย. · ตรง" / "นับวันนี้ 10:32 · ขาด 2" |
 | `Stock_renderDiffChip($d)` | `diff_chip` | ป้ายส่วนต่าง: +3 / −2 / ตรง |
 
-## `api/sale.php` — ขาย · ตะกร้า · บิล (20)
+## `api/sale.php` — ขาย · ตะกร้า · บิล (26)
 
 | ชื่อใหม่ | ชื่อเดิม | ทำอะไร |
 |---|---|---|
@@ -455,45 +455,56 @@
 | `Stock_getCartLines()` | `cart_lines` | แปลงตะกร้าเป็นรายการพร้อมราคา (ราคาขายปัจจุบันของสินค้า) |
 | `Stock_getCartTotal()` | `cart_total` | ยอดรวมของตะกร้า |
 | `Stock_queryBills($where, $params, $order = 's.add_date, s.sale_id', $limit = 0)` | `sale_bills_query` | อ่านบิล — $where ต่อท้าย WHERE (alias s = บิล · b = สาขา) · คืน array ของบิลรูปเดียวกับที่หน้าเว็บใช้ |
-| `Stock_shapeBill($h, $items)` | `sale_bill_shape` | แถวในฐานข้อมูล → รูปบิลที่หน้าเว็บใช้ (no vat time by method lines total received change void_* ...) |
+| `Stock_shapeBill($h, $items)` | `sale_bill_shape` | แถวในฐานข้อมูล → รูปบิลที่หน้าเว็บใช้ (no vat time by method lines total received change void_* ...) · 23 พ.ย.: + pay_cash · pay_transfer · change_cash · change_transfer (Stock_getBillPayParts) · void_refund_channel |
+| `Stock_buildPaySql($a = 's')` | — (ใหม่ 23 พ.ย.) | ชิ้น SQL เงิน 4 ช่องของบิลหนึ่งแถว — array(cash_in รับสด, cash_out ทอนสด, tr_in รับโอน, tr_out ทอนโอน) · บิลเก่า (ช่องเป็น NULL) อ่านจาก pay_method / received / change_amount / total · ทุก query ที่แยกเงินสด / โอนต้องใช้ตัวนี้ (งานเงินโอน) |
+| `Stock_getBillPayParts($h)` | — (ใหม่ 23 พ.ย.) | เงิน 4 ช่องของบิลจากแถวในฐานข้อมูล (pay_cash · pay_transfer · change_cash · change_transfer) — สูตรเดียวกับ Stock_buildPaySql ฝั่ง PHP |
+| `Stock_formatPayMethod($bill)` | — (ใหม่ 23 พ.ย.) | ป้ายวิธีจ่าย — “เงินสด” · “โอน / พร้อมเพย์” · “สด + โอน” · ต่อท้าย “ · ทอนเป็นโอน” เมื่อ change_transfer > 0 |
 | `Stock_getBillByNo($code, $no)` | `bill_by_no` | บิลของวันนี้จากเลขที่ — แก้ / ยกเลิกได้เฉพาะบิลของวันนี้ |
 | `Stock_canSeeBill($user, $bill)` | — (ใหม่ 16 ต.ค.) | ดู / พิมพ์บิลนี้ได้ไหม — ผู้ดูแล · ฝ่ายบัญชี · สิทธิ์ hist_sale (ประวัติขาย) = ทุกบิล · คนอื่น = เฉพาะบิลที่ตัวเองขาย (by_user) · สาขาตรวจที่หน้าที่เรียก · ใช้ใน bill-print.php และ sale.php?done= / ?voided= |
 | `Stock_getMyBillsToday($code, $user, $from = '', $to = '', $limit = 200)` | — (ใหม่ 16 ต.ค.) | บิลที่ผู้ใช้คนนี้ขายวันนี้ที่สาขานี้ ใหม่สุดก่อน (รวมบิลที่ยกเลิก) · $from / $to = 'HH:MM' ของเวลาขาย (ไม่ถูกรูปแบบ = ทั้งวัน) · $limit = 0 → คืนจำนวนอย่างเดียว · รายการ "บิลของฉันวันนี้" ในหน้าขาย |
 | `Stock_getMyBillCounts($code, $user)` | — (ใหม่ 21 ต.ค.) | จำนวนบิลที่ผู้ใช้คนนี้ขายวันนี้ที่สาขานี้ — array(paid, void) · ปุ่ม “บิลของฉันวันนี้ (3 ใบ · ยกเลิก 2)” (เดิมนับรวมบิลที่ยกเลิก ไม่ตรงกับยอดขาย) |
 | `Stock_getSoldProductsOfDay($codes, $ts)` | — (ใหม่ 2 พ.ย.) | สินค้าที่ขายได้ของวันหนึ่ง ไม่นับบิลที่ยกเลิก — array(SKU => name, unit, qty, total, bills) ขายมากสุดก่อน · $codes = รหัสสาขาเดียวหรือหลายสาขา · total หักส่วนลดท้ายบิลตามสัดส่วน (line_total × total ÷ subtotal) · SQL GROUP BY คำสั่งเดียว · การ์ด “สินค้าที่ขายวันนี้” ตอนปิดร้าน (store.php) และแท็บ “สินค้าที่ขาย” ใน adm-day-sales.php |
-| `Stock_getBillRedo()` | — (ใหม่ 21 ต.ค.) | บิลเดิมที่ตะกร้านี้ทำแทน (กด “แก้ไขบิลนี้”) — array(no, discount บาท, vat, method) · ตะกร้าว่าง / ไม่ได้แก้บิล = null · หน้าขายใช้เป็นค่าตั้งต้น: ยอดชำระ = ราคาเต็มตอนนี้ − ส่วนลดเดิม · ประเภทบิล · วิธีจ่าย · เก็บใน $_SESSION['bill_redo'] (Stock_loadCartFromBill) ล้างใน cart_clear |
+| `Stock_getBillRedo()` | — (ใหม่ 21 ต.ค.) | 24 พ.ย.: + cash_in · change_tr (เงินสดที่รับจริง / ทอนเป็นโอนของบิลเดิม — บิลที่ทอนเป็นโอน ช่องรับเงินใช้ cash_in แทนยอดบิล) · 23 พ.ย.: + change_to · บิลเดิมที่ตะกร้านี้ทำแทน (กด “แก้ไขบิลนี้”) — array(no, discount บาท, vat, method) · ตะกร้าว่าง / ไม่ได้แก้บิล = null · หน้าขายใช้เป็นค่าตั้งต้น: ยอดชำระ = ราคาเต็มตอนนี้ − ส่วนลดเดิม · ประเภทบิล · วิธีจ่าย · เก็บใน $_SESSION['bill_redo'] (Stock_loadCartFromBill) ล้างใน cart_clear |
 | `Stock_saveBill($code, $user, $method, $received, $vat = false, $net = null)` | `bill_save` | บันทึกบิลจากตะกร้า: ล็อกยอด → เช็กร้านเปิด + ของพอ → ออกเลขบิล → บิล + รายการ + stock_move + ประวัติ (ทรานแซกชันเดียว) · ล็อกยอด → เช็กร้านเปิด + ของพอ → ออกเลขบิล (ชุด vat / novat งวด YYYYMM) → บิล + รายการ + move + ประวัติ · ขายได้เฉพาะตอนร้านเปิด |
-| `Stock_voidBill($code, $no, $user, $reason, $reopen = false)` | `bill_void` | ยกเลิกบิลของวันนี้ — คืนสต๊อกด้วย stock_move sale_void แล้วทำเครื่องหมายว่ายกเลิก (บิลไม่ถูกลบ) · ร้านต้องยังเปิด (ปิดแล้วเงินในลิ้นชักสรุปแล้ว) และบิลยังไม่มีรับคืน · วันก่อนใช้รับคืนสินค้า |
-| `Stock_loadCartFromBill($bill, $branch)` | `cart_from_bill` | ดึงรายการทั้งบิลกลับเข้าตะกร้า — ใช้คู่กับการยกเลิกเพื่อแก้ไข (บิลใหม่ชี้ edit_of_id กลับมาที่บิลนี้) · แก้เฉพาะแถวที่ผิดแล้วรับเงินใหม่ · ของที่คืนเข้าสต๊อกจากการยกเลิกทำให้ใส่กลับได้ครบเสมอ |
+| `Stock_voidBill($code, $no, $user, $reason, $reopen = false, $refundCh = null)` | `bill_void` | 23 พ.ย.: ยกเลิก (ไม่ใช่แก้ไข) เก็บ void_refund_channel = คืนเงินลูกค้าทางไหน (ค่าอื่น = Stock_getVoidRefundDefault) · ประวัติบอก “คืนเงินลูกค้า … บาท · เงินสดจากลิ้นชัก / โอนจากบัญชีสาขา” · ยกเลิกบิลของวันนี้ — คืนสต๊อกด้วย stock_move sale_void แล้วทำเครื่องหมายว่ายกเลิก (บิลไม่ถูกลบ) · ร้านต้องยังเปิด (ปิดแล้วเงินในลิ้นชักสรุปแล้ว) และบิลยังไม่มีรับคืน · วันก่อนใช้รับคืนสินค้า |
+| `Stock_getVoidRefundDefault($bill)` | — (ใหม่ 23 พ.ย.) | ช่องทางคืนเงินที่เลือกไว้ก่อนตอนยกเลิกบิล — cash ถ้าบิลรับเงินสด (pay_cash > 0) ไม่งั้น transfer · ฟอร์มยกเลิกบิล (หน้าขาย / ประวัติ) และฟอร์มรับคืนสินค้าใส่เป็นค่าตั้งต้นของ refund_ch |
+| `Stock_loadCartFromBill($bill, $branch)` | `cart_from_bill` | 24 พ.ย.: bill_redo เก็บ change_to · cash_in · change_tr · ดึงรายการทั้งบิลกลับเข้าตะกร้า — ใช้คู่กับการยกเลิกเพื่อแก้ไข (บิลใหม่ชี้ edit_of_id กลับมาที่บิลนี้) · แก้เฉพาะแถวที่ผิดแล้วรับเงินใหม่ · ของที่คืนเข้าสต๊อกจากการยกเลิกทำให้ใส่กลับได้ครบเสมอ |
 | `Stock_billHasAnyReturn($no)` | `bill_returned_any` | บิลนี้มีการรับคืนสินค้าไปแล้วหรือยัง — ถ้ามีแล้ว ห้ามยกเลิก/แก้ทั้งบิล (ของจะถูกคืนซ้ำ) · เลขที่บิลไม่ซ้ำข้ามสาขา (รหัสนำหน้าห้ามซ้ำ — acct_prefix_error) จึงหาจากเลขที่อย่างเดียว |
 | `Stock_getSaleSummary($code)` | `sale_summary` | สรุปยอดขายวันนี้ของสาขา (บิลที่ยกเลิกนับแยก ไม่นับเป็นยอดขาย) |
 | `Stock_renderSaleFlash($err, $done, $voided, $oob)` | `sale_flash` | ข้อความแจ้งผลบนหน้าขาย (ส่งกลับแบบ out-of-band ให้ htmx ด้วย) |
 
-## `api/store.php` — เปิด–ปิดร้าน · เงินสดในลิ้นชัก (21)
+## `api/store.php` — เปิด–ปิดร้าน · เงินสดในลิ้นชัก · บัญชีโอน (28)
 
 | ชื่อใหม่ | ชื่อเดิม | ทำอะไร |
 |---|---|---|
 | `Stock_getDefaultFloat($code)` | `branch_default_float` | เงินทอนมาตรฐานของสาขา (ฟิลด์ default_float) |
 | `Stock_getStoreDayRow($code, $date = null, $reset = false)` | `store_day_row` | แถวเปิด–ปิดร้านของสาขาในวันที่ $date (Y-m-d · ค่าเริ่มต้นวันนี้) + ชื่อคนเปิด / ปิด หรือ null |
-| `Stock_getStoreDayResult($code, $ts)` | `store_day_result` | ผลเปิด–ปิดร้านของสาขาในวันหนึ่ง (อีเมลสรุปรายวัน / ตัวอย่างข้อความแจ้งเตือน) — ไม่มีการเปิดร้านวันนั้น = null · ใช้ในอีเมลรายวัน / ตัวอย่างข้อความแจ้งเตือน · คืน opened_at, opened_by, float, closed, closed_at, closed_by, expect, counted, diff, keep, handover, note (ยังไม่ปิด = closed false) |
+| `Stock_getStoreDayResult($code, $ts)` | `store_day_result` | 23 พ.ย.: + bank_expect · bank_counted · bank_diff · bank_carry · bank_open_counted · bank_open_reason (ช่วง 8 — Telegram เปิดร้าน) · ผลเปิด–ปิดร้านของสาขาในวันหนึ่ง (อีเมลสรุปรายวัน / ตัวอย่างข้อความแจ้งเตือน) — ไม่มีการเปิดร้านวันนั้น = null · ใช้ในอีเมลรายวัน / ตัวอย่างข้อความแจ้งเตือน · คืน opened_at, opened_by, float, closed, closed_at, closed_by, expect, counted, diff, keep, handover, note (ยังไม่ปิด = closed false) |
 | `Stock_resetStoreCache()` | `store_db_reset` | ล้าง cache แถวเปิด–ปิดร้านหลังเขียน |
 | `Stock_getStoreCarry($code)` | `store_carry` | เงินทอนยกมาสำหรับเปิดร้านวันนี้ — array(amount, by, time, unclosed) · = keep_cash ของวันล่าสุดก่อนวันนี้ (ปิดแล้ว) · วันนั้นยังไม่ปิด → เงินทอนมาตรฐาน + unclosed = ปปปปดดวว · ยังไม่เคยเปิด → เงินทอนมาตรฐาน |
 | `Stock_getUnclosedDays($code)` | `store_unclosed_days` | วันก่อนวันนี้ที่ยังไม่ได้ปิดร้าน (ลืมปิด) — array ของ ปปปปดดวว ใหม่สุดก่อน |
-| `Stock_getDailyCash($code)` | `store_daily_cash` | เงินที่เติม / หยิบออกจากลิ้นชักวันนี้ — array(topup, withdraw) |
-| `Stock_getCashMoves($code)` | `store_cash_list` | รายการเติม / หยิบเงินของวันนี้ (เก่า → ใหม่) — array(time, dir in\|out, amount, reason, by) |
-| `Stock_getStoreState($code)` | `store_state` | สถานะร้านของสาขาวันนี้ — null = ยังไม่เปิด · คืน id, branch, opened_at, opened_by, opened_user, carry, topup, float, counted, reason, closed_at (ว่าง = เปิดอยู่), closed_by, cash_counted, keep, note, expected, reopen_count, last_diff |
+| `Stock_getDailyCash($code)` | `store_daily_cash` | 23 พ.ย.: เฉพาะเงินสด · เงินที่เติม / หยิบออกจากลิ้นชักวันนี้ — array(topup, withdraw) |
+| `Stock_getCashMoves($code)` | `store_cash_list` | 23 พ.ย.: + channel · รายการเติม / หยิบเงินของวันนี้ (เก่า → ใหม่) — array(time, dir in\|out, amount, reason, by) |
+| `Stock_getStoreState($code)` | `store_state` | 23 พ.ย.: + bank_carried · bank_open_counted · bank_open_reason · bank_expected · bank_counted (ค่าดิบ) · สถานะร้านของสาขาวันนี้ — null = ยังไม่เปิด · คืน id, branch, opened_at, opened_by, opened_user, carry, topup, float, counted, reason, closed_at (ว่าง = เปิดอยู่), closed_by, cash_counted, keep, note, expected, reopen_count, last_diff |
 | `Stock_isStoreOpen($code)` | `store_is_open` | ร้านของสาขาเปิดอยู่ตอนนี้ไหม |
 | `Stock_isStoreClosed($code)` | `store_is_closed` | ร้านของสาขาปิดไปแล้ววันนี้ไหม |
-| `Stock_openStore($code, $user, $topup, $counted, $reason)` | `store_open` | บันทึกการเปิดร้าน — คืนสถานะร้าน (อีกเครื่องเปิดไปก่อนแล้ว = สถานะของเครื่องนั้น ไม่ลงประวัติซ้ำ) · ร้านเปิดวันละครั้งต่อสาขา (UNIQUE สาขา + วัน) · อีกเครื่องเปิดไปก่อน = คืนสถานะของเครื่องนั้น ไม่ลงประวัติซ้ำ |
+| `Stock_openStore($code, $user, $topup, $counted, $reason, $bankCounted = null, $bankReason = '')` | `store_open` | 23 พ.ย.: เก็บยอดบัญชีโอนยกมา (Stock_getBankCarry) + ยอดในแอปเมื่อกด “ไม่ตรง” · ประวัติ “เงินขยับระหว่างร้านปิด” · บันทึกการเปิดร้าน — คืนสถานะร้าน (อีกเครื่องเปิดไปก่อนแล้ว = สถานะของเครื่องนั้น ไม่ลงประวัติซ้ำ) · ร้านเปิดวันละครั้งต่อสาขา (UNIQUE สาขา + วัน) · อีกเครื่องเปิดไปก่อน = คืนสถานะของเครื่องนั้น ไม่ลงประวัติซ้ำ |
 | `Stock_getExpectedCash($code)` | `store_expected_cash` | ยอดเงินที่ควรมีในลิ้นชักตอนนี้ · = เงินทอนเริ่มวัน + เติม + ขายเงินสด − หยิบออก − คืนเงินลูกค้า |
-| `Stock_closeStore($code, $user, $counted, $keep, $note)` | `store_close` | บันทึกการปิดร้าน — เงินที่แยกไว้พรุ่งนี้ไม่เกินเงินที่นับได้ · นำส่ง = นับได้ − แยกไว้ · เงินที่แยกไว้พรุ่งนี้ไม่เกินที่นับได้ · นำส่ง = นับได้ − แยกไว้ · เก็บยอดที่ควรมี + นับได้ + แยกไว้ + นำส่งลงแถวของวัน |
-| `Stock_getDayCash($dayId)` | — (ใหม่ ช่วงที่ 17) | เงินในลิ้นชักของวันหนึ่ง (เงินทอนเริ่มวัน / เติม / ขายเงินสด / หยิบออก / คืนเงิน / ควรมี) — ใช้ได้ทั้งวันนี้และวันก่อน · expected = เงินทอนเริ่มวัน + เติม + ขายเงินสด − หยิบออก − คืนเงินลูกค้า (ทุกรายการผูก day_id ของวันนั้น) |
-| `Stock_closePastDay($code, $ymd, $user, $counted, $keep, $note)` | — (ใหม่ ช่วงที่ 17) | ปิดร้านย้อนหลังของวันที่ลืมปิด — ต้องมีหมายเหตุ · ลงประวัติ “ปิดร้านย้อนหลัง” · แจ้งเตือนแบบปิดร้าน · พนักงาน (สิทธิ์ store) ทำตอนเปิดร้านวันใหม่ก่อนขาย — ที่แยกไว้ยกเป็นเงินทอนวันนี้ · ผู้ดูแลปิดวันไหนก็ได้จากหน้าภาพรวม · ลงประวัติวันนี้ “ปิดร้านย้อนหลัง …” + แจ้งเตือนแบบปิดร้าน |
+| `Stock_closeStore($code, $user, $counted, $keep, $note, $bankCounted = null)` | `store_close` | 23 พ.ย.: เก็บ bank_expected / bank_counted (วันที่มีบัญชีโอน) + บรรทัดบัญชีโอนในประวัติ · บันทึกการปิดร้าน — เงินที่แยกไว้พรุ่งนี้ไม่เกินเงินที่นับได้ · นำส่ง = นับได้ − แยกไว้ · เงินที่แยกไว้พรุ่งนี้ไม่เกินที่นับได้ · นำส่ง = นับได้ − แยกไว้ · เก็บยอดที่ควรมี + นับได้ + แยกไว้ + นำส่งลงแถวของวัน |
+| `Stock_getDayCash($dayId)` | — (ใหม่ ช่วงที่ 17) | 23 พ.ย.: ขายเงินสด = รับเงินสด − ทอนเงินสดจริง (Stock_getDayChannelSums) · คืนเพิ่ม cash_in, cash_out, void_refunds · บิลเก่าได้ค่าเท่าเดิม · เงินในลิ้นชักของวันหนึ่ง (เงินทอนเริ่มวัน / เติม / ขายเงินสด / หยิบออก / คืนเงิน / ควรมี) — ใช้ได้ทั้งวันนี้และวันก่อน · expected = เงินทอนเริ่มวัน + เติม + ขายเงินสด − หยิบออก − คืนเงินลูกค้า (ทุกรายการผูก day_id ของวันนั้น) |
+| `Stock_closePastDay($code, $ymd, $user, $counted, $keep, $note, $bankCounted = '')` | — (ใหม่ ช่วงที่ 17) | 23 พ.ย.: ยอดในแอปไม่บังคับ (ว่าง = ยกยอดที่ควรมีไปวันถัดไป) · ปิดร้านย้อนหลังของวันที่ลืมปิด — ต้องมีหมายเหตุ · ลงประวัติ “ปิดร้านย้อนหลัง” · แจ้งเตือนแบบปิดร้าน · พนักงาน (สิทธิ์ store) ทำตอนเปิดร้านวันใหม่ก่อนขาย — ที่แยกไว้ยกเป็นเงินทอนวันนี้ · ผู้ดูแลปิดวันไหนก็ได้จากหน้าภาพรวม · ลงประวัติวันนี้ “ปิดร้านย้อนหลัง …” + แจ้งเตือนแบบปิดร้าน |
 | `Stock_reopenStore($code, $user, $reason)` | `store_reopen` | เปิดร้านใหม่หลังปิดไปแล้ว — ผู้ดูแลเท่านั้น ต้องมีเหตุผล · ผลของรอบที่ปิดไป (นับได้ / ควรมี) ยังอยู่ในแถวและประวัติจนกว่าจะปิดใหม่ |
-| `Stock_addCashMove($code, $user, $dir, $amount, $reason)` | `store_cash_add` | เติมเงินทอน (in) / หยิบเงินออก (out) ระหว่างวัน — ร้านต้องเปิดอยู่ · ต้องมีเหตุผล · หยิบเกินเงินที่ควรมีในลิ้นชักไม่ได้ · ร้านต้องเปิดอยู่ · ต้องมีเหตุผล · หยิบเกินเงินที่ควรมีในลิ้นชักไม่ได้ · ครั้งละไม่เกิน 1,000,000 บาท |
+| `Stock_addCashMove($code, $user, $dir, $amount, $reason, $channel = 'cash')` | `store_cash_add` | 23 พ.ย.: channel = cash (ลิ้นชัก) | transfer (บัญชีโอน — หยิบเกินยอดที่ควรมีได้) · เติมเงินทอน (in) / หยิบเงินออก (out) ระหว่างวัน — ร้านต้องเปิดอยู่ · ต้องมีเหตุผล · หยิบเกินเงินที่ควรมีในลิ้นชักไม่ได้ · ร้านต้องเปิดอยู่ · ต้องมีเหตุผล · หยิบเกินเงินที่ควรมีในลิ้นชักไม่ได้ · ครั้งละไม่เกิน 1,000,000 บาท |
 | `Stock_checkReopenReason($reason)` | — (ใหม่ 21 ต.ค.) | เหตุผลเปิดร้านใหม่หลังปิด (หน้าเปิดร้าน + หน้าภาพรวมผู้ดูแล) — อย่างน้อย 5 ตัวอักษร · '' = ผ่าน หรือข้อความผิดพลาด (เดิมพิมพ์ตัวเดียวก็ผ่าน) |
-| `Stock_getStoreRefunds($code)` | `store_refunds` | เงินสดที่คืนลูกค้าวันนี้ (รับคืนสินค้า) — จ่ายออกจากลิ้นชักของวันนี้เสมอ แม้บิลเดิมจะเป็นของวันก่อน |
-| `Stock_getCashSales($code)` | `store_cash_sales` | ยอดขายเงินสดวันนี้ (ไม่นับบิลที่ยกเลิก · บิลโอน/พร้อมเพย์ไม่เข้าลิ้นชัก) |
+| `Stock_getStoreRefunds($code)` | `store_refunds` | 23 พ.ย.: เฉพาะคืนเป็นเงินสด · เงินสดที่คืนลูกค้าวันนี้ (รับคืนสินค้า) — จ่ายออกจากลิ้นชักของวันนี้เสมอ แม้บิลเดิมจะเป็นของวันก่อน |
+| `Stock_getCashSales($code)` | `store_cash_sales` | 23 พ.ย.: รับเงินสด − ทอนเงินสดจริง · ยอดขายเงินสดวันนี้ (ไม่นับบิลที่ยกเลิก · บิลโอน/พร้อมเพย์ไม่เข้าลิ้นชัก) |
+| `Stock_getDayChannelSums($dayId, $channel)` | — (ใหม่ 23 พ.ย.) | ผลรวมเงินของช่องทาง cash / transfer ในวันหนึ่ง — array(topup, withdraw, in รับจากขาย, out ทอน, refunds คืนจากรับคืน, void_refunds คืนจากยกเลิกบิล) · นับบิล paid + ยกเลิกแบบเลือกช่องทางคืน (บิลยกเลิกเก่า / ยกเลิกเพื่อแก้ไขไม่นับ) · ลิ้นชักกับบัญชีโอนใช้ร่วมกัน |
+| `Stock_getDayBank($dayId)` | — (ใหม่ 23 พ.ย.) | บัญชีโอนของสาขาในวันหนึ่ง — null = ไม่มีบัญชีโอน (bank_carried NULL) · array(carried, open_counted, start, topup, withdraw, tr_in, tr_out, refunds, void_refunds, expected) · start = ยอดในแอปตอนเปิด (กดไม่ตรง) หรือยกมา |
+| `Stock_getBankCarry($code)` | — (ใหม่ 23 พ.ย.) | ยอดบัญชีโอนยกมาสำหรับเปิดร้านวันนี้ — array(amount, from day\|start, ymd) · วันก่อน = ยอดในแอปตอนปิด (เว้นไว้ = ควรมี) · ไม่เคยมี = bank_start ของสาขา |
+| `Stock_setBankStart($code, $amount)` | — (ใหม่ 23 พ.ย.) | ตั้งยอดตั้งต้นบัญชีโอนของสาขา — สาขาที่ยังไม่เคยปิดร้านพร้อมตัวเลขบัญชี: ยอดยกมาของวันที่เปิดอยู่ตามค่าใหม่ (ยังไม่กดไม่ตรง) · ช่วงค่าตาม Stock_getBranchSettingRules · หน้าเพิ่ม / แก้สาขาเรียก (ช่วง 8) |
+| `Stock_isBankStartUsed($code)` | — (ใหม่ 23 พ.ย.) | สาขาปิดร้านพร้อมตัวเลขบัญชีโอนแล้วหรือยัง — แล้ว = ยอดตั้งต้นไม่มีผล หน้าแก้สาขาล็อกช่อง (ปรับยอดด้วยเติม / หยิบแบบโอน) · Stock_setBankStart ใช้เช็กก่อนแก้ยอดยกมาของวันที่เปิดอยู่ |
+| `Stock_getTransferList($dayId)` | — (ใหม่ 23 พ.ย.) | รายการเงินเข้า-ออกบัญชีโอนของวัน เรียงเวลา — array(time, kind sale\|change\|void\|refund\|topup\|withdraw, ref, dir in\|out, amount, by) ไว้เทียบกับแอปธนาคาร |
+| `Stock_buildBankCloseDetail($bank, $counted)` | — (ใหม่ 23 พ.ย.) | บรรทัดบัญชีโอนในประวัติปิดร้าน (ควรมี · ยอดในแอป · ผลต่าง) — ปิดร้าน + ปิดร้านย้อนหลังใช้ร่วมกัน · ไม่มีบัญชีโอน = array() |
 
 ## `api/return.php` — รับคืนสินค้า (21)
 
@@ -511,10 +522,10 @@
 | `Stock_billHasReturns($no, $bill = null)` | `bill_has_returns` | บิลนี้มีของที่คืนไปแล้วไหม (นับจากจำนวนที่คืน) |
 | `Stock_getReturnLines($bill)` | `return_lines` | แต่ละรายการในบิล + คืนไปแล้ว + คืนได้อีก |
 | `Stock_getBillReturnStatus($bill, $user = null)` | `bill_return_status` | สถานะของบิลสำหรับการคืน · เกินกำหนดคืนไม่ได้ (ผู้ดูแลขยายจำนวนวันของสาขาได้) |
-| `Stock_queryReturns($where, $params)` | `returns_query` | อ่านใบรับคืน — $where ต่อท้าย WHERE (alias r = ใบรับคืน · b = สาขา · s = บิลเดิม) · เรียงตามเวลา |
+| `Stock_queryReturns($where, $params)` | `returns_query` | อ่านใบรับคืน — $where ต่อท้าย WHERE (alias r = ใบรับคืน · b = สาขา · s = บิลเดิม) · เรียงตามเวลา · 23 พ.ย.: + refund_channel (cash / transfer) |
 | `Stock_getReturnsToday($code)` | `returns_today` | ใบรับคืนของสาขาวันนี้ |
 | `Stock_getReturnByNo($code, $no)` | `return_by_no` | ใบรับคืนของวันนี้จากเลขที่ |
-| `Stock_saveReturn($code, $user, $bill, $qtys, $reason, $note, $refund, $refundNote)` | `return_save` | บันทึกการรับคืน — ล็อกบิลเดิม → เช็กร้านเปิด + คืนไม่เกินที่เหลือ → ใบรับคืน + รายการ + stock_move (ถ้าเข้าสต๊อก) + ประวัติ · ต้องมีสิทธิ์ refund · บิลไม่เก่ากว่า backdate_days ของสาขา · คืนบางรายการ / บางชิ้นได้ ไม่เกินที่ซื้อหักที่คืนแล้ว (เช็กซ้ำหลังล็อกบิล กันสองเครื่อง) · เข้าสต๊อก (move return) เฉพาะซื้อผิดรุ่น / ผิดแบบ · ต้องเปิดร้าน · ยอดเงินคืนแก้ได้ไม่เกินที่จ่าย (แก้ต้องมีเหตุผล) · $qtys = SKU => จำนวน · $refund ว่าง = ยอดคำนวณ |
+| `Stock_saveReturn($code, $user, $bill, $qtys, $reason, $note, $refund, $refundNote, $refundCh = 'cash')` | `return_save` | 23 พ.ย.: $refundCh = คืนเงินสดจากลิ้นชัก / โอนจากบัญชีสาขา (ค่าอื่น = cash · ไม่มีสิทธิ์คืนเงิน = cash) เก็บ refund_channel · ประวัติบอก “คืนเงินลูกค้า … บาท · เงินสดจากลิ้นชัก / โอนจากบัญชีสาขา” · บันทึกการรับคืน — ล็อกบิลเดิม → เช็กร้านเปิด + คืนไม่เกินที่เหลือ → ใบรับคืน + รายการ + stock_move (ถ้าเข้าสต๊อก) + ประวัติ · ต้องมีสิทธิ์ refund · บิลไม่เก่ากว่า backdate_days ของสาขา · คืนบางรายการ / บางชิ้นได้ ไม่เกินที่ซื้อหักที่คืนแล้ว (เช็กซ้ำหลังล็อกบิล กันสองเครื่อง) · เข้าสต๊อก (move return) เฉพาะซื้อผิดรุ่น / ผิดแบบ · ต้องเปิดร้าน · ยอดเงินคืนแก้ได้ไม่เกินที่จ่าย (แก้ต้องมีเหตุผล) · $qtys = SKU => จำนวน · $refund ว่าง = ยอดคำนวณ |
 | `Stock_checkReturnPhotos($field)` | `return_photos_check` | ตรวจรูปที่อัปโหลดมา — คืน array('files' => รายการไฟล์ที่ผ่าน) หรือ array('error' => ข้อความ) |
 | `Stock_storeReturnPhotos($code, $no, $files)` | `return_photos_store` | เก็บรูปที่ตรวจแล้ว แล้วผูกกับใบรับคืน (stock_return.photos) — คืน path ที่บันทึกได้ (ใต้ uploads/) · เก็บที่ uploads/stock/returns/{เลขที่ใบ}-{ลำดับ}.{jpg / png / webp} ด้วย UpFile · path เป็น JSON ใน stock_return.photos · uploads/.htaccess กันไฟล์สคริปต์ |
 | `Stock_getReturnsOfDay($code, $ts)` | `returns_of_day` | ใบรับคืนของวันหนึ่ง |
@@ -549,8 +560,8 @@
 | `Stock_getAccountBillsOfDay($code, $ts)` | `acct_bills` | บิลทั้งหมดของสาขาในวันหนึ่ง รวมบิลที่ยกเลิก (บัญชีต้องเห็นเลขที่ครบทุกใบ) เรียงตามเวลา |
 | `Stock_getAccountRefundsOfDay($code, $ts)` | `acct_refunds` | เงินสดที่คืนลูกค้าในวันหนึ่งของสาขา (ใบรับคืนที่ออกวันนั้น) |
 | `Stock_addVatToBill($b, $code)` | `acct_bill_row` | เพิ่มยอดก่อน VAT / VAT ให้บิล |
-| `Stock_getAccountDay($code, $ts)` | `acct_day` | สรุปของสาขาในวันหนึ่ง · คืน array(bills, v, n, void, total, base, vat, cash, transfer, refund, net, rows) |
-| `Stock_getAccountRange($code, $from, $to)` | `acct_range` | สรุปของสาขาช่วง $from–$to แบบเดียวกับ Stock_getAccountDay แต่ไม่มีรายการบิล — SQL 2 คำสั่ง (บิล + เงินคืน) · คืนแบบ acct_day ไม่มี rows · bills / v / n นับรวมบิลยกเลิก (เลขที่ต้องครบ) · ยอดเงินไม่นับบิลยกเลิก · ก่อน VAT / VAT ใช้ค่าที่เก็บในบิล |
+| `Stock_getAccountDay($code, $ts)` | `acct_day` | 23 พ.ย.: cash / transfer = สุทธิต่อช่องทาง (รับ − ทอน · Stock_getBillPayParts) รวมสองช่อง = total · transfer ติดลบได้ (บิลทอนเป็นโอน) · สรุปของสาขาในวันหนึ่ง · คืน array(bills, v, n, void, total, base, vat, cash, transfer, refund, net, rows) |
+| `Stock_getAccountRange($code, $from, $to)` | `acct_range` | 23 พ.ย.: cash / transfer สุทธิต่อช่องทาง (Stock_buildPaySql) · สรุปของสาขาช่วง $from–$to แบบเดียวกับ Stock_getAccountDay แต่ไม่มีรายการบิล — SQL 2 คำสั่ง (บิล + เงินคืน) · คืนแบบ acct_day ไม่มี rows · bills / v / n นับรวมบิลยกเลิก (เลขที่ต้องครบ) · ยอดเงินไม่นับบิลยกเลิก · ก่อน VAT / VAT ใช้ค่าที่เก็บในบิล |
 | `Stock_getAccountMonth($code, $ts)` | `acct_month` | สรุปทั้งเดือน (ตั้งแต่วันที่ 1 ถึงวันนี้หรือสิ้นเดือน) ของสาขา |
 | `Stock_getAccountBillsRange($codes, $from, $to)` | `acct_bills_range` | บิลทั้งหมด (รวมที่ยกเลิก) ของหลายสาขา ช่วง $from–$to — เรียงวัน → ลำดับสาขา → เวลา (ไฟล์ CSV ของฝ่ายบัญชี) · เรียงวัน → ลำดับสาขา → เวลา |
 | `Stock_compareAccountRows($a, $b)` | `acct_row_cmp` | ตัวเรียง (usort): วัน → ลำดับสาขา → เวลา |
@@ -570,7 +581,7 @@
 | `Stock_getBranchRankToday($branchCode)` | `branch_rank_today` | อันดับงานวันนี้ในสาขา: พนักงานที่ประจำสาขา + คนอื่นที่มาทำเอกสารของสาขานี้วันนี้ (เช่น ผู้ดูแล / ช่วยงานข้ามสาขา) · คืน array(username, name, branch, idle, docs, qty) เรียงชิ้นมากไปน้อย · คนที่ยังไม่มีรายการอยู่ท้าย |
 | `Stock_compareRankQty($a, $b)` | `compare_rank_qty` | ตัวเรียง (usort): จำนวนชิ้นมากก่อน |
 | `Stock_getAdminRange($mode, $dayTs, $monTs, $year)` | `adm_range` | ช่วงวันที่ของหน้าตรวจสอบฝั่งผู้ดูแล — คืน array(จาก, ถึง, ข้อความ) |
-| `Stock_aggregateSales($codes, $from, $to, $uid = 0)` | `sales_agg` | ยอดขายของบิลที่ไม่ยกเลิก ช่วง $from–$to (timestamp) ของสาขาใน $codes · $uid > 0 = เฉพาะคนขายคนนี้ (staff_id) · สาขาถูกปั๊มลงบิลตอนบันทึก ไม่อ่านจากโปรไฟล์ตอนออกรายงาน (พนักงานย้ายสาขาแล้วยอดเก่าไม่ย้ายตาม) · บิลยกเลิกไม่นับ · ทั้งช่วงในคิวรีเดียว · แถว: d · branch · uid · user · name · bills · qty · total · disc · cash · vat (จำนวนบิล VAT) เรียงวันแล้วลำดับสาขา |
+| `Stock_aggregateSales($codes, $from, $to, $uid = 0)` | `sales_agg` | 23 พ.ย.: cash = เงินสดสุทธิ (รับ − ทอน · Stock_buildPaySql) — โอน = total − cash · ยอดขายของบิลที่ไม่ยกเลิก ช่วง $from–$to (timestamp) ของสาขาใน $codes · $uid > 0 = เฉพาะคนขายคนนี้ (staff_id) · สาขาถูกปั๊มลงบิลตอนบันทึก ไม่อ่านจากโปรไฟล์ตอนออกรายงาน (พนักงานย้ายสาขาแล้วยอดเก่าไม่ย้ายตาม) · บิลยกเลิกไม่นับ · ทั้งช่วงในคิวรีเดียว · แถว: d · branch · uid · user · name · bills · qty · total · disc · cash · vat (จำนวนบิล VAT) เรียงวันแล้วลำดับสาขา |
 | `Stock_countVoidBills($codes, $from, $to)` | `sales_void_count` | จำนวนบิลที่ยกเลิก ช่วง $from–$to ของสาขาใน $codes |
 | `Stock_getFirstSaleDay()` | `sales_first_day` | วันแรกที่มีบิลขาย (timestamp เที่ยงคืน) — ยังไม่มีบิลเลย = วันนี้ · จุดเริ่ม "ตั้งแต่เริ่มใช้ระบบ" และเดือนแรกที่เลือกดูได้ในรายงาน |
 | `Stock_sumSales($codes, $from, $to)` | `sales_scan` | รวมยอดขาย (ไม่นับบิลยกเลิก) ช่วง $from–$to ของสาขาใน $codes · ใช้กับ adm-report-branch / adm-report-staff · daily_matrix · อีเมลรายวัน · คืน 'day' => Ymd => สาขา => (total, bills, qty) ครบทุกวัน × สาขา · 'staff' => username => (name, branch, bills, qty, total, disc, days) |
@@ -582,7 +593,7 @@
 | `Stock_getReportMonths($user, $limit = 6)` | `report_months` | เดือนย้อนหลังที่เลือกได้ |
 | `Stock_compareReviewItems($a, $b)` | `dash_review_cmp` | เรียงรายการที่ต้องตรวจ ใหม่สุดขึ้นก่อน |
 
-## `api/notify.php` — แจ้งเตือน Telegram · อีเมลสรุปรายวัน · cron (40)
+## `api/notify.php` — แจ้งเตือน Telegram · อีเมลสรุปรายวัน · cron (41)
 
 | ชื่อใหม่ | ชื่อเดิม | ทำอะไร |
 |---|---|---|
@@ -600,21 +611,22 @@
 | `Stock_callTelegramApi($token, $method, $params = array(), $timeout = 10)` | `tg_api` | เรียก Telegram Bot API · คืน array(ok, ข้อมูล \| ข้อความผิดพลาด, เชื่อมต่อไม่ได้เลย true/false) · $timeout = วินาทีรวม (ต่อสาย = ครึ่งหนึ่ง · แจ้งเหตุการณ์ใช้ 5 วินาที) · AOSTOCK_TG_API (ตั้งใน fix.localhost.php เท่านั้น) = ส่งไปเซิร์ฟเวอร์จำลองตอนทดสอบ |
 | `Stock_findTelegramChats($token)` | `tg_find_chats` | หา Chat ID จากข้อความล่าสุดที่คนทักบอท (getUpdates) คืน array(ok, array(id => ชื่อ) \| ข้อความผิดพลาด) |
 | `Stock_getLastSalesDay($codes)` | `notify_last_sales_day` | วันล่าสุดก่อนวันนี้ที่มีบิลขาย (ไว้ทำตัวอย่าง) — ยังไม่มีเลย = เมื่อวาน |
-| `Stock_buildTelegramText($event, $d)` | `notify_tg_text` | ข้อความของเหตุการณ์ — คืน '' ถ้าไม่รู้จักชนิด · ใช้ทั้งเหตุการณ์จริง (notify_on_*) และตัวอย่างในหน้าตั้งค่า (notify_tg_sample) |
+| `Stock_buildTelegramText($event, $d)` | `notify_tg_text` | 23 พ.ย.: open + “บัญชีโอนเริ่มวัน” / “⚠️ ยอดบัญชีโอนยกมา … ยอดในแอป … — เหตุผล” · close + บรรทัดบัญชีโอน (Stock_formatNotifyBankLine) · cash_diff บอกเฉพาะฝั่งที่ไม่ตรง (เงินขาด / บัญชีโอนขาด …) · refund บอกช่องทาง · ข้อความของเหตุการณ์ — คืน '' ถ้าไม่รู้จักชนิด · ใช้ทั้งเหตุการณ์จริง (notify_on_*) และตัวอย่างในหน้าตั้งค่า (notify_tg_sample) |
+| `Stock_formatNotifyBankLine($d, $mark)` | — (ใหม่ 23 พ.ย.) | บรรทัดบัญชีโอนของข้อความปิดร้าน / ขาด–เกิน “🏦 บัญชีโอน ควรมี … · ยอดในแอป …” (ไม่ได้กรอก = “ไม่ได้กรอกยอดในแอป”) · $mark = ต่อท้าย ✅ ตรง / ⚠️ บัญชีโอนขาด–เกิน · วันไม่มีบัญชีโอน (bank_expect null) = '' |
 | `Stock_buildNotifyBase($code, $by = '', $ts = null)` | `notify_d_base` | ข้อมูลพื้นฐานของข้อความ: สาขา วันที่ เวลา ผู้ทำ |
 | `Stock_getNotifyDocLabel($kind)` | `notify_doc_label` | ชื่อชนิดเอกสารในข้อความ |
 | `Stock_buildItemsText($lines, $qtyKey = 'qty')` | `notify_items_text` | รายชื่อสินค้าแบบสั้นในข้อความ — "ชื่อ ×จำนวน · …" ไม่เกิน 5 รายการ |
-| `Stock_buildNotifyStoreData($code, $ts)` | `notify_d_store` | ข้อมูลข้อความเปิดร้าน / ปิดร้าน / เงินขาดเกินของวันหนึ่ง (จาก ao_stock_store_day + บิลของวันนั้น) — ไม่มีการเปิดร้าน = null · จาก ao_stock_store_day + บิลของวันนั้น |
+| `Stock_buildNotifyStoreData($code, $ts)` | `notify_d_store` | 23 พ.ย.: + bank_expect · bank_counted · bank_diff · bank_carry · bank_open_counted · bank_open_reason · cash / transfer สุทธิ (acct_day) · ข้อมูลข้อความเปิดร้าน / ปิดร้าน / เงินขาดเกินของวันหนึ่ง (จาก ao_stock_store_day + บิลของวันนั้น) — ไม่มีการเปิดร้าน = null · จาก ao_stock_store_day + บิลของวันนั้น |
 | `Stock_wantsNotify($event, $code)` | `notify_wants` | เหตุการณ์นี้ของสาขานี้ต้องส่งเข้า Telegram ไหม (เปิดใช้ · เลือกเหตุการณ์ไว้ · สาขาอยู่ในขอบเขต · กลุ่มฟีเจอร์ไม่ถูกปิด) · เปิดใช้ · เลือกเหตุการณ์ไว้ · สาขาอยู่ในขอบเขต · กลุ่มฟีเจอร์ไม่ถูกปิด |
 | `Stock_queueNotifyEvent($event, $code, $text, $ref = '')` | `notify_event` | แจ้งเหตุการณ์เข้า Telegram — เข้าคิวไว้ ส่งตอนจบ request (หลังบันทึกลงฐานข้อมูลแล้ว) · คืน true ถ้าเข้าคิว · ค่าตั้งอยู่ใน ao_stock_setting (token / รหัสผ่าน SMTP เข้ารหัส) · กลุ่มฟีเจอร์ notify ถูกปิด = ไม่ส่งอะไรเลย |
 | `Stock_notifyQueue($item = null)` | `notify_queue` | คิวของ request นี้ — ใส่ $item = เพิ่ม (ลงทะเบียน Stock_flushNotifyQueue ตอนจบ request ครั้งแรก) · ไม่ใส่ = ดึงทั้งคิวออก |
 | `Stock_flushNotifyQueue()` | `notify_flush` | ส่งทุกข้อความในคิวเข้าทุกแชต แล้วลงประวัติ — ทำงานตอนจบ request (register_shutdown_function) · register_shutdown_function · PHP-FPM ตอบหน้าเว็บก่อน (fastcgi_finish_request) · ที่ข้ามลงประวัติว่าข้าม ไม่ให้หน้าร้านรอซ้ำ |
 | `Stock_getNotifySubject($text)` | `notify_subject` | หัวเรื่องสั้นของข้อความ (บรรทัดแรก ไม่มีแท็ก) ไว้ลงประวัติ |
-| `Stock_notifyOnOpen($code)` | `notify_on_open` | เปิดร้าน (+ สินค้าใกล้หมดของสาขา วันละครั้งตอนเปิดร้าน) |
-| `Stock_notifyOnClose($code)` | `notify_on_close` | ปิดร้าน + เงินขาด / เกิน · วันก่อน = ปิดร้านย้อนหลัง |
+| `Stock_notifyOnOpen($code)` | `notify_on_open` | 23 พ.ย.: + ยอดบัญชีโอนยกมา / ยอดในแอป / เหตุผล · เปิดร้าน (+ สินค้าใกล้หมดของสาขา วันละครั้งตอนเปิดร้าน) |
+| `Stock_notifyOnClose($code)` | `notify_on_close` | 23 พ.ย.: ส่งขาด / เกินเมื่อเงินสดหรือบัญชีโอนไม่ตรง · ปิดร้าน + เงินขาด / เกิน · วันก่อน = ปิดร้านย้อนหลัง |
 | `Stock_notifyOnReopen($code, $user, $reason, $st)` | `notify_on_reopen` | เปิดร้านใหม่หลังปิด — $st = สถานะก่อนเปิดใหม่ (ยังมีเวลา / คนปิด / เงินที่นับได้) |
 | `Stock_notifyOnVoid($code, $kind, $doc, $user, $reason, $edit)` | `notify_on_void` | ยกเลิก / ยกเลิกเพื่อแก้ไข บิลหรือเอกสารคลังของวันนี้ — $doc = บิล (SA) หรือเอกสาร (RC/IS/AD) ก่อนยกเลิก |
-| `Stock_notifyOnRefund($code, $rt)` | `notify_on_refund` | รับคืนสินค้า — $rt = ใบรับคืนที่บันทึกแล้ว (Stock_getReturnByNo) |
+| `Stock_notifyOnRefund($code, $rt)` | `notify_on_refund` | รับคืนสินค้า — $rt = ใบรับคืนที่บันทึกแล้ว (Stock_getReturnByNo) · 23 พ.ย.: หัวข้อความบอก “คืนเงินสด” / “โอนคืน” ตาม refund_channel |
 | `Stock_notifyOnIssue($code, $doc)` | `notify_on_issue` | ตัดออกเพราะสูญหาย / ชำรุด — $doc = ใบตัดออกที่บันทึกแล้ว (เหตุผลอื่นไม่แจ้ง) |
 | `Stock_notifyOnBackdate($code, $doc, $user, $reason, $edit)` | `notify_on_backdate` | ยกเลิกเอกสารคลังย้อนหลัง — $doc = เอกสารก่อนยกเลิก |
 | `Stock_getTelegramSample($event, $code = '')` | `notify_tg_sample` | ตัวอย่างข้อความของแต่ละเหตุการณ์ — ใช้ข้อมูลล่าสุดที่มีจริงของสาขา (ยังไม่มีเหตุการณ์ชนิดนั้น = ค่าตัวอย่าง) |

@@ -115,7 +115,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } elseif ($redo && cart_count() > 0) {
                 $err = 'ตะกร้ายังมีสินค้าค้างอยู่ ปิดรายการนั้นให้เสร็จก่อนจึงจะแก้ไขบิลเก่าได้';
             } else {
-                $voided = bill_void($code, $no, $user, $reason, $redo);
+                $voided = bill_void($code, $no, $user, $reason, $redo, isset($_POST['refund_ch']) ? (string) $_POST['refund_ch'] : null);   // คืนเงินสด / โอน (23 พ.ย.)
                 if ($voided === null) {
                     $err = 'ไม่พบบิลนี้ หรือถูกยกเลิกไปแล้ว';
                 } elseif (isset($voided['error'])) {
@@ -126,7 +126,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
         } elseif ($act === 'pay') {
-            $method = (isset($_POST['method']) && $_POST['method'] === 'transfer') ? 'transfer' : 'cash';
+            $method = (isset($_POST['method']) && in_array($_POST['method'], array('transfer', 'mixed'), true)) ? $_POST['method'] : 'cash';
+            $chgTo  = (isset($_POST['change_to']) && $_POST['change_to'] === 'transfer') ? 'transfer' : 'cash';   // ทอนเป็นโอน (23 พ.ย.)
             /* รับสตางค์ได้ — เดิมตัดทุกอย่างที่ไม่ใช่ตัวเลข พิมพ์ 100.50 แล้วกลายเป็น 10,050 (12 ต.ค.) */
             $recvIn = isset($_POST['received']) ? preg_replace('/[^0-9.]/', '', $_POST['received']) : '';
             $recv   = ($recvIn === '' || !is_numeric($recvIn)) ? null : round((float) $recvIn, 2);   // ว่าง = รับพอดี · น้อยกว่ายอด = bill_save ไม่บันทึก
@@ -138,7 +139,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } elseif ($net !== null && ($net <= 0 || $net > cart_total() + 0.001)) {
                 $err = 'ยอดที่ต้องชำระต้องมากกว่า 0 และไม่เกินราคาเต็ม ' . money2(cart_total()) . ' บาท';
             } else {
-                $done = bill_save($code, $user, $method, $recv, $vat, $net);
+                $done = bill_save($code, $user, $method, $recv, $vat, $net, $chgTo);
                 if ($done === null) {
                     $err = 'ยังไม่มีสินค้าในตะกร้า';
                 } elseif (isset($done['error'])) {

@@ -130,7 +130,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $err === '' && !$pastTs) {
         } elseif ($redo && cart_count() > 0) {
             $err = 'ตะกร้ายังมีสินค้าค้างอยู่ ปิดรายการนั้นให้เสร็จก่อนจึงจะแก้ไขบิลเก่าได้';
         } else {
-            $v = bill_void($code, $no, $user, $reason, $redo);
+            $v = bill_void($code, $no, $user, $reason, $redo, isset($_POST['refund_ch']) ? (string) $_POST['refund_ch'] : null);   // คืนเงินสด / โอน (23 พ.ย.)
             if ($v === null) {
                 $err = 'ไม่พบบิลนี้ หรือถูกยกเลิกไปแล้ว';
             } elseif (isset($v['error'])) {
@@ -552,11 +552,12 @@ if ($t === 'sale') {   /* บิลขาย = ที่ยังไม่ยก
                 <?php if ($fix) { foreach (array(
                     array('edit', 'แก้ไขบิลนี้',  'i-arrow', 'หมายเหตุการแก้ไขบิล'),
                     array('void', 'ยกเลิกบิลนี้', 'i-ban',   'หมายเหตุการยกเลิกบิล'),
-                ) as $b) { if ($b[0] === 'edit' && !can($user, 'sale')) { continue; } ?>
-                  <form method="post" action="<?php echo e($act) ?>" data-confirm="<?php echo e($b[0]) ?>"<?php echo $dat ?>>
+                ) as $b) { if ($b[0] === 'edit' && !can($user, 'sale')) { continue; } $rch = ($b[0] === 'void') ? Stock_getVoidRefundDefault($bill) : ''; ?>
+                  <form method="post" action="<?php echo e($act) ?>" data-confirm="<?php echo e($b[0]) ?>"<?php echo $dat ?><?php echo $rch !== '' ? ' data-refund="' . $rch . '"' : '' ?>>
                     <input type="hidden" name="csrf" value="<?php echo e(csrf_token()) ?>">
                     <input type="hidden" name="act" value="<?php echo e($b[0]) ?>">
                     <input type="hidden" name="no" value="<?php echo e($bill['no']) ?>">
+                    <?php if ($rch !== '') { /* ยกเลิกบิล: กล่องยืนยันให้เลือกคืนเงินสด / โอน (23 พ.ย.) */ ?><input type="hidden" name="refund_ch" value="<?php echo $rch ?>"><?php } ?>
                     <input class="reason-fb" type="text" name="reason" value=""
                            placeholder="หมายเหตุ (จำเป็น)"
                            aria-label="<?php echo e($b[3]) ?> <?php echo e($bill['no']) ?>">

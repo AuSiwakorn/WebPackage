@@ -244,6 +244,9 @@ if ($LIVE_PART === 'more') {
               <?php } else { ?>
                 · ใช้<?php echo $redoOff > 0 ? 'ส่วนลดเดิม ' . money2($redoOff) . ' บาท · ' : '' ?>ประเภทบิลและวิธีจ่ายเดิมให้แล้ว
               <?php } ?>
+              <?php if ($redo['method'] === 'cash' && $redo['change_tr'] > 0) { ?>
+                · บิลเดิมรับเงินสด <?php echo money2($redo['cash_in']) ?> · ทอนเป็นโอนไปแล้ว <?php echo money2($redo['change_tr']) ?>
+              <?php } ?>
             </span>
           </p>
           <?php } ?>
@@ -289,22 +292,31 @@ if ($LIVE_PART === 'more') {
           <?php } ?>
           <?php } ?>
 
-          <?php $byTr = ($redo !== null && $redo['method'] === 'transfer'); ?>
-          <div class="pay-how" id="pay-how" role="radiogroup" aria-label="วิธีชำระเงิน">
-            <label<?php echo $byTr ? '' : ' class="on"' ?>><input type="radio" name="method" value="cash"<?php echo $byTr ? '' : ' checked' ?>> เงินสด</label>
-            <label<?php echo $byTr ? ' class="on"' : '' ?>><input type="radio" name="method" value="transfer"<?php echo $byTr ? ' checked' : '' ?>> โอน / พร้อมเพย์</label>
+          <?php /* เงินสด · โอน · สด + โอน (23 พ.ย.) — แก้ไขบิลเลือกวิธีเดิมไว้ให้ */
+          $how = ($redo !== null) ? $redo['method'] : 'cash';
+          $chgTr = ($redo !== null && $redo['change_to'] === 'transfer'); ?>
+          <div class="pay-how pay-how3" id="pay-how" role="radiogroup" aria-label="วิธีชำระเงิน">
+            <?php /* คอลัมน์ตะกร้าแคบ — ปุ่มใช้ “โอน” (หมายถึงโอน / พร้อมเพย์ · ใบเสร็จ / ประวัติยังเขียนเต็ม) */
+            foreach (array('cash' => array('เงินสด', ''), 'transfer' => array('โอน', ' title="โอน / พร้อมเพย์"'), 'mixed' => array('สด + โอน', ' title="เงินสดบางส่วน ที่เหลือโอน"')) as $hk => $hl) { ?>
+            <label<?php echo ($how === $hk ? ' class="on"' : '') . $hl[1] ?>><input type="radio" name="method" value="<?php echo $hk ?>"<?php echo $how === $hk ? ' checked' : '' ?>> <?php echo $hl[0] ?></label>
+            <?php } ?>
           </div>
 
           <?php /* รับสตางค์ได้ — ยอดลงตัวแสดงเป็นบาทเต็ม (980) มีสตางค์แสดง 2 ตำแหน่ง (99.50) · เดิม (int) ตัดเป็น 99 เงินทอนติดลบ (12 ต.ค.) */
-          $totIn = (abs($netV - round($netV)) < 0.005) ? (string) (int) round($netV) : number_format($netV, 2, '.', '');   // $netV = ยอดหลังส่วนลดเดิม (แก้ไขบิล) ?>
+          $totIn = (abs($netV - round($netV)) < 0.005) ? (string) (int) round($netV) : number_format($netV, 2, '.', '');   // $netV = ยอดหลังส่วนลดเดิม (แก้ไขบิล)
+          /* แก้ไขบิลที่ทอนเป็นโอนไปแล้ว → เงินสดที่รับจริง (ล็อกไว้ไม่ให้สคริปต์ตั้งกลับเป็นยอดบิล · แก้ได้) */
+          $recFix = ($redo !== null && $redo['method'] === 'cash' && $chgTr && $redo['cash_in'] > 0);
+          if ($recFix) {
+              $totIn = (abs($redo['cash_in'] - round($redo['cash_in'])) < 0.005) ? (string) (int) round($redo['cash_in']) : number_format($redo['cash_in'], 2, '.', '');
+          } ?>
           <div id="cash-box">
-            <span class="lbl lbl-mt">รับเงินมา</span>
+            <span class="lbl lbl-mt"><span class="m-cash">รับเงินมา</span><span class="m-mix">รับเงินสด</span></span>
             <div class="cash-in">
               <input class="input num" type="text" inputmode="decimal" id="received" name="received"
-                     value="<?php echo e($totIn) ?>" autocomplete="off" aria-label="จำนวนเงินที่รับมา">
+                     value="<?php echo e($totIn) ?>"<?php echo $recFix ? ' data-touched="1"' : '' ?> autocomplete="off" aria-label="จำนวนเงินที่รับมา">
               <span class="unit">บาท</span>
             </div>
-            <div class="amt-quick" id="recv-quick">
+            <div class="amt-quick m-cash" id="recv-quick">
               <button type="button" data-set="<?php echo e($totIn) ?>">พอดี</button>
               <?php
               $seen = array(round($netV, 2));
@@ -316,9 +328,17 @@ if ($LIVE_PART === 'more') {
               }
               ?>
             </div>
-            <div class="kv1 kv-chg"><span>เงินทอน</span><b class="num" id="change">0.00</b></div>
-            <?php /* รับมาน้อยกว่ายอด = ปุ่มรับเงินกดไม่ได้ (bill_save ตรวจซ้ำ · 21 ต.ค.) */ ?>
+            <div class="kv1 kv-chg m-cash"><span>เงินทอน</span><b class="num" id="change">0.00</b></div>
+            <?php /* ทอนเป็นโอนได้ (ไม่มีเงินทอน / ลูกค้าไม่รับเงินสด · 23 พ.ย.) — ขึ้นเมื่อมีเงินทอน */ ?>
+            <div class="chg-to m-cash" id="chg-to" role="radiogroup" aria-label="ทอนเป็น" hidden>
+              <span>ทอนเป็น</span>
+              <label<?php echo $chgTr ? '' : ' class="on"' ?>><input type="radio" name="change_to" value="cash"<?php echo $chgTr ? '' : ' checked' ?>> เงินสด</label>
+              <label<?php echo $chgTr ? ' class="on"' : '' ?>><input type="radio" name="change_to" value="transfer"<?php echo $chgTr ? ' checked' : '' ?>> โอน</label>
+            </div>
+            <div class="kv1 kv-chg m-mix" id="mix-rest"><span>ที่เหลือโอน</span><b class="num" id="rest">—</b></div>
+            <?php /* รับมาน้อยกว่ายอด / เงินสดของสด + โอนนอกช่วง = ปุ่มรับเงินกดไม่ได้ (bill_save ตรวจซ้ำ) */ ?>
             <p class="pay-err" id="recv-err" role="alert" hidden>รับเงินมาน้อยกว่ายอดที่ต้องชำระ — กรอกเงินที่รับมาให้ครบ</p>
+            <p class="pay-err" id="mix-err" role="alert" hidden>เงินสดในบิลสด + โอนต้องมากกว่า 0 และน้อยกว่ายอดที่ต้องชำระ (<span id="mix-tot"></span> บาท)</p>
           </div>
 
           <?php /* รับเงินไม่ผ่าน — ข้อความอยู่ข้างปุ่มด้วย (แถบบนสุดอยู่นอกจอบน iPad / มือถือ · 21 ต.ค.) */ ?>
@@ -374,6 +394,10 @@ if ($LIVE_PART === 'more') {
     var disc = document.getElementById('disc');
     var nerr = document.getElementById('net-err');
     var rerr = document.getElementById('recv-err');
+    var merr = document.getElementById('mix-err');
+    var rest = document.getElementById('rest');
+    var chto = document.getElementById('chg-to');
+    var mode = function () { var m = document.querySelector('#pay-how input[name="method"]:checked'); return m ? m.value : 'cash'; };
     var netOk = true;
     var fmt2 = function (n) { return n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
     /* ค่าในช่องรับเงิน: ลงตัว = บาทเต็ม · มีสตางค์ = 2 ตำแหน่ง (แบบเดียวกับ $totIn ฝั่ง PHP) */
@@ -393,7 +417,7 @@ if ($LIVE_PART === 'more') {
       disc.textContent = '−' + fmt2(d);
       totEl.setAttribute('data-v', String(tot));
       totEl.textContent = fmt2(tot);
-      if (rec && !rec.getAttribute('data-touched')) { rec.value = plain(tot); }
+      if (rec && !rec.getAttribute('data-touched') && mode() === 'cash') { rec.value = plain(tot); }   // สด + โอน = เงินสดกรอกเอง
       var q0 = document.querySelector('#recv-quick button');
       if (q0) { q0.setAttribute('data-set', plain(tot)); }
       paint();
@@ -421,25 +445,30 @@ if ($LIVE_PART === 'more') {
       tot = sum;
       totEl.setAttribute('data-v', String(sum));
       totEl.textContent = fmt2(sum);
-      if (rec && !rec.getAttribute('data-touched')) { rec.value = plain(sum); }
+      if (rec && !rec.getAttribute('data-touched') && mode() === 'cash') { rec.value = plain(sum); }
       var q0 = document.querySelector('#recv-quick button');
       if (q0) { q0.setAttribute('data-set', plain(sum)); }
       paint();
     };
 
-    /* เงินทอน + ปุ่มรับเงิน: ยอดชำระผิด หรือเงินสดที่รับมาน้อยกว่ายอด (ช่องว่าง = รับพอดี) = กดไม่ได้ (21 ต.ค.) */
+    /* เงินทอน / ที่เหลือโอน + ปุ่มรับเงิน: ยอดชำระผิด · เงินสดน้อยกว่ายอด (ช่องว่าง = รับพอดี) · เงินสดของสด + โอนไม่อยู่ระหว่าง 0 กับยอด = กดไม่ได้ */
     function paint() {
+      var m   = mode();
       var raw = rec ? String(rec.value).replace(/[^0-9.]/g, '') : '';
       var d   = Math.round(((Number(raw) || 0) - tot) * 100) / 100;
       if (chg) {
         chg.textContent = (d < 0 ? '-' : '') + Math.abs(d).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
         chg.className = 'num' + (d < 0 ? ' neg' : '');
       }
-      var cashIn = document.querySelector('#pay-how input[value="cash"]');
-      var short  = !!rec && raw !== '' && d < 0 && (!cashIn || cashIn.checked);
+      var short = !!rec && m === 'cash' && raw !== '' && d < 0;
+      var v     = Number(raw) || 0;
+      var mixBad = m === 'mixed' && !(v > 0 && v < tot);
       if (rerr) { rerr.hidden = !short; }
+      if (merr) { merr.hidden = !mixBad; document.getElementById('mix-tot').textContent = fmt2(tot); }
+      if (rest) { rest.textContent = mixBad ? '—' : fmt2(Math.round((tot - v) * 100) / 100); }
+      if (chto) { chto.hidden = !(m === 'cash' && d >= 0.01); }
       var fm  = totEl.closest('form'), pay = fm ? fm.querySelector('.btn-pay') : null;   // ปุ่มของตะกร้า (กล่องยืนยันก็มี .btn-pay)
-      if (pay) { pay.disabled = !netOk || short; }
+      if (pay) { pay.disabled = !netOk || short || mixBad; }
     }
     if (rec) { rec.addEventListener('input', paint); }
     /* แก้ไขบิลที่มีส่วนลด: ยอดชำระเริ่มที่ราคาเต็ม − ส่วนลดเดิม → คิดส่วนลด / เงินทอนตามนั้นตั้งแต่แรก */
@@ -475,18 +504,30 @@ if ($LIVE_PART === 'more') {
     var box = document.getElementById('cash-box');
     if (how && box) {
       var labels = how.querySelectorAll('label');
-      var sync = function () {
-        var cash = how.querySelector('input[value="cash"]').checked;
+      var sync = function (ev) {
+        var m = mode();
         for (var k = 0; k < labels.length; k++) {
           labels[k].className = (labels[k].querySelector('input').checked) ? 'on' : '';
         }
-        box.style.display = cash ? '' : 'none';
-        paint();                                       // โอน = ไม่เช็กเงินที่รับมา
+        box.style.display = (m === 'transfer') ? 'none' : '';   // โอน = ไม่ใช้ช่องเงินสด
+        box.classList.toggle('is-mix', m === 'mixed');
+        /* สลับวิธีเอง (ยังไม่ได้พิมพ์) — สด + โอน ให้กรอกเงินสดเอง · เงินสด = รับพอดี */
+        if (rec && !rec.getAttribute('data-touched') && (ev || m === 'mixed')) { rec.value = (m === 'mixed') ? '' : plain(tot); }
+        paint();
       };
       for (var j = 0; j < labels.length; j++) {
         labels[j].querySelector('input').addEventListener('change', sync);
       }
       sync();
+    }
+    /* ทอนเป็น เงินสด / โอน */
+    if (chto) {
+      var cl = chto.querySelectorAll('label');
+      for (var c2 = 0; c2 < cl.length; c2++) {
+        cl[c2].querySelector('input').addEventListener('change', function () {
+          for (var c3 = 0; c3 < cl.length; c3++) { cl[c3].className = cl[c3].querySelector('input').checked ? 'on' : ''; }
+        });
+      }
     }
   })();
   </script>
