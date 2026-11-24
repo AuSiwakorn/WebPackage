@@ -45,14 +45,24 @@ require_once dirname(__FILE__) . '/../include/function.php';
 $LIVE_PART = (isset($LIVE_PART) && in_array($LIVE_PART, array('cart', 'more'), true)) ? $LIVE_PART : 'all';
 list($from, $end) = Stock_getListRange();     // การ์ดครั้งละ 60 ใบ + ปุ่ม “แสดงเพิ่ม” (ช่วง 4)
 /* ฐานข้อมูลกรอง นับ และส่งมาเฉพาะการ์ดที่จะวาดรอบนี้ (ช่วง 5) — $list = การ์ดที่จะวาด · $total = จำนวนที่ตรงทั้งหมด */
+$showOut = !empty($showOut);                 // ค่าเริ่มต้นเฉพาะสินค้าที่มีของ · ติ๊ก “แสดงสินค้าที่หมดแล้ว” = out=1 (24 พ.ย.)
 $found = ($LIVE_PART === 'cart') ? array('rows' => array(), 'total' => 0)
-       : Stock_searchPickProducts($code, $q, $cat, ($LIVE_PART === 'more') ? $from : 0, ($LIVE_PART === 'more') ? $end - $from : $end);
+       : Stock_searchPickProducts($code, $q, $cat, ($LIVE_PART === 'more') ? $from : 0, ($LIVE_PART === 'more') ? $end - $from : $end, null, null, !$showOut);
 $list  = $found['rows'];
 $total = $found['total'];
+$nOut  = 0;                                  // จำนวนที่หมด (ตามคำค้น / หมวด) — บอกข้างช่องติ๊ก
+if ($LIVE_PART === 'all') {
+    $nOut = $showOut ? $total - Stock_searchPickProducts($code, $q, $cat, 0, 0, null, null, true)['total']
+                     : Stock_searchPickProducts($code, $q, $cat, 0, 0)['total'] - $total;
+    $nOut = max(0, $nOut);
+}
 $cart = cart_lines();
 $tot  = cart_total();
 $sum  = sale_summary($code);
-$qs   = ($q !== '' ? 'q=' . rawurlencode($q) : '') . ($cat !== '' ? ($q !== '' ? '&' : '') . 'cat=' . rawurlencode($cat) : '');
+$qsOf = function ($q, $cat, $out) {          // q / cat / out=1 → query string (ลิงก์หมวด / แสดงเพิ่ม / ฟอร์มการ์ดจำค่าติ๊กไว้)
+    return http_build_query(array_filter(array('q' => $q, 'cat' => $cat, 'out' => $out ? '1' : ''), 'strlen'), '', '&', PHP_QUERY_RFC3986);
+};
+$qs   = $qsOf($q, $cat, $showOut);
 $base = 'sale.php' . ($qs !== '' ? '?' . $qs : '');
 
 /* การ์ดสินค้าหนึ่งใบ — ใช้ทั้งตอนวาดรายการ และตอนส่งกลับใบเดียวแบบ hx-swap-oob */
@@ -159,19 +169,28 @@ if ($LIVE_PART === 'more') {
       </div>
       <?php if ($cat !== '') { ?><input type="hidden" name="cat" value="<?php echo e($cat) ?>"><?php } ?>
       <button class="btn" type="submit">ค้นหา</button>
+      <?php /* ค่าเริ่มต้นซ่อนสินค้าที่หมด · ติ๊กแล้วส่งทั้งฟอร์ม (q + cat + out) */ ?>
+      <label class="check sale-out"><input type="checkbox" name="out" value="1"<?php echo $showOut ? ' checked' : '' ?>
+             hx-get="sale.php" hx-trigger="change" hx-include="closest form" hx-target="#sale-live" hx-swap="outerHTML" hx-push-url="true">
+        แสดงสินค้าที่หมดแล้ว <small>(<?php echo number_format($nOut) ?>)</small></label>
     </form>
 
     <div class="cats" hx-target="#sale-live" hx-swap="outerHTML" hx-push-url="true">
-      <a class="cat<?php echo $cat === '' ? ' on' : '' ?>"
-         href="sale.php<?php echo $q !== '' ? '?q=' . rawurlencode($q) : '' ?>"
-         hx-get="sale.php<?php echo $q !== '' ? '?q=' . rawurlencode($q) : '' ?>">ทั้งหมด</a>
+      <?php $u = 'sale.php' . ($qsOf($q, '', $showOut) !== '' ? '?' . $qsOf($q, '', $showOut) : ''); ?>
+      <a class="cat<?php echo $cat === '' ? ' on' : '' ?>" href="<?php echo e($u) ?>" hx-get="<?php echo e($u) ?>">ทั้งหมด</a>
       <?php foreach (product_cats() as $c) { ?>
-        <?php $u = 'sale.php?cat=' . rawurlencode($c) . ($q !== '' ? '&q=' . rawurlencode($q) : ''); ?>
+        <?php $u = 'sale.php?' . $qsOf($q, $c, $showOut); ?>
         <a class="cat<?php echo $cat === $c ? ' on' : '' ?>" href="<?php echo e($u) ?>" hx-get="<?php echo e($u) ?>"><?php echo e($c) ?></a>
       <?php } ?>
     </div>
 
-    <?php if (!$list) { ?>
+    <?php if (!$list && !$showOut && $nOut > 0) { $u = 'sale.php?' . $qsOf($q, $cat, true); /* เจอแต่ของหมด — บอกว่าหมด ไม่ใช่ “ไม่พบ” */ ?>
+      <p class="empty">
+        <svg class="ico"><use href="#i-search"/></svg>
+        <?php echo $q !== '' ? 'สินค้าที่ค้นหาหมดแล้ว' : ($cat !== '' ? 'สินค้าในหมวดนี้หมดแล้ว' : 'สินค้าหมดแล้ว') ?> <?php echo number_format($nOut) ?> รายการ<br>
+        <small><a href="<?php echo e($u) ?>" hx-get="<?php echo e($u) ?>" hx-target="#sale-live" hx-swap="outerHTML" hx-push-url="true">แสดงสินค้าที่หมดแล้ว</a></small>
+      </p>
+    <?php } elseif (!$list) { ?>
       <p class="empty">
         <svg class="ico"><use href="#i-search"/></svg>
         ไม่พบสินค้าที่ตรงกับคำค้น<br><small>ลองพิมพ์ชื่อสั้นลง หรือเลือกหมวด “ทั้งหมด”</small>
@@ -245,7 +264,7 @@ if ($LIVE_PART === 'more') {
                 · ใช้<?php echo $redoOff > 0 ? 'ส่วนลดเดิม ' . money2($redoOff) . ' บาท · ' : '' ?>ประเภทบิลและวิธีจ่ายเดิมให้แล้ว
               <?php } ?>
               <?php if ($redo['method'] === 'cash' && $redo['change_tr'] > 0) { ?>
-                · บิลเดิมรับเงินสด <?php echo money2($redo['cash_in']) ?> · ทอนเป็นโอนไปแล้ว <?php echo money2($redo['change_tr']) ?>
+                · บิลเดิมรับเงินสด <?php echo money2($redo['cash_in']) ?> · ทอนเป็นโอนไปแล้ว <?php echo money2($redo['change_tr']) ?> · บิลใหม่ทอนเป็นโอนเหมือนเดิม
               <?php } ?>
             </span>
           </p>
@@ -328,13 +347,8 @@ if ($LIVE_PART === 'more') {
               }
               ?>
             </div>
-            <div class="kv1 kv-chg m-cash"><span>เงินทอน</span><b class="num" id="change">0.00</b></div>
-            <?php /* ทอนเป็นโอนได้ (ไม่มีเงินทอน / ลูกค้าไม่รับเงินสด · 23 พ.ย.) — ขึ้นเมื่อมีเงินทอน */ ?>
-            <div class="chg-to m-cash" id="chg-to" role="radiogroup" aria-label="ทอนเป็น" hidden>
-              <span>ทอนเป็น</span>
-              <label<?php echo $chgTr ? '' : ' class="on"' ?>><input type="radio" name="change_to" value="cash"<?php echo $chgTr ? '' : ' checked' ?>> เงินสด</label>
-              <label<?php echo $chgTr ? ' class="on"' : '' ?>><input type="radio" name="change_to" value="transfer"<?php echo $chgTr ? ' checked' : '' ?>> โอน</label>
-            </div>
+            <?php /* ทอนเงินสดเสมอ (เอาปุ่มทอนเป็นโอนออก 24 พ.ย.) · แก้ไขบิลเก่าที่ทอนเป็นโอน = ทอนเป็นโอนตามเดิม (sale.php) */ ?>
+            <div class="kv1 kv-chg m-cash"><span><?php echo $chgTr ? 'ทอนเป็นโอน' : 'เงินทอน' ?></span><b class="num" id="change"<?php echo $chgTr ? ' data-tr="1"' : '' ?>>0.00</b></div>
             <div class="kv1 kv-chg m-mix" id="mix-rest"><span>ที่เหลือโอน</span><b class="num" id="rest">—</b></div>
             <?php /* รับมาน้อยกว่ายอด / เงินสดของสด + โอนนอกช่วง = ปุ่มรับเงินกดไม่ได้ (bill_save ตรวจซ้ำ) */ ?>
             <p class="pay-err" id="recv-err" role="alert" hidden>รับเงินมาน้อยกว่ายอดที่ต้องชำระ — กรอกเงินที่รับมาให้ครบ</p>
@@ -396,7 +410,6 @@ if ($LIVE_PART === 'more') {
     var rerr = document.getElementById('recv-err');
     var merr = document.getElementById('mix-err');
     var rest = document.getElementById('rest');
-    var chto = document.getElementById('chg-to');
     var mode = function () { var m = document.querySelector('#pay-how input[name="method"]:checked'); return m ? m.value : 'cash'; };
     var netOk = true;
     var fmt2 = function (n) { return n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
@@ -466,7 +479,6 @@ if ($LIVE_PART === 'more') {
       if (rerr) { rerr.hidden = !short; }
       if (merr) { merr.hidden = !mixBad; document.getElementById('mix-tot').textContent = fmt2(tot); }
       if (rest) { rest.textContent = mixBad ? '—' : fmt2(Math.round((tot - v) * 100) / 100); }
-      if (chto) { chto.hidden = !(m === 'cash' && d >= 0.01); }
       var fm  = totEl.closest('form'), pay = fm ? fm.querySelector('.btn-pay') : null;   // ปุ่มของตะกร้า (กล่องยืนยันก็มี .btn-pay)
       if (pay) { pay.disabled = !netOk || short || mixBad; }
     }
@@ -519,15 +531,6 @@ if ($LIVE_PART === 'more') {
         labels[j].querySelector('input').addEventListener('change', sync);
       }
       sync();
-    }
-    /* ทอนเป็น เงินสด / โอน */
-    if (chto) {
-      var cl = chto.querySelectorAll('label');
-      for (var c2 = 0; c2 < cl.length; c2++) {
-        cl[c2].querySelector('input').addEventListener('change', function () {
-          for (var c3 = 0; c3 < cl.length; c3++) { cl[c3].className = cl[c3].querySelector('input').checked ? 'on' : ''; }
-        });
-      }
     }
   })();
   </script>

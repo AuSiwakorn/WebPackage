@@ -557,6 +557,7 @@ function admin_page_map()
         'report-sales.php' => 'adm-report.php',
         'team.php'         => 'adm-users.php',      // หน้าผู้จัดการสาขา → ผู้ดูแลใช้หน้าจัดการพนักงาน
         'store.php'        => '',
+        'cash.php'         => '',
         'sale.php'         => '',
         'stocktake.php'    => '',
     );

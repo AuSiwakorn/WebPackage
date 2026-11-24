@@ -56,6 +56,7 @@ if (!store_is_open($code)) {
 $isHx = isset($_SERVER['HTTP_HX_REQUEST']) && $_SERVER['HTTP_HX_REQUEST'] === 'true';
 $q    = isset($_GET['q']) ? trim($_GET['q']) : '';
 $cat  = isset($_GET['cat']) ? trim($_GET['cat']) : '';
+$showOut = (isset($_GET['out']) && $_GET['out'] === '1');   // แสดงสินค้าที่หมดด้วย (ค่าเริ่มต้นเฉพาะที่มีของ · 24 พ.ย.)
 $err    = '';
 $payErr = '';                        // รับเงินไม่ผ่าน — แสดงซ้ำในตะกร้าข้างปุ่มรับเงินด้วย (แถบบนสุดอยู่นอกจอบน iPad / มือถือ · 21 ต.ค.)
 $done   = null;
@@ -127,7 +128,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         } elseif ($act === 'pay') {
             $method = (isset($_POST['method']) && in_array($_POST['method'], array('transfer', 'mixed'), true)) ? $_POST['method'] : 'cash';
-            $chgTo  = (isset($_POST['change_to']) && $_POST['change_to'] === 'transfer') ? 'transfer' : 'cash';   // ทอนเป็นโอน (23 พ.ย.)
+            $redoNow = Stock_getBillRedo();   // ทอนเงินสดเสมอ (เอาปุ่มทอนเป็นโอนออก 24 พ.ย.) · แก้ไขบิลเก่าที่ทอนเป็นโอน = ทอนเป็นโอนตามเดิม
+            $chgTo   = ($redoNow !== null && $redoNow['change_to'] === 'transfer') ? 'transfer' : 'cash';
             /* รับสตางค์ได้ — เดิมตัดทุกอย่างที่ไม่ใช่ตัวเลข พิมพ์ 100.50 แล้วกลายเป็น 10,050 (12 ต.ค.) */
             $recvIn = isset($_POST['received']) ? preg_replace('/[^0-9.]/', '', $_POST['received']) : '';
             $recv   = ($recvIn === '' || !is_numeric($recvIn)) ? null : round((float) $recvIn, 2);   // ว่าง = รับพอดี · น้อยกว่ายอด = bill_save ไม่บันทึก

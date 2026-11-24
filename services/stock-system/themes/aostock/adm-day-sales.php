@@ -72,10 +72,6 @@ $dTxt  = function ($d) {
     <?php } else { ?>
       <div><span>เงินสดในลิ้นชัก</span> ควรมี <b class="num"><?php echo e(money2($sd['expect'])) ?></b> ·
         นับได้ <b class="num"><?php echo $sd['counted'] !== null ? e(money2($sd['counted'])) : '—' ?></b><?php echo $sd['diff'] !== null ? ' · ' . $dTxt($sd['diff']) : '' ?></div>
-      <?php if ($sd['bank_expect'] !== null) { ?>
-      <div><span>บัญชีโอน</span> ควรมี <b class="num"><?php echo e(money2($sd['bank_expect'])) ?></b> ·
-        <?php if ($sd['bank_counted'] !== null) { ?>ยอดในแอป <b class="num"><?php echo e(money2($sd['bank_counted'])) ?></b> · <?php echo $dTxt($sd['bank_diff']) ?><?php } else { ?>ไม่ได้กรอกยอดในแอป<?php } ?></div>
-      <?php } ?>
       <div class="ds-money-by">ปิดเมื่อ <?php echo e($sd['closed_at']) ?> น. โดย <?php echo e($sd['closed_by']) ?><?php echo $sd['note'] !== '' ? ' · ' . e($sd['note']) : '' ?></div>
     <?php } ?>
   </div>

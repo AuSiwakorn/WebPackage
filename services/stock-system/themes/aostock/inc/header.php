@@ -81,7 +81,8 @@ if ($user['role'] === 'admin') {
         'ใช้งานประจำวัน' => array(
             array('file' => 'dashboard.php',  'label' => 'ภาพรวมของฉัน',      'icon' => 'i-home'),
             array('file' => 'store.php',      'label' => 'เปิด / ปิดร้าน',    'icon' => 'i-store'),
-            array('file' => 'sale.php',       'label' => 'ขายสินค้า',         'icon' => 'i-cart'),
+            array('file' => 'cash.php',       'label' => 'เติมเงินทอน / หยิบเงินออก', 'icon' => 'i-coin'),     // สิทธิ์ “เงินเข้า / ออกลิ้นชัก” (23 พ.ย.)
+            array('file' => 'sale.php',      'label' => 'ขายสินค้า',         'icon' => 'i-cart'),
             array('file' => 'products.php',   'label' => 'สินค้าในสต๊อก',     'icon' => 'i-boxes'),
             array('file' => 'product-add.php', 'label' => 'เพิ่มสินค้าใหม่',  'icon' => 'i-plus'),     // เฉพาะคนที่มีสิทธิ์ “เพิ่มสินค้าใหม่” (page_perm)
             array('file' => 'categories.php', 'label' => 'หมวดสินค้า',        'icon' => 'i-tag'),
@@ -142,6 +143,7 @@ $NAV_FLAG = array();
 if ($user['role'] === 'staff') {
     if (!$__open) {
         $NAV_FLAG['sale.php'] = $__shut ? 'ปิดร้านแล้ว' : (page_ok($user, 'store.php') ? 'เปิดร้านก่อน' : 'ร้านยังไม่เปิด');
+        $NAV_FLAG['cash.php'] = $NAV_FLAG['sale.php'];
     }
     if ($__state === null && can($user, 'store')) {
         $NAV_FLAG['dashboard.php'] = 'เปิดร้านก่อน';

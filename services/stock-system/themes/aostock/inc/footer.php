@@ -554,14 +554,14 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
     /* ส่วนลดที่พิมพ์ไว้ (บาท) ไม่หายเมื่อแก้จำนวน — ยอดชำระใหม่ = ราคาเต็มใหม่ − ส่วนลดเดิม (21 ต.ค. — เดิมกลับเป็นราคาเต็มเงียบ ๆ) */
     var nt = document.getElementById('net'), raw = nt ? String(nt.value).replace(/[^0-9.]/g, '') : '';
     var off = (raw !== '') ? Math.round((Number(nt.getAttribute('data-full')) - Number(raw)) * 100) / 100 : 0;
-    keep = { rec: (rec && rec.getAttribute('data-touched')) ? rec.value : null, vat: pick('vat'), method: pick('method'), change_to: pick('change_to'), off: off > 0 ? off : 0 };
+    keep = { rec: (rec && rec.getAttribute('data-touched')) ? rec.value : null, vat: pick('vat'), method: pick('method'), off: off > 0 ? off : 0 };
   });
   function restore() {
     if (!keep) { return; }
     var k = keep, c = document.getElementById('sale-cart');
     keep = null;
     if (!c) { return; }
-    ['vat', 'method', 'change_to'].forEach(function (n) {             // ทอนเป็น เงินสด / โอน ไม่หายเมื่อแก้จำนวน (24 พ.ย.)
+    ['vat', 'method'].forEach(function (n) {
       var r = k[n] !== null ? c.querySelector('input[name="' + n + '"][value="' + k[n] + '"]') : null;
       if (r && !r.checked && !r.disabled) { r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true })); }   // VAT ที่สาขายังตั้งไม่ครบ = ปิดไว้ ไม่ติ๊กคืน
     });
@@ -1020,7 +1020,6 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
       var isCash = (m === 'cash');
       var rec    = document.getElementById('received');
       var chg    = document.getElementById('change');
-      var chTr   = form.querySelector('input[name="change_to"][value="transfer"]');
       var baht   = function (n) { return n.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
       var cashV  = rec ? (Number(String(rec.value).replace(/[^0-9.]/g, '')) || 0) : 0;
       var totV   = tot ? Number(tot.getAttribute('data-v')) || 0 : 0;
@@ -1037,7 +1036,7 @@ require_once dirname(__FILE__) . '/../include/function.php'; ?>
       var vatOn = form.querySelector('input[name="vat"][value="1"]');
       h += '<div class="cf-r"><span>ประเภทบิล</span><b>' + (vatOn && vatOn.checked && !vatOn.disabled ? 'บิล VAT' : 'บิลธรรมดา (ไม่ VAT)') + '</b></div>';
       if (isCash) {
-        var toTr = chTr && chTr.checked && chg && chg.textContent !== '0.00';
+        var toTr = chg && chg.getAttribute('data-tr') === '1' && chg.textContent !== '0.00';   // แก้ไขบิลเก่าที่ทอนเป็นโอน
         h += '<div class="cf-r"><span>รับมา</span><b class="num">' + baht(cashV) + ' บาท</b></div>'
            + '<div class="cf-r cf-big"><span>' + (toTr ? 'ทอนเป็นโอน' : 'เงินทอน') + '</span><b class="num">'
            + esc(chg ? chg.textContent : '0.00') + ' บาท</b></div>';

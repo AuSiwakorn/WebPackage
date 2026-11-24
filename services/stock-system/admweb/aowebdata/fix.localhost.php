@@ -112,6 +112,7 @@ $aConfig['aConfigPages'] = [
     // พนักงาน
     'dashboard',
     'store',
+    'cash',              // 23 พ.ย.: เติมเงินทอน / หยิบเงินออก (เมนูแยกจากหน้าเปิด / ปิดร้าน)
     'sale',
     'bill-print',
     'products',

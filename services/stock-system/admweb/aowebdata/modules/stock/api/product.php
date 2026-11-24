@@ -215,8 +215,8 @@ function Stock_prefetchProducts($skus)
     }
 }
 
-/** ค้นสินค้าที่ขายอยู่แบบแบ่งหน้าใน SQL · คืน array('rows', 'total') */
-function Stock_searchPickProducts($branch, $q, $cat, $offset = 0, $limit = PRODUCT_PAGE_SIZE, $only = null, $skip = null)
+/** ค้นสินค้าที่ขายอยู่แบบแบ่งหน้าใน SQL · คืน array('rows', 'total') · $inStock = เฉพาะที่ยังมีของ (สาขานี้ / 'ALL' = สาขาที่เปิดใช้งานสาขาใดก็ได้) */
+function Stock_searchPickProducts($branch, $q, $cat, $offset = 0, $limit = PRODUCT_PAGE_SIZE, $only = null, $skip = null, $inStock = false)
 {
     $where = array('p.is_active = 1');
     $args  = array();
@@ -224,6 +224,18 @@ function Stock_searchPickProducts($branch, $q, $cat, $offset = 0, $limit = PRODU
     if ($branch !== 'ALL' && Stock_hasProductOwnerColumn()) {
         $where[] = '(p.owner_branch_id = 0 OR p.owner_branch_id = ?)';
         $args[]  = branch_id_of($branch);
+    }
+    if ($inStock) {                                    // หน้าขาย: ซ่อนสินค้าที่หมด (24 พ.ย.)
+        if ($branch === 'ALL') {
+            $ids = array(0);
+            foreach (branches_active() as $b) {
+                $ids[] = (int) $b['id'];
+            }
+            $where[] = 'EXISTS (SELECT 1 FROM ' . sdb_tb('balance') . ' x WHERE x.product_id = p.product_id AND x.qty > 0 AND x.branch_id IN (' . implode(',', $ids) . '))';
+        } else {
+            $where[] = 'EXISTS (SELECT 1 FROM ' . sdb_tb('balance') . ' x WHERE x.product_id = p.product_id AND x.qty > 0 AND x.branch_id = ?)';
+            $args[]  = branch_id_of($branch);
+        }
     }
     if ($cat !== '') {
         $where[] = 'c.name = ?';

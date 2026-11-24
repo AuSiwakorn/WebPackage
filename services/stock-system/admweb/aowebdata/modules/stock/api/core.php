@@ -88,7 +88,7 @@ function feature_pages_off()
 /** เมนูที่ทำเสร็จแล้วและเปิดให้ใช้ (ยังไม่หักกลุ่มที่ปิด — ใช้ menu_enabled) */
 function active_menus()
 {
-    return array('dashboard.php', 'store.php', 'sale.php', 'products.php', 'product-add.php', 'categories.php', 'receive.php', 'issue.php', 'stocktake.php', 'movements.php',
+    return array('dashboard.php', 'store.php', 'cash.php', 'sale.php', 'products.php', 'product-add.php', 'categories.php', 'receive.php', 'issue.php', 'stocktake.php', 'movements.php',
                  'history.php', 'return.php', 'report-sales.php', 'team.php',
                  'account.php', 'account-settings.php',
                  'adm-dashboard.php', 'adm-products.php', 'adm-product-edit.php', 'adm-categories.php', 'adm-receive.php', 'adm-issue.php', 'adm-return.php', 'adm-history.php',
@@ -261,7 +261,7 @@ function perm_from_legacy($old)
 /** สิทธิ์ที่ต้องมีเพื่อเปิดหน้านั้น — '' = ไม่ต้องมี · array = มีตัวใดตัวหนึ่งก็พอ */
 function page_perm($file)
 {
-    $map = array('sale.php' => 'sale', 'store.php' => array('store', 'store_reopen', 'cash'),
+    $map = array('sale.php' => 'sale', 'store.php' => array('store', 'store_reopen'), 'cash.php' => 'cash',   // เติม / หยิบเงินแยกหน้า (23 พ.ย.)
                  'receive.php' => 'receive', 'issue.php' => 'issue', 'stocktake.php' => 'stocktake',
                  'history.php' => Stock_getHistoryPerms(), 'return.php' => 'refund', 'categories.php' => array('category_add', 'category_del'),
                  'products.php' => 'products', 'product-add.php' => array('product_add', 'manager'), 'movements.php' => 'movements', 'report-sales.php' => 'report',

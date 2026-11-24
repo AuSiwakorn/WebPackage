@@ -64,8 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['act']) && $_POST['act
         $r   = Stock_closePastDay($rb, $day, $user,
                                   isset($_POST['counted']) ? preg_replace('/[^0-9.]/', '', $_POST['counted']) : 0,
                                   isset($_POST['keep']) ? preg_replace('/[^0-9.]/', '', $_POST['keep']) : 0,
-                                  isset($_POST['note']) ? $_POST['note'] : '',
-                                  isset($_POST['bank_counted']) ? preg_replace('/[^0-9.\-]/', '', $_POST['bank_counted']) : '');
+                                  isset($_POST['note']) ? $_POST['note'] : '');
         $_SESSION['flash'] = isset($r['error']) ? $r['error']
                            : 'ปิดร้าน' . branch_name($rb) . 'ของวัน' . thai_date_full(strtotime($day)) . 'ย้อนหลังแล้ว';
     }
@@ -97,21 +96,14 @@ foreach ($__codes as $c) {
         $row['diff'] = $st['last_diff'];
         $row['prev'] = true;
     }
-    /* บัญชีโอน (23 พ.ย.) — ผลของการปิดร้านล่าสุดวันนี้ · null = ยังไม่ปิด / วันนี้ไม่มีบัญชีโอน · 'none' = ปิดแล้วไม่ได้กรอกยอดในแอป */
-    $row['bank_diff'] = null;
-    if ($st !== null && $st['bank_expected'] !== null && ($st['closed_at'] !== '' || $row['prev'])) {
-        $row['bank_diff'] = ($st['bank_counted'] !== null) ? round($st['bank_counted'] - $st['bank_expected'], 2) : 'none';
-    }
     $row['unclosed'] = store_unclosed_days($c);       // วันก่อนที่ลืมปิดร้าน
     $row['late']     = array();                       // ฟอร์มปิดย้อนหลัง 5 วันล่าสุด (ช่วงที่ 17)
     foreach (array_slice($row['unclosed'], 0, 5) as $ymd) {
         $dr = store_day_row($c, date('Y-m-d', strtotime($ymd)));
         if ($dr !== null) {
             $dc = Stock_getDayCash($dr['day_id']);
-            $dbk = Stock_getDayBank($dr['day_id']);       // ห้ามใช้ชื่อ $db — ทับตัวเชื่อมฐานข้อมูลส่วนกลางของ admweb
             $row['late'][] = array('ymd' => $ymd, 'expected' => $dc['expected'],
-                                   'keep' => min((float) branch_default_float($c), max(0, $dc['expected'])),
-                                   'bank' => ($dbk !== null) ? $dbk['expected'] : null);
+                                   'keep' => min((float) branch_default_float($c), max(0, $dc['expected'])));
         }
     }
     if ($row['diff'] !== null) {
@@ -203,10 +195,6 @@ $__tones = array('ยกเลิกเอกสาร' => 'bdg-out', 'แก้
                         <label for="lk-<?php echo $lid ?>">แยกเงินทอนไว้ <small>(ยกไปวันถัดไป ถ้าวันถัดไปยังไม่ได้เปิดร้าน)</small></label>
                         <input class="input" type="number" id="lk-<?php echo $lid ?>" name="keep" min="0" step="0.01" inputmode="decimal"
                                value="<?php echo e(number_format($lt['keep'], 2, '.', '')) ?>">
-                        <?php if ($lt['bank'] !== null) { ?>
-                        <label for="lb-<?php echo $lid ?>">ยอดในแอปธนาคาร <small>(ไม่บังคับ · บัญชีโอนควรมี <?php echo e(money2($lt['bank'])) ?> บาท · เว้นว่าง = ยกยอดที่ควรมี)</small></label>
-                        <input class="input" type="number" id="lb-<?php echo $lid ?>" name="bank_counted" step="0.01" inputmode="decimal">
-                        <?php } ?>
                         <label for="ln-<?php echo $lid ?>">หมายเหตุ <i class="req">จำเป็น</i></label>
                         <input class="input" type="text" id="ln-<?php echo $lid ?>" name="note" required maxlength="255" autocomplete="off"
                                placeholder="เช่น พนักงานลืมกดปิดร้าน — นับเงินแล้วตรง">
@@ -243,11 +231,6 @@ $__tones = array('ยกเลิกเอกสาร' => 'bdg-out', 'แก้
                   <span class="bdg bdg-ok">ตรงพอดี</span>
                 <?php } else { ?>
                   <span class="bdg bdg-out"><?php echo $r['diff'] > 0 ? 'เกิน +' : 'ขาด −' ?><?php echo e(money2(abs($r['diff']))) ?></span>
-                <?php } ?>
-                <?php if ($r['bank_diff'] === 'none') { ?>
-                  <small>บัญชีโอน ไม่ได้กรอกยอดในแอป</small>
-                <?php } elseif ($r['bank_diff'] !== null) { ?>
-                  <small class="<?php echo abs($r['bank_diff']) < 0.005 ? '' : 'warn-txt' ?>">บัญชีโอน <?php echo abs($r['bank_diff']) < 0.005 ? 'ตรง' : ($r['bank_diff'] > 0 ? 'เกิน +' : 'ขาด −') . e(money2(abs($r['bank_diff']))) ?></small>
                 <?php } ?>
                 <?php if ($r['prev']) { ?><small>ผลของรอบที่ปิดไปก่อนเปิดใหม่</small><?php } ?>
                 <?php if ($r['refund'] > 0) { ?><small>คืนเงินสด <?php echo e(money2($r['refund'])) ?></small><?php } ?>

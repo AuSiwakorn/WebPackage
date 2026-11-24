@@ -299,6 +299,19 @@ function Stock_getMyBillsToday($code, $user, $from = '', $to = '', $limit = 200)
     return sale_bills_query($where, $args, 's.add_date DESC, s.sale_id DESC', (int) $limit);
 }
 
+/** บิลของวันหนึ่งที่มีเงินช่องทางนี้ (รับ หรือ ทอน) — $channel = cash | transfer · หน้าปิดร้านกดจำนวนบิล
+ *  ชุดเดียวกับ Stock_getDayChannelSums (ขายแล้ว + ยกเลิกแบบเลือกช่องทางคืน) · ขายแล้วก่อน เรียงตามเวลา · ยกเลิกอยู่ท้าย
+ *  TODO:
+ *    - [ ] ถ้าวันหนึ่งเกิน 300 ใบบ่อย ๆ เพิ่มปุ่ม "แสดงเพิ่ม" */
+function Stock_getDayBillsByChannel($dayId, $channel, $limit = 300)
+{
+    $q   = Stock_buildPaySql('s');
+    $in  = ($channel === 'transfer') ? $q['tr_in'] : $q['cash_in'];
+    $out = ($channel === 'transfer') ? $q['tr_out'] : $q['cash_out'];
+    return sale_bills_query('s.day_id = ? AND (s.status = \'paid\' OR s.void_refund_channel IS NOT NULL) AND (' . $in . ' > 0 OR ' . $out . ' > 0)',
+                            array((int) $dayId), '(s.status = \'void\'), s.add_date, s.sale_id', (int) $limit);
+}
+
 /** จำนวนบิลที่ผู้ใช้คนนี้ขายวันนี้ที่สาขานี้ — array('paid' => ที่ชำระแล้ว, 'void' => ที่ยกเลิก) · ปุ่ม “บิลของฉันวันนี้” ในหน้าขาย
  *  TODO:
  *    - [x] 21 ต.ค. (ผลทดสอบ): ปุ่มเดิมนับรวมบิลที่ยกเลิก (5 ใบ) ไม่ตรงกับยอดขายที่นับเฉพาะชำระแล้ว (3 ใบ) → แยกบอก “3 ใบ · ยกเลิก 2” */

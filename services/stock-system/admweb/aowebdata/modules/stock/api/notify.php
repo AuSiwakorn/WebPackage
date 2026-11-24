@@ -78,7 +78,7 @@ function notify_tg_events()
 {
     return array(
         'close'     => array('ปิดร้าน · สรุปยอดของสาขา', 'ยอดขาย จำนวนบิล เงินสด / โอน ทันทีที่สาขาปิดร้าน'),
-        'cash_diff' => array('เงินในลิ้นชัก / บัญชีโอนขาด / เกิน', 'ตอนปิดร้านนับเงินสด หรือยอดในแอปธนาคารไม่ตรงกับที่ควรมี'),
+        'cash_diff' => array('เงินในลิ้นชักขาด / เกิน', 'ตอนปิดร้านนับเงินได้ไม่ตรงกับที่ควรมี'),
         'void'      => array('ยกเลิกบิล / แก้เอกสาร', 'พร้อมเหตุผลและชื่อคนยกเลิก'),
         'refund'    => array('รับคืนสินค้า · คืนเงิน', 'เลขที่บิลเดิม ยอดเงินคืน และเหตุผล'),
         'reopen'    => array('เปิดร้านใหม่หลังปิด', 'เปิดร้านอีกครั้งหลังปิดไปแล้ว (ผู้ดูแล หรือพนักงานที่มีสิทธิ์)'),
@@ -246,14 +246,6 @@ function notify_tg_text($event, $d)
             if (isset($d['counted']) && $d['counted'] !== null) {
                 $t .= "\n⚠️ นับเงินทอนยกมาได้ " . $m('counted') . ' (ยกมา ' . $m('carry') . ')' . ($e('reason') !== '' ? ' — <i>' . $e('reason') . '</i>' : '');
             }
-            if (isset($d['bank_carry']) && $d['bank_carry'] !== null) {           // วันที่มีบัญชีโอน
-                $bo = isset($d['bank_open_counted']) ? $d['bank_open_counted'] : null;
-                $t .= "\n🏦 บัญชีโอนเริ่มวัน <b>" . money2($bo !== null ? $bo : $d['bank_carry']) . ' บาท</b>';
-                if ($bo !== null) {
-                    $t .= "\n⚠️ ยอดบัญชีโอนยกมา " . $m('bank_carry') . ' · ยอดในแอป ' . money2($bo)
-                        . ($e('bank_open_reason') !== '' ? ' — <i>' . $e('bank_open_reason') . '</i>' : '');
-                }
-            }
             if (!empty($d['unclosed'])) {
                 $t .= "\n⚠️ " . $e('unclosed') . ' ยังไม่ได้ปิดร้าน';
             }
@@ -282,28 +274,17 @@ function notify_tg_text($event, $d)
             }
             $t .= "\n🧾 ลิ้นชัก ควรมี " . $m('expect') . ' · นับได้ ' . $m('counted')
                 . (abs($diff) < 0.005 ? ' ✅ ตรง' : "\n⚠️ เงิน" . ($diff < 0 ? 'ขาด ' : 'เกิน ') . money2(abs($diff)) . ' บาท')
-                . Stock_formatNotifyBankLine($d, true)
                 . "\n💼 นำส่ง " . $m('handover') . ' · เก็บเป็นเงินทอน ' . $m('keep');
             if ($late && $e('note') !== '') {
                 $t .= "\n📝 <i>" . $e('note') . '</i>';
             }
             return $t;
         case 'cash_diff':
-            /* เงินสด และ / หรือ บัญชีโอนไม่ตรง — บอกเฉพาะฝั่งที่ไม่ตรง */
-            $diff  = isset($d['diff']) ? (float) $d['diff'] : 0;
-            $bdiff = isset($d['bank_diff']) ? (float) $d['bank_diff'] : 0;
-            $head  = array();
-            if (abs($diff) >= 0.005) {
-                $head[] = 'เงิน' . ($diff < 0 ? 'ขาด ' : 'เกิน ') . money2(abs($diff)) . ' บาท';
-            }
-            if (abs($bdiff) >= 0.005) {
-                $head[] = 'บัญชีโอน' . ($bdiff < 0 ? 'ขาด ' : 'เกิน ') . money2(abs($bdiff)) . ' บาท';
-            }
-            return "⚠️ <b>" . implode(' · ', $head) . " · " . $e('branch')
+            $diff = isset($d['diff']) ? (float) $d['diff'] : 0;
+            return "⚠️ <b>เงิน" . ($diff < 0 ? 'ขาด ' : 'เกิน ') . money2(abs($diff)) . " บาท · " . $e('branch')
                  . (!empty($d['late']) ? ' (ปิดร้านย้อนหลัง)' : '') . "</b>\n📅 " . $e('day')
                  . ' · ปิดโดย ' . $e('by') . ' ' . $e('time') . ' น.'
-                 . (abs($diff) >= 0.005 ? "\nควรมีในลิ้นชัก " . $m('expect') . ' · นับได้ ' . $m('counted') : '')
-                 . (abs($bdiff) >= 0.005 ? Stock_formatNotifyBankLine($d, false) : '')
+                 . "\nควรมีในลิ้นชัก " . $m('expect') . ' · นับได้ ' . $m('counted')
                  . ($e('note') !== '' ? "\nหมายเหตุ: <i>" . $e('note') . '</i>' : '');
         case 'void':
             return "🚫 <b>" . (!empty($d['edit']) ? 'ยกเลิกเพื่อแก้ไข' : 'ยกเลิก') . $e('label') . ' ' . $e('no') . "</b>\n"
@@ -330,23 +311,6 @@ function notify_tg_text($event, $d)
                  . date('d/m/') . (date('Y') + 543) . ' ' . date('H:i') . ' น.';
     }
     return '';
-}
-
-/** บรรทัดบัญชีโอนของข้อความปิดร้าน / ขาดเกิน — '' เมื่อวันนั้นไม่มีบัญชีโอน · $mark = ต่อท้าย ✅ ตรง / ⚠️ ขาด–เกิน
- *  TODO:
- *    - [x] 23 พ.ย. (งานเงินโอน ช่วง 8): Telegram ปิดร้าน / ขาด–เกิน ใช้ร่วมกัน */
-function Stock_formatNotifyBankLine($d, $mark)
-{
-    if (!isset($d['bank_expect']) || $d['bank_expect'] === null) {
-        return '';
-    }
-    $t = "\n🏦 บัญชีโอน ควรมี " . money2($d['bank_expect']) . ' · '
-       . ((isset($d['bank_counted']) && $d['bank_counted'] !== null) ? 'ยอดในแอป ' . money2($d['bank_counted']) : 'ไม่ได้กรอกยอดในแอป');
-    if ($mark && isset($d['bank_diff']) && $d['bank_diff'] !== null) {
-        $b  = (float) $d['bank_diff'];
-        $t .= (abs($b) < 0.005) ? ' ✅ ตรง' : "\n⚠️ บัญชีโอน" . ($b < 0 ? 'ขาด ' : 'เกิน ') . money2(abs($b)) . ' บาท';
-    }
-    return $t;
 }
 
 /** ข้อมูลพื้นฐานของข้อความ: สาขา วันที่ เวลา ผู้ทำ */
@@ -388,8 +352,6 @@ function notify_d_store($code, $ts)
         'total' => $s['total'], 'bills' => $s['bills'] - $s['void'], 'void' => $s['void'], 'cash' => $s['cash'],
         'transfer' => $s['transfer'], 'refund' => $s['refund'], 'expect' => $sd['expect'], 'counted' => $sd['counted'],
         'diff' => $sd['diff'], 'keep' => $sd['keep'], 'handover' => $sd['handover'], 'note' => $sd['note'],
-        'bank_expect' => $sd['bank_expect'], 'bank_counted' => $sd['bank_counted'], 'bank_diff' => $sd['bank_diff'],
-        'bank_carry' => $sd['bank_carry'], 'bank_open_counted' => $sd['bank_open_counted'], 'bank_open_reason' => $sd['bank_open_reason'],
     ));
 }
 
@@ -493,7 +455,6 @@ function notify_on_open($code)
             $d = array_merge(notify_d_base($code, $st['opened_by']), array(
                 'time' => $st['opened_at'], 'float' => $st['float'], 'carry' => $st['carry'], 'counted' => $st['counted'],
                 'reason' => $st['reason'], 'unclosed' => $un ? 'วัน' . thai_date_full(strtotime($un[0])) : '',
-                'bank_carry' => $st['bank_carried'], 'bank_open_counted' => $st['bank_open_counted'], 'bank_open_reason' => $st['bank_open_reason'],
             ));
             notify_event('open', $code, notify_tg_text('open', $d));
         }
@@ -522,7 +483,7 @@ function notify_on_close($code, $ts = null)
     }
     $d['late'] = $late;
     notify_event('close', $code, notify_tg_text('close', $d));
-    if (($d['diff'] !== null && abs($d['diff']) >= 0.01) || ($d['bank_diff'] !== null && abs($d['bank_diff']) >= 0.01)) {   // เงินสด / บัญชีโอนไม่ตรง
+    if ($d['diff'] !== null && abs($d['diff']) >= 0.01) {
         notify_event('cash_diff', $code, notify_tg_text('cash_diff', $d));
     }
 }
@@ -614,7 +575,7 @@ function notify_tg_sample($event, $code = '')
         case 'open':
         case 'close':
         case 'cash_diff':
-            $where = ($event === 'open') ? '' : ' AND d.status = \'closed\'' . ($event === 'cash_diff' ? ' AND (d.counted_cash <> d.expected_cash OR d.bank_counted <> d.bank_expected)' : '');
+            $where = ($event === 'open') ? '' : ' AND d.status = \'closed\'' . ($event === 'cash_diff' ? ' AND d.counted_cash <> d.expected_cash' : '');
             $day = sdb_val('SELECT MAX(d.store_date) FROM ' . sdb_tb('store_day') . ' d WHERE d.branch_id = ?' . $where, array($bid));
             $d   = ($day !== null) ? notify_d_store($code, strtotime($day)) : null;
             if ($d === null) {

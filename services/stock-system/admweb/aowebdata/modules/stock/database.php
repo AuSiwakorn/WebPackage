@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_branch` (
 /* daily_goal / count_open_limit เลิกใช้แล้ว — คอลัมน์ในฐานข้อมูลเดิมปล่อยไว้ได้ */
 /* เพิ่มทีหลัง — Reinstall เพื่อเพิ่มคอลัมน์ · สาขาเดิมได้ 0 (ไม่ขาย VAT) ผู้ดูแลเปิดเองที่หน้าจัดการสาขา (21 ต.ค.) */
 $sqlAlter[_DBPREFIX_ . 'stock_branch']['sell_vat'] = "ALTER TABLE `" . _DBPREFIX_ . "stock_branch` ADD COLUMN `sell_vat` tinyint(1) NOT NULL DEFAULT 0 COMMENT '1 = สาขานี้ขายแบบ VAT ได้ (ผู้ดูแลตั้ง) · 0 = ออกบิลไม่ VAT อย่างเดียว' AFTER `phone`";
-/* บัญชีโอนของสาขา (งานเงินโอน 23 พ.ย.) */
+/* บัญชีโอนของสาขา (งานเงินโอน 23 พ.ย.) — เลิกใช้แล้ว 23 พ.ย. (ลบโค้ด · เก็บคอลัมน์ไว้ ไม่ลบข้อมูลเดิม) */
 $sqlAlter[_DBPREFIX_ . 'stock_branch']['bank_start'] = "ALTER TABLE `" . _DBPREFIX_ . "stock_branch` ADD COLUMN `bank_start` decimal(12,2) NOT NULL DEFAULT 0 COMMENT 'ยอดในบัญชีโอนของสาขาตอนเริ่มใช้ (ผู้ดูแลกรอก · ใช้จนปิดร้านพร้อมยอดบัญชีครั้งแรก)' AFTER `default_float`";
 
 /* 2) ผู้ใช้ระบบ (พนักงาน PIN · ผู้ดูแล / บัญชี รหัสผ่าน) */
@@ -382,7 +382,7 @@ CREATE TABLE IF NOT EXISTS `" . _DBPREFIX_ . "stock_store_day` (
 ";
 /* เพิ่มทีหลัง — Reinstall เพื่อเพิ่มคอลัมน์ */
 $sqlAlter[_DBPREFIX_ . 'stock_store_day']['reopen_count'] = "ALTER TABLE `" . _DBPREFIX_ . "stock_store_day` ADD COLUMN `reopen_count` tinyint UNSIGNED NOT NULL DEFAULT 0 COMMENT 'ผู้ดูแลเปิดร้านใหม่หลังปิดกี่ครั้ง' AFTER `status`";
-/* บัญชีโอนของสาขา (งานเงินโอน 23 พ.ย.) — วันเก่าเป็น NULL = ไม่มีส่วนบัญชีโอน */
+/* บัญชีโอนของสาขา (งานเงินโอน 23 พ.ย.) — เลิกใช้แล้ว 23 พ.ย. (ลบโค้ด · เก็บคอลัมน์ไว้ ไม่ลบข้อมูลเดิม) */
 $sqlAlter[_DBPREFIX_ . 'stock_store_day']['bank_carried'] = "ALTER TABLE `" . _DBPREFIX_ . "stock_store_day` ADD COLUMN `bank_carried` decimal(12,2) NULL COMMENT 'ยอดบัญชีโอนยกมา (NULL = วันที่เปิดก่อนใช้บัญชีโอน)' AFTER `open_cash`";
 $sqlAlter[_DBPREFIX_ . 'stock_store_day']['bank_open_counted'] = "ALTER TABLE `" . _DBPREFIX_ . "stock_store_day` ADD COLUMN `bank_open_counted` decimal(12,2) NULL COMMENT 'ยอดในแอปตอนเปิดร้านเมื่อไม่ตรงกับยกมา (NULL = ตรง)' AFTER `bank_carried`";
 $sqlAlter[_DBPREFIX_ . 'stock_store_day']['bank_open_reason'] = "ALTER TABLE `" . _DBPREFIX_ . "stock_store_day` ADD COLUMN `bank_open_reason` varchar(255) NOT NULL DEFAULT '' COMMENT 'เหตุผลที่ยอดบัญชียกมาไม่ตรง' AFTER `bank_open_counted`";

@@ -240,7 +240,6 @@ function branch_setting_rules()
         'count_day'        => array(0, 28),          // 0 = ไม่ใช้รอบตรวจนับ
         'backdate_days'    => array(0, 60),
         'default_float'    => array(0, 100000),
-        'bank_start'       => array(0, 10000000),     // ยอดบัญชีโอนตอนเริ่มใช้ (ทศนิยมได้ · ตั้งผ่าน Stock_setBankStart ไม่ใช่ branch_setting_set)
     );
 }
 
